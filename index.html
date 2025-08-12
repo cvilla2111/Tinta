@@ -22,9 +22,6 @@
         }
         #page-container {
             position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }
         #file-input {
             position: fixed;
@@ -115,15 +112,8 @@
                 annotationCanvas.style.left = '0';
                 annotationCanvas.height = viewport.height;
                 annotationCanvas.width = viewport.width;
-                annotationCanvas.style.pointerEvents = 'auto'; // Ensure canvas receives events
+                annotationCanvas.style.pointerEvents = 'auto';
                 pageContainer.appendChild(annotationCanvas);
-
-                // Center canvases
-                pdfCanvas.style.position = 'absolute';
-                pdfCanvas.style.top = '50%';
-                pdfCanvas.style.left = '50%';
-                pdfCanvas.style.transform = 'translate(-50%, -50%)';
-                annotationCanvas.style.transform = 'translate(-50%, -50%)';
 
                 // Render PDF
                 const renderContext = {
@@ -132,20 +122,27 @@
                 };
                 await page.render(renderContext).promise;
 
+                // Log canvas dimensions
+                console.log('PDF canvas:', { width: pdfCanvas.width, height: pdfCanvas.height });
+                console.log('Annotation canvas:', { width: annotationCanvas.width, height: annotationCanvas.height });
+
                 // Setup Fabric.js for annotations
                 fabricCanvas = new fabric.Canvas(annotationCanvas, {
                     isDrawingMode: true,
-                    enablePointerEvents: true
+                    enablePointerEvents: true,
+                    width: viewport.width,
+                    height: viewport.height
                 });
-                console.log('Fabric canvas initialized:', fabricCanvas);
+                console.log('Fabric canvas initialized:', { width: fabricCanvas.width, height: fabricCanvas.height });
 
                 const brush = new fabric.PencilBrush(fabricCanvas);
                 brush.color = 'blue';
-                brush.width = 10; // Base width
+                brush.width = 5; // Base width
                 brush.decimate = 0.4; // Smooth paths
                 fabricCanvas.freeDrawingBrush = brush;
 
                 let eraseMode = false;
+                let currentPressure = 0;
 
                 fabricCanvas.on('mouse:down', (opt) => {
                     const e = opt.e;
@@ -153,7 +150,9 @@
                         pointerType: e.pointerType,
                         pressure: e.pressure,
                         buttons: e.buttons,
-                        button: e.button
+                        button: e.button,
+                        x: e.offsetX,
+                        y: e.offsetY
                     });
                     if (e.pointerType === 'pen' && (e.buttons & 32 || e.buttons & 2 || e.button === 5 || e.button === 2)) {
                         eraseMode = true;
@@ -162,13 +161,15 @@
                     } else {
                         eraseMode = false;
                         brush.color = 'blue';
-                        brush.width = e.pressure ? 10 + 40 * e.pressure : 10;
+                        currentPressure = e.pressure || 0;
+                        brush.width = 5 + 15 * currentPressure; // 5-20px range
                     }
                 });
 
                 fabricCanvas.on('mouse:move', (opt) => {
                     if (!eraseMode && opt.e.pointerType === 'pen') {
-                        brush.width = opt.e.pressure ? 10 + 40 * opt.e.pressure : 10;
+                        currentPressure = opt.e.pressure || 0;
+                        brush.width = 5 + 15 * currentPressure;
                     }
                 });
 
@@ -176,6 +177,7 @@
                     const path = opt.path;
                     path.strokeLineCap = 'round';
                     path.strokeLineJoin = 'round';
+                    path.strokeWidth = 5 + 15 * currentPressure; // Lock width at creation
                     if (eraseMode) {
                         const objects = fabricCanvas.getObjects().filter(o => o !== path);
                         objects.forEach((obj) => {
@@ -186,7 +188,7 @@
                         fabricCanvas.remove(path);
                         eraseMode = false;
                         brush.color = 'blue';
-                        brush.width = 10;
+                        brush.width = 5;
                     }
                 });
             } catch (error) {
