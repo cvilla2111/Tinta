@@ -51,6 +51,8 @@
         }
         canvas {
             display: block;
+            touch-action: none; /* Prevent browser touch/stylus interference */
+            user-select: none; /* Prevent text selection */
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs" type="module"></script>
@@ -142,7 +144,7 @@
                         height: viewport.height
                     });
                     fabricCanvas.calcOffset();
-                    fabricCanvas.setViewportTransform([1, 0, 0, 1, 0, 0]); // Reset transform
+                    fabricCanvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
                     console.log('Fabric canvas initialized:', { width: fabricCanvas.width, height: fabricCanvas.height });
                 } catch (error) {
                     showError('Failed to initialize Fabric.js canvas: ' + error.message);
@@ -160,15 +162,35 @@
 
                 // Disable context menu for stylus right-click
                 annotationCanvas.addEventListener('contextmenu', (e) => {
-                    if (e.pointerType === 'pen') {
-                        e.preventDefault();
-                    }
+                    e.preventDefault(); // Disable for all to simplify
+                });
+
+                // Log stylus detection
+                annotationCanvas.addEventListener('pointerover', (e) => {
+                    console.log('Pointer over:', {
+                        pointerType: e.pointerType,
+                        pointerId: e.pointerId,
+                        pressure: e.pressure || 0.5,
+                        buttons: e.buttons,
+                        button: e.button
+                    });
+                });
+
+                annotationCanvas.addEventListener('pointerenter', (e) => {
+                    console.log('Pointer enter:', {
+                        pointerType: e.pointerType,
+                        pointerId: e.pointerId,
+                        pressure: e.pressure || 0.5,
+                        buttons: e.buttons,
+                        button: e.button
+                    });
                 });
 
                 fabricCanvas.on('pointerdown', (opt) => {
                     const e = opt.e;
-                    console.log('Pointer event:', {
+                    console.log('Pointer down:', {
                         pointerType: e.pointerType,
+                        pointerId: e.pointerId,
                         pressure: e.pressure || 0.5,
                         buttons: e.buttons,
                         button: e.button,
