@@ -24,12 +24,32 @@
         #page-container {
             position: relative;
         }
+        #file-input {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            display: none; /* Hidden after PDF loads */
+        }
+        #error-message {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: red;
+            background: white;
+            padding: 10px;
+            display: none;
+            z-index: 1000;
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs" type="module"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/521/fabric.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@arch-inc/fabricjs-psbrush@latest/dist/index.js"></script>
 </head>
 <body>
+    <input type="file" id="file-input" accept="application/pdf">
+    <div id="error-message"></div>
     <div id="viewer">
         <div id="page-container"></div>
     </div>
@@ -38,111 +58,131 @@
 
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs';
 
-        // Get PDF file from URL param ?file=yourpdf.pdf
-        const urlParams = new URLSearchParams(window.location.search);
-        const pdfUrl = urlParams.get('file') || 'https://example.com/your-pdf.pdf'; // Replace with default PDF if needed
-
         let pdfDoc = null;
         let currentPageNum = 1;
         let pageContainer = document.getElementById('page-container');
+        let fileInput = document.getElementById('file-input');
+        let errorMessage = document.getElementById('error-message');
         let fabricCanvas = null;
         let pdfCanvas = null;
         let annotationCanvas = null;
 
-        async function loadPDF() {
-            pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
-            renderPage(currentPageNum);
-
-            // Go full screen
-            document.documentElement.requestFullscreen().catch(err => console.log('Fullscreen error:', err));
+        async function loadPDF(file) {
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                fileInput.style.display = 'none'; // Hide file input
+                errorMessage.style.display = 'none'; // Hide any previous errors
+                document.documentElement.requestFullscreen().catch(err => console.log('Fullscreen error:', err));
+                renderPage(currentPageNum);
+            } catch (error) {
+                errorMessage.textContent = 'Failed to load PDF: ' + error.message;
+                errorMessage.style.display = 'block';
+                console.error('PDF load error:', error);
+            }
         }
 
         async function renderPage(pageNum) {
-            const page = await pdfDoc.getPage(pageNum);
+            try {
+                const page = await pdfDoc.getPage(pageNum);
 
-            // Calculate scale to fit screen
-            let viewport = page.getViewport({ scale: 1 });
-            const scale = Math.min(window.innerWidth / viewport.width, window.innerHeight / viewport.height);
-            viewport = page.getViewport({ scale });
+                // Calculate scale to fit screen
+                let viewport = page.getViewport({ scale: 1 });
+                const scale = Math.min(window.innerWidth / viewport.width, window.innerHeight / viewport.height);
+                viewport = page.getViewport({ scale });
 
-            // Clear previous
-            pageContainer.innerHTML = '';
+                // Clear previous
+                pageContainer.innerHTML = '';
 
-            // PDF canvas
-            pdfCanvas = document.createElement('canvas');
-            pdfCanvas.height = viewport.height;
-            pdfCanvas.width = viewport.width;
-            pageContainer.appendChild(pdfCanvas);
+                // PDF canvas
+                pdfCanvas = document.createElement('canvas');
+                pdfCanvas.height = viewport.height;
+                pdfCanvas.width = viewport.width;
+                pageContainer.appendChild(pdfCanvas);
 
-            // Annotation canvas
-            annotationCanvas = document.createElement('canvas');
-            annotationCanvas.style.position = 'absolute';
-            annotationCanvas.style.top = '0';
-            annotationCanvas.style.left = '0';
-            annotationCanvas.height = viewport.height;
-            annotationCanvas.width = viewport.width;
-            pageContainer.appendChild(annotationCanvas);
+                // Annotation canvas
+                annotationCanvas = document.createElement('canvas');
+                annotationCanvas.style.position = 'absolute';
+                annotationCanvas.style.top = '0';
+                annotationCanvas.style.left = '0';
+                annotationCanvas.height = viewport.height;
+                annotationCanvas.width = viewport.width;
+                pageContainer.appendChild(annotationCanvas);
 
-            // Render PDF
-            const renderContext = {
-                canvasContext: pdfCanvas.getContext('2d'),
-                viewport: viewport
-            };
-            await page.render(renderContext).promise;
+                // Render PDF
+                const renderContext = {
+                    canvasContext: pdfCanvas.getContext('2d'),
+                    viewport: viewport
+                };
+                await page.render(renderContext).promise;
 
-            // Setup Fabric.js for annotations
-            fabricCanvas = new fabric.Canvas(annotationCanvas, {
-                isDrawingMode: true,
-                enablePointerEvents: true
-            });
-            const brush = new fabric.PSBrush(fabricCanvas);
-            brush.width = 50; // Very big pressure sensitive
-            brush.color = 'blue';
-            fabricCanvas.freeDrawingBrush = brush;
+                // Setup Fabric.js for annotations
+                fabricCanvas = new fabric.Canvas(annotationCanvas, {
+                    isDrawingMode: true,
+                    enablePointerEvents: true
+                });
+                const brush = new fabric.PSBrush(fabricCanvas);
+                brush.width = 50; // Very big pressure sensitive
+                brush.color = 'blue';
+                fabricCanvas.freeDrawingBrush = brush;
 
-            let eraseMode = false;
+                let eraseMode = false;
 
-            fabricCanvas.on('mouse:down', (opt) => {
-                const e = opt.e;
-                // Detect eraser for Bamboo stylus (eraser or barrel button)
-                if (e.pointerType === 'pen' && (e.buttons & 32 || e.buttons & 2 || e.button === 5 || e.button === 2)) {
-                    eraseMode = true;
-                    brush.color = 'rgba(255, 0, 0, 0.5)'; // Semi-transparent red for erase path visibility
-                } else {
-                    eraseMode = false;
-                    brush.color = 'blue';
-                }
-            });
+                fabricCanvas.on('mouse:down', (opt) => {
+                    const e = opt.e;
+                    // Detect eraser for Bamboo stylus (eraser or barrel button)
+                    if (e.pointerType === 'pen' && (e.buttons & 32 || e.buttons & 2 || e.button === 5 || e.button === 2)) {
+                        eraseMode = true;
+                        brush.color = 'rgba(255, 0, 0, 0.5)'; // Semi-transparent red for erase path visibility
+                    } else {
+                        eraseMode = false;
+                        brush.color = 'blue';
+                    }
+                });
 
-            fabricCanvas.on('path:created', (opt) => {
-                const path = opt.path;
-                if (eraseMode) {
-                    const objects = fabricCanvas.getObjects().filter(o => o !== path);
-                    objects.forEach((obj) => {
-                        if (path.intersectsWithObject(obj, true, true)) {
-                            fabricCanvas.remove(obj);
-                        }
-                    });
-                    fabricCanvas.remove(path);
-                    eraseMode = false;
-                    brush.color = 'blue';
-                }
-                // Paths are rounded and smooth by default in Fabric.js with PencilBrush-like behavior
-            });
+                fabricCanvas.on('path:created', (opt) => {
+                    const path = opt.path;
+                    if (eraseMode) {
+                        const objects = fabricCanvas.getObjects().filter(o => o !== path);
+                        objects.forEach((obj) => {
+                            if (path.intersectsWithObject(obj, true, true)) {
+                                fabricCanvas.remove(obj);
+                            }
+                        });
+                        fabricCanvas.remove(path);
+                        eraseMode = false;
+                        brush.color = 'blue';
+                    }
+                    // Paths are rounded and smooth by default in Fabric.js with PencilBrush-like behavior
+                });
+            } catch (error) {
+                errorMessage.textContent = 'Failed to render page: ' + error.message;
+                errorMessage.style.display = 'block';
+                console.error('Page render error:', error);
+            }
         }
 
-        // Navigation with arrow keys (hidden controls)
+        // File input handler
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file && file.type === 'application/pdf') {
+                loadPDF(file);
+            } else {
+                errorMessage.textContent = 'Please select a valid PDF file';
+                errorMessage.style.display = 'block';
+            }
+        });
+
+        // Navigation with arrow keys
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowRight' && currentPageNum < pdfDoc.numPages) {
+            if (pdfDoc && e.key === 'ArrowRight' && currentPageNum < pdfDoc.numPages) {
                 currentPageNum++;
                 renderPage(currentPageNum);
-            } else if (e.key === 'ArrowLeft' && currentPageNum > 1) {
+            } else if (pdfDoc && e.key === 'ArrowLeft' && currentPageNum > 1) {
                 currentPageNum--;
                 renderPage(currentPageNum);
             }
         });
-
-        loadPDF();
     </script>
 </body>
 </html>
