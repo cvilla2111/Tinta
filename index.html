@@ -13,7 +13,6 @@
             width: 100%;
         }
         #viewer {
-            position: relative;
             height: 100vh;
             width: 100vw;
             display: flex;
@@ -23,6 +22,9 @@
         }
         #page-container {
             position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         #file-input {
             position: fixed;
@@ -42,6 +44,9 @@
             padding: 10px;
             z-index: 1000;
             display: none;
+        }
+        canvas {
+            display: block;
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs" type="module"></script>
@@ -110,7 +115,15 @@
                 annotationCanvas.style.left = '0';
                 annotationCanvas.height = viewport.height;
                 annotationCanvas.width = viewport.width;
+                annotationCanvas.style.pointerEvents = 'auto'; // Ensure canvas receives events
                 pageContainer.appendChild(annotationCanvas);
+
+                // Center canvases
+                pdfCanvas.style.position = 'absolute';
+                pdfCanvas.style.top = '50%';
+                pdfCanvas.style.left = '50%';
+                pdfCanvas.style.transform = 'translate(-50%, -50%)';
+                annotationCanvas.style.transform = 'translate(-50%, -50%)';
 
                 // Render PDF
                 const renderContext = {
@@ -124,6 +137,8 @@
                     isDrawingMode: true,
                     enablePointerEvents: true
                 });
+                console.log('Fabric canvas initialized:', fabricCanvas);
+
                 const brush = new fabric.PencilBrush(fabricCanvas);
                 brush.color = 'blue';
                 brush.width = 10; // Base width
@@ -134,6 +149,12 @@
 
                 fabricCanvas.on('mouse:down', (opt) => {
                     const e = opt.e;
+                    console.log('Pointer event:', {
+                        pointerType: e.pointerType,
+                        pressure: e.pressure,
+                        buttons: e.buttons,
+                        button: e.button
+                    });
                     if (e.pointerType === 'pen' && (e.buttons & 32 || e.buttons & 2 || e.button === 5 || e.button === 2)) {
                         eraseMode = true;
                         brush.color = 'rgba(255, 0, 0, 0.5)';
@@ -141,7 +162,6 @@
                     } else {
                         eraseMode = false;
                         brush.color = 'blue';
-                        // Pressure-sensitive width (0 to 1, scaled to 10-50px)
                         brush.width = e.pressure ? 10 + 40 * e.pressure : 10;
                     }
                 });
@@ -154,8 +174,8 @@
 
                 fabricCanvas.on('path:created', (opt) => {
                     const path = opt.path;
-                    path.strokeLineCap = 'round'; // Rounded ends
-                    path.strokeLineJoin = 'round'; // Smooth joins
+                    path.strokeLineCap = 'round';
+                    path.strokeLineJoin = 'round';
                     if (eraseMode) {
                         const objects = fabricCanvas.getObjects().filter(o => o !== path);
                         objects.forEach((obj) => {
