@@ -46,7 +46,6 @@
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs" type="module"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/521/fabric.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@arch-inc/fabricjs-psbrush@1.2.3/dist/index.js"></script>
 </head>
 <body>
     <input type="file" id="file-input" accept="application/pdf">
@@ -75,7 +74,7 @@
             try {
                 const arrayBuffer = await file.arrayBuffer();
                 pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-                fileInput.style.display = 'none'; // Hide file input after loading
+                fileInput.style.display = 'none';
                 errorMessage.style.display = 'none';
                 document.documentElement.requestFullscreen().catch(err => {
                     showError('Fullscreen error: ' + err.message);
@@ -125,27 +124,38 @@
                     isDrawingMode: true,
                     enablePointerEvents: true
                 });
-                const brush = new fabric.PSBrush(fabricCanvas);
-                brush.width = 50; // Large pressure-sensitive brush
+                const brush = new fabric.PencilBrush(fabricCanvas);
                 brush.color = 'blue';
+                brush.width = 10; // Base width
+                brush.decimate = 0.4; // Smooth paths
                 fabricCanvas.freeDrawingBrush = brush;
 
                 let eraseMode = false;
 
                 fabricCanvas.on('mouse:down', (opt) => {
                     const e = opt.e;
-                    // Detect Bamboo stylus eraser or barrel button
                     if (e.pointerType === 'pen' && (e.buttons & 32 || e.buttons & 2 || e.button === 5 || e.button === 2)) {
                         eraseMode = true;
-                        brush.color = 'rgba(255, 0, 0, 0.5)'; // Visual feedback for erase
+                        brush.color = 'rgba(255, 0, 0, 0.5)';
+                        brush.width = 10;
                     } else {
                         eraseMode = false;
                         brush.color = 'blue';
+                        // Pressure-sensitive width (0 to 1, scaled to 10-50px)
+                        brush.width = e.pressure ? 10 + 40 * e.pressure : 10;
+                    }
+                });
+
+                fabricCanvas.on('mouse:move', (opt) => {
+                    if (!eraseMode && opt.e.pointerType === 'pen') {
+                        brush.width = opt.e.pressure ? 10 + 40 * opt.e.pressure : 10;
                     }
                 });
 
                 fabricCanvas.on('path:created', (opt) => {
                     const path = opt.path;
+                    path.strokeLineCap = 'round'; // Rounded ends
+                    path.strokeLineJoin = 'round'; // Smooth joins
                     if (eraseMode) {
                         const objects = fabricCanvas.getObjects().filter(o => o !== path);
                         objects.forEach((obj) => {
@@ -156,6 +166,7 @@
                         fabricCanvas.remove(path);
                         eraseMode = false;
                         brush.color = 'blue';
+                        brush.width = 10;
                     }
                 });
             } catch (error) {
@@ -166,7 +177,7 @@
         function showError(message) {
             errorMessage.textContent = message;
             errorMessage.style.display = 'block';
-            fileInput.style.display = 'block'; // Show file input again on error
+            fileInput.style.display = 'block';
         }
 
         // File input handler
