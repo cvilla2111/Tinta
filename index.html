@@ -22,6 +22,9 @@
         }
         #page-container {
             position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         #file-input {
             position: fixed;
@@ -103,17 +106,26 @@
                 pdfCanvas = document.createElement('canvas');
                 pdfCanvas.height = viewport.height;
                 pdfCanvas.width = viewport.width;
+                pdfCanvas.style.position = 'absolute';
+                pdfCanvas.style.top = '50%';
+                pdfCanvas.style.left = '50%';
+                pdfCanvas.style.transform = 'translate(-50%, -50%)';
                 pageContainer.appendChild(pdfCanvas);
 
                 // Annotation canvas
                 annotationCanvas = document.createElement('canvas');
                 annotationCanvas.style.position = 'absolute';
-                annotationCanvas.style.top = '0';
-                annotationCanvas.style.left = '0';
+                annotationCanvas.style.top = '50%';
+                annotationCanvas.style.left = '50%';
+                annotationCanvas.style.transform = 'translate(-50%, -50%)';
                 annotationCanvas.height = viewport.height;
                 annotationCanvas.width = viewport.width;
                 annotationCanvas.style.pointerEvents = 'auto';
                 pageContainer.appendChild(annotationCanvas);
+
+                // Log canvas dimensions
+                console.log('PDF canvas:', { width: pdfCanvas.width, height: pdfCanvas.height });
+                console.log('Annotation canvas:', { width: annotationCanvas.width, height: annotationCanvas.height });
 
                 // Render PDF
                 const renderContext = {
@@ -121,10 +133,6 @@
                     viewport: viewport
                 };
                 await page.render(renderContext).promise;
-
-                // Log canvas dimensions
-                console.log('PDF canvas:', { width: pdfCanvas.width, height: pdfCanvas.height });
-                console.log('Annotation canvas:', { width: annotationCanvas.width, height: annotationCanvas.height });
 
                 // Setup Fabric.js for annotations
                 fabricCanvas = new fabric.Canvas(annotationCanvas, {
@@ -137,12 +145,12 @@
 
                 const brush = new fabric.PencilBrush(fabricCanvas);
                 brush.color = 'blue';
-                brush.width = 5; // Base width
-                brush.decimate = 0.4; // Smooth paths
+                brush.width = 5;
+                brush.decimate = 0.4;
                 fabricCanvas.freeDrawingBrush = brush;
 
                 let eraseMode = false;
-                let currentPressure = 0;
+                let currentWidth = 5;
 
                 fabricCanvas.on('mouse:down', (opt) => {
                     const e = opt.e;
@@ -152,24 +160,28 @@
                         buttons: e.buttons,
                         button: e.button,
                         x: e.offsetX,
-                        y: e.offsetY
+                        y: e.offsetY,
+                        canvasBounds: fabricCanvas.getBoundingClientRect()
                     });
                     if (e.pointerType === 'pen' && (e.buttons & 32 || e.buttons & 2 || e.button === 5 || e.button === 2)) {
                         eraseMode = true;
                         brush.color = 'rgba(255, 0, 0, 0.5)';
                         brush.width = 10;
+                        currentWidth = 10;
                     } else {
                         eraseMode = false;
                         brush.color = 'blue';
-                        currentPressure = e.pressure || 0;
-                        brush.width = 5 + 15 * currentPressure; // 5-20px range
+                        currentWidth = e.pressure ? 5 + 15 * e.pressure : 5;
+                        brush.width = currentWidth;
                     }
+                    fabricCanvas.requestRenderAll();
                 });
 
                 fabricCanvas.on('mouse:move', (opt) => {
                     if (!eraseMode && opt.e.pointerType === 'pen') {
-                        currentPressure = opt.e.pressure || 0;
-                        brush.width = 5 + 15 * currentPressure;
+                        currentWidth = opt.e.pressure ? 5 + 15 * opt.e.pressure : 5;
+                        brush.width = currentWidth;
+                        fabricCanvas.requestRenderAll();
                     }
                 });
 
@@ -177,7 +189,8 @@
                     const path = opt.path;
                     path.strokeLineCap = 'round';
                     path.strokeLineJoin = 'round';
-                    path.strokeWidth = 5 + 15 * currentPressure; // Lock width at creation
+                    path.strokeWidth = currentWidth;
+                    console.log('Path created:', { strokeWidth: path.strokeWidth });
                     if (eraseMode) {
                         const objects = fabricCanvas.getObjects().filter(o => o !== path);
                         objects.forEach((obj) => {
@@ -189,7 +202,9 @@
                         eraseMode = false;
                         brush.color = 'blue';
                         brush.width = 5;
+                        currentWidth = 5;
                     }
+                    fabricCanvas.requestRenderAll();
                 });
             } catch (error) {
                 showError('Failed to render page: ' + error.message);
