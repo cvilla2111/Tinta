@@ -3,286 +3,146 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Annotator</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <title>PDF Presentation Web App</title>
     <style>
-        #pdf-canvas, #annotation-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            height: 100%;
+            width: 100%;
         }
-        #annotation-canvas {
-            z-index: 10;
-        }
-        #container {
+        #viewer {
             position: relative;
-            width: fit-content;
-            height: fit-content;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+        }
+        #page-container {
+            position: relative;
         }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs" type="module"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/521/fabric.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@arch-inc/fabricjs-psbrush@latest/dist/index.js"></script>
 </head>
-<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen">
-    <div class="mb-4">
-        <input type="file" id="pdf-upload" accept="application/pdf" class="mb-2 p-2 border rounded">
-        <div class="flex space-x-2">
-            <button id="prev-page" class="bg-blue-500 text-white px-4 py-2 rounded">Previous</button>
-            <button id="next-page" class="bg-blue-500 text-white px-4 py-2 rounded">Next</button>
-            <span id="page-info" class="text-lg"></span>
-        </div>
+<body>
+    <div id="viewer">
+        <div id="page-container"></div>
     </div>
-    <div id="container">
-        <canvas id="pdf-canvas"></canvas>
-        <canvas id="annotation-canvas"></canvas>
-    </div>
+    <script type="module">
+        import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs';
 
-    <script>
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs';
+
+        // Get PDF file from URL param ?file=yourpdf.pdf
+        const urlParams = new URLSearchParams(window.location.search);
+        const pdfUrl = urlParams.get('file') || 'https://example.com/your-pdf.pdf'; // Replace with default PDF if needed
 
         let pdfDoc = null;
-        let pageNum = 1;
-        let pageRendering = false;
-        let pageNumPending = null;
-        let scale = 1.5;
-        const pixelRatio = window.devicePixelRatio || 1;
-        const pdfCanvas = document.getElementById('pdf-canvas');
-        const annotationCanvas = document.getElementById('annotation-canvas');
-        const pdfCtx = pdfCanvas.getContext('2d');
-        const ctx = annotationCanvas.getContext('2d');
-        let isDrawing = false;
-        let currentPath = [];
-        let allPaths = [];
+        let currentPageNum = 1;
+        let pageContainer = document.getElementById('page-container');
+        let fabricCanvas = null;
+        let pdfCanvas = null;
+        let annotationCanvas = null;
 
-        // Load PDF
-        document.getElementById('pdf-upload').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file && file.type === 'application/pdf') {
-                const fileReader = new FileReader();
-                fileReader.onload = function() {
-                    const typedarray = new Uint8Array(this.result);
-                    pdfjsLib.getDocument(typedarray).promise.then(function(pdf) {
-                        pdfDoc = pdf;
-                        document.getElementById('page-info').textContent = `Page 1 of ${pdfDoc.numPages}`;
-                        renderPage(1);
-                    });
-                };
-                fileReader.readAsArrayBuffer(file);
-            }
-        });
+        async function loadPDF() {
+            pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
+            renderPage(currentPageNum);
 
-        // Render PDF page
-        function renderPage(num) {
-            if (pageRendering) {
-                pageNumPending = num;
-                return;
-            }
-            pageRendering = true;
-            pdfDoc.getPage(num).then(function(page) {
-                const viewport = page.getViewport({ scale: scale });
-                const renderScale = scale * pixelRatio;
-                const pdfViewport = page.getViewport({ scale: renderScale });
-                pdfCanvas.height = pdfViewport.height;
-                pdfCanvas.width = pdfViewport.width;
-                pdfCanvas.style.height = viewport.height + 'px';
-                pdfCanvas.style.width = viewport.width + 'px';
-                pdfCtx.scale(pixelRatio, pixelRatio);
+            // Go full screen
+            document.documentElement.requestFullscreen().catch(err => console.log('Fullscreen error:', err));
+        }
 
-                annotationCanvas.height = pdfViewport.height;
-                annotationCanvas.width = pdfViewport.width;
-                annotationCanvas.style.height = viewport.height + 'px';
-                annotationCanvas.style.width = viewport.width + 'px';
-                ctx.scale(pixelRatio, pixelRatio);
+        async function renderPage(pageNum) {
+            const page = await pdfDoc.getPage(pageNum);
 
-                const renderContext = {
-                    canvasContext: pdfCtx,
-                    viewport: pdfViewport
-                };
-                page.render(renderContext).promise.then(function() {
-                    pageRendering = false;
-                    if (pageNumPending !== null) {
-                        renderPage(pageNumPending);
-                        pageNumPending = null;
-                    }
-                });
-                document.getElementById('page-info').textContent = `Page ${num} of ${pdfDoc.numPages}`;
-                redrawAnnotations();
+            // Calculate scale to fit screen
+            let viewport = page.getViewport({ scale: 1 });
+            const scale = Math.min(window.innerWidth / viewport.width, window.innerHeight / viewport.height);
+            viewport = page.getViewport({ scale });
+
+            // Clear previous
+            pageContainer.innerHTML = '';
+
+            // PDF canvas
+            pdfCanvas = document.createElement('canvas');
+            pdfCanvas.height = viewport.height;
+            pdfCanvas.width = viewport.width;
+            pageContainer.appendChild(pdfCanvas);
+
+            // Annotation canvas
+            annotationCanvas = document.createElement('canvas');
+            annotationCanvas.style.position = 'absolute';
+            annotationCanvas.style.top = '0';
+            annotationCanvas.style.left = '0';
+            annotationCanvas.height = viewport.height;
+            annotationCanvas.width = viewport.width;
+            pageContainer.appendChild(annotationCanvas);
+
+            // Render PDF
+            const renderContext = {
+                canvasContext: pdfCanvas.getContext('2d'),
+                viewport: viewport
+            };
+            await page.render(renderContext).promise;
+
+            // Setup Fabric.js for annotations
+            fabricCanvas = new fabric.Canvas(annotationCanvas, {
+                isDrawingMode: true,
+                enablePointerEvents: true
             });
-        }
+            const brush = new fabric.PSBrush(fabricCanvas);
+            brush.width = 50; // Very big pressure sensitive
+            brush.color = 'blue';
+            fabricCanvas.freeDrawingBrush = brush;
 
-        // Navigation
-        document.getElementById('prev-page').addEventListener('click', function() {
-            if (pageNum <= 1) return;
-            pageNum--;
-            clearAnnotations();
-            renderPage(pageNum);
-        });
+            let eraseMode = false;
 
-        document.getElementById('next-page').addEventListener('click', function() {
-            if (pageNum >= pdfDoc.numPages) return;
-            pageNum++;
-            clearAnnotations();
-            renderPage(pageNum);
-        });
-
-        // Annotation setup
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = 'black';
-        ctx.lineJoin = 'round'; // Smooth line connections
-
-        function getCanvasCoordinates(event) {
-            const rect = annotationCanvas.getBoundingClientRect();
-            let x = (event.clientX - rect.left) * pixelRatio;
-            let y = (event.clientY - rect.top) * pixelRatio;
-            return { x, y };
-        }
-
-        // Check if point is near a line segment
-        function isPointNearSegment(px, py, x1, y1, x2, y2, threshold = 10 * pixelRatio) {
-            const A = px - x1;
-            const B = py - y1;
-            const C = x2 - x1;
-            const D = y2 - y1;
-            const dot = A * C + B * D;
-            const len_sq = C * C + D * D;
-            let param = -1;
-            if (len_sq !== 0) param = dot / len_sq;
-            let xx, yy;
-            if (param < 0) {
-                xx = x1;
-                yy = y1;
-            } else if (param > 1) {
-                xx = x2;
-                yy = y2;
-            } else {
-                xx = x1 + param * C;
-                yy = y1 + param * D;
-            }
-            const dx = px - xx;
-            const dy = py - yy;
-            return Math.sqrt(dx * dx + dy * dy) < threshold;
-        }
-
-        // Check if click intersects any path
-        function findIntersectingPath(x, y) {
-            for (let i = 0; i < allPaths.length; i++) {
-                const path = allPaths[i];
-                for (let j = 1; j < path.length; j++) {
-                    if (isPointNearSegment(x, y, path[j-1].x, path[j-1].y, path[j].x, path[j].y)) {
-                        return i;
-                    }
-                }
-            }
-            return -1;
-        }
-
-        // Redraw all paths with pressure-sensitive line widths and smooth curves
-        function redrawAnnotations() {
-            ctx.clearRect(0, 0, annotationCanvas.width / pixelRatio, annotationCanvas.height / pixelRatio);
-            ctx.strokeStyle = 'black';
-            allPaths.forEach(path => {
-                if (path.length > 1) {
-                    ctx.beginPath();
-                    ctx.moveTo(path[0].x / pixelRatio, path[0].y / pixelRatio);
-                    for (let i = 1; i < path.length - 1; i++) {
-                        ctx.lineWidth = path[i].pressure * 11.9 + 0.1; // Scale pressure (0-1) to line width (0.1-12px)
-                        const xc = (path[i].x + path[i + 1].x) / 2 / pixelRatio;
-                        const yc = (path[i].y + path[i + 1].y) / 2 / pixelRatio;
-                        ctx.quadraticCurveTo(path[i].x / pixelRatio, path[i].y / pixelRatio, xc, yc);
-                        ctx.stroke();
-                        ctx.beginPath();
-                        ctx.moveTo(xc, yc);
-                    }
-                    // Draw last segment
-                    ctx.lineWidth = path[path.length - 1].pressure * 11.9 + 0.1;
-                    ctx.lineTo(path[path.length - 1].x / pixelRatio, path[path.length - 1].y / pixelRatio);
-                    ctx.stroke();
-                } else if (path.length === 1) {
-                    // Draw single point
-                    ctx.beginPath();
-                    ctx.arc(path[0].x / pixelRatio, path[0].y / pixelRatio, (path[0].pressure * 11.9 + 0.1) / 2, 0, 2 * Math.PI);
-                    ctx.fill();
-                }
-            });
-        }
-
-        // Smooth drawing with stylus and pressure sensitivity
-        function startDrawing(e) {
-            if (e.pointerType === 'pen') {
-                e.preventDefault(); // Prevent panning
-                const { x, y } = getCanvasCoordinates(e);
-                if (e.buttons === 2 || e.buttons === 4) { // Both stylus buttons for erasing
-                    const pathIndex = findIntersectingPath(x, y);
-                    if (pathIndex !== -1) {
-                        allPaths.splice(pathIndex, 1);
-                        redrawAnnotations();
-                    }
+            fabricCanvas.on('mouse:down', (opt) => {
+                const e = opt.e;
+                // Detect eraser for Bamboo stylus (eraser or barrel button)
+                if (e.pointerType === 'pen' && (e.buttons & 32 || e.buttons & 2 || e.button === 5 || e.button === 2)) {
+                    eraseMode = true;
+                    brush.color = 'rgba(255, 0, 0, 0.5)'; // Semi-transparent red for erase path visibility
                 } else {
-                    isDrawing = true;
-                    currentPath = [{ x, y, pressure: e.pressure || 0.5 }]; // Default pressure if not supported
-                    allPaths.push(currentPath);
+                    eraseMode = false;
+                    brush.color = 'blue';
                 }
-            }
-        }
+            });
 
-        function draw(e) {
-            if (!isDrawing || e.pointerType !== 'pen') return;
-            e.preventDefault(); // Prevent panning
-            const { x, y } = getCanvasCoordinates(e);
-            const pressure = e.pressure || 0.5; // Default pressure if not supported
-            currentPath.push({ x, y, pressure });
-
-            if (currentPath.length > 2) {
-                const lastTwo = currentPath.slice(-3);
-                ctx.lineWidth = lastTwo[1].pressure * 11.9 + 0.1; // Scale pressure (0-1) to line width (0.1-12px)
-                ctx.beginPath();
-                ctx.moveTo(lastTwo[0].x / pixelRatio, lastTwo[0].y / pixelRatio);
-                const xc = (lastTwo[1].x + lastTwo[2].x) / 2 / pixelRatio;
-                const yc = (lastTwo[1].y + lastTwo[2].y) / 2 / pixelRatio;
-                ctx.quadraticCurveTo(lastTwo[1].x / pixelRatio, lastTwo[1].y / pixelRatio, xc, yc);
-                ctx.stroke();
-            } else if (currentPath.length === 2) {
-                ctx.lineWidth = pressure * 11.9 + 0.1;
-                ctx.beginPath();
-                ctx.moveTo(currentPath[0].x / pixelRatio, currentPath[0].y / pixelRatio);
-                ctx.lineTo(x / pixelRatio, y / pixelRatio);
-                ctx.stroke();
-            }
-        }
-
-        function stopDrawing(e) {
-            if (e.pointerType === 'pen') {
-                isDrawing = false;
-                if (currentPath.length === 1) {
-                    // Draw single point
-                    ctx.beginPath();
-                    ctx.arc(currentPath[0].x / pixelRatio, currentPath[0].y / pixelRatio, (currentPath[0].pressure * 11.9 + 0.1) / 2, 0, 2 * Math.PI);
-                    ctx.fill();
+            fabricCanvas.on('path:created', (opt) => {
+                const path = opt.path;
+                if (eraseMode) {
+                    const objects = fabricCanvas.getObjects().filter(o => o !== path);
+                    objects.forEach((obj) => {
+                        if (path.intersectsWithObject(obj, true, true)) {
+                            fabricCanvas.remove(obj);
+                        }
+                    });
+                    fabricCanvas.remove(path);
+                    eraseMode = false;
+                    brush.color = 'blue';
                 }
-                currentPath = [];
-            }
+                // Paths are rounded and smooth by default in Fabric.js with PencilBrush-like behavior
+            });
         }
 
-        function clearAnnotations() {
-            allPaths = [];
-            ctx.clearRect(0, 0, annotationCanvas.width / pixelRatio, annotationCanvas.height / pixelRatio);
-        }
-
-        // Event listeners for stylus
-        annotationCanvas.addEventListener('pointerdown', startDrawing);
-        annotationCanvas.addEventListener('pointermove', draw);
-        annotationCanvas.addEventListener('pointerup', stopDrawing);
-        annotationCanvas.addEventListener('pointerleave', stopDrawing);
-
-        // Disable right-click context menu for stylus
-        annotationCanvas.addEventListener('contextmenu', (e) => {
-            if (e.pointerType === 'pen') {
-                e.preventDefault();
+        // Navigation with arrow keys (hidden controls)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' && currentPageNum < pdfDoc.numPages) {
+                currentPageNum++;
+                renderPage(currentPageNum);
+            } else if (e.key === 'ArrowLeft' && currentPageNum > 1) {
+                currentPageNum--;
+                renderPage(currentPageNum);
             }
         });
 
-        // Prevent default touch/scroll behavior
-        annotationCanvas.addEventListener('touchstart', (e) => e.preventDefault());
-        annotationCanvas.addEventListener('touchmove', (e) => e.preventDefault());
+        loadPDF();
     </script>
 </body>
 </html>
