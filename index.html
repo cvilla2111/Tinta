@@ -15,6 +15,8 @@
         #viewer {
             height: 100vh;
             width: 100vw;
+            min-height: 100vh;
+            min-width: 100vw;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -25,6 +27,8 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            min-height: 100%;
+            min-width: 100%;
         }
         #file-input {
             position: fixed;
@@ -106,18 +110,13 @@
                 pdfCanvas = document.createElement('canvas');
                 pdfCanvas.height = viewport.height;
                 pdfCanvas.width = viewport.width;
-                pdfCanvas.style.position = 'absolute';
-                pdfCanvas.style.top = '50%';
-                pdfCanvas.style.left = '50%';
-                pdfCanvas.style.transform = 'translate(-50%, -50%)';
                 pageContainer.appendChild(pdfCanvas);
 
                 // Annotation canvas
                 annotationCanvas = document.createElement('canvas');
                 annotationCanvas.style.position = 'absolute';
-                annotationCanvas.style.top = '50%';
-                annotationCanvas.style.left = '50%';
-                annotationCanvas.style.transform = 'translate(-50%, -50%)';
+                annotationCanvas.style.top = '0';
+                annotationCanvas.style.left = '0';
                 annotationCanvas.height = viewport.height;
                 annotationCanvas.width = viewport.width;
                 annotationCanvas.style.pointerEvents = 'auto';
@@ -135,13 +134,20 @@
                 await page.render(renderContext).promise;
 
                 // Setup Fabric.js for annotations
-                fabricCanvas = new fabric.Canvas(annotationCanvas, {
-                    isDrawingMode: true,
-                    enablePointerEvents: true,
-                    width: viewport.width,
-                    height: viewport.height
-                });
-                console.log('Fabric canvas initialized:', { width: fabricCanvas.width, height: fabricCanvas.height });
+                try {
+                    fabricCanvas = new fabric.Canvas(annotationCanvas, {
+                        isDrawingMode: true,
+                        enablePointerEvents: true,
+                        width: viewport.width,
+                        height: viewport.height
+                    });
+                    fabricCanvas.calcOffset();
+                    fabricCanvas.setViewportTransform([1, 0, 0, 1, 0, 0]); // Reset transform
+                    console.log('Fabric canvas initialized:', { width: fabricCanvas.width, height: fabricCanvas.height });
+                } catch (error) {
+                    showError('Failed to initialize Fabric.js canvas: ' + error.message);
+                    return;
+                }
 
                 const brush = new fabric.PencilBrush(fabricCanvas);
                 brush.color = 'blue';
@@ -152,18 +158,25 @@
                 let eraseMode = false;
                 let currentWidth = 5;
 
-                fabricCanvas.on('mouse:down', (opt) => {
+                // Disable context menu for stylus right-click
+                annotationCanvas.addEventListener('contextmenu', (e) => {
+                    if (e.pointerType === 'pen') {
+                        e.preventDefault();
+                    }
+                });
+
+                fabricCanvas.on('pointerdown', (opt) => {
                     const e = opt.e;
                     console.log('Pointer event:', {
                         pointerType: e.pointerType,
-                        pressure: e.pressure,
+                        pressure: e.pressure || 0.5,
                         buttons: e.buttons,
                         button: e.button,
                         x: e.offsetX,
                         y: e.offsetY,
-                        canvasBounds: fabricCanvas.getBoundingClientRect()
+                        canvasBounds: annotationCanvas.getBoundingClientRect()
                     });
-                    if (e.pointerType === 'pen' && (e.buttons & 32 || e.buttons & 2 || e.button === 5 || e.button === 2)) {
+                    if (e.buttons & 2 || e.buttons & 32 || e.button === 2 || e.button === 5) {
                         eraseMode = true;
                         brush.color = 'rgba(255, 0, 0, 0.5)';
                         brush.width = 10;
@@ -177,8 +190,9 @@
                     fabricCanvas.requestRenderAll();
                 });
 
-                fabricCanvas.on('mouse:move', (opt) => {
-                    if (!eraseMode && opt.e.pointerType === 'pen') {
+                fabricCanvas.on('pointermove', (opt) => {
+                    opt.e.preventDefault(); // Prevent panning
+                    if (!eraseMode) {
                         currentWidth = opt.e.pressure ? 5 + 15 * opt.e.pressure : 5;
                         brush.width = currentWidth;
                         fabricCanvas.requestRenderAll();
