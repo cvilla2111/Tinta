@@ -78,6 +78,9 @@
         let pdfCanvas = null;
         let annotationCanvas = null;
 
+        // Log browser info for troubleshooting
+        console.log('Browser:', navigator.userAgent);
+
         // Show file input initially
         fileInput.style.display = 'block';
 
@@ -122,6 +125,7 @@
                 annotationCanvas.height = viewport.height;
                 annotationCanvas.width = viewport.width;
                 annotationCanvas.style.pointerEvents = 'auto';
+                annotationCanvas.tabIndex = 0; // Ensure canvas is focusable
                 pageContainer.appendChild(annotationCanvas);
 
                 // Log canvas dimensions
@@ -160,43 +164,104 @@
                 let eraseMode = false;
                 let currentWidth = 5;
 
-                // Disable context menu for stylus right-click
+                // Disable context menu
                 annotationCanvas.addEventListener('contextmenu', (e) => {
-                    e.preventDefault(); // Disable for all to simplify
+                    e.preventDefault();
                 });
 
-                // Log stylus detection
-                annotationCanvas.addEventListener('pointerover', (e) => {
-                    console.log('Pointer over:', {
-                        pointerType: e.pointerType,
-                        pointerId: e.pointerId,
-                        pressure: e.pressure || 0.5,
-                        buttons: e.buttons,
-                        button: e.button
-                    });
-                });
-
-                annotationCanvas.addEventListener('pointerenter', (e) => {
-                    console.log('Pointer enter:', {
-                        pointerType: e.pointerType,
-                        pointerId: e.pointerId,
-                        pressure: e.pressure || 0.5,
-                        buttons: e.buttons,
-                        button: e.button
-                    });
-                });
-
-                fabricCanvas.on('pointerdown', (opt) => {
-                    const e = opt.e;
-                    console.log('Pointer down:', {
-                        pointerType: e.pointerType,
+                // Raw event listeners for debugging
+                annotationCanvas.addEventListener('pointerdown', (e) => {
+                    console.log('Raw pointerdown:', {
+                        pointerType: e.pointerType || 'unknown',
                         pointerId: e.pointerId,
                         pressure: e.pressure || 0.5,
                         buttons: e.buttons,
                         button: e.button,
                         x: e.offsetX,
                         y: e.offsetY,
+                        canvasBounds: annotationCanvas.getBoundingClientRect(),
+                        coalescedEvents: e.getCoalescedEvents ? e.getCoalescedEvents().length : 0,
+                        predictedEvents: e.getPredictedEvents ? e.getPredictedEvents().length : 0
+                    });
+                    console.log('MPP stylus troubleshooting: If no stylus logs: 1) Update drivers in Device Manager (e.g., Surface Pen/HP Pen). 2) In Windows Settings > Devices > Pen & Windows Ink, enable "Ignore touch input when using pen" and disable "Show visual effects". 3) Test in Chrome/Edge latest version. 4) Try another MPP device. 5) Check pointerType (should be "pen").');
+                });
+
+                annotationCanvas.addEventListener('pointermove', (e) => {
+                    console.log('Raw pointermove:', {
+                        pointerType: e.pointerType || 'unknown',
+                        pointerId: e.pointerId,
+                        pressure: e.pressure || 0.5,
+                        buttons: e.buttons,
+                        button: e.button,
+                        x: e.offsetX,
+                        y: e.offsetY,
+                        canvasBounds: annotationCanvas.getBoundingClientRect(),
+                        coalescedEvents: e.getCoalescedEvents ? e.getCoalescedEvents().length : 0,
+                        predictedEvents: e.getPredictedEvents ? e.getPredictedEvents().length : 0
+                    });
+                });
+
+                annotationCanvas.addEventListener('pointerenter', (e) => {
+                    console.log('Raw pointerenter:', {
+                        pointerType: e.pointerType || 'unknown',
+                        pointerId: e.pointerId,
+                        pressure: e.pressure || 0.5,
+                        buttons: e.buttons,
+                        button: e.button
+                    });
+                });
+
+                annotationCanvas.addEventListener('touchstart', (e) => {
+                    console.log('Raw touchstart:', {
+                        touches: e.touches.length,
+                        x: e.touches[0]?.clientX,
+                        y: e.touches[0]?.clientY,
                         canvasBounds: annotationCanvas.getBoundingClientRect()
+                    });
+                });
+
+                annotationCanvas.addEventListener('touchmove', (e) => {
+                    console.log('Raw touchmove:', {
+                        touches: e.touches.length,
+                        x: e.touches[0]?.clientX,
+                        y: e.touches[0]?.clientY,
+                        canvasBounds: annotationCanvas.getBoundingClientRect()
+                    });
+                });
+
+                annotationCanvas.addEventListener('mousedown', (e) => {
+                    console.log('Raw mousedown:', {
+                        x: e.offsetX,
+                        y: e.offsetY,
+                        buttons: e.buttons,
+                        button: e.button,
+                        canvasBounds: annotationCanvas.getBoundingClientRect()
+                    });
+                });
+
+                annotationCanvas.addEventListener('mousemove', (e) => {
+                    console.log('Raw mousemove:', {
+                        x: e.offsetX,
+                        y: e.offsetY,
+                        buttons: e.buttons,
+                        button: e.button,
+                        canvasBounds: annotationCanvas.getBoundingClientRect()
+                    });
+                });
+
+                fabricCanvas.on('pointerdown', (opt) => {
+                    const e = opt.e;
+                    console.log('Fabric pointerdown:', {
+                        pointerType: e.pointerType || 'unknown',
+                        pointerId: e.pointerId,
+                        pressure: e.pressure || 0.5,
+                        buttons: e.buttons,
+                        button: e.button,
+                        x: e.offsetX,
+                        y: e.offsetY,
+                        canvasBounds: annotationCanvas.getBoundingClientRect(),
+                        coalescedEvents: e.getCoalescedEvents ? e.getCoalescedEvents().length : 0,
+                        predictedEvents: e.getPredictedEvents ? e.getPredictedEvents().length : 0
                     });
                     if (e.buttons & 2 || e.buttons & 32 || e.button === 2 || e.button === 5) {
                         eraseMode = true;
@@ -209,6 +274,15 @@
                         currentWidth = e.pressure ? 5 + 15 * e.pressure : 5;
                         brush.width = currentWidth;
                     }
+                    if (e.getCoalescedEvents) {
+                        e.getCoalescedEvents().forEach(event => {
+                            console.log('Coalesced event:', {
+                                x: event.offsetX,
+                                y: event.offsetY,
+                                pressure: event.pressure || 0.5
+                            });
+                        });
+                    }
                     fabricCanvas.requestRenderAll();
                 });
 
@@ -217,6 +291,15 @@
                     if (!eraseMode) {
                         currentWidth = opt.e.pressure ? 5 + 15 * opt.e.pressure : 5;
                         brush.width = currentWidth;
+                        if (opt.e.getCoalescedEvents) {
+                            opt.e.getCoalescedEvents().forEach(event => {
+                                console.log('Coalesced move event:', {
+                                    x: event.offsetX,
+                                    y: event.offsetY,
+                                    pressure: event.pressure || 0.5
+                                });
+                            });
+                        }
                         fabricCanvas.requestRenderAll();
                     }
                 });
