@@ -29,23 +29,24 @@
             top: 10px;
             left: 10px;
             z-index: 1000;
-            display: none; /* Hidden after PDF loads */
+            font-size: 16px;
+            padding: 5px;
         }
         #error-message {
             position: fixed;
-            top: 20px;
+            top: 50px;
             left: 50%;
             transform: translateX(-50%);
             color: red;
             background: white;
             padding: 10px;
-            display: none;
             z-index: 1000;
+            display: none;
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs" type="module"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/521/fabric.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@arch-inc/fabricjs-psbrush@latest/dist/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@arch-inc/fabricjs-psbrush@1.2.3/dist/index.js"></script>
 </head>
 <body>
     <input type="file" id="file-input" accept="application/pdf">
@@ -67,18 +68,21 @@
         let pdfCanvas = null;
         let annotationCanvas = null;
 
+        // Show file input initially
+        fileInput.style.display = 'block';
+
         async function loadPDF(file) {
             try {
                 const arrayBuffer = await file.arrayBuffer();
                 pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-                fileInput.style.display = 'none'; // Hide file input
-                errorMessage.style.display = 'none'; // Hide any previous errors
-                document.documentElement.requestFullscreen().catch(err => console.log('Fullscreen error:', err));
+                fileInput.style.display = 'none'; // Hide file input after loading
+                errorMessage.style.display = 'none';
+                document.documentElement.requestFullscreen().catch(err => {
+                    showError('Fullscreen error: ' + err.message);
+                });
                 renderPage(currentPageNum);
             } catch (error) {
-                errorMessage.textContent = 'Failed to load PDF: ' + error.message;
-                errorMessage.style.display = 'block';
-                console.error('PDF load error:', error);
+                showError('Failed to load PDF: ' + error.message);
             }
         }
 
@@ -91,7 +95,7 @@
                 const scale = Math.min(window.innerWidth / viewport.width, window.innerHeight / viewport.height);
                 viewport = page.getViewport({ scale });
 
-                // Clear previous
+                // Clear previous content
                 pageContainer.innerHTML = '';
 
                 // PDF canvas
@@ -122,7 +126,7 @@
                     enablePointerEvents: true
                 });
                 const brush = new fabric.PSBrush(fabricCanvas);
-                brush.width = 50; // Very big pressure sensitive
+                brush.width = 50; // Large pressure-sensitive brush
                 brush.color = 'blue';
                 fabricCanvas.freeDrawingBrush = brush;
 
@@ -130,10 +134,10 @@
 
                 fabricCanvas.on('mouse:down', (opt) => {
                     const e = opt.e;
-                    // Detect eraser for Bamboo stylus (eraser or barrel button)
+                    // Detect Bamboo stylus eraser or barrel button
                     if (e.pointerType === 'pen' && (e.buttons & 32 || e.buttons & 2 || e.button === 5 || e.button === 2)) {
                         eraseMode = true;
-                        brush.color = 'rgba(255, 0, 0, 0.5)'; // Semi-transparent red for erase path visibility
+                        brush.color = 'rgba(255, 0, 0, 0.5)'; // Visual feedback for erase
                     } else {
                         eraseMode = false;
                         brush.color = 'blue';
@@ -153,13 +157,16 @@
                         eraseMode = false;
                         brush.color = 'blue';
                     }
-                    // Paths are rounded and smooth by default in Fabric.js with PencilBrush-like behavior
                 });
             } catch (error) {
-                errorMessage.textContent = 'Failed to render page: ' + error.message;
-                errorMessage.style.display = 'block';
-                console.error('Page render error:', error);
+                showError('Failed to render page: ' + error.message);
             }
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            fileInput.style.display = 'block'; // Show file input again on error
         }
 
         // File input handler
@@ -168,8 +175,7 @@
             if (file && file.type === 'application/pdf') {
                 loadPDF(file);
             } else {
-                errorMessage.textContent = 'Please select a valid PDF file';
-                errorMessage.style.display = 'block';
+                showError('Please select a valid PDF file');
             }
         });
 
