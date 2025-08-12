@@ -44,6 +44,7 @@
         let pageRendering = false;
         let pageNumPending = null;
         let scale = 1.5;
+        const pixelRatio = window.devicePixelRatio || 1;
         const pdfCanvas = document.getElementById('pdf-canvas');
         const annotationCanvas = document.getElementById('annotation-canvas');
         const pdfCtx = pdfCanvas.getContext('2d');
@@ -78,14 +79,23 @@
             pageRendering = true;
             pdfDoc.getPage(num).then(function(page) {
                 const viewport = page.getViewport({ scale: scale });
-                pdfCanvas.height = viewport.height;
-                pdfCanvas.width = viewport.width;
-                annotationCanvas.height = viewport.height;
-                annotationCanvas.width = viewport.width;
+                const renderScale = scale * pixelRatio;
+                const pdfViewport = page.getViewport({ scale: renderScale });
+                pdfCanvas.height = pdfViewport.height;
+                pdfCanvas.width = pdfViewport.width;
+                pdfCanvas.style.height = viewport.height + 'px';
+                pdfCanvas.style.width = viewport.width + 'px';
+                pdfCtx.scale(pixelRatio, pixelRatio);
+
+                annotationCanvas.height = pdfViewport.height;
+                annotationCanvas.width = pdfViewport.width;
+                annotationCanvas.style.height = viewport.height + 'px';
+                annotationCanvas.style.width = viewport.width + 'px';
+                ctx.scale(pixelRatio, pixelRatio);
 
                 const renderContext = {
                     canvasContext: pdfCtx,
-                    viewport: viewport
+                    viewport: pdfViewport
                 };
                 page.render(renderContext).promise.then(function() {
                     pageRendering = false;
@@ -121,19 +131,13 @@
 
         function getCanvasCoordinates(event) {
             const rect = annotationCanvas.getBoundingClientRect();
-            let x, y;
-            if (event.type.startsWith('touch')) {
-                x = event.touches[0].clientX - rect.left;
-                y = event.touches[0].clientY - rect.top;
-            } else {
-                x = event.clientX - rect.left;
-                y = event.clientY - rect.top;
-            }
+            let x = (event.clientX - rect.left) * pixelRatio;
+            let y = (event.clientY - rect.top) * pixelRatio;
             return { x, y };
         }
 
         // Check if point is near a line segment
-        function isPointNearSegment(px, py, x1, y1, x2, y2, threshold = 10) {
+        function isPointNearSegment(px, py, x1, y1, x2, y2, threshold = 10 * pixelRatio) {
             const A = px - x1;
             const B = py - y1;
             const C = x2 - x1;
@@ -173,29 +177,29 @@
 
         // Redraw all paths with pressure-sensitive line widths and smooth curves
         function redrawAnnotations() {
-            ctx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+            ctx.clearRect(0, 0, annotationCanvas.width / pixelRatio, annotationCanvas.height / pixelRatio);
             ctx.strokeStyle = 'black';
             allPaths.forEach(path => {
                 if (path.length > 1) {
                     ctx.beginPath();
-                    ctx.moveTo(path[0].x, path[0].y);
+                    ctx.moveTo(path[0].x / pixelRatio, path[0].y / pixelRatio);
                     for (let i = 1; i < path.length - 1; i++) {
-                        ctx.lineWidth = path[i].pressure * 7.5 + 0.5; // Scale pressure (0-1) to line width (0.5-8px)
-                        const xc = (path[i].x + path[i + 1].x) / 2;
-                        const yc = (path[i].y + path[i + 1].y) / 2;
-                        ctx.quadraticCurveTo(path[i].x, path[i].y, xc, yc);
+                        ctx.lineWidth = path[i].pressure * 11.9 + 0.1; // Scale pressure (0-1) to line width (0.1-12px)
+                        const xc = (path[i].x + path[i + 1].x) / 2 / pixelRatio;
+                        const yc = (path[i].y + path[i + 1].y) / 2 / pixelRatio;
+                        ctx.quadraticCurveTo(path[i].x / pixelRatio, path[i].y / pixelRatio, xc, yc);
                         ctx.stroke();
                         ctx.beginPath();
                         ctx.moveTo(xc, yc);
                     }
                     // Draw last segment
-                    ctx.lineWidth = path[path.length - 1].pressure * 7.5 + 0.5;
-                    ctx.lineTo(path[path.length - 1].x, path[path.length - 1].y);
+                    ctx.lineWidth = path[path.length - 1].pressure * 11.9 + 0.1;
+                    ctx.lineTo(path[path.length - 1].x / pixelRatio, path[path.length - 1].y / pixelRatio);
                     ctx.stroke();
                 } else if (path.length === 1) {
                     // Draw single point
                     ctx.beginPath();
-                    ctx.arc(path[0].x, path[0].y, (path[0].pressure * 7.5 + 0.5) / 2, 0, 2 * Math.PI);
+                    ctx.arc(path[0].x / pixelRatio, path[0].y / pixelRatio, (path[0].pressure * 11.9 + 0.1) / 2, 0, 2 * Math.PI);
                     ctx.fill();
                 }
             });
@@ -229,18 +233,18 @@
 
             if (currentPath.length > 2) {
                 const lastTwo = currentPath.slice(-3);
-                ctx.lineWidth = lastTwo[1].pressure * 7.5 + 0.5; // Scale pressure (0-1) to line width (0.5-8px)
+                ctx.lineWidth = lastTwo[1].pressure * 11.9 + 0.1; // Scale pressure (0-1) to line width (0.1-12px)
                 ctx.beginPath();
-                ctx.moveTo(lastTwo[0].x, lastTwo[0].y);
-                const xc = (lastTwo[1].x + lastTwo[2].x) / 2;
-                const yc = (lastTwo[1].y + lastTwo[2].y) / 2;
-                ctx.quadraticCurveTo(lastTwo[1].x, lastTwo[1].y, xc, yc);
+                ctx.moveTo(lastTwo[0].x / pixelRatio, lastTwo[0].y / pixelRatio);
+                const xc = (lastTwo[1].x + lastTwo[2].x) / 2 / pixelRatio;
+                const yc = (lastTwo[1].y + lastTwo[2].y) / 2 / pixelRatio;
+                ctx.quadraticCurveTo(lastTwo[1].x / pixelRatio, lastTwo[1].y / pixelRatio, xc, yc);
                 ctx.stroke();
             } else if (currentPath.length === 2) {
-                ctx.lineWidth = pressure * 7.5 + 0.5;
+                ctx.lineWidth = pressure * 11.9 + 0.1;
                 ctx.beginPath();
-                ctx.moveTo(currentPath[0].x, currentPath[0].y);
-                ctx.lineTo(x, y);
+                ctx.moveTo(currentPath[0].x / pixelRatio, currentPath[0].y / pixelRatio);
+                ctx.lineTo(x / pixelRatio, y / pixelRatio);
                 ctx.stroke();
             }
         }
@@ -251,7 +255,7 @@
                 if (currentPath.length === 1) {
                     // Draw single point
                     ctx.beginPath();
-                    ctx.arc(currentPath[0].x, currentPath[0].y, (currentPath[0].pressure * 7.5 + 0.5) / 2, 0, 2 * Math.PI);
+                    ctx.arc(currentPath[0].x / pixelRatio, currentPath[0].y / pixelRatio, (currentPath[0].pressure * 11.9 + 0.1) / 2, 0, 2 * Math.PI);
                     ctx.fill();
                 }
                 currentPath = [];
@@ -260,7 +264,7 @@
 
         function clearAnnotations() {
             allPaths = [];
-            ctx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+            ctx.clearRect(0, 0, annotationCanvas.width / pixelRatio, annotationCanvas.height / pixelRatio);
         }
 
         // Event listeners for stylus
