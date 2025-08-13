@@ -1,3 +1,88 @@
+// Add this to the app state object
+const app = {
+    // ... existing properties ...
+    isMouseOverPdf: false, // Add this line
+    // ... rest of properties ...
+};
+
+// Update the initEventListeners function to add PDF viewer mouse tracking
+function initEventListeners() {
+    // ... existing event listeners ...
+    
+    // Add PDF viewer mouse tracking
+    elements.pdfViewer.addEventListener('mouseenter', () => {
+        app.isMouseOverPdf = true;
+    });
+    
+    elements.pdfViewer.addEventListener('mouseleave', () => {
+        app.isMouseOverPdf = false;
+        // Hide eraser cursor when mouse leaves PDF area
+        if (app.currentTool === 'eraser') {
+            elements.eraserCursor.style.display = 'none';
+        }
+    });
+    
+    // ... rest of existing event listeners ...
+}
+
+// Update the tool button click event handler
+elements.toolBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        elements.toolBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        app.currentTool = btn.dataset.tool;
+        app.previousTool = app.currentTool;
+        updateStylusStatus();
+        
+        // Show/hide eraser cursor based on tool and mouse position
+        if (app.currentTool === 'eraser') {
+            // Only show eraser cursor if mouse is over PDF
+            if (app.isMouseOverPdf) {
+                elements.eraserCursor.style.display = 'block';
+                updateEraserCursor();
+            } else {
+                elements.eraserCursor.style.display = 'none';
+            }
+        } else {
+            elements.eraserCursor.style.display = 'none';
+        }
+    });
+});
+
+// Update the global mousemove event
+document.addEventListener('mousemove', (e) => {
+    if (app.currentTool === 'eraser' && app.isMouseOverPdf) {
+        updateEraserCursor(e.clientX, e.clientY);
+    }
+});
+
+// Update the startAnnotation function
+function startAnnotation(e) {
+    // ... existing code ...
+    
+    // Show eraser cursor only when mouse is over PDF
+    if (app.currentTool === 'eraser' && app.isMouseOverPdf) {
+        elements.eraserCursor.style.display = 'block';
+        updateEraserCursor(e.clientX, e.clientY);
+    }
+    
+    // ... rest of existing code ...
+}
+
+// Update the endAnnotation function
+function endAnnotation(e) {
+    // ... existing code ...
+    
+    // Hide eraser cursor when not drawing
+    if (app.currentTool === 'eraser') {
+        elements.eraserCursor.style.display = 'none';
+    }
+    
+    // ... rest of existing code ...
+}
+
+
+
 // Set the worker source for PDF.js
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
