@@ -313,6 +313,49 @@ function initEventListeners() {
         console.error('Error setting up event listeners:', error);
     }
 }
+
+    // Add this to the elements object
+testControlsBtn: document.getElementById('test-controls'),
+
+// Add this to the initEventListeners function
+elements.testControlsBtn.addEventListener('click', () => {
+    console.log('=== Testing Controls ===');
+    
+    // Test upload
+    console.log('Testing upload button...');
+    elements.uploadBtn.click();
+    
+    // Test navigation
+    console.log('Testing navigation buttons...');
+    elements.prevPageBtn.click();
+    elements.nextPageBtn.click();
+    
+    // Test zoom
+    console.log('Testing zoom buttons...');
+    elements.zoomInBtn.click();
+    elements.zoomOutBtn.click();
+    
+    // Test tools
+    console.log('Testing tool buttons...');
+    elements.toolBtns[0].click(); // Select tool
+    elements.toolBtns[3].click(); // Pen tool
+    elements.toolBtns[4].click(); // Eraser tool
+    
+    // Test colors
+    console.log('Testing color options...');
+    elements.colorOptions[1].click(); // Red color
+    elements.colorOptions[0].click(); // Black color
+    
+    // Test settings
+    console.log('Testing settings...');
+    elements.pressureSensitivity.value = 50;
+    elements.pressureSensitivity.dispatchEvent(new Event('input'));
+    
+    elements.minLineWidth.value = 2;
+    elements.minLineWidth.dispatchEvent(new Event('input'));
+    
+    showToast('Control test completed! Check console for details.', 'info');
+});
     
     // ... rest of existing event listeners ...
 }
