@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PDF Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -58,39 +59,67 @@
             background-color: #000;
             display: none;
             z-index: 9999;
+            overflow: hidden;
         }
 
         .pdf-container.active {
             display: block;
         }
 
-        .pdf-iframe {
+        .pdf-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            border: none;
+            object-fit: contain;
+            transition: transform 0.4s ease;
         }
 
-        .close-button {
+        .current-page {
+            transform: translateX(0);
+            z-index: 1;
+        }
+
+        .next-page {
+            transform: translateX(100%);
+            z-index: 2;
+        }
+
+        .prev-page {
+            transform: translateX(-100%);
+            z-index: 2;
+        }
+
+        .slide-out-left {
+            transform: translateX(-100%);
+        }
+
+        .slide-out-right {
+            transform: translateX(100%);
+        }
+
+        .slide-in-left {
+            transform: translateX(0);
+        }
+
+        .slide-in-right {
+            transform: translateX(0);
+        }
+
+        .loading-indicator {
             position: absolute;
-            top: 20px;
-            right: 20px;
-            background-color: rgba(255, 255, 255, 0.9);
-            border: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            z-index: 10000;
-            transition: all 0.3s ease;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 18px;
+            display: none;
+            z-index: 10;
         }
 
-        .close-button:hover {
-            background-color: rgba(255, 255, 255, 1);
-            transform: scale(1.1);
+        .loading-indicator.active {
+            display: block;
         }
     </style>
 </head>
@@ -102,37 +131,146 @@
     <input type="file" id="fileInput" accept=".pdf" onchange="loadPDF(event)">
     
     <div class="pdf-container" id="pdfContainer">
-        <button class="close-button" onclick="closePDF()">×</button>
-        <iframe class="pdf-iframe" id="pdfFrame"></iframe>
+        <canvas class="pdf-canvas current-page" id="currentCanvas"></canvas>
+        <canvas class="pdf-canvas next-page" id="nextCanvas"></canvas>
+        <div class="loading-indicator" id="loadingIndicator">Loading PDF...</div>
     </div>
 
     <script>
+        // Set the worker source for PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        let pdfDoc = null;
+        let currentPage = 1;
+        let isTransitioning = false;
+        const scale = 1.5;
+        const currentCanvas = document.getElementById('currentCanvas');
+        const nextCanvas = document.getElementById('nextCanvas');
+        const currentCtx = currentCanvas.getContext('2d');
+        const nextCtx = nextCanvas.getContext('2d');
+
         function loadPDF(event) {
             const file = event.target.files[0];
             if (file && file.type === 'application/pdf') {
-                const fileURL = URL.createObjectURL(file);
-                const pdfFrame = document.getElementById('pdfFrame');
-                const pdfContainer = document.getElementById('pdfContainer');
+                const fileReader = new FileReader();
                 
-                pdfFrame.src = fileURL;
-                pdfContainer.classList.add('active');
+                document.getElementById('pdfContainer').classList.add('active');
+                document.getElementById('loadingIndicator').classList.add('active');
                 
-                // Request fullscreen
-                if (pdfContainer.requestFullscreen) {
-                    pdfContainer.requestFullscreen();
-                } else if (pdfContainer.webkitRequestFullscreen) {
-                    pdfContainer.webkitRequestFullscreen();
-                } else if (pdfContainer.msRequestFullscreen) {
-                    pdfContainer.msRequestFullscreen();
-                }
+                fileReader.onload = function() {
+                    const typedarray = new Uint8Array(this.result);
+                    
+                    pdfjsLib.getDocument(typedarray).promise.then(function(pdf) {
+                        pdfDoc = pdf;
+                        document.getElementById('loadingIndicator').classList.remove('active');
+                        
+                        // Request fullscreen
+                        const pdfContainer = document.getElementById('pdfContainer');
+                        if (pdfContainer.requestFullscreen) {
+                            pdfContainer.requestFullscreen();
+                        } else if (pdfContainer.webkitRequestFullscreen) {
+                            pdfContainer.webkitRequestFullscreen();
+                        } else if (pdfContainer.msRequestFullscreen) {
+                            pdfContainer.msRequestFullscreen();
+                        }
+                        
+                        // Render first page
+                        renderPage(currentPage, currentCanvas, currentCtx);
+                    }).catch(function(error) {
+                        console.error('Error loading PDF:', error);
+                        document.getElementById('loadingIndicator').classList.remove('active');
+                        alert('Error loading PDF. Please try another file.');
+                        closePDF();
+                    });
+                };
+                
+                fileReader.readAsArrayBuffer(file);
             } else {
                 alert('Please select a valid PDF file.');
             }
         }
 
+        function renderPage(num, canvas, ctx) {
+            return new Promise((resolve) => {
+                pdfDoc.getPage(num).then(function(page) {
+                    const viewport = page.getViewport({scale: scale});
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+
+                    const renderContext = {
+                        canvasContext: ctx,
+                        viewport: viewport
+                    };
+                    
+                    const renderTask = page.render(renderContext);
+                    
+                    renderTask.promise.then(function() {
+                        resolve();
+                    });
+                });
+            });
+        }
+
+        async function changePage(newPage, direction) {
+            if (isTransitioning || !pdfDoc) return;
+            
+            // Check boundaries
+            if (newPage < 1 || newPage > pdfDoc.numPages) return;
+            
+            isTransitioning = true;
+            
+            // Set up next canvas position based on direction
+            if (direction === 'next') {
+                nextCanvas.className = 'pdf-canvas next-page';
+            } else {
+                nextCanvas.className = 'pdf-canvas prev-page';
+            }
+            
+            // Render the new page on the next canvas
+            await renderPage(newPage, nextCanvas, nextCtx);
+            
+            // Start the transition
+            setTimeout(() => {
+                if (direction === 'next') {
+                    currentCanvas.className = 'pdf-canvas slide-out-left';
+                    nextCanvas.className = 'pdf-canvas slide-in-right';
+                } else {
+                    currentCanvas.className = 'pdf-canvas slide-out-right';
+                    nextCanvas.className = 'pdf-canvas slide-in-left';
+                }
+            }, 50);
+            
+            // After transition completes, swap canvases and reset
+            setTimeout(() => {
+                // Swap canvases
+                const tempCanvas = currentCanvas;
+                const tempCtx = currentCtx;
+                
+                currentCanvas = nextCanvas;
+                currentCtx = nextCtx;
+                nextCanvas = tempCanvas;
+                nextCtx = tempCtx;
+                
+                // Update the DOM elements
+                currentCanvas.id = 'currentCanvas';
+                nextCanvas.id = 'nextCanvas';
+                
+                // Reset classes
+                currentCanvas.className = 'pdf-canvas current-page';
+                nextCanvas.className = 'pdf-canvas next-page';
+                
+                // Update current page
+                currentPage = newPage;
+                
+                // Clear next canvas
+                nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
+                
+                isTransitioning = false;
+            }, 450); // Slightly longer than the transition to ensure it completes
+        }
+
         function closePDF() {
             const pdfContainer = document.getElementById('pdfContainer');
-            const pdfFrame = document.getElementById('pdfFrame');
             const fileInput = document.getElementById('fileInput');
             
             // Exit fullscreen
@@ -145,15 +283,31 @@
             }
             
             // Clear the PDF and hide container
-            pdfFrame.src = '';
+            currentCtx.clearRect(0, 0, currentCanvas.width, currentCanvas.height);
+            nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
             pdfContainer.classList.remove('active');
             fileInput.value = '';
+            pdfDoc = null;
+            currentPage = 1;
+            isTransitioning = false;
         }
 
-        // Handle escape key to close PDF
+        // Handle keyboard events
         document.addEventListener('keydown', function(event) {
-            if (event.key === 'Escape') {
-                closePDF();
+            if (!pdfDoc) return;
+            
+            switch(event.key) {
+                case 'Escape':
+                    closePDF();
+                    break;
+                case 'ArrowLeft':
+                    event.preventDefault();
+                    changePage(currentPage - 1, 'prev');
+                    break;
+                case 'ArrowRight':
+                    event.preventDefault();
+                    changePage(currentPage + 1, 'next');
+                    break;
             }
         });
 
@@ -173,6 +327,13 @@
         document.addEventListener('msfullscreenchange', function() {
             if (!document.msFullscreenElement) {
                 closePDF();
+            }
+        });
+
+        // Handle window resize to adjust canvas
+        window.addEventListener('resize', function() {
+            if (pdfDoc && !isTransitioning) {
+                renderPage(currentPage, currentCanvas, currentCtx);
             }
         });
     </script>
