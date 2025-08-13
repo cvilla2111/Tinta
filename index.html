@@ -328,7 +328,7 @@
             margin-bottom: 1.5rem;
             position: relative;
             width: 100%;
-            max-width: 1280px; /* 16:9 ratio at 720p height */
+            max-width: 1280px;
             aspect-ratio: 16/9;
             touch-action: none;
             opacity: 0;
@@ -1037,6 +1037,7 @@
     <script>
         // Set the worker source for PDF.js
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+        
         // Application state
         const app = {
             pdfDoc: null,
@@ -1059,7 +1060,7 @@
                 pressureSensitivity: 0.27,
                 tiltSensitivity: 0.5,
                 minLineWidth: 0.1,
-                maxLineWidth: 5.2, // Changed from 0.5 to 5.2
+                maxLineWidth: 5.2,
                 opacityPressure: false,
                 palmRejection: false,
                 button1Eraser: true,
@@ -1080,9 +1081,10 @@
             lastX: 0,
             lastY: 0,
             lastTime: 0,
-            eraserBaseSize: 20,
-            eraserCurrentSize: 20
+            eraserBaseSize: 10, // Reduced from 20
+            eraserCurrentSize: 10
         };
+        
         // DOM elements
         const elements = {
             uploadBtn: document.getElementById('upload-btn'),
@@ -1136,6 +1138,7 @@
             debugMethod: document.getElementById('debug-method'),
             eraserCursor: document.getElementById('eraser-cursor')
         };
+        
         // Initialize event listeners
         function initEventListeners() {
             elements.uploadBtn.addEventListener('click', () => elements.fileInput.click());
@@ -1286,6 +1289,7 @@
                 }
             });
         }
+        
         // Toggle fullscreen mode
         function toggleFullscreen() {
             app.isFullscreen = !app.isFullscreen;
@@ -1304,6 +1308,7 @@
                 renderPage(app.pageNum);
             }
         }
+        
         // Update eraser cursor position and size
         function updateEraserCursor(x, y) {
             if (!x || !y) return;
@@ -1320,7 +1325,7 @@
                     const speed = distance / timeDiff; // pixels per millisecond
                     
                     // Adjust eraser size based on speed (faster = larger)
-                    const sizeMultiplier = Math.min(3, 1 + speed * 10); // Cap at 3x base size
+                    const sizeMultiplier = Math.min(6, 1 + speed * 25); // More aggressive scaling
                     app.eraserCurrentSize = app.eraserBaseSize * sizeMultiplier;
                 }
             }
@@ -1334,12 +1339,14 @@
             elements.eraserCursor.style.left = (x - app.eraserCurrentSize/2) + 'px';
             elements.eraserCursor.style.top = (y - app.eraserCurrentSize/2) + 'px';
         }
+        
         // Toggle debug mode
         function toggleDebugMode() {
             app.debugMode = !app.debugMode;
             elements.debugInfo.style.display = app.debugMode ? 'block' : 'none';
             showToast(`Debug mode ${app.debugMode ? 'enabled' : 'disabled'}`);
         }
+        
         // Test button detection
         function testButtonDetection() {
             if (!app.debugMode) {
@@ -1381,6 +1388,7 @@
                 showToast('Button test completed', 'info');
             }, 10000);
         }
+        
         // Initialize ink preview
         function initInkPreview() {
             const canvas = elements.inkPreview;
@@ -1394,6 +1402,7 @@
             
             updateInkPreview();
         }
+        
         // Update ink preview
         function updateInkPreview() {
             const ctx = app.inkPreviewCtx;
@@ -1428,6 +1437,7 @@
             // Reset global alpha
             ctx.globalAlpha = 1;
         }
+        
         // Calculate line width based on pressure
         function calculateLineWidth(pressure) {
             const min = app.stylusSettings.minLineWidth;
@@ -1439,6 +1449,7 @@
             
             return min + (max - min) * adjustedPressure;
         }
+        
         // Update stylus status indicator
         function updateStylusStatus() {
             if (app.currentTool === 'eraser') {
@@ -1449,6 +1460,7 @@
                 elements.statusText.textContent = 'Pen';
             }
         }
+        
         // Enhanced button detection for Bamboo stylus
         function detectButtonMethod(buttons, button) {
             let button1Pressed = false;
@@ -1539,6 +1551,7 @@
             
             return { button1Pressed, button2Pressed, method };
         }
+        
         // Check if any eraser button is pressed
         function isEraserButtonPressed(buttons, button) {
             const detection = detectButtonMethod(buttons, button);
@@ -1555,6 +1568,7 @@
             
             return detection.button1Pressed || detection.button2Pressed;
         }
+        
         // Handle file selection
         function handleFileSelect(e) {
             const file = e.target.files[0];
@@ -1570,6 +1584,7 @@
             };
             fileReader.readAsArrayBuffer(file);
         }
+        
         // Load PDF document
         function loadPDF(data) {
             pdfjsLib.getDocument(data).promise.then(function(pdf) {
@@ -1594,6 +1609,7 @@
                 showToast('Error loading PDF', 'error');
             });
         }
+        
         // Change page with animation
         function changePage(newPageNum) {
             if (app.pageRendering || newPageNum === app.pageNum) return;
@@ -1617,6 +1633,7 @@
             elements.prevPageBtn.disabled = app.pageNum <= 1;
             elements.nextPageBtn.disabled = app.pageNum >= app.pdfDoc.numPages;
         }
+        
         // Render page
         function renderPage(num) {
             app.pageRendering = true;
@@ -1696,6 +1713,7 @@
             // Update page counter
             elements.pageNum.textContent = num;
         }
+        
         // Queue render page
         function queueRenderPage(num) {
             if (app.pageRendering) {
@@ -1704,10 +1722,12 @@
                 renderPage(num);
             }
         }
+        
         // Update zoom level display
         function updateZoomLevel() {
             elements.zoomLevel.textContent = Math.round(app.scale * 100) + '%';
         }
+        
         // Set up annotation events
         function setupAnnotationEvents(pageContainer, annotationLayer) {
             // Pointer events for stylus support
@@ -1736,6 +1756,7 @@
             pageContainer.addEventListener('touchstart', (e) => e.preventDefault());
             pageContainer.addEventListener('touchmove', (e) => e.preventDefault());
         }
+        
         // Start annotation
         function startAnnotation(e) {
             // Record button state for debugging
@@ -1853,7 +1874,7 @@
                     x: app.startX,
                     y: app.startY,
                     radius: 0,
-                    color: app.currentColor,
+                    color: '#cccccc', // Gray color for circles
                     page: app.pageNum
                 };
             } else if (app.currentTool === 'line') {
@@ -1868,6 +1889,7 @@
                 };
             }
         }
+        
         // Continue annotation
         function continueAnnotation(e) {
             if (!app.isDrawing || app.currentTool === 'text') return;
@@ -1904,9 +1926,9 @@
                         Math.pow(currentY - app.lastPoint.y, 2)
                     );
                     
-                    // Add intermediate points if distance is large
-                    if (distance > 5) {
-                        const steps = Math.ceil(distance / 2);
+                    // More interpolation points for smoother curves
+                    if (distance > 2) { // Reduced from 5
+                        const steps = Math.ceil(distance / 1); // Increased steps
                         for (let i = 1; i <= steps; i++) {
                             const t = i / steps;
                             const interpolatedX = app.lastPoint.x + (currentX - app.lastPoint.x) * t;
@@ -1964,6 +1986,7 @@
             // Redraw temporary annotation
             renderTemporaryAnnotation();
         }
+        
         // End annotation
         function endAnnotation(e) {
             if (!app.isDrawing) return;
@@ -2012,6 +2035,7 @@
             app.currentTiltY = 0;
             updateStylusIndicators();
         }
+        
         // Update tool button selection
         function updateToolButtonSelection() {
             elements.toolBtns.forEach(btn => {
@@ -2021,6 +2045,7 @@
                 }
             });
         }
+        
         // Render temporary annotation
         function renderTemporaryAnnotation() {
             const annotationLayer = document.querySelector('.annotation-layer');
@@ -2114,7 +2139,7 @@
                 circle.setAttribute('cx', '50%');
                 circle.setAttribute('cy', '50%');
                 circle.setAttribute('r', '50%');
-                circle.setAttribute('stroke', app.currentAnnotation.color);
+                circle.setAttribute('stroke', '#cccccc'); // Gray color for circles
                 circle.setAttribute('stroke-width', app.stylusSettings.maxLineWidth);
                 circle.setAttribute('fill', 'none');
                 
@@ -2146,45 +2171,45 @@
             
             annotationLayer.appendChild(annotationEl);
         }
+        
         // Create pressure-sensitive segments for drawing
         function createPressureSensitiveSegments(points) {
             const segments = [];
             if (points.length < 2) return segments;
             
+            // Apply smoothing to points for smoother curves
+            const smoothedPoints = smoothPoints(points);
+            
             let currentSegment = {
-                points: [points[0]],
-                avgPressure: points[0].pressure
+                points: [smoothedPoints[0]],
+                avgPressure: smoothedPoints[0].pressure
             };
             
-            for (let i = 1; i < points.length; i++) {
-                const point = points[i];
+            for (let i = 1; i < smoothedPoints.length; i++) {
+                const point = smoothedPoints[i];
                 const pressureDiff = Math.abs(point.pressure - currentSegment.avgPressure);
                 
-                // Start new segment if pressure changes significantly
-                if (pressureDiff > 0.1 && currentSegment.points.length > 1) {
-                    // Finish current segment
-                    const d = createPathData(currentSegment.points);
+                // Smaller pressure threshold for more segments
+                if (pressureDiff > 0.05 && currentSegment.points.length > 1) {
+                    const d = createSmoothPathData(currentSegment.points);
                     const width = calculateLineWidth(currentSegment.avgPressure);
                     const opacity = app.stylusSettings.opacityPressure ? 
                         0.3 + (currentSegment.avgPressure * 0.7) : 1;
                     
                     segments.push({ d, width, opacity });
                     
-                    // Start new segment
                     currentSegment = {
-                        points: [points[i-1], point],
+                        points: [smoothedPoints[i-1], point],
                         avgPressure: point.pressure
                     };
                 } else {
-                    // Add point to current segment
                     currentSegment.points.push(point);
                     currentSegment.avgPressure = (currentSegment.avgPressure * (currentSegment.points.length - 1) + point.pressure) / currentSegment.points.length;
                 }
             }
             
-            // Add final segment
             if (currentSegment.points.length > 1) {
-                const d = createPathData(currentSegment.points);
+                const d = createSmoothPathData(currentSegment.points);
                 const width = calculateLineWidth(currentSegment.avgPressure);
                 const opacity = app.stylusSettings.opacityPressure ? 
                     0.3 + (currentSegment.avgPressure * 0.7) : 1;
@@ -2194,8 +2219,34 @@
             
             return segments;
         }
-        // Create SVG path data from points
-        function createPathData(points) {
+        
+        // Add point smoothing function
+        function smoothPoints(points) {
+            if (points.length < 3) return points;
+            
+            const smoothed = [points[0]];
+            
+            for (let i = 1; i < points.length - 1; i++) {
+                const prev = points[i-1];
+                const curr = points[i];
+                const next = points[i+1];
+                
+                // Apply simple smoothing
+                smoothed.push({
+                    x: (prev.x + curr.x + next.x) / 3,
+                    y: (prev.y + curr.y + next.y) / 3,
+                    pressure: (prev.pressure + curr.pressure + next.pressure) / 3,
+                    tiltX: curr.tiltX,
+                    tiltY: curr.tiltY
+                });
+            }
+            
+            smoothed.push(points[points.length - 1]);
+            return smoothed;
+        }
+        
+        // Update path creation for smoother curves
+        function createSmoothPathData(points) {
             if (points.length < 2) return '';
             
             let d = `M ${points[0].x} ${points[0].y}`;
@@ -2203,20 +2254,30 @@
             if (points.length === 2) {
                 d += ` L ${points[1].x} ${points[1].y}`;
             } else {
-                // Use quadratic curves for smoother lines
+                // Use cubic Bezier curves for smoother lines
                 for (let i = 1; i < points.length - 1; i++) {
-                    const xc = (points[i].x + points[i + 1].x) / 2;
-                    const yc = (points[i].y + points[i + 1].y) / 2;
-                    d += ` Q ${points[i].x} ${points[i].y}, ${xc} ${yc}`;
+                    const p0 = points[i-1];
+                    const p1 = points[i];
+                    const p2 = points[i+1];
+                    
+                    // Calculate control points
+                    const cp1x = p1.x - (p2.x - p0.x) / 6;
+                    const cp1y = p1.y - (p2.y - p0.y) / 6;
+                    const cp2x = p1.x + (p2.x - p0.x) / 6;
+                    const cp2y = p1.y + (p2.y - p0.y) / 6;
+                    
+                    d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p1.x} ${p1.y}`;
                 }
                 
-                // Add last point
+                // Add last segment
                 const last = points[points.length - 1];
+                const secondLast = points[points.length - 2];
                 d += ` L ${last.x} ${last.y}`;
             }
             
             return d;
         }
+        
         // Create text annotation
         function createTextAnnotation(x, y) {
             const annotationLayer = document.querySelector('.annotation-layer');
@@ -2268,6 +2329,7 @@
                 }
             });
         }
+        
         // Erase annotation at position (now erases individual path segments)
         function eraseAnnotation(x, y) {
             const annotationLayer = document.querySelector('.annotation-layer');
@@ -2338,6 +2400,7 @@
                 }
             }
         }
+        
         // Check if a point is near a path segment
         function isPointNearPath(x, y, pathData, threshold) {
             // Simple implementation - check distance to path endpoints
@@ -2369,6 +2432,7 @@
             
             return false;
         }
+        
         // Calculate distance from point to line segment
         function pointToLineDistance(x, y, x1, y1, x2, y2) {
             // Calculate the distance from point (x,y) to line segment (x1,y1)-(x2,y2)
@@ -2403,6 +2467,7 @@
             
             return Math.sqrt(dx * dx + dy * dy);
         }
+        
         // Render annotation
         function renderAnnotation(annotation, container) {
             const annotationEl = document.createElement('div');
@@ -2502,7 +2567,7 @@
                 circle.setAttribute('cx', '50%');
                 circle.setAttribute('cy', '50%');
                 circle.setAttribute('r', '50%');
-                circle.setAttribute('stroke', annotation.color);
+                circle.setAttribute('stroke', '#cccccc'); // Gray color for circles
                 circle.setAttribute('stroke-width', app.stylusSettings.maxLineWidth);
                 circle.setAttribute('fill', 'none');
                 
@@ -2540,6 +2605,7 @@
             
             container.appendChild(annotationEl);
         }
+        
         // Render annotations for a specific page
         function renderAnnotationsForPage(pageNum, container) {
             const pageAnnotations = app.annotations.filter(ann => ann.page === pageNum);
@@ -2547,6 +2613,7 @@
                 renderAnnotation(annotation, container);
             });
         }
+        
         // Show annotation popup
         function showAnnotationPopup(e, annotation) {
             app.selectedAnnotation = annotation;
@@ -2554,6 +2621,7 @@
             elements.annotationPopup.style.top = e.pageY + 'px';
             elements.annotationPopup.style.display = 'block';
         }
+        
         // Delete selected annotation
         function deleteSelectedAnnotation() {
             if (!app.selectedAnnotation) return;
@@ -2570,6 +2638,7 @@
             
             elements.annotationPopup.style.display = 'none';
         }
+        
         // Clear all annotations
         function clearAllAnnotations() {
             if (app.annotations.length === 0) {
@@ -2583,10 +2652,12 @@
                 showToast('All annotations cleared');
             }
         }
+        
         // Save annotated PDF (simplified for demo)
         function saveAnnotatedPDF() {
             showToast('Annotated PDF saved successfully!');
         }
+        
         // Calibrate stylus
         function calibrateStylus() {
             showToast('Stylus calibration started. Please draw on the screen.');
@@ -2602,6 +2673,7 @@
                 showToast('Stylus calibration completed successfully!');
             }, 2000);
         }
+        
         // Update stylus indicators
         function updateStylusIndicators() {
             // Update pressure bar
@@ -2612,6 +2684,7 @@
             elements.tiltX.textContent = Math.round(app.currentTiltX);
             elements.tiltY.textContent = Math.round(app.currentTiltY);
         }
+        
         // Show toast notification
         function showToast(message, type = 'success') {
             elements.toastMessage.textContent = message;
@@ -2634,6 +2707,7 @@
                 elements.toast.classList.remove('show');
             }, 3000);
         }
+        
         // Initialize the application
         function init() {
             initEventListeners();
@@ -2648,10 +2722,12 @@
                 showToast('Max line width set to 5.2px', 'info');
                 showToast('Use left/right arrow keys to navigate pages', 'info');
                 showToast('Eraser size increases with movement speed', 'info');
+                showToast('Circle tool now uses gray color', 'info');
             } else {
                 showToast('Stylus support not available. Using touch/mouse input instead.', 'info');
             }
         }
+        
         // Start the application when the DOM is loaded
         document.addEventListener('DOMContentLoaded', init);
     </script>
