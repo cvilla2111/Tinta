@@ -105,9 +105,9 @@ const app = {
     currentAnnotation: null,
     selectedAnnotation: null,
     stylusSettings: {
-        pressureSensitivity: 0.28,
+        pressureSensitivity: 0.28,  // Updated to 28%
         tiltSensitivity: 0.5,
-        minLineWidth: 0.1,
+        minLineWidth: 1.0,          // Updated to 1px
         maxLineWidth: 5.2,
         opacityPressure: false,
         palmRejection: false,
