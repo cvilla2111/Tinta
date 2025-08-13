@@ -924,12 +924,10 @@
         <i class="fas fa-check-circle"></i>
         <span id="toast-message">Action completed successfully</span>
     </div>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script>
         // Set the worker source for PDF.js
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
-
         // Application state
         const app = {
             pdfDoc: null,
@@ -970,7 +968,6 @@
             buttonHistory: [],
             buttonDetectionMethod: 'none'
         };
-
         // DOM elements
         const elements = {
             uploadBtn: document.getElementById('upload-btn'),
@@ -1022,7 +1019,6 @@
             debugPressure: document.getElementById('debug-pressure'),
             debugMethod: document.getElementById('debug-method')
         };
-
         // Initialize event listeners
         function initEventListeners() {
             elements.uploadBtn.addEventListener('click', () => elements.fileInput.click());
@@ -1139,14 +1135,12 @@
                 }
             });
         }
-
         // Toggle debug mode
         function toggleDebugMode() {
             app.debugMode = !app.debugMode;
             elements.debugInfo.style.display = app.debugMode ? 'block' : 'none';
             showToast(`Debug mode ${app.debugMode ? 'enabled' : 'disabled'}`);
         }
-
         // Test button detection
         function testButtonDetection() {
             if (!app.debugMode) {
@@ -1175,7 +1169,7 @@
                     app.buttonDetectionMethod = detection.method;
                     elements.debugMethod.textContent = detection.method;
                     
-                    showToast(`Detected: Button 1: ${detection.button1 ? 'Yes' : 'No'}, Button 2: ${detection.button2 ? 'Yes' : 'No'}`, 'info');
+                    showToast(`Detected: Button 1: ${detection.button1Pressed ? 'Yes' : 'No'}, Button 2: ${detection.button2Pressed ? 'Yes' : 'No'}`, 'info');
                 }
             };
             
@@ -1188,7 +1182,6 @@
                 showToast('Button test completed', 'info');
             }, 10000);
         }
-
         // Initialize ink preview
         function initInkPreview() {
             const canvas = elements.inkPreview;
@@ -1202,7 +1195,6 @@
             
             updateInkPreview();
         }
-
         // Update ink preview
         function updateInkPreview() {
             const ctx = app.inkPreviewCtx;
@@ -1237,7 +1229,6 @@
             // Reset global alpha
             ctx.globalAlpha = 1;
         }
-
         // Calculate line width based on pressure
         function calculateLineWidth(pressure) {
             const min = app.stylusSettings.minLineWidth;
@@ -1249,7 +1240,6 @@
             
             return min + (max - min) * adjustedPressure;
         }
-
         // Update stylus status indicator
         function updateStylusStatus() {
             if (app.currentTool === 'eraser') {
@@ -1260,42 +1250,50 @@
                 elements.statusText.textContent = 'Pen';
             }
         }
-
         // Enhanced button detection for Bamboo stylus
         function detectButtonMethod(buttons, button) {
             let button1Pressed = false;
             let button2Pressed = false;
             let method = 'none';
             
-            // Method 1: Standard bitmask detection
+            // Method 1: Standard bitmask detection (excluding primary touch)
+            // Bitmask 1 is just the stylus touching the screen, not a button press
             if (app.stylusSettings.button1Eraser) {
-                button1Pressed = button1Pressed || (buttons & 2) === 2;
+                // Primary button typically uses bitmask 32 (as seen in your debug info)
+                button1Pressed = (buttons & 32) === 32;
             }
             if (app.stylusSettings.button2Eraser) {
-                button2Pressed = button2Pressed || (buttons & 4) === 4;
+                // Secondary button typically uses bitmask 2
+                button2Pressed = (buttons & 2) === 2;
             }
             
             if (button1Pressed || button2Pressed) {
                 method = 'standard bitmask';
             }
             
-            // Method 2: Alternative mapping (some Bamboo models use this)
-            if (!button1Pressed && app.stylusSettings.button1Eraser) {
-                button1Pressed = (buttons & 4) === 4;
-                if (button1Pressed) method = 'alternative mapping';
-            }
-            if (!button2Pressed && app.stylusSettings.button2Eraser) {
-                button2Pressed = (buttons & 2) === 2;
-                if (button2Pressed) method = 'alternative mapping';
+            // Method 2: Alternative mapping (only if standard didn't work)
+            if (!button1Pressed && !button2Pressed) {
+                if (app.stylusSettings.button1Eraser) {
+                    // Check other possible values for button 1
+                    button1Pressed = (buttons & 16) === 16 || (buttons & 8) === 8;
+                }
+                if (app.stylusSettings.button2Eraser) {
+                    // Check other possible values for button 2
+                    button2Pressed = (buttons & 4) === 4;
+                }
+                
+                if (button1Pressed || button2Pressed) {
+                    method = 'alternative mapping';
+                }
             }
             
             // Method 3: Use button property (for some styluses)
             if (!button1Pressed && !button2Pressed && button !== undefined) {
-                if (app.stylusSettings.button1Eraser && button === 2) {
+                if (app.stylusSettings.button1Eraser && button === 5) { // Primary button
                     button1Pressed = true;
                     method = 'button property';
                 }
-                if (app.stylusSettings.button2Eraser && button === 4) {
+                if (app.stylusSettings.button2Eraser && button === 2) { // Secondary button
                     button2Pressed = true;
                     method = 'button property';
                 }
@@ -1306,11 +1304,12 @@
                 const lastState = app.buttonHistory[app.buttonHistory.length - 1];
                 if (lastState.buttons !== buttons) {
                     // Button state changed, check if it was a button press
-                    if (app.stylusSettings.button1Eraser && (buttons & 2) === 2) {
+                    // Ignore bitmask 1 (just touch) for state changes
+                    if (app.stylusSettings.button1Eraser && (buttons & 32) === 32) {
                         button1Pressed = true;
                         method = 'state change';
                     }
-                    if (app.stylusSettings.button2Eraser && (buttons & 4) === 4) {
+                    if (app.stylusSettings.button2Eraser && (buttons & 2) === 2) {
                         button2Pressed = true;
                         method = 'state change';
                     }
@@ -1320,7 +1319,8 @@
             // Method 5: Try additional bitmask values for some stylus models
             if (!button1Pressed && !button2Pressed) {
                 // Some styluses might use different bitmasks
-                const possibleValues = [1, 8, 16, 32];
+                // But we exclude bitmask 1 which is just touch
+                const possibleValues = [8, 16, 64, 128];
                 
                 for (const value of possibleValues) {
                     if ((buttons & value) === value) {
@@ -1340,7 +1340,6 @@
             
             return { button1Pressed, button2Pressed, method };
         }
-
         // Check if any eraser button is pressed
         function isEraserButtonPressed(buttons, button) {
             const detection = detectButtonMethod(buttons, button);
@@ -1357,7 +1356,6 @@
             
             return detection.button1Pressed || detection.button2Pressed;
         }
-
         // Handle file selection
         function handleFileSelect(e) {
             const file = e.target.files[0];
@@ -1373,7 +1371,6 @@
             };
             fileReader.readAsArrayBuffer(file);
         }
-
         // Load PDF document
         function loadPDF(data) {
             pdfjsLib.getDocument(data).promise.then(function(pdf) {
@@ -1398,7 +1395,6 @@
                 showToast('Error loading PDF', 'error');
             });
         }
-
         // Render page
         function renderPage(num) {
             app.pageRendering = true;
@@ -1461,7 +1457,6 @@
             // Update page counter
             elements.pageNum.textContent = num;
         }
-
         // Queue render page
         function queueRenderPage(num) {
             if (app.pageRendering) {
@@ -1470,12 +1465,10 @@
                 renderPage(num);
             }
         }
-
         // Update zoom level display
         function updateZoomLevel() {
             elements.zoomLevel.textContent = Math.round(app.scale * 100) + '%';
         }
-
         // Set up annotation events
         function setupAnnotationEvents(pageContainer, annotationLayer) {
             // Pointer events for stylus support
@@ -1504,7 +1497,6 @@
             pageContainer.addEventListener('touchstart', (e) => e.preventDefault());
             pageContainer.addEventListener('touchmove', (e) => e.preventDefault());
         }
-
         // Start annotation
         function startAnnotation(e) {
             // Record button state for debugging
@@ -1521,7 +1513,7 @@
                 }
             }
             
-            // Check for stylus button press
+            // Check for stylus button press (ignore bitmask 1 which is just touch)
             if (e.pointerType === 'pen') {
                 // Store active buttons state
                 app.activeButtons = e.buttons;
@@ -1633,7 +1625,6 @@
                 };
             }
         }
-
         // Continue annotation
         function continueAnnotation(e) {
             if (!app.isDrawing || app.currentTool === 'text') return;
@@ -1725,7 +1716,6 @@
             // Redraw temporary annotation
             renderTemporaryAnnotation();
         }
-
         // End annotation
         function endAnnotation(e) {
             if (!app.isDrawing) return;
@@ -1735,8 +1725,11 @@
             
             // Check if we need to restore previous tool after stylus button release
             if (app.isStylusButtonPressed && e.pointerType === 'pen') {
-                // Check if no eraser buttons are pressed
-                if (!isEraserButtonPressed(e.buttons, e.button)) {
+                // Check if no eraser buttons are pressed (ignore bitmask 1 which is just touch)
+                const currentButtons = e.buttons;
+                const isButtonPressed = (currentButtons & 32) === 32 || (currentButtons & 2) === 2;
+                
+                if (!isButtonPressed) {
                     app.currentTool = app.previousTool;
                     app.isStylusButtonPressed = false;
                     updateStylusStatus();
@@ -1766,7 +1759,6 @@
             app.currentTiltY = 0;
             updateStylusIndicators();
         }
-
         // Update tool button selection
         function updateToolButtonSelection() {
             elements.toolBtns.forEach(btn => {
@@ -1776,7 +1768,6 @@
                 }
             });
         }
-
         // Render temporary annotation
         function renderTemporaryAnnotation() {
             const annotationLayer = document.querySelector('.annotation-layer');
@@ -1901,7 +1892,6 @@
             
             annotationLayer.appendChild(annotationEl);
         }
-
         // Create pressure-sensitive segments for drawing
         function createPressureSensitiveSegments(points) {
             const segments = [];
@@ -1950,7 +1940,6 @@
             
             return segments;
         }
-
         // Create SVG path data from points
         function createPathData(points) {
             if (points.length < 2) return '';
@@ -1974,7 +1963,6 @@
             
             return d;
         }
-
         // Create text annotation
         function createTextAnnotation(x, y) {
             const annotationLayer = document.querySelector('.annotation-layer');
@@ -2026,7 +2014,6 @@
                 }
             });
         }
-
         // Erase annotation at position
         function eraseAnnotation(x, y) {
             const annotationLayer = document.querySelector('.annotation-layer');
@@ -2058,7 +2045,6 @@
                 }
             }
         }
-
         // Render annotation
         function renderAnnotation(annotation, container) {
             const annotationEl = document.createElement('div');
@@ -2195,7 +2181,6 @@
             
             container.appendChild(annotationEl);
         }
-
         // Render annotations for a specific page
         function renderAnnotationsForPage(pageNum, container) {
             const pageAnnotations = app.annotations.filter(ann => ann.page === pageNum);
@@ -2203,7 +2188,6 @@
                 renderAnnotation(annotation, container);
             });
         }
-
         // Show annotation popup
         function showAnnotationPopup(e, annotation) {
             app.selectedAnnotation = annotation;
@@ -2211,7 +2195,6 @@
             elements.annotationPopup.style.top = e.pageY + 'px';
             elements.annotationPopup.style.display = 'block';
         }
-
         // Delete selected annotation
         function deleteSelectedAnnotation() {
             if (!app.selectedAnnotation) return;
@@ -2228,7 +2211,6 @@
             
             elements.annotationPopup.style.display = 'none';
         }
-
         // Clear all annotations
         function clearAllAnnotations() {
             if (app.annotations.length === 0) {
@@ -2242,12 +2224,10 @@
                 showToast('All annotations cleared');
             }
         }
-
         // Save annotated PDF (simplified for demo)
         function saveAnnotatedPDF() {
             showToast('Annotated PDF saved successfully!');
         }
-
         // Calibrate stylus
         function calibrateStylus() {
             showToast('Stylus calibration started. Please draw on the screen.');
@@ -2263,7 +2243,6 @@
                 showToast('Stylus calibration completed successfully!');
             }, 2000);
         }
-
         // Update stylus indicators
         function updateStylusIndicators() {
             // Update pressure bar
@@ -2274,7 +2253,6 @@
             elements.tiltX.textContent = Math.round(app.currentTiltX);
             elements.tiltY.textContent = Math.round(app.currentTiltY);
         }
-
         // Show toast notification
         function showToast(message, type = 'success') {
             elements.toastMessage.textContent = message;
@@ -2297,7 +2275,6 @@
                 elements.toast.classList.remove('show');
             }, 3000);
         }
-
         // Initialize the application
         function init() {
             initEventListeners();
@@ -2314,7 +2291,6 @@
                 showToast('Stylus support not available. Using touch/mouse input instead.', 'info');
             }
         }
-
         // Start the application when the DOM is loaded
         document.addEventListener('DOMContentLoaded', init);
     </script>
