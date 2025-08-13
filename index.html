@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Annotator - Stylus Edition</title>
+    <title>PDF Annotator - Enhanced Stylus Edition</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
@@ -385,7 +385,7 @@
         }
         
         .nav-btn:hover {
-            background-color: #f8f9fa;
+            background-color: #f8f9fa';
         }
         
         .nav-btn:disabled {
@@ -413,7 +413,7 @@
         }
         
         .zoom-btn:hover {
-            background-color: #f8f9fa;
+            background-color: #f8f9fa';
         }
         
         .zoom-level {
@@ -446,7 +446,7 @@
         }
         
         .annotation-popup button:hover {
-            background-color: #f8f9fa;
+            background-color: #f8f9fa';
         }
         
         .toast {
@@ -514,7 +514,7 @@
         
         .pressure-bar {
             height: 100%;
-            background-color: #3498db;
+            background: linear-gradient(to right, #3498db, #9b59b6);
             width: 0%;
             transition: width 0.1s ease;
         }
@@ -528,6 +528,22 @@
         .tilt-value {
             font-size: 0.8rem;
             color: #7f8c8d;
+        }
+        
+        .ink-preview {
+            margin-top: 1rem;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        .ink-preview-canvas {
+            width: 100%;
+            height: 60px;
+            background-color: white;
+            border-radius: 4px;
+            margin-top: 8px;
         }
         
         @media (max-width: 1024px) {
@@ -568,7 +584,7 @@
         <div class="header-content">
             <div class="logo">
                 <i class="fas fa-file-pdf"></i>
-                <h1>PDF Annotator - Stylus Edition</h1>
+                <h1>PDF Annotator - Enhanced Stylus Edition</h1>
             </div>
             <div class="user-info">
                 <span>Welcome, User</span>
@@ -596,7 +612,7 @@
                         <i class="fas fa-highlighter"></i>
                         <span>Highlight</span>
                     </div>
-                    <div class="tool-btn stylus-tool" data-tool="draw">
+                    <div class="tool-btn stylus-tool active" data-tool="draw">
                         <i class="fas fa-pencil-alt"></i>
                         <span>Draw</span>
                     </div>
@@ -639,8 +655,8 @@
                 <h3>Stylus Settings</h3>
                 
                 <div class="setting-item">
-                    <label>Pressure Sensitivity: <span class="setting-value" id="pressure-value">50%</span></label>
-                    <input type="range" id="pressure-sensitivity" min="0" max="100" value="50">
+                    <label>Pressure Sensitivity: <span class="setting-value" id="pressure-value">75%</span></label>
+                    <input type="range" id="pressure-sensitivity" min="0" max="100" value="75">
                     <div class="pressure-indicator">
                         <div class="pressure-bar" id="pressure-bar"></div>
                     </div>
@@ -656,14 +672,30 @@
                 </div>
                 
                 <div class="setting-item">
-                    <label>Line Width: <span class="setting-value" id="line-width-value">3px</span></label>
-                    <input type="range" id="line-width" min="1" max="20" value="3">
+                    <label>Min Line Width: <span class="setting-value" id="min-width-value">1px</span></label>
+                    <input type="range" id="min-line-width" min="1" max="10" value="1">
+                </div>
+                
+                <div class="setting-item">
+                    <label>Max Line Width: <span class="setting-value" id="max-width-value">12px</span></label>
+                    <input type="range" id="max-line-width" min="5" max="30" value="12">
+                </div>
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="opacity-pressure" checked> Pressure Opacity
+                    </label>
                 </div>
                 
                 <div class="setting-item">
                     <label>
                         <input type="checkbox" id="palm-rejection" checked> Palm Rejection
                     </label>
+                </div>
+                
+                <div class="ink-preview">
+                    <label>Ink Preview</label>
+                    <canvas class="ink-preview-canvas" id="ink-preview"></canvas>
                 </div>
             </div>
             
@@ -747,7 +779,7 @@
             scale: 1.2,
             canvas: null,
             ctx: null,
-            currentTool: 'select',
+            currentTool: 'draw',
             currentColor: '#f1c40f',
             annotations: [],
             isDrawing: false,
@@ -756,14 +788,18 @@
             currentAnnotation: null,
             selectedAnnotation: null,
             stylusSettings: {
-                pressureSensitivity: 0.5,
+                pressureSensitivity: 0.75,
                 tiltSensitivity: 0.5,
-                lineWidth: 3,
+                minLineWidth: 1,
+                maxLineWidth: 12,
+                opacityPressure: true,
                 palmRejection: true
             },
             currentPressure: 0,
             currentTiltX: 0,
-            currentTiltY: 0
+            currentTiltY: 0,
+            lastPoint: null,
+            inkPreviewCtx: null
         };
 
         // DOM elements
@@ -795,10 +831,14 @@
             tiltValue: document.getElementById('tilt-value'),
             tiltX: document.getElementById('tilt-x'),
             tiltY: document.getElementById('tilt-y'),
-            lineWidth: document.getElementById('line-width'),
-            lineWidthValue: document.getElementById('line-width-value'),
+            minLineWidth: document.getElementById('min-line-width'),
+            minWidthValue: document.getElementById('min-width-value'),
+            maxLineWidth: document.getElementById('max-line-width'),
+            maxWidthValue: document.getElementById('max-width-value'),
+            opacityPressure: document.getElementById('opacity-pressure'),
             palmRejection: document.getElementById('palm-rejection'),
-            calibrateStylus: document.getElementById('calibrate-stylus')
+            calibrateStylus: document.getElementById('calibrate-stylus'),
+            inkPreview: document.getElementById('ink-preview')
         };
 
         // Initialize event listeners
@@ -849,6 +889,7 @@
                     elements.colorOptions.forEach(o => o.classList.remove('active'));
                     option.classList.add('active');
                     app.currentColor = option.dataset.color;
+                    updateInkPreview();
                 });
             });
             
@@ -858,6 +899,7 @@
             elements.pressureSensitivity.addEventListener('input', (e) => {
                 app.stylusSettings.pressureSensitivity = e.target.value / 100;
                 elements.pressureValue.textContent = e.target.value + '%';
+                updateInkPreview();
             });
             
             elements.tiltSensitivity.addEventListener('input', (e) => {
@@ -865,9 +907,21 @@
                 elements.tiltValue.textContent = e.target.value + '%';
             });
             
-            elements.lineWidth.addEventListener('input', (e) => {
-                app.stylusSettings.lineWidth = parseInt(e.target.value);
-                elements.lineWidthValue.textContent = e.target.value + 'px';
+            elements.minLineWidth.addEventListener('input', (e) => {
+                app.stylusSettings.minLineWidth = parseInt(e.target.value);
+                elements.minWidthValue.textContent = e.target.value + 'px';
+                updateInkPreview();
+            });
+            
+            elements.maxLineWidth.addEventListener('input', (e) => {
+                app.stylusSettings.maxLineWidth = parseInt(e.target.value);
+                elements.maxWidthValue.textContent = e.target.value + 'px';
+                updateInkPreview();
+            });
+            
+            elements.opacityPressure.addEventListener('change', (e) => {
+                app.stylusSettings.opacityPressure = e.target.checked;
+                updateInkPreview();
             });
             
             elements.palmRejection.addEventListener('change', (e) => {
@@ -880,6 +934,67 @@
                     elements.annotationPopup.style.display = 'none';
                 }
             });
+        }
+
+        // Initialize ink preview
+        function initInkPreview() {
+            const canvas = elements.inkPreview;
+            app.inkPreviewCtx = canvas.getContext('2d');
+            
+            // Set canvas size
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            app.inkPreviewCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            
+            updateInkPreview();
+        }
+
+        // Update ink preview
+        function updateInkPreview() {
+            const ctx = app.inkPreviewCtx;
+            const canvas = elements.inkPreview;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw sample strokes with varying pressure
+            const centerY = canvas.height / (2 * window.devicePixelRatio);
+            const startX = 10;
+            const endX = canvas.width / window.devicePixelRatio - 10;
+            
+            // Draw pressure gradient stroke
+            ctx.beginPath();
+            ctx.moveTo(startX, centerY);
+            
+            for (let x = startX; x <= endX; x += 2) {
+                const pressure = (x - startX) / (endX - startX);
+                const lineWidth = calculateLineWidth(pressure);
+                const opacity = app.stylusSettings.opacityPressure ? 0.3 + (pressure * 0.7) : 1;
+                
+                ctx.lineWidth = lineWidth;
+                ctx.globalAlpha = opacity;
+                ctx.strokeStyle = app.currentColor;
+                ctx.lineTo(x, centerY);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(x, centerY);
+            }
+            
+            // Reset global alpha
+            ctx.globalAlpha = 1;
+        }
+
+        // Calculate line width based on pressure
+        function calculateLineWidth(pressure) {
+            const min = app.stylusSettings.minLineWidth;
+            const max = app.stylusSettings.maxLineWidth;
+            const sensitivity = app.stylusSettings.pressureSensitivity;
+            
+            // Apply sensitivity curve (more pronounced at higher sensitivities)
+            const adjustedPressure = Math.pow(pressure, 1.5 - sensitivity);
+            
+            return min + (max - min) * adjustedPressure;
         }
 
         // Handle file selection
@@ -1017,8 +1132,8 @@
         function startAnnotation(e) {
             // Check if it's a stylus event and apply palm rejection
             if (e.pointerType === 'pen' && app.stylusSettings.palmRejection) {
-                // Simple palm rejection: ignore if pressure is too low
-                if (e.pressure < 0.1) return;
+                // Enhanced palm rejection: ignore if pressure is too low
+                if (e.pressure < 0.05) return;
             }
             
             if (app.currentTool === 'select') return;
@@ -1036,6 +1151,13 @@
                 updateStylusIndicators();
             }
             
+            // Store the last point for smooth drawing
+            app.lastPoint = {
+                x: app.startX,
+                y: app.startY,
+                pressure: e.pressure || 0.5
+            };
+            
             // Create temporary annotation
             if (app.currentTool === 'text') {
                 createTextAnnotation(app.startX, app.startY);
@@ -1052,7 +1174,13 @@
             } else if (app.currentTool === 'draw' || app.currentTool === 'pen') {
                 app.currentAnnotation = {
                     type: 'draw',
-                    points: [{x: app.startX, y: app.startY, pressure: e.pressure || 0.5}],
+                    points: [{
+                        x: app.startX, 
+                        y: app.startY, 
+                        pressure: e.pressure || 0.5,
+                        tiltX: e.tiltX || 0,
+                        tiltY: e.tiltY || 0
+                    }],
                     color: app.currentColor,
                     page: app.pageNum,
                     tool: app.currentTool
@@ -1113,7 +1241,58 @@
                 app.currentAnnotation.height = 20;
             } else if (app.currentTool === 'draw' || app.currentTool === 'pen') {
                 const pressure = e.pressure || 0.5;
-                app.currentAnnotation.points.push({x: currentX, y: currentY, pressure: pressure});
+                const tiltX = e.tiltX || 0;
+                const tiltY = e.tiltY || 0;
+                
+                // Add interpolated points for smoother drawing
+                if (app.lastPoint) {
+                    const distance = Math.sqrt(
+                        Math.pow(currentX - app.lastPoint.x, 2) + 
+                        Math.pow(currentY - app.lastPoint.y, 2)
+                    );
+                    
+                    // Add intermediate points if distance is large
+                    if (distance > 5) {
+                        const steps = Math.ceil(distance / 2);
+                        for (let i = 1; i <= steps; i++) {
+                            const t = i / steps;
+                            const interpolatedX = app.lastPoint.x + (currentX - app.lastPoint.x) * t;
+                            const interpolatedY = app.lastPoint.y + (currentY - app.lastPoint.y) * t;
+                            const interpolatedPressure = app.lastPoint.pressure + (pressure - app.lastPoint.pressure) * t;
+                            
+                            app.currentAnnotation.points.push({
+                                x: interpolatedX,
+                                y: interpolatedY,
+                                pressure: interpolatedPressure,
+                                tiltX: tiltX,
+                                tiltY: tiltY
+                            });
+                        }
+                    } else {
+                        app.currentAnnotation.points.push({
+                            x: currentX,
+                            y: currentY,
+                            pressure: pressure,
+                            tiltX: tiltX,
+                            tiltY: tiltY
+                        });
+                    }
+                } else {
+                    app.currentAnnotation.points.push({
+                        x: currentX,
+                        y: currentY,
+                        pressure: pressure,
+                        tiltX: tiltX,
+                        tiltY: tiltY
+                    });
+                }
+                
+                // Update last point
+                app.lastPoint = {
+                    x: currentX,
+                    y: currentY,
+                    pressure: pressure
+                };
             } else if (app.currentTool === 'rectangle') {
                 app.currentAnnotation.width = currentX - app.startX;
                 app.currentAnnotation.height = currentY - app.startY;
@@ -1135,6 +1314,7 @@
             if (!app.isDrawing) return;
             
             app.isDrawing = false;
+            app.lastPoint = null;
             
             if (app.currentAnnotation) {
                 // Add to annotations array
@@ -1190,36 +1370,25 @@
                 svg.style.width = '100%';
                 svg.style.height = '100%';
                 
-                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                // Create multiple path segments for pressure sensitivity
+                const segments = createPressureSensitiveSegments(app.currentAnnotation.points);
                 
-                // Create path with pressure-sensitive width
-                let d = `M ${app.currentAnnotation.points[0].x} ${app.currentAnnotation.points[0].y}`;
+                segments.forEach(segment => {
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    path.setAttribute('d', segment.d);
+                    path.setAttribute('stroke', app.currentAnnotation.color);
+                    path.setAttribute('stroke-width', segment.width);
+                    path.setAttribute('fill', 'none');
+                    path.setAttribute('stroke-linecap', 'round');
+                    path.setAttribute('stroke-linejoin', 'round');
+                    
+                    if (app.stylusSettings.opacityPressure) {
+                        path.setAttribute('opacity', segment.opacity);
+                    }
+                    
+                    svg.appendChild(path);
+                });
                 
-                for (let i = 1; i < app.currentAnnotation.points.length; i++) {
-                    d += ` L ${app.currentAnnotation.points[i].x} ${app.currentAnnotation.points[i].y}`;
-                }
-                
-                path.setAttribute('d', d);
-                path.setAttribute('stroke', app.currentAnnotation.color);
-                
-                // Calculate average pressure for line width
-                const avgPressure = app.currentAnnotation.points.reduce((sum, point) => sum + point.pressure, 0) / app.currentAnnotation.points.length;
-                const pressureFactor = avgPressure * app.stylusSettings.pressureSensitivity;
-                const strokeWidth = app.stylusSettings.lineWidth * (0.5 + pressureFactor);
-                
-                path.setAttribute('stroke-width', strokeWidth);
-                path.setAttribute('fill', 'none');
-                path.setAttribute('stroke-linecap', 'round');
-                path.setAttribute('stroke-linejoin', 'round');
-                
-                // Apply tilt effect if available
-                if (app.currentTiltX !== 0 || app.currentTiltY !== 0) {
-                    const tiltFactor = Math.abs(app.currentTiltX) + Math.abs(app.currentTiltY);
-                    const tiltEffect = 1 + (tiltFactor / 180) * app.stylusSettings.tiltSensitivity;
-                    path.setAttribute('stroke-width', strokeWidth * tiltEffect);
-                }
-                
-                svg.appendChild(path);
                 annotationEl.appendChild(svg);
             } else if (app.currentTool === 'rectangle') {
                 annotationEl.className += ' drawing-annotation';
@@ -1238,7 +1407,7 @@
                 rect.setAttribute('width', '100%');
                 rect.setAttribute('height', '100%');
                 rect.setAttribute('stroke', app.currentAnnotation.color);
-                rect.setAttribute('stroke-width', app.stylusSettings.lineWidth);
+                rect.setAttribute('stroke-width', app.stylusSettings.maxLineWidth);
                 rect.setAttribute('fill', 'none');
                 
                 svg.appendChild(rect);
@@ -1259,7 +1428,7 @@
                 circle.setAttribute('cy', '50%');
                 circle.setAttribute('r', '50%');
                 circle.setAttribute('stroke', app.currentAnnotation.color);
-                circle.setAttribute('stroke-width', app.stylusSettings.lineWidth);
+                circle.setAttribute('stroke-width', app.stylusSettings.maxLineWidth);
                 circle.setAttribute('fill', 'none');
                 
                 svg.appendChild(circle);
@@ -1281,7 +1450,7 @@
                 line.setAttribute('x2', app.currentAnnotation.x2);
                 line.setAttribute('y2', app.currentAnnotation.y2);
                 line.setAttribute('stroke', app.currentAnnotation.color);
-                line.setAttribute('stroke-width', app.stylusSettings.lineWidth);
+                line.setAttribute('stroke-width', app.stylusSettings.maxLineWidth);
                 line.setAttribute('stroke-linecap', 'round');
                 
                 svg.appendChild(line);
@@ -1289,6 +1458,79 @@
             }
             
             annotationLayer.appendChild(annotationEl);
+        }
+
+        // Create pressure-sensitive segments for drawing
+        function createPressureSensitiveSegments(points) {
+            const segments = [];
+            if (points.length < 2) return segments;
+            
+            let currentSegment = {
+                points: [points[0]],
+                avgPressure: points[0].pressure
+            };
+            
+            for (let i = 1; i < points.length; i++) {
+                const point = points[i];
+                const pressureDiff = Math.abs(point.pressure - currentSegment.avgPressure);
+                
+                // Start new segment if pressure changes significantly
+                if (pressureDiff > 0.1 && currentSegment.points.length > 1) {
+                    // Finish current segment
+                    const d = createPathData(currentSegment.points);
+                    const width = calculateLineWidth(currentSegment.avgPressure);
+                    const opacity = app.stylusSettings.opacityPressure ? 
+                        0.3 + (currentSegment.avgPressure * 0.7) : 1;
+                    
+                    segments.push({ d, width, opacity });
+                    
+                    // Start new segment
+                    currentSegment = {
+                        points: [points[i-1], point],
+                        avgPressure: point.pressure
+                    };
+                } else {
+                    // Add point to current segment
+                    currentSegment.points.push(point);
+                    currentSegment.avgPressure = (currentSegment.avgPressure * (currentSegment.points.length - 1) + point.pressure) / currentSegment.points.length;
+                }
+            }
+            
+            // Add final segment
+            if (currentSegment.points.length > 1) {
+                const d = createPathData(currentSegment.points);
+                const width = calculateLineWidth(currentSegment.avgPressure);
+                const opacity = app.stylusSettings.opacityPressure ? 
+                    0.3 + (currentSegment.avgPressure * 0.7) : 1;
+                
+                segments.push({ d, width, opacity });
+            }
+            
+            return segments;
+        }
+
+        // Create SVG path data from points
+        function createPathData(points) {
+            if (points.length < 2) return '';
+            
+            let d = `M ${points[0].x} ${points[0].y}`;
+            
+            if (points.length === 2) {
+                d += ` L ${points[1].x} ${points[1].y}`;
+            } else {
+                // Use quadratic curves for smoother lines
+                for (let i = 1; i < points.length - 1; i++) {
+                    const xc = (points[i].x + points[i + 1].x) / 2;
+                    const yc = (points[i].y + points[i + 1].y) / 2;
+                    d += ` Q ${points[i].x} ${points[i].y}, ${xc} ${yc}`;
+                }
+                
+                // Add last point
+                const last = points[points.length - 1];
+                d += ` L ${last.x} ${last.y}`;
+            }
+            
+            return d;
         }
 
         // Create text annotation
@@ -1415,29 +1657,25 @@
                 svg.style.width = '100%';
                 svg.style.height = '100%';
                 
-                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                // Create pressure-sensitive segments
+                const segments = createPressureSensitiveSegments(annotation.points);
                 
-                // Create path with pressure-sensitive width
-                let d = `M ${annotation.points[0].x} ${annotation.points[0].y}`;
+                segments.forEach(segment => {
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    path.setAttribute('d', segment.d);
+                    path.setAttribute('stroke', annotation.color);
+                    path.setAttribute('stroke-width', segment.width);
+                    path.setAttribute('fill', 'none');
+                    path.setAttribute('stroke-linecap', 'round');
+                    path.setAttribute('stroke-linejoin', 'round');
+                    
+                    if (app.stylusSettings.opacityPressure) {
+                        path.setAttribute('opacity', segment.opacity);
+                    }
+                    
+                    svg.appendChild(path);
+                });
                 
-                for (let i = 1; i < annotation.points.length; i++) {
-                    d += ` L ${annotation.points[i].x} ${annotation.points[i].y}`;
-                }
-                
-                path.setAttribute('d', d);
-                path.setAttribute('stroke', annotation.color);
-                
-                // Calculate average pressure for line width
-                const avgPressure = annotation.points.reduce((sum, point) => sum + point.pressure, 0) / annotation.points.length;
-                const pressureFactor = avgPressure * app.stylusSettings.pressureSensitivity;
-                const strokeWidth = app.stylusSettings.lineWidth * (0.5 + pressureFactor);
-                
-                path.setAttribute('stroke-width', strokeWidth);
-                path.setAttribute('fill', 'none');
-                path.setAttribute('stroke-linecap', 'round');
-                path.setAttribute('stroke-linejoin', 'round');
-                
-                svg.appendChild(path);
                 annotationEl.appendChild(svg);
             } else if (annotation.type === 'rectangle') {
                 annotationEl.className += ' drawing-annotation';
@@ -1456,7 +1694,7 @@
                 rect.setAttribute('width', '100%');
                 rect.setAttribute('height', '100%');
                 rect.setAttribute('stroke', annotation.color);
-                rect.setAttribute('stroke-width', app.stylusSettings.lineWidth);
+                rect.setAttribute('stroke-width', app.stylusSettings.maxLineWidth);
                 rect.setAttribute('fill', 'none');
                 
                 svg.appendChild(rect);
@@ -1477,7 +1715,7 @@
                 circle.setAttribute('cy', '50%');
                 circle.setAttribute('r', '50%');
                 circle.setAttribute('stroke', annotation.color);
-                circle.setAttribute('stroke-width', app.stylusSettings.lineWidth);
+                circle.setAttribute('stroke-width', app.stylusSettings.maxLineWidth);
                 circle.setAttribute('fill', 'none');
                 
                 svg.appendChild(circle);
@@ -1499,7 +1737,7 @@
                 line.setAttribute('x2', annotation.x2);
                 line.setAttribute('y2', annotation.y2);
                 line.setAttribute('stroke', annotation.color);
-                line.setAttribute('stroke-width', app.stylusSettings.lineWidth);
+                line.setAttribute('stroke-width', app.stylusSettings.maxLineWidth);
                 line.setAttribute('stroke-linecap', 'round');
                 
                 svg.appendChild(line);
@@ -1620,6 +1858,7 @@
         // Initialize the application
         function init() {
             initEventListeners();
+            initInkPreview();
             updateZoomLevel();
             
             // Check for stylus support
