@@ -331,6 +331,7 @@
             opacity: 0;
             transform: translateX(20px);
             transition: opacity 0.3s ease, transform 0.3s ease;
+            will-change: opacity, transform;
         }
         
         .pdf-page.active {
@@ -356,11 +357,13 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
+            will-change: contents;
         }
         
         .annotation {
             position: absolute;
             pointer-events: auto;
+            will-change: transform;
         }
         
         .text-annotation {
@@ -389,6 +392,7 @@
         
         .drawing-annotation {
             cursor: pointer;
+            will-change: contents;
         }
         
         .drawing-annotation svg {
@@ -520,6 +524,7 @@
             padding: 10px;
             z-index: 100;
             display: none;
+            will-change: transform;
         }
         
         .annotation-popup button {
@@ -554,6 +559,7 @@
             opacity: 0;
             transition: all 0.3s ease;
             z-index: 1000;
+            will-change: transform, opacity;
         }
         
         .toast.show {
@@ -605,7 +611,7 @@
             height: 100%;
             background: linear-gradient(to right, #3498db, #9b59b6);
             width: 0%;
-            transition: width 0.1s ease;
+            transition: width 0.05s ease; /* Faster transition */
         }
         
         .tilt-indicator {
@@ -762,7 +768,7 @@
             z-index: 1000;
             display: none;
             background-color: rgba(127, 140, 141, 0.2);
-            transition: width 0.05s ease, height 0.05s ease; /* Faster transition */
+            will-change: width, height, transform;
         }
         
         @media (max-width: 1024px) {
@@ -803,7 +809,7 @@
         <div class="header-content">
             <div class="logo">
                 <i class="fas fa-file-pdf"></i>
-                <h1>PDF Annotator - Professional Stylus Edition 2</h1>
+                <h1>PDF Annotator - Professional Stylus Edition</h1>
             </div>
             <div class="user-info">
                 <span>Welcome, User</span>
@@ -1085,7 +1091,17 @@
             pendingRender: false,
             pointBuffer: [],
             lastRenderTime: 0,
-            renderThrottle: 16 // ~60fps
+            renderThrottle: 8, // ~120fps for ultra-low latency
+            // Ultra-low latency optimizations
+            isProcessing: false,
+            lastFrameTime: 0,
+            targetFrameTime: 1000 / 120, // 120fps target
+            accumulatedTime: 0,
+            svgPathCache: new Map(),
+            tempSvg: null,
+            tempPath: null,
+            lastSvgUpdate: 0,
+            svgUpdateThrottle: 4 // Update SVG every 4ms
         };
         
         // DOM elements
@@ -1328,6 +1344,7 @@
             app.lastY = y;
             app.lastTime = currentTime;
             
+            // Direct DOM manipulation for ultra-low latency
             elements.eraserCursor.style.width = app.eraserCurrentSize + 'px';
             elements.eraserCursor.style.height = app.eraserCurrentSize + 'px';
             elements.eraserCursor.style.left = (x - app.eraserCurrentSize/2) + 'px';
@@ -1714,13 +1731,13 @@
             elements.zoomLevel.textContent = Math.round(app.scale * 100) + '%';
         }
         
-        // Set up annotation events
+        // Set up annotation events with passive listeners for better performance
         function setupAnnotationEvents(pageContainer, annotationLayer) {
-            // Pointer events for stylus support
-            pageContainer.addEventListener('pointerdown', startAnnotation);
-            pageContainer.addEventListener('pointermove', continueAnnotation);
-            pageContainer.addEventListener('pointerup', endAnnotation);
-            pageContainer.addEventListener('pointercancel', endAnnotation);
+            // Use passive event listeners for better performance
+            pageContainer.addEventListener('pointerdown', startAnnotation, { passive: true });
+            pageContainer.addEventListener('pointermove', continueAnnotation, { passive: true });
+            pageContainer.addEventListener('pointerup', endAnnotation, { passive: true });
+            pageContainer.addEventListener('pointercancel', endAnnotation, { passive: true });
             
             // Also listen for mousedown for better compatibility
             pageContainer.addEventListener('mousedown', (e) => {
@@ -1739,8 +1756,8 @@
             });
             
             // Prevent default touch actions to enable stylus
-            pageContainer.addEventListener('touchstart', (e) => e.preventDefault());
-            pageContainer.addEventListener('touchmove', (e) => e.preventDefault());
+            pageContainer.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+            pageContainer.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
         }
         
         // Start annotation
@@ -1816,6 +1833,12 @@
             
             // Clear point buffer for new stroke
             app.pointBuffer = [];
+            app.isProcessing = false;
+            
+            // Initialize SVG for ultra-low latency drawing
+            if (app.currentTool === 'pen') {
+                initTempSVG();
+            }
             
             // Create temporary annotation
             if (app.currentTool === 'text') {
@@ -1881,7 +1904,37 @@
             }
         }
         
-        // Continue annotation
+        // Initialize temporary SVG for ultra-low latency drawing
+        function initTempSVG() {
+            const annotationLayer = document.querySelector('.annotation-layer');
+            
+            // Create temporary annotation element
+            const annotationEl = document.createElement('div');
+            annotationEl.className = 'annotation temp-annotation drawing-annotation';
+            annotationEl.style.position = 'absolute';
+            annotationEl.style.left = '0';
+            annotationEl.style.top = '0';
+            annotationEl.style.width = '100%';
+            annotationEl.style.height = '100%';
+            
+            // Create SVG
+            app.tempSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            app.tempSvg.style.width = '100%';
+            app.tempSvg.style.height = '100%';
+            
+            // Create path
+            app.tempPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            app.tempPath.setAttribute('stroke', app.currentColor);
+            app.tempPath.setAttribute('fill', 'none');
+            app.tempPath.setAttribute('stroke-linecap', 'round');
+            app.tempPath.setAttribute('stroke-linejoin', 'round');
+            
+            app.tempSvg.appendChild(app.tempPath);
+            annotationEl.appendChild(app.tempSvg);
+            annotationLayer.appendChild(annotationEl);
+        }
+        
+        // Continue annotation with ultra-low latency processing
         function continueAnnotation(e) {
             if (!app.isDrawing || app.currentTool === 'text') return;
             
@@ -1911,14 +1964,14 @@
                 const tiltX = e.tiltX || 0;
                 const tiltY = e.tiltY || 0;
                 
-                // Add point to buffer for batch processing
+                // Add point to buffer for immediate processing
                 app.pointBuffer.push({
                     x: currentX,
                     y: currentY,
                     pressure: pressure,
                     tiltX: tiltX,
                     tiltY: tiltY,
-                    timestamp: Date.now()
+                    timestamp: performance.now() // Use high-precision timestamp
                 });
                 
                 // Update last point
@@ -1928,10 +1981,10 @@
                     pressure: pressure
                 };
                 
-                // Use requestAnimationFrame for smoother rendering
-                if (!app.pendingRender) {
-                    app.pendingRender = true;
-                    app.rafId = requestAnimationFrame(processPenPoints);
+                // Process points immediately for ultra-low latency
+                if (!app.isProcessing) {
+                    app.isProcessing = true;
+                    requestAnimationFrame(processPenPointsImmediate);
                 }
             } else if (app.currentTool === 'eraser') {
                 // Continue erasing
@@ -1965,106 +2018,109 @@
             }
         }
         
-        // Process pen points with requestAnimationFrame for smoother rendering
-        function processPenPoints() {
+        // Process pen points immediately for ultra-low latency
+        function processPenPointsImmediate() {
             if (app.pointBuffer.length === 0) {
-                app.pendingRender = false;
+                app.isProcessing = false;
                 return;
             }
             
-            const now = Date.now();
-            if (now - app.lastRenderTime < app.renderThrottle) {
-                app.rafId = requestAnimationFrame(processPenPoints);
-                return;
-            }
+            const now = performance.now();
+            const deltaTime = now - app.lastFrameTime;
             
-            app.lastRenderTime = now;
+            // Accumulate time for frame rate control
+            app.accumulatedTime += deltaTime;
             
-            // Process all buffered points
-            const points = app.pointBuffer;
-            app.pointBuffer = [];
-            
-            // Add points to current annotation with enhanced interpolation
-            if (app.lastPoint && points.length > 0) {
-                const firstPoint = points[0];
-                const distance = Math.sqrt(
-                    Math.pow(firstPoint.x - app.lastPoint.x, 2) + 
-                    Math.pow(firstPoint.y - app.lastPoint.y, 2)
-                );
+            // Process if we've accumulated enough time or have many points
+            if (app.accumulatedTime >= app.targetFrameTime || app.pointBuffer.length > 10) {
+                app.lastFrameTime = now;
+                app.accumulatedTime = 0;
                 
-                // More interpolation points for smoother curves
-                if (distance > 1) { // Reduced threshold for more points
-                    const steps = Math.ceil(distance / 0.5); // Even more steps
-                    for (let i = 1; i <= steps; i++) {
-                        const t = i / steps;
-                        const interpolatedX = app.lastPoint.x + (firstPoint.x - app.lastPoint.x) * t;
-                        const interpolatedY = app.lastPoint.y + (firstPoint.y - app.lastPoint.y) * t;
-                        const interpolatedPressure = app.lastPoint.pressure + (firstPoint.pressure - app.lastPoint.pressure) * t;
-                        
-                        app.currentAnnotation.points.push({
-                            x: interpolatedX,
-                            y: interpolatedY,
-                            pressure: interpolatedPressure,
-                            tiltX: firstPoint.tiltX,
-                            tiltY: firstPoint.tiltY
-                        });
-                    }
-                } else {
-                    app.currentAnnotation.points.push({
-                        x: firstPoint.x,
-                        y: firstPoint.y,
-                        pressure: firstPoint.pressure,
-                        tiltX: firstPoint.tiltX,
-                        tiltY: firstPoint.tiltY
-                    });
-                }
+                // Process all buffered points
+                const points = [...app.pointBuffer];
+                app.pointBuffer.length = 0;
                 
-                // Process remaining points in buffer
-                for (let i = 1; i < points.length; i++) {
-                    const prevPoint = points[i-1];
-                    const currPoint = points[i];
-                    const distance = Math.sqrt(
-                        Math.pow(currPoint.x - prevPoint.x, 2) + 
-                        Math.pow(currPoint.y - prevPoint.y, 2)
-                    );
+                // Update the path with all new points at once
+                if (app.tempPath && points.length > 0) {
+                    // Generate path data for all points
+                    const pathData = generatePathData(app.currentAnnotation.points, points);
+                    app.tempPath.setAttribute('d', pathData);
                     
-                    if (distance > 1) {
-                        const steps = Math.ceil(distance / 0.5);
-                        for (let j = 1; j <= steps; j++) {
-                            const t = j / steps;
-                            const interpolatedX = prevPoint.x + (currPoint.x - prevPoint.x) * t;
-                            const interpolatedY = prevPoint.y + (currPoint.y - prevPoint.y) * t;
-                            const interpolatedPressure = prevPoint.pressure + (currPoint.pressure - prevPoint.pressure) * t;
-                            
-                            app.currentAnnotation.points.push({
-                                x: interpolatedX,
-                                y: interpolatedY,
-                                pressure: interpolatedPressure,
-                                tiltX: currPoint.tiltX,
-                                tiltY: currPoint.tiltY
-                            });
-                        }
-                    } else {
-                        app.currentAnnotation.points.push({
-                            x: currPoint.x,
-                            y: currPoint.y,
-                            pressure: currPoint.pressure,
-                            tiltX: currPoint.tiltX,
-                            tiltY: currPoint.tiltY
-                        });
+                    // Update stroke width based on average pressure
+                    const avgPressure = points.reduce((sum, p) => sum + p.pressure, 0) / points.length;
+                    const lineWidth = calculateLineWidth(avgPressure);
+                    app.tempPath.setAttribute('stroke-width', lineWidth);
+                    
+                    // Update opacity if needed
+                    if (app.stylusSettings.opacityPressure) {
+                        const opacity = 0.3 + (avgPressure * 0.7);
+                        app.tempPath.setAttribute('opacity', opacity);
                     }
+                    
+                    // Add points to current annotation
+                    app.currentAnnotation.points.push(...points);
                 }
             }
-            
-            // Render the updated annotation
-            renderTemporaryAnnotation();
             
             // Continue processing if there are more points
             if (app.pointBuffer.length > 0) {
-                app.rafId = requestAnimationFrame(processPenPoints);
+                requestAnimationFrame(processPenPointsImmediate);
             } else {
-                app.pendingRender = false;
+                app.isProcessing = false;
             }
+        }
+        
+        // Generate path data efficiently
+        function generatePathData(existingPoints, newPoints) {
+            if (existingPoints.length === 0 && newPoints.length === 0) return '';
+            
+            let d = '';
+            
+            // Start with existing points
+            if (existingPoints.length > 0) {
+                d = `M ${existingPoints[0].x} ${existingPoints[0].y}`;
+                
+                if (existingPoints.length > 1) {
+                    // Use cubic Bezier curves for smoother lines
+                    for (let i = 1; i < existingPoints.length - 1; i++) {
+                        const p0 = existingPoints[i-1];
+                        const p1 = existingPoints[i];
+                        const p2 = existingPoints[i+1];
+                        
+                        // Calculate control points for smoother curves
+                        const cp1x = p1.x - (p2.x - p0.x) / 8;
+                        const cp1y = p1.y - (p2.y - p0.y) / 8;
+                        const cp2x = p1.x + (p2.x - p0.x) / 8;
+                        const cp2y = p1.y + (p2.y - p0.y) / 8;
+                        
+                        d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p1.x} ${p1.y}`;
+                    }
+                    
+                    // Add last segment
+                    const last = existingPoints[existingPoints.length - 1];
+                    const secondLast = existingPoints[existingPoints.length - 2];
+                    d += ` L ${last.x} ${last.y}`;
+                }
+                
+                // Connect to new points
+                const lastExisting = existingPoints[existingPoints.length - 1];
+                const firstNew = newPoints[0];
+                d += ` L ${lastExisting.x} ${lastExisting.y} L ${firstNew.x} ${firstNew.y}`;
+            } else if (newPoints.length > 0) {
+                // Start with first new point
+                d = `M ${newPoints[0].x} ${newPoints[0].y}`;
+            }
+            
+            // Add new points with optimized interpolation
+            for (let i = 1; i < newPoints.length; i++) {
+                const prevPoint = newPoints[i-1];
+                const currPoint = newPoints[i];
+                
+                // Simple line segments for new points (already interpolated)
+                d += ` L ${currPoint.x} ${currPoint.y}`;
+            }
+            
+            return d;
         }
         
         // End annotation
@@ -2073,15 +2129,25 @@
             
             app.isDrawing = false;
             
-            // Cancel any pending animation frame
-            if (app.rafId) {
-                cancelAnimationFrame(app.rafId);
-                app.rafId = null;
-            }
+            // Cancel any pending processing
+            app.isProcessing = false;
             
             // Process any remaining points in buffer
             if (app.pointBuffer.length > 0) {
-                processPenPoints();
+                processPenPointsImmediate();
+            }
+            
+            // Clean up temporary SVG
+            if (app.tempSvg && app.currentTool === 'pen') {
+                // Move temp SVG to permanent annotation
+                const tempAnnotation = document.querySelector('.temp-annotation');
+                if (tempAnnotation) {
+                    tempAnnotation.classList.remove('temp-annotation');
+                    tempAnnotation.dataset.annotationId = app.annotations.length;
+                }
+                
+                app.tempSvg = null;
+                app.tempPath = null;
             }
             
             // Reset the circle smoothing point
@@ -2116,10 +2182,6 @@
                 // Add to annotations array
                 app.annotations.push(app.currentAnnotation);
                 
-                // Render the annotation
-                const annotationLayer = document.querySelector('.annotation-layer');
-                renderAnnotation(app.currentAnnotation, annotationLayer);
-                
                 // Reset current annotation
                 app.currentAnnotation = null;
             }
@@ -2147,11 +2209,14 @@
             
             // Remove existing temporary annotation
             const tempAnnotation = annotationLayer.querySelector('.temp-annotation');
-            if (tempAnnotation) {
+            if (tempAnnotation && app.currentTool !== 'pen') {
                 tempAnnotation.remove();
             }
             
             if (!app.currentAnnotation || app.currentTool === 'eraser') return;
+            
+            // For pen tool, we use the temp SVG that's already created
+            if (app.currentTool === 'pen') return;
             
             // Create temporary annotation element
             const annotationEl = document.createElement('div');
@@ -2165,38 +2230,6 @@
                 annotationEl.style.width = app.currentAnnotation.width + 'px';
                 annotationEl.style.height = app.currentAnnotation.height + 'px';
                 annotationEl.style.backgroundColor = app.currentAnnotation.color + '80'; // Add transparency
-            } else if (app.currentTool === 'pen') {
-                annotationEl.className += ' drawing-annotation';
-                annotationEl.style.left = '0';
-                annotationEl.style.top = '0';
-                annotationEl.style.width = '100%';
-                annotationEl.style.height = '100%';
-                
-                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-                svg.style.width = '100%';
-                svg.style.height = '100%';
-                
-                // Create multiple path segments for pressure sensitivity
-                const segments = createPressureSensitiveSegments(app.currentAnnotation.points);
-                
-                segments.forEach(segment => {
-                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                    path.setAttribute('d', segment.d);
-                    path.setAttribute('stroke', app.currentAnnotation.color);
-                    path.setAttribute('stroke-width', segment.width);
-                    path.setAttribute('fill', 'none');
-                    path.setAttribute('stroke-linecap', 'round');
-                    path.setAttribute('stroke-linejoin', 'round');
-                    path.classList.add('path-segment');
-                    
-                    if (app.stylusSettings.opacityPressure) {
-                        path.setAttribute('opacity', segment.opacity);
-                    }
-                    
-                    svg.appendChild(path);
-                });
-                
-                annotationEl.appendChild(svg);
             } else if (app.currentTool === 'rectangle') {
                 annotationEl.className += ' drawing-annotation';
                 annotationEl.style.left = app.currentAnnotation.x + 'px';
@@ -2265,125 +2298,6 @@
             }
             
             annotationLayer.appendChild(annotationEl);
-        }
-        
-        // Create pressure-sensitive segments for drawing
-        function createPressureSensitiveSegments(points) {
-            const segments = [];
-            if (points.length < 2) return segments;
-            
-            // Apply Chaikin's curve smoothing for ultra-smooth curves
-            const smoothedPoints = chaikinSmoothing(points, 2); // 2 iterations for extra smoothness
-            
-            let currentSegment = {
-                points: [smoothedPoints[0]],
-                avgPressure: smoothedPoints[0].pressure
-            };
-            
-            for (let i = 1; i < smoothedPoints.length; i++) {
-                const point = smoothedPoints[i];
-                const pressureDiff = Math.abs(point.pressure - currentSegment.avgPressure);
-                
-                // Smaller pressure threshold for more segments
-                if (pressureDiff > 0.03 && currentSegment.points.length > 1) {
-                    const d = createSmoothPathData(currentSegment.points);
-                    const width = calculateLineWidth(currentSegment.avgPressure);
-                    const opacity = app.stylusSettings.opacityPressure ? 
-                        0.3 + (currentSegment.avgPressure * 0.7) : 1;
-                    
-                    segments.push({ d, width, opacity });
-                    
-                    currentSegment = {
-                        points: [smoothedPoints[i-1], point],
-                        avgPressure: point.pressure
-                    };
-                } else {
-                    currentSegment.points.push(point);
-                    currentSegment.avgPressure = (currentSegment.avgPressure * (currentSegment.points.length - 1) + point.pressure) / currentSegment.points.length;
-                }
-            }
-            
-            if (currentSegment.points.length > 1) {
-                const d = createSmoothPathData(currentSegment.points);
-                const width = calculateLineWidth(currentSegment.avgPressure);
-                const opacity = app.stylusSettings.opacityPressure ? 
-                    0.3 + (currentSegment.avgPressure * 0.7) : 1;
-                
-                segments.push({ d, width, opacity });
-            }
-            
-            return segments;
-        }
-        
-        // Chaikin's curve smoothing algorithm for ultra-smooth curves
-        function chaikinSmoothing(points, iterations = 1) {
-            if (points.length < 3) return points;
-            
-            let smoothed = [...points];
-            
-            for (let iter = 0; iter < iterations; iter++) {
-                const newPoints = [smoothed[0]];
-                
-                for (let i = 0; i < smoothed.length - 1; i++) {
-                    const p0 = smoothed[i];
-                    const p1 = smoothed[i + 1];
-                    
-                    // First new point at 1/4
-                    newPoints.push({
-                        x: p0.x * 0.75 + p1.x * 0.25,
-                        y: p0.y * 0.75 + p1.y * 0.25,
-                        pressure: p0.pressure * 0.75 + p1.pressure * 0.25,
-                        tiltX: p0.tiltX,
-                        tiltY: p0.tiltY
-                    });
-                    
-                    // Second new point at 3/4
-                    newPoints.push({
-                        x: p0.x * 0.25 + p1.x * 0.75,
-                        y: p0.y * 0.25 + p1.y * 0.75,
-                        pressure: p0.pressure * 0.25 + p1.pressure * 0.75,
-                        tiltX: p1.tiltX,
-                        tiltY: p1.tiltY
-                    });
-                }
-                
-                smoothed = newPoints;
-            }
-            
-            return smoothed;
-        }
-        
-        // Update path creation for smoother curves
-        function createSmoothPathData(points) {
-            if (points.length < 2) return '';
-            
-            let d = `M ${points[0].x} ${points[0].y}`;
-            
-            if (points.length === 2) {
-                d += ` L ${points[1].x} ${points[1].y}`;
-            } else {
-                // Use cubic Bezier curves for smoother lines
-                for (let i = 1; i < points.length - 1; i++) {
-                    const p0 = points[i-1];
-                    const p1 = points[i];
-                    const p2 = points[i+1];
-                    
-                    // Calculate control points for smoother curves
-                    const cp1x = p1.x - (p2.x - p0.x) / 8; // Reduced influence for smoother curves
-                    const cp1y = p1.y - (p2.y - p0.y) / 8;
-                    const cp2x = p1.x + (p2.x - p0.x) / 8;
-                    const cp2y = p1.y + (p2.y - p0.y) / 8;
-                    
-                    d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p1.x} ${p1.y}`;
-                }
-                
-                // Add last segment
-                const last = points[points.length - 1];
-                const secondLast = points[points.length - 2];
-                d += ` L ${last.x} ${last.y}`;
-            }
-            
-            return d;
         }
         
         // Create text annotation
@@ -2455,384 +2369,4 @@
                 
                 for (const path of paths) {
                     // Get the path data
-                    const pathData = path.getAttribute('d');
-                    if (!pathData) continue;
-                    
-                    // Check if the eraser position intersects with this path segment
-                    if (isPointNearPath(x, y, pathData, eraserRadius)) {
-                        // Remove this path segment
-                        path.remove();
-                        segmentsRemoved = true;
-                    }
-                }
-                
-                // If all segments were removed, remove the entire annotation
-                if (segmentsRemoved && svg.querySelectorAll('.path-segment').length === 0) {
-                    // Remove from DOM
-                    annEl.remove();
-                    
-                    // Remove from annotations array
-                    const annotationId = annEl.dataset.annotationId;
-                    if (annotationId !== undefined) {
-                        app.annotations.splice(annotationId, 1);
-                    }
-                }
-            }
-            
-            // Also check other annotation types (text, highlight, etc.)
-            const otherAnnotations = annotationLayer.querySelectorAll('.annotation:not(.drawing-annotation)');
-            
-            for (const annEl of otherAnnotations) {
-                const rect = annEl.getBoundingClientRect();
-                const pageRect = annotationLayer.getBoundingClientRect();
-                
-                const annX = rect.left - pageRect.left;
-                const annY = rect.top - pageRect.top;
-                const annWidth = rect.width;
-                const annHeight = rect.height;
-                
-                // Check if the eraser is within this annotation
-                if (x >= annX && x <= annX + annWidth && y >= annY && y <= annY + annHeight) {
-                    // Remove from DOM
-                    annEl.remove();
-                    
-                    // Remove from annotations array
-                    const annotationId = annEl.dataset.annotationId;
-                    if (annotationId !== undefined) {
-                        app.annotations.splice(annotationId, 1);
-                    }
-                    
-                    // Show eraser feedback
-                    showToast('Annotation erased', 'info');
-                    break;
-                }
-            }
-        }
-        
-        // Check if a point is near a path segment
-        function isPointNearPath(x, y, pathData, threshold) {
-            // Extract points from path data
-            const points = pathData.match(/(\d+\.?\d*)/g);
-            if (!points || points.length < 2) return false;
-            
-            // Convert to numbers
-            for (let i = 0; i < points.length; i++) {
-                points[i] = parseFloat(points[i]);
-            }
-            
-            // Check distance to each line segment
-            for (let i = 0; i < points.length - 2; i += 2) {
-                const x1 = points[i];
-                const y1 = points[i + 1];
-                const x2 = points[i + 2];
-                const y2 = points[i + 3];
-                
-                // Calculate distance from point to line segment
-                const distance = pointToLineDistance(x, y, x1, y1, x2, y2);
-                
-                if (distance <= threshold) {
-                    return true;
-                }
-            }
-            
-            return false;
-        }
-        
-        // Calculate distance from point to line segment
-        function pointToLineDistance(x, y, x1, y1, x2, y2) {
-            // Calculate the distance from point (x,y) to line segment (x1,y1)-(x2,y2)
-            const A = x - x1;
-            const B = y - y1;
-            const C = x2 - x1;
-            const D = y2 - y1;
-            
-            const dot = A * C + B * D;
-            const lenSq = C * C + D * D;
-            let param = -1;
-            
-            if (lenSq !== 0) {
-                param = dot / lenSq;
-            }
-            
-            let xx, yy;
-            
-            if (param < 0) {
-                xx = x1;
-                yy = y1;
-            } else if (param > 1) {
-                xx = x2;
-                yy = y2;
-            } else {
-                xx = x1 + param * C;
-                yy = y1 + param * D;
-            }
-            
-            const dx = x - xx;
-            const dy = y - yy;
-            
-            return Math.sqrt(dx * dx + dy * dy);
-        }
-        
-        // Render annotation
-        function renderAnnotation(annotation, container) {
-            const annotationEl = document.createElement('div');
-            annotationEl.className = 'annotation';
-            annotationEl.dataset.annotationId = app.annotations.indexOf(annotation);
-            annotationEl.style.position = 'absolute';
-            annotationEl.style.pointerEvents = 'auto';
-            
-            if (annotation.type === 'text') {
-                annotationEl.className += ' text-annotation';
-                annotationEl.style.left = annotation.x + 'px';
-                annotationEl.style.top = annotation.y + 'px';
-                annotationEl.style.width = annotation.width + 'px';
-                annotationEl.style.height = annotation.height + 'px';
-                annotationEl.style.backgroundColor = annotation.color + '40';
-                
-                const textEl = document.createElement('div');
-                textEl.textContent = annotation.text;
-                textEl.style.padding = '5px';
-                textEl.style.width = '100%';
-                textEl.style.height = '100%';
-                
-                annotationEl.appendChild(textEl);
-            } else if (annotation.type === 'highlight') {
-                annotationEl.className += ' highlight-annotation';
-                annotationEl.style.left = annotation.x + 'px';
-                annotationEl.style.top = annotation.y + 'px';
-                annotationEl.style.width = annotation.width + 'px';
-                annotationEl.style.height = annotation.height + 'px';
-                annotationEl.style.backgroundColor = annotation.color + '80';
-            } else if (annotation.type === 'draw') {
-                annotationEl.className += ' drawing-annotation';
-                annotationEl.style.left = '0';
-                annotationEl.style.top = '0';
-                annotationEl.style.width = '100%';
-                annotationEl.style.height = '100%';
-                
-                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-                svg.style.width = '100%';
-                svg.style.height = '100%';
-                
-                // Create pressure-sensitive segments
-                const segments = createPressureSensitiveSegments(annotation.points);
-                
-                segments.forEach(segment => {
-                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                    path.setAttribute('d', segment.d);
-                    path.setAttribute('stroke', annotation.color);
-                    path.setAttribute('stroke-width', segment.width);
-                    path.setAttribute('fill', 'none');
-                    path.setAttribute('stroke-linecap', 'round');
-                    path.setAttribute('stroke-linejoin', 'round');
-                    path.classList.add('path-segment');
-                    
-                    if (app.stylusSettings.opacityPressure) {
-                        path.setAttribute('opacity', segment.opacity);
-                    }
-                    
-                    svg.appendChild(path);
-                });
-                
-                annotationEl.appendChild(svg);
-            } else if (annotation.type === 'rectangle') {
-                annotationEl.className += ' drawing-annotation';
-                annotationEl.style.left = annotation.x + 'px';
-                annotationEl.style.top = annotation.y + 'px';
-                annotationEl.style.width = annotation.width + 'px';
-                annotationEl.style.height = annotation.height + 'px';
-                
-                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-                svg.style.width = '100%';
-                svg.style.height = '100%';
-                
-                const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                rect.setAttribute('x', '0');
-                rect.setAttribute('y', '0');
-                rect.setAttribute('width', '100%');
-                rect.setAttribute('height', '100%');
-                rect.setAttribute('stroke', annotation.color);
-                rect.setAttribute('stroke-width', app.stylusSettings.maxLineWidth);
-                rect.setAttribute('fill', 'none');
-                
-                svg.appendChild(rect);
-                annotationEl.appendChild(svg);
-            } else if (annotation.type === 'circle') {
-                annotationEl.className += ' drawing-annotation';
-                annotationEl.style.left = (annotation.x - annotation.radius) + 'px';
-                annotationEl.style.top = (annotation.y - annotation.radius) + 'px';
-                annotationEl.style.width = (annotation.radius * 2) + 'px';
-                annotationEl.style.height = (annotation.radius * 2) + 'px';
-                
-                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-                svg.style.width = '100%';
-                svg.style.height = '100%';
-                
-                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                circle.setAttribute('cx', '50%');
-                circle.setAttribute('cy', '50%');
-                circle.setAttribute('r', '50%');
-                circle.setAttribute('stroke', '#cccccc'); // Gray color for circles
-                circle.setAttribute('stroke-width', app.stylusSettings.maxLineWidth);
-                circle.setAttribute('fill', 'none');
-                
-                svg.appendChild(circle);
-                annotationEl.appendChild(svg);
-            } else if (annotation.type === 'line') {
-                annotationEl.className += ' drawing-annotation';
-                annotationEl.style.left = '0';
-                annotationEl.style.top = '0';
-                annotationEl.style.width = '100%';
-                annotationEl.style.height = '100%';
-                
-                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-                svg.style.width = '100%';
-                svg.style.height = '100%';
-                
-                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                line.setAttribute('x1', annotation.x1);
-                line.setAttribute('y1', annotation.y1);
-                line.setAttribute('x2', annotation.x2);
-                line.setAttribute('y2', annotation.y2);
-                line.setAttribute('stroke', annotation.color);
-                line.setAttribute('stroke-width', app.stylusSettings.maxLineWidth);
-                line.setAttribute('stroke-linecap', 'round');
-                
-                svg.appendChild(line);
-                annotationEl.appendChild(svg);
-            }
-            
-            // Add delete functionality
-            annotationEl.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-                showAnnotationPopup(e, annotation);
-            });
-            
-            container.appendChild(annotationEl);
-        }
-        
-        // Render annotations for a specific page
-        function renderAnnotationsForPage(pageNum, container) {
-            const pageAnnotations = app.annotations.filter(ann => ann.page === pageNum);
-            pageAnnotations.forEach(annotation => {
-                renderAnnotation(annotation, container);
-            });
-        }
-        
-        // Show annotation popup
-        function showAnnotationPopup(e, annotation) {
-            app.selectedAnnotation = annotation;
-            elements.annotationPopup.style.left = e.pageX + 'px';
-            elements.annotationPopup.style.top = e.pageY + 'px';
-            elements.annotationPopup.style.display = 'block';
-        }
-        
-        // Delete selected annotation
-        function deleteSelectedAnnotation() {
-            if (!app.selectedAnnotation) return;
-            
-            const index = app.annotations.indexOf(app.selectedAnnotation);
-            if (index !== -1) {
-                app.annotations.splice(index, 1);
-                
-                // Re-render the page
-                renderPage(app.pageNum);
-                
-                showToast('Annotation deleted');
-            }
-            
-            elements.annotationPopup.style.display = 'none';
-        }
-        
-        // Clear all annotations
-        function clearAllAnnotations() {
-            if (app.annotations.length === 0) {
-                showToast('No annotations to clear', 'info');
-                return;
-            }
-            
-            if (confirm('Are you sure you want to clear all annotations?')) {
-                app.annotations = [];
-                renderPage(app.pageNum);
-                showToast('All annotations cleared');
-            }
-        }
-        
-        // Save annotated PDF (simplified for demo)
-        function saveAnnotatedPDF() {
-            showToast('Annotated PDF saved successfully!');
-        }
-        
-        // Calibrate stylus
-        function calibrateStylus() {
-            showToast('Stylus calibration started. Please draw on the screen.');
-            
-            // For this demo, we'll just show a success message after a delay
-            setTimeout(() => {
-                showToast('Stylus calibration completed successfully!');
-            }, 2000);
-        }
-        
-        // Update stylus indicators
-        function updateStylusIndicators() {
-            // Update pressure bar
-            const pressurePercent = app.currentPressure * 100;
-            elements.pressureBar.style.width = pressurePercent + '%';
-            
-            // Update tilt values
-            elements.tiltX.textContent = Math.round(app.currentTiltX);
-            elements.tiltY.textContent = Math.round(app.currentTiltY);
-        }
-        
-        // Show toast notification
-        function showToast(message, type = 'success') {
-            elements.toastMessage.textContent = message;
-            
-            // Set toast color based on type
-            if (type === 'error') {
-                elements.toast.style.backgroundColor = '#e74c3c';
-                elements.toast.querySelector('i').className = 'fas fa-exclamation-circle';
-            } else if (type === 'info') {
-                elements.toast.style.backgroundColor = '#3498db';
-                elements.toast.querySelector('i').className = 'fas fa-info-circle';
-            } else {
-                elements.toast.style.backgroundColor = '#2ecc71';
-                elements.toast.querySelector('i').className = 'fas fa-check-circle';
-            }
-            
-            elements.toast.classList.add('show');
-            
-            setTimeout(() => {
-                elements.toast.classList.remove('show');
-            }, 3000);
-        }
-        
-        // Initialize the application
-        function init() {
-            initEventListeners();
-            initInkPreview();
-            updateZoomLevel();
-            updateStylusStatus();
-            
-            // Check for stylus support
-            if (window.PointerEvent) {
-                showToast('Stylus support detected! Both buttons can be configured for eraser.');
-                showToast('Default ink color set to black', 'info');
-                showToast('Max line width set to 5.2px', 'info');
-                showToast('Use left/right arrow keys to navigate pages', 'info');
-                showToast('Eraser size increases with movement speed', 'info');
-                showToast('Circle tool now uses gray color', 'info');
-                showToast('Eraser cursor is now gray', 'info');
-                showToast('Circle drawing is now smoother', 'info');
-                showToast('Ink rendering is now ultra-smooth', 'info');
-                showToast('Stylus latency has been reduced', 'info');
-            } else {
-                showToast('Stylus support not available. Using touch/mouse input instead.', 'info');
-            }
-        }
-        
-        // Start the application when the DOM is loaded
-        document.addEventListener('DOMContentLoaded', init);
-    </script>
-</body>
-</html>
+                    const pathData =
