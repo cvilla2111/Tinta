@@ -3,359 +3,1635 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Presentation Web App</title>
+    <title>PDF Annotator - Stylus Edition</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body, html {
+        * {
             margin: 0;
             padding: 0;
-            overflow: hidden;
-            height: 100%;
-            width: 100%;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        #viewer {
-            height: 100vh;
-            width: 100vw;
+        
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            display: flex;
+            flex-direction: column;
             min-height: 100vh;
-            min-width: 100vw;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: #000;
         }
-        #page-container {
+        
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logo i {
+            font-size: 1.8rem;
+            color: #3498db;
+        }
+        
+        .logo h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background-color: #3498db;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        
+        main {
+            display: flex;
+            flex: 1;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 1.5rem;
+            gap: 1.5rem;
+        }
+        
+        .sidebar {
+            width: 260px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            padding: 1.5rem;
+            height: fit-content;
+        }
+        
+        .sidebar h2 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: #2c3e50;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 0.5rem;
+        }
+        
+        .tool-section {
+            margin-bottom: 1.5rem;
+        }
+        
+        .tool-section h3 {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            color: #7f8c8d;
+            margin-bottom: 0.8rem;
+        }
+        
+        .tools {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        
+        .tool-btn {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 12px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s ease;
             position: relative;
+        }
+        
+        .tool-btn:hover {
+            background-color: #e9f7fe;
+            border-color: #3498db;
+        }
+        
+        .tool-btn.active {
+            background-color: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+        
+        .tool-btn i {
+            font-size: 1.2rem;
+        }
+        
+        .tool-btn span {
+            font-size: 0.75rem;
+        }
+        
+        .tool-btn.stylus-tool {
+            border: 2px solid #9b59b6;
+        }
+        
+        .tool-btn.stylus-tool.active {
+            background-color: #9b59b6;
+            border-color: #9b59b6;
+        }
+        
+        .color-picker {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .color-option {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+        
+        .color-option:hover {
+            transform: scale(1.1);
+        }
+        
+        .color-option.active {
+            border-color: #2c3e50;
+            box-shadow: 0 0 0 2px white, 0 0 0 4px #2c3e50;
+        }
+        
+        .pdf-container {
+            flex: 1;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .pdf-toolbar {
+            background-color: #f8f9fa;
+            padding: 0.8rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .pdf-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: background-color 0.2s ease;
+        }
+        
+        .btn:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn-secondary {
+            background-color: #95a5a6;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #7f8c8d;
+        }
+        
+        .btn-stylus {
+            background-color: #9b59b6;
+        }
+        
+        .btn-stylus:hover {
+            background-color: #8e44ad;
+        }
+        
+        .pdf-viewer {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
             display: flex;
             justify-content: center;
-            align-items: center;
-            min-height: 100%;
-            min-width: 100%;
+            background-color: #e9ecef;
+            position: relative;
         }
-        #file-input {
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            z-index: 1000;
-            font-size: 16px;
+        
+        .pdf-page {
+            background-color: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            touch-action: none;
+        }
+        
+        .pdf-page canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+        
+        .annotation-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        .annotation {
+            position: absolute;
+            pointer-events: auto;
+        }
+        
+        .text-annotation {
+            background-color: rgba(255, 255, 0, 0.3);
+            border: 1px dashed #f1c40f;
             padding: 5px;
+            min-width: 100px;
+            min-height: 30px;
+            cursor: move;
         }
-        #error-message {
-            position: fixed;
-            top: 50px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: red;
-            background: white;
-            padding: 10px;
-            z-index: 1000;
+        
+        .text-annotation textarea {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: transparent;
+            resize: none;
+            outline: none;
+            font-family: inherit;
+        }
+        
+        .highlight-annotation {
+            background-color: rgba(255, 255, 0, 0.4);
+            cursor: pointer;
+        }
+        
+        .drawing-annotation {
+            cursor: pointer;
+        }
+        
+        .drawing-annotation svg {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .upload-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: 3rem;
+            text-align: center;
+            background-color: #f8f9fa;
+            border: 2px dashed #bdc3c7;
+            border-radius: 8px;
+            color: #7f8c8d;
+        }
+        
+        .upload-area i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #bdc3c7;
+        }
+        
+        .upload-area h3 {
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        
+        .upload-area p {
+            margin-bottom: 1.5rem;
+            max-width: 400px;
+        }
+        
+        .file-input {
             display: none;
         }
-        canvas {
+        
+        .upload-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 0.7rem 1.5rem;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.2s ease;
+        }
+        
+        .upload-btn:hover {
+            background-color: #2980b9;
+        }
+        
+        .page-navigation {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .page-info {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+        }
+        
+        .nav-btn {
+            background: none;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #7f8c8d;
+        }
+        
+        .nav-btn:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .zoom-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .zoom-btn {
+            background: none;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #7f8c8d;
+        }
+        
+        .zoom-btn:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .zoom-level {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            min-width: 45px;
+            text-align: center;
+        }
+        
+        .annotation-popup {
+            position: absolute;
+            background-color: white;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            padding: 10px;
+            z-index: 100;
+            display: none;
+        }
+        
+        .annotation-popup button {
+            background: none;
+            border: none;
+            color: #e74c3c;
+            cursor: pointer;
+            font-size: 0.9rem;
+            padding: 5px;
+            border-radius: 4px;
+            width: 100%;
+            text-align: left;
+        }
+        
+        .annotation-popup button:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #2c3e50;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        .toast i {
+            font-size: 1.2rem;
+        }
+        
+        .stylus-settings {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #eee;
+        }
+        
+        .setting-item {
+            margin-bottom: 0.8rem;
+        }
+        
+        .setting-item label {
             display: block;
-            touch-action: none; /* Prevent browser touch/stylus interference */
-            user-select: none; /* Prevent text selection */
+            font-size: 0.85rem;
+            margin-bottom: 0.3rem;
+            color: #555;
+        }
+        
+        .setting-item input[type="range"] {
+            width: 100%;
+        }
+        
+        .setting-value {
+            display: inline-block;
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            margin-left: 5px;
+        }
+        
+        .pressure-indicator {
+            height: 8px;
+            background-color: #ecf0f1;
+            border-radius: 4px;
+            margin-top: 0.5rem;
+            overflow: hidden;
+        }
+        
+        .pressure-bar {
+            height: 100%;
+            background-color: #3498db;
+            width: 0%;
+            transition: width 0.1s ease;
+        }
+        
+        .tilt-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 0.5rem;
+        }
+        
+        .tilt-value {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+        }
+        
+        @media (max-width: 1024px) {
+            main {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                order: 2;
+            }
+            
+            .pdf-container {
+                order: 1;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .tools {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .pdf-toolbar {
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start;
+            }
         }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs" type="module"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/521/fabric.min.js"></script>
 </head>
 <body>
-    <input type="file" id="file-input" accept="application/pdf">
-    <div id="error-message"></div>
-    <div id="viewer">
-        <div id="page-container"></div>
+    <header>
+        <div class="header-content">
+            <div class="logo">
+                <i class="fas fa-file-pdf"></i>
+                <h1>PDF Annotator - Stylus Edition</h1>
+            </div>
+            <div class="user-info">
+                <span>Welcome, User</span>
+                <div class="user-avatar">U</div>
+            </div>
+        </div>
+    </header>
+    
+    <main>
+        <aside class="sidebar">
+            <h2>Annotation Tools</h2>
+            
+            <div class="tool-section">
+                <h3>Tools</h3>
+                <div class="tools">
+                    <div class="tool-btn active" data-tool="select">
+                        <i class="fas fa-mouse-pointer"></i>
+                        <span>Select</span>
+                    </div>
+                    <div class="tool-btn" data-tool="text">
+                        <i class="fas fa-font"></i>
+                        <span>Text</span>
+                    </div>
+                    <div class="tool-btn" data-tool="highlight">
+                        <i class="fas fa-highlighter"></i>
+                        <span>Highlight</span>
+                    </div>
+                    <div class="tool-btn stylus-tool" data-tool="draw">
+                        <i class="fas fa-pencil-alt"></i>
+                        <span>Draw</span>
+                    </div>
+                    <div class="tool-btn stylus-tool" data-tool="pen">
+                        <i class="fas fa-pen"></i>
+                        <span>Pen</span>
+                    </div>
+                    <div class="tool-btn" data-tool="eraser">
+                        <i class="fas fa-eraser"></i>
+                        <span>Eraser</span>
+                    </div>
+                    <div class="tool-btn" data-tool="rectangle">
+                        <i class="fas fa-square"></i>
+                        <span>Rectangle</span>
+                    </div>
+                    <div class="tool-btn" data-tool="circle">
+                        <i class="fas fa-circle"></i>
+                        <span>Circle</span>
+                    </div>
+                    <div class="tool-btn" data-tool="line">
+                        <i class="fas fa-minus"></i>
+                        <span>Line</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tool-section">
+                <h3>Colors</h3>
+                <div class="color-picker">
+                    <div class="color-option active" style="background-color: #f1c40f;" data-color="#f1c40f"></div>
+                    <div class="color-option" style="background-color: #e74c3c;" data-color="#e74c3c"></div>
+                    <div class="color-option" style="background-color: #3498db;" data-color="#3498db"></div>
+                    <div class="color-option" style="background-color: #2ecc71;" data-color="#2ecc71"></div>
+                    <div class="color-option" style="background-color: #9b59b6;" data-color="#9b59b6"></div>
+                    <div class="color-option" style="background-color: #34495e;" data-color="#34495e"></div>
+                </div>
+            </div>
+            
+            <div class="tool-section stylus-settings">
+                <h3>Stylus Settings</h3>
+                
+                <div class="setting-item">
+                    <label>Pressure Sensitivity: <span class="setting-value" id="pressure-value">50%</span></label>
+                    <input type="range" id="pressure-sensitivity" min="0" max="100" value="50">
+                    <div class="pressure-indicator">
+                        <div class="pressure-bar" id="pressure-bar"></div>
+                    </div>
+                </div>
+                
+                <div class="setting-item">
+                    <label>Tilt Sensitivity: <span class="setting-value" id="tilt-value">50%</span></label>
+                    <input type="range" id="tilt-sensitivity" min="0" max="100" value="50">
+                    <div class="tilt-indicator">
+                        <span class="tilt-value">X: <span id="tilt-x">0</span>°</span>
+                        <span class="tilt-value">Y: <span id="tilt-y">0</span>°</span>
+                    </div>
+                </div>
+                
+                <div class="setting-item">
+                    <label>Line Width: <span class="setting-value" id="line-width-value">3px</span></label>
+                    <input type="range" id="line-width" min="1" max="20" value="3">
+                </div>
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="palm-rejection" checked> Palm Rejection
+                    </label>
+                </div>
+            </div>
+            
+            <div class="tool-section">
+                <h3>Actions</h3>
+                <button class="btn" id="clear-annotations">
+                    <i class="fas fa-eraser"></i> Clear All
+                </button>
+            </div>
+        </aside>
+        
+        <section class="pdf-container">
+            <div class="pdf-toolbar">
+                <div class="pdf-actions">
+                    <button class="btn" id="upload-btn">
+                        <i class="fas fa-upload"></i> Upload PDF
+                    </button>
+                    <input type="file" id="file-input" class="file-input" accept=".pdf">
+                    <button class="btn btn-stylus" id="calibrate-stylus">
+                        <i class="fas fa-sliders-h"></i> Calibrate Stylus
+                    </button>
+                    <button class="btn btn-secondary" id="save-btn" disabled>
+                        <i class="fas fa-save"></i> Save Annotated
+                    </button>
+                </div>
+                
+                <div class="page-navigation">
+                    <button class="nav-btn" id="prev-page" disabled>
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <span class="page-info">Page <span id="page-num">0</span> of <span id="page-count">0</span></span>
+                    <button class="nav-btn" id="next-page" disabled>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+                
+                <div class="zoom-controls">
+                    <button class="zoom-btn" id="zoom-out">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                    <span class="zoom-level" id="zoom-level">100%</span>
+                    <button class="zoom-btn" id="zoom-in">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="pdf-viewer" id="pdf-viewer">
+                <div class="upload-area" id="upload-area">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <h3>Upload a PDF Document</h3>
+                    <p>Drag and drop a PDF file here or click the button below to browse</p>
+                    <button class="upload-btn" id="upload-area-btn">Select PDF File</button>
+                </div>
+            </div>
+        </section>
+    </main>
+    
+    <div class="annotation-popup" id="annotation-popup">
+        <button id="delete-annotation">
+            <i class="fas fa-trash"></i> Delete Annotation
+        </button>
     </div>
-    <script type="module">
-        import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs';
+    
+    <div class="toast" id="toast">
+        <i class="fas fa-check-circle"></i>
+        <span id="toast-message">Action completed successfully</span>
+    </div>
 
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs';
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script>
+        // Set the worker source for PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
-        let pdfDoc = null;
-        let currentPageNum = 1;
-        let pageContainer = document.getElementById('page-container');
-        let fileInput = document.getElementById('file-input');
-        let errorMessage = document.getElementById('error-message');
-        let fabricCanvas = null;
-        let pdfCanvas = null;
-        let annotationCanvas = null;
+        // Application state
+        const app = {
+            pdfDoc: null,
+            pageNum: 1,
+            pageRendering: false,
+            pageNumPending: null,
+            scale: 1.2,
+            canvas: null,
+            ctx: null,
+            currentTool: 'select',
+            currentColor: '#f1c40f',
+            annotations: [],
+            isDrawing: false,
+            startX: 0,
+            startY: 0,
+            currentAnnotation: null,
+            selectedAnnotation: null,
+            stylusSettings: {
+                pressureSensitivity: 0.5,
+                tiltSensitivity: 0.5,
+                lineWidth: 3,
+                palmRejection: true
+            },
+            currentPressure: 0,
+            currentTiltX: 0,
+            currentTiltY: 0
+        };
 
-        // Log browser info for troubleshooting
-        console.log('Browser:', navigator.userAgent);
+        // DOM elements
+        const elements = {
+            uploadBtn: document.getElementById('upload-btn'),
+            fileInput: document.getElementById('file-input'),
+            uploadArea: document.getElementById('upload-area'),
+            uploadAreaBtn: document.getElementById('upload-area-btn'),
+            saveBtn: document.getElementById('save-btn'),
+            pdfViewer: document.getElementById('pdf-viewer'),
+            pageNum: document.getElementById('page-num'),
+            pageCount: document.getElementById('page-count'),
+            prevPageBtn: document.getElementById('prev-page'),
+            nextPageBtn: document.getElementById('next-page'),
+            zoomInBtn: document.getElementById('zoom-in'),
+            zoomOutBtn: document.getElementById('zoom-out'),
+            zoomLevel: document.getElementById('zoom-level'),
+            clearAnnotationsBtn: document.getElementById('clear-annotations'),
+            toolBtns: document.querySelectorAll('.tool-btn'),
+            colorOptions: document.querySelectorAll('.color-option'),
+            annotationPopup: document.getElementById('annotation-popup'),
+            deleteAnnotationBtn: document.getElementById('delete-annotation'),
+            toast: document.getElementById('toast'),
+            toastMessage: document.getElementById('toast-message'),
+            pressureSensitivity: document.getElementById('pressure-sensitivity'),
+            pressureValue: document.getElementById('pressure-value'),
+            pressureBar: document.getElementById('pressure-bar'),
+            tiltSensitivity: document.getElementById('tilt-sensitivity'),
+            tiltValue: document.getElementById('tilt-value'),
+            tiltX: document.getElementById('tilt-x'),
+            tiltY: document.getElementById('tilt-y'),
+            lineWidth: document.getElementById('line-width'),
+            lineWidthValue: document.getElementById('line-width-value'),
+            palmRejection: document.getElementById('palm-rejection'),
+            calibrateStylus: document.getElementById('calibrate-stylus')
+        };
 
-        // Show file input initially
-        fileInput.style.display = 'block';
-
-        async function loadPDF(file) {
-            try {
-                const arrayBuffer = await file.arrayBuffer();
-                pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-                fileInput.style.display = 'none';
-                errorMessage.style.display = 'none';
-                document.documentElement.requestFullscreen().catch(err => {
-                    showError('Fullscreen error: ' + err.message);
+        // Initialize event listeners
+        function initEventListeners() {
+            elements.uploadBtn.addEventListener('click', () => elements.fileInput.click());
+            elements.uploadAreaBtn.addEventListener('click', () => elements.fileInput.click());
+            elements.fileInput.addEventListener('change', handleFileSelect);
+            
+            elements.prevPageBtn.addEventListener('click', () => {
+                if (app.pageNum <= 1) return;
+                app.pageNum--;
+                queueRenderPage(app.pageNum);
+            });
+            
+            elements.nextPageBtn.addEventListener('click', () => {
+                if (app.pageNum >= app.pdfDoc.numPages) return;
+                app.pageNum++;
+                queueRenderPage(app.pageNum);
+            });
+            
+            elements.zoomInBtn.addEventListener('click', () => {
+                app.scale += 0.2;
+                renderPage(app.pageNum);
+                updateZoomLevel();
+            });
+            
+            elements.zoomOutBtn.addEventListener('click', () => {
+                if (app.scale <= 0.4) return;
+                app.scale -= 0.2;
+                renderPage(app.pageNum);
+                updateZoomLevel();
+            });
+            
+            elements.clearAnnotationsBtn.addEventListener('click', clearAllAnnotations);
+            elements.saveBtn.addEventListener('click', saveAnnotatedPDF);
+            elements.calibrateStylus.addEventListener('click', calibrateStylus);
+            
+            elements.toolBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    elements.toolBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    app.currentTool = btn.dataset.tool;
                 });
-                renderPage(currentPageNum);
-            } catch (error) {
-                showError('Failed to load PDF: ' + error.message);
-            }
+            });
+            
+            elements.colorOptions.forEach(option => {
+                option.addEventListener('click', () => {
+                    elements.colorOptions.forEach(o => o.classList.remove('active'));
+                    option.classList.add('active');
+                    app.currentColor = option.dataset.color;
+                });
+            });
+            
+            elements.deleteAnnotationBtn.addEventListener('click', deleteSelectedAnnotation);
+            
+            // Stylus settings
+            elements.pressureSensitivity.addEventListener('input', (e) => {
+                app.stylusSettings.pressureSensitivity = e.target.value / 100;
+                elements.pressureValue.textContent = e.target.value + '%';
+            });
+            
+            elements.tiltSensitivity.addEventListener('input', (e) => {
+                app.stylusSettings.tiltSensitivity = e.target.value / 100;
+                elements.tiltValue.textContent = e.target.value + '%';
+            });
+            
+            elements.lineWidth.addEventListener('input', (e) => {
+                app.stylusSettings.lineWidth = parseInt(e.target.value);
+                elements.lineWidthValue.textContent = e.target.value + 'px';
+            });
+            
+            elements.palmRejection.addEventListener('change', (e) => {
+                app.stylusSettings.palmRejection = e.target.checked;
+            });
+            
+            // Hide popup when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!elements.annotationPopup.contains(e.target)) {
+                    elements.annotationPopup.style.display = 'none';
+                }
+            });
         }
 
-        async function renderPage(pageNum) {
-            try {
-                const page = await pdfDoc.getPage(pageNum);
+        // Handle file selection
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file.type !== 'application/pdf') {
+                showToast('Please select a PDF file', 'error');
+                return;
+            }
+            
+            const fileReader = new FileReader();
+            fileReader.onload = function() {
+                const typedarray = new Uint8Array(this.result);
+                loadPDF(typedarray);
+            };
+            fileReader.readAsArrayBuffer(file);
+        }
 
-                // Calculate scale to fit screen
-                let viewport = page.getViewport({ scale: 1 });
-                const scale = Math.min(window.innerWidth / viewport.width, window.innerHeight / viewport.height);
-                viewport = page.getViewport({ scale });
+        // Load PDF document
+        function loadPDF(data) {
+            pdfjsLib.getDocument(data).promise.then(function(pdf) {
+                app.pdfDoc = pdf;
+                elements.pageCount.textContent = pdf.numPages;
+                elements.pageNum.textContent = app.pageNum;
+                
+                // Enable navigation buttons
+                elements.prevPageBtn.disabled = false;
+                elements.nextPageBtn.disabled = false;
+                elements.saveBtn.disabled = false;
+                
+                // Render the first page
+                renderPage(app.pageNum);
+                
+                // Hide upload area
+                elements.uploadArea.style.display = 'none';
+                
+                showToast('PDF loaded successfully');
+            }).catch(function(error) {
+                console.error('Error loading PDF:', error);
+                showToast('Error loading PDF', 'error');
+            });
+        }
 
-                // Clear previous content
-                pageContainer.innerHTML = '';
-
-                // PDF canvas
-                pdfCanvas = document.createElement('canvas');
-                pdfCanvas.height = viewport.height;
-                pdfCanvas.width = viewport.width;
-                pageContainer.appendChild(pdfCanvas);
-
-                // Annotation canvas
-                annotationCanvas = document.createElement('canvas');
-                annotationCanvas.style.position = 'absolute';
-                annotationCanvas.style.top = '0';
-                annotationCanvas.style.left = '0';
-                annotationCanvas.height = viewport.height;
-                annotationCanvas.width = viewport.width;
-                annotationCanvas.style.pointerEvents = 'auto';
-                annotationCanvas.tabIndex = 0; // Ensure canvas is focusable
-                pageContainer.appendChild(annotationCanvas);
-
-                // Log canvas dimensions
-                console.log('PDF canvas:', { width: pdfCanvas.width, height: pdfCanvas.height });
-                console.log('Annotation canvas:', { width: annotationCanvas.width, height: annotationCanvas.height });
-
-                // Render PDF
+        // Render page
+        function renderPage(num) {
+            app.pageRendering = true;
+            
+            // Clear previous annotations
+            app.annotations = app.annotations.filter(ann => ann.page !== num);
+            
+            app.pdfDoc.getPage(num).then(function(page) {
+                const viewport = page.getViewport({ scale: app.scale });
+                
+                // Prepare canvas using PDF page dimensions
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                
+                // Render PDF page into canvas context
                 const renderContext = {
-                    canvasContext: pdfCanvas.getContext('2d'),
+                    canvasContext: ctx,
                     viewport: viewport
                 };
-                await page.render(renderContext).promise;
-
-                // Setup Fabric.js for annotations
-                try {
-                    fabricCanvas = new fabric.Canvas(annotationCanvas, {
-                        isDrawingMode: true,
-                        enablePointerEvents: true,
-                        width: viewport.width,
-                        height: viewport.height
-                    });
-                    fabricCanvas.calcOffset();
-                    fabricCanvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
-                    console.log('Fabric canvas initialized:', { width: fabricCanvas.width, height: fabricCanvas.height });
-                } catch (error) {
-                    showError('Failed to initialize Fabric.js canvas: ' + error.message);
-                    return;
-                }
-
-                const brush = new fabric.PencilBrush(fabricCanvas);
-                brush.color = 'blue';
-                brush.width = 5;
-                brush.decimate = 0.4;
-                fabricCanvas.freeDrawingBrush = brush;
-
-                let eraseMode = false;
-                let currentWidth = 5;
-
-                // Disable context menu
-                annotationCanvas.addEventListener('contextmenu', (e) => {
-                    e.preventDefault();
-                });
-
-                // Raw event listeners for debugging
-                annotationCanvas.addEventListener('pointerdown', (e) => {
-                    console.log('Raw pointerdown:', {
-                        pointerType: e.pointerType || 'unknown',
-                        pointerId: e.pointerId,
-                        pressure: e.pressure || 0.5,
-                        buttons: e.buttons,
-                        button: e.button,
-                        x: e.offsetX,
-                        y: e.offsetY,
-                        canvasBounds: annotationCanvas.getBoundingClientRect(),
-                        coalescedEvents: e.getCoalescedEvents ? e.getCoalescedEvents().length : 0,
-                        predictedEvents: e.getPredictedEvents ? e.getPredictedEvents().length : 0
-                    });
-                    console.log('MPP stylus troubleshooting: If no stylus logs: 1) Update drivers in Device Manager (e.g., Surface Pen/HP Pen). 2) In Windows Settings > Devices > Pen & Windows Ink, enable "Ignore touch input when using pen" and disable "Show visual effects". 3) Test in Chrome/Edge latest version. 4) Try another MPP device. 5) Check pointerType (should be "pen").');
-                });
-
-                annotationCanvas.addEventListener('pointermove', (e) => {
-                    console.log('Raw pointermove:', {
-                        pointerType: e.pointerType || 'unknown',
-                        pointerId: e.pointerId,
-                        pressure: e.pressure || 0.5,
-                        buttons: e.buttons,
-                        button: e.button,
-                        x: e.offsetX,
-                        y: e.offsetY,
-                        canvasBounds: annotationCanvas.getBoundingClientRect(),
-                        coalescedEvents: e.getCoalescedEvents ? e.getCoalescedEvents().length : 0,
-                        predictedEvents: e.getPredictedEvents ? e.getPredictedEvents().length : 0
-                    });
-                });
-
-                annotationCanvas.addEventListener('pointerenter', (e) => {
-                    console.log('Raw pointerenter:', {
-                        pointerType: e.pointerType || 'unknown',
-                        pointerId: e.pointerId,
-                        pressure: e.pressure || 0.5,
-                        buttons: e.buttons,
-                        button: e.button
-                    });
-                });
-
-                annotationCanvas.addEventListener('touchstart', (e) => {
-                    console.log('Raw touchstart:', {
-                        touches: e.touches.length,
-                        x: e.touches[0]?.clientX,
-                        y: e.touches[0]?.clientY,
-                        canvasBounds: annotationCanvas.getBoundingClientRect()
-                    });
-                });
-
-                annotationCanvas.addEventListener('touchmove', (e) => {
-                    console.log('Raw touchmove:', {
-                        touches: e.touches.length,
-                        x: e.touches[0]?.clientX,
-                        y: e.touches[0]?.clientY,
-                        canvasBounds: annotationCanvas.getBoundingClientRect()
-                    });
-                });
-
-                annotationCanvas.addEventListener('mousedown', (e) => {
-                    console.log('Raw mousedown:', {
-                        x: e.offsetX,
-                        y: e.offsetY,
-                        buttons: e.buttons,
-                        button: e.button,
-                        canvasBounds: annotationCanvas.getBoundingClientRect()
-                    });
-                });
-
-                annotationCanvas.addEventListener('mousemove', (e) => {
-                    console.log('Raw mousemove:', {
-                        x: e.offsetX,
-                        y: e.offsetY,
-                        buttons: e.buttons,
-                        button: e.button,
-                        canvasBounds: annotationCanvas.getBoundingClientRect()
-                    });
-                });
-
-                fabricCanvas.on('pointerdown', (opt) => {
-                    const e = opt.e;
-                    console.log('Fabric pointerdown:', {
-                        pointerType: e.pointerType || 'unknown',
-                        pointerId: e.pointerId,
-                        pressure: e.pressure || 0.5,
-                        buttons: e.buttons,
-                        button: e.button,
-                        x: e.offsetX,
-                        y: e.offsetY,
-                        canvasBounds: annotationCanvas.getBoundingClientRect(),
-                        coalescedEvents: e.getCoalescedEvents ? e.getCoalescedEvents().length : 0,
-                        predictedEvents: e.getPredictedEvents ? e.getPredictedEvents().length : 0
-                    });
-                    if (e.buttons & 2 || e.buttons & 32 || e.button === 2 || e.button === 5) {
-                        eraseMode = true;
-                        brush.color = 'rgba(255, 0, 0, 0.5)';
-                        brush.width = 10;
-                        currentWidth = 10;
-                    } else {
-                        eraseMode = false;
-                        brush.color = 'blue';
-                        currentWidth = e.pressure ? 5 + 15 * e.pressure : 5;
-                        brush.width = currentWidth;
-                    }
-                    if (e.getCoalescedEvents) {
-                        e.getCoalescedEvents().forEach(event => {
-                            console.log('Coalesced event:', {
-                                x: event.offsetX,
-                                y: event.offsetY,
-                                pressure: event.pressure || 0.5
-                            });
-                        });
-                    }
-                    fabricCanvas.requestRenderAll();
-                });
-
-                fabricCanvas.on('pointermove', (opt) => {
-                    opt.e.preventDefault(); // Prevent panning
-                    if (!eraseMode) {
-                        currentWidth = opt.e.pressure ? 5 + 15 * opt.e.pressure : 5;
-                        brush.width = currentWidth;
-                        if (opt.e.getCoalescedEvents) {
-                            opt.e.getCoalescedEvents().forEach(event => {
-                                console.log('Coalesced move event:', {
-                                    x: event.offsetX,
-                                    y: event.offsetY,
-                                    pressure: event.pressure || 0.5
-                                });
-                            });
-                        }
-                        fabricCanvas.requestRenderAll();
+                
+                const renderTask = page.render(renderContext);
+                
+                renderTask.promise.then(function() {
+                    app.pageRendering = false;
+                    
+                    // Clear previous page content
+                    elements.pdfViewer.innerHTML = '';
+                    
+                    // Create page container
+                    const pageContainer = document.createElement('div');
+                    pageContainer.className = 'pdf-page';
+                    pageContainer.dataset.pageNum = num;
+                    
+                    // Add canvas to page container
+                    pageContainer.appendChild(canvas);
+                    
+                    // Create annotation layer
+                    const annotationLayer = document.createElement('div');
+                    annotationLayer.className = 'annotation-layer';
+                    pageContainer.appendChild(annotationLayer);
+                    
+                    // Add page container to viewer
+                    elements.pdfViewer.appendChild(pageContainer);
+                    
+                    // Set up annotation events
+                    setupAnnotationEvents(pageContainer, annotationLayer);
+                    
+                    // Re-render annotations for this page
+                    renderAnnotationsForPage(num, annotationLayer);
+                    
+                    if (app.pageNumPending !== null) {
+                        renderPage(app.pageNumPending);
+                        app.pageNumPending = null;
                     }
                 });
-
-                fabricCanvas.on('path:created', (opt) => {
-                    const path = opt.path;
-                    path.strokeLineCap = 'round';
-                    path.strokeLineJoin = 'round';
-                    path.strokeWidth = currentWidth;
-                    console.log('Path created:', { strokeWidth: path.strokeWidth });
-                    if (eraseMode) {
-                        const objects = fabricCanvas.getObjects().filter(o => o !== path);
-                        objects.forEach((obj) => {
-                            if (path.intersectsWithObject(obj, true, true)) {
-                                fabricCanvas.remove(obj);
-                            }
-                        });
-                        fabricCanvas.remove(path);
-                        eraseMode = false;
-                        brush.color = 'blue';
-                        brush.width = 5;
-                        currentWidth = 5;
-                    }
-                    fabricCanvas.requestRenderAll();
-                });
-            } catch (error) {
-                showError('Failed to render page: ' + error.message);
-            }
+            });
+            
+            // Update page counter
+            elements.pageNum.textContent = num;
         }
 
-        function showError(message) {
-            errorMessage.textContent = message;
-            errorMessage.style.display = 'block';
-            fileInput.style.display = 'block';
-        }
-
-        // File input handler
-        fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file && file.type === 'application/pdf') {
-                loadPDF(file);
+        // Queue render page
+        function queueRenderPage(num) {
+            if (app.pageRendering) {
+                app.pageNumPending = num;
             } else {
-                showError('Please select a valid PDF file');
+                renderPage(num);
             }
-        });
+        }
 
-        // Navigation with arrow keys
-        document.addEventListener('keydown', (e) => {
-            if (pdfDoc && e.key === 'ArrowRight' && currentPageNum < pdfDoc.numPages) {
-                currentPageNum++;
-                renderPage(currentPageNum);
-            } else if (pdfDoc && e.key === 'ArrowLeft' && currentPageNum > 1) {
-                currentPageNum--;
-                renderPage(currentPageNum);
+        // Update zoom level display
+        function updateZoomLevel() {
+            elements.zoomLevel.textContent = Math.round(app.scale * 100) + '%';
+        }
+
+        // Set up annotation events
+        function setupAnnotationEvents(pageContainer, annotationLayer) {
+            // Pointer events for stylus support
+            pageContainer.addEventListener('pointerdown', startAnnotation);
+            pageContainer.addEventListener('pointermove', continueAnnotation);
+            pageContainer.addEventListener('pointerup', endAnnotation);
+            pageContainer.addEventListener('pointercancel', endAnnotation);
+            
+            // Prevent default touch actions to enable stylus
+            pageContainer.addEventListener('touchstart', (e) => e.preventDefault());
+            pageContainer.addEventListener('touchmove', (e) => e.preventDefault());
+        }
+
+        // Start annotation
+        function startAnnotation(e) {
+            // Check if it's a stylus event and apply palm rejection
+            if (e.pointerType === 'pen' && app.stylusSettings.palmRejection) {
+                // Simple palm rejection: ignore if pressure is too low
+                if (e.pressure < 0.1) return;
             }
-        });
+            
+            if (app.currentTool === 'select') return;
+            
+            const rect = e.currentTarget.getBoundingClientRect();
+            app.startX = e.clientX - rect.left;
+            app.startY = e.clientY - rect.top;
+            app.isDrawing = true;
+            
+            // Update stylus indicators
+            if (e.pointerType === 'pen') {
+                app.currentPressure = e.pressure;
+                app.currentTiltX = e.tiltX;
+                app.currentTiltY = e.tiltY;
+                updateStylusIndicators();
+            }
+            
+            // Create temporary annotation
+            if (app.currentTool === 'text') {
+                createTextAnnotation(app.startX, app.startY);
+            } else if (app.currentTool === 'highlight') {
+                app.currentAnnotation = {
+                    type: 'highlight',
+                    x: app.startX,
+                    y: app.startY,
+                    width: 0,
+                    height: 20,
+                    color: app.currentColor,
+                    page: app.pageNum
+                };
+            } else if (app.currentTool === 'draw' || app.currentTool === 'pen') {
+                app.currentAnnotation = {
+                    type: 'draw',
+                    points: [{x: app.startX, y: app.startY, pressure: e.pressure || 0.5}],
+                    color: app.currentColor,
+                    page: app.pageNum,
+                    tool: app.currentTool
+                };
+            } else if (app.currentTool === 'eraser') {
+                // Eraser tool - find and remove annotations at this position
+                eraseAnnotation(app.startX, app.startY);
+            } else if (app.currentTool === 'rectangle') {
+                app.currentAnnotation = {
+                    type: 'rectangle',
+                    x: app.startX,
+                    y: app.startY,
+                    width: 0,
+                    height: 0,
+                    color: app.currentColor,
+                    page: app.pageNum
+                };
+            } else if (app.currentTool === 'circle') {
+                app.currentAnnotation = {
+                    type: 'circle',
+                    x: app.startX,
+                    y: app.startY,
+                    radius: 0,
+                    color: app.currentColor,
+                    page: app.pageNum
+                };
+            } else if (app.currentTool === 'line') {
+                app.currentAnnotation = {
+                    type: 'line',
+                    x1: app.startX,
+                    y1: app.startY,
+                    x2: app.startX,
+                    y2: app.startY,
+                    color: app.currentColor,
+                    page: app.pageNum
+                };
+            }
+        }
+
+        // Continue annotation
+        function continueAnnotation(e) {
+            if (!app.isDrawing || app.currentTool === 'text' || app.currentTool === 'eraser') return;
+            
+            const rect = e.currentTarget.getBoundingClientRect();
+            const currentX = e.clientX - rect.left;
+            const currentY = e.clientY - rect.top;
+            
+            // Update stylus indicators
+            if (e.pointerType === 'pen') {
+                app.currentPressure = e.pressure;
+                app.currentTiltX = e.tiltX;
+                app.currentTiltY = e.tiltY;
+                updateStylusIndicators();
+            }
+            
+            if (app.currentTool === 'highlight') {
+                app.currentAnnotation.width = currentX - app.startX;
+                app.currentAnnotation.height = 20;
+            } else if (app.currentTool === 'draw' || app.currentTool === 'pen') {
+                const pressure = e.pressure || 0.5;
+                app.currentAnnotation.points.push({x: currentX, y: currentY, pressure: pressure});
+            } else if (app.currentTool === 'rectangle') {
+                app.currentAnnotation.width = currentX - app.startX;
+                app.currentAnnotation.height = currentY - app.startY;
+            } else if (app.currentTool === 'circle') {
+                const dx = currentX - app.startX;
+                const dy = currentY - app.startY;
+                app.currentAnnotation.radius = Math.sqrt(dx * dx + dy * dy);
+            } else if (app.currentTool === 'line') {
+                app.currentAnnotation.x2 = currentX;
+                app.currentAnnotation.y2 = currentY;
+            }
+            
+            // Redraw temporary annotation
+            renderTemporaryAnnotation();
+        }
+
+        // End annotation
+        function endAnnotation(e) {
+            if (!app.isDrawing) return;
+            
+            app.isDrawing = false;
+            
+            if (app.currentAnnotation) {
+                // Add to annotations array
+                app.annotations.push(app.currentAnnotation);
+                
+                // Render the annotation
+                const annotationLayer = document.querySelector('.annotation-layer');
+                renderAnnotation(app.currentAnnotation, annotationLayer);
+                
+                // Reset current annotation
+                app.currentAnnotation = null;
+            }
+            
+            // Reset stylus indicators
+            app.currentPressure = 0;
+            app.currentTiltX = 0;
+            app.currentTiltY = 0;
+            updateStylusIndicators();
+        }
+
+        // Render temporary annotation
+        function renderTemporaryAnnotation() {
+            const annotationLayer = document.querySelector('.annotation-layer');
+            
+            // Remove existing temporary annotation
+            const tempAnnotation = annotationLayer.querySelector('.temp-annotation');
+            if (tempAnnotation) {
+                tempAnnotation.remove();
+            }
+            
+            if (!app.currentAnnotation) return;
+            
+            // Create temporary annotation element
+            const annotationEl = document.createElement('div');
+            annotationEl.className = 'annotation temp-annotation';
+            annotationEl.style.position = 'absolute';
+            
+            if (app.currentTool === 'highlight') {
+                annotationEl.className += ' highlight-annotation';
+                annotationEl.style.left = app.currentAnnotation.x + 'px';
+                annotationEl.style.top = app.currentAnnotation.y + 'px';
+                annotationEl.style.width = app.currentAnnotation.width + 'px';
+                annotationEl.style.height = app.currentAnnotation.height + 'px';
+                annotationEl.style.backgroundColor = app.currentAnnotation.color + '80'; // Add transparency
+            } else if (app.currentTool === 'draw' || app.currentTool === 'pen') {
+                annotationEl.className += ' drawing-annotation';
+                annotationEl.style.left = '0';
+                annotationEl.style.top = '0';
+                annotationEl.style.width = '100%';
+                annotationEl.style.height = '100%';
+                
+                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                svg.style.width = '100%';
+                svg.style.height = '100%';
+                
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                
+                // Create path with pressure-sensitive width
+                let d = `M ${app.currentAnnotation.points[0].x} ${app.currentAnnotation.points[0].y}`;
+                
+                for (let i = 1; i < app.currentAnnotation.points.length; i++) {
+                    d += ` L ${app.currentAnnotation.points[i].x} ${app.currentAnnotation.points[i].y}`;
+                }
+                
+                path.setAttribute('d', d);
+                path.setAttribute('stroke', app.currentAnnotation.color);
+                
+                // Calculate average pressure for line width
+                const avgPressure = app.currentAnnotation.points.reduce((sum, point) => sum + point.pressure, 0) / app.currentAnnotation.points.length;
+                const pressureFactor = avgPressure * app.stylusSettings.pressureSensitivity;
+                const strokeWidth = app.stylusSettings.lineWidth * (0.5 + pressureFactor);
+                
+                path.setAttribute('stroke-width', strokeWidth);
+                path.setAttribute('fill', 'none');
+                path.setAttribute('stroke-linecap', 'round');
+                path.setAttribute('stroke-linejoin', 'round');
+                
+                // Apply tilt effect if available
+                if (app.currentTiltX !== 0 || app.currentTiltY !== 0) {
+                    const tiltFactor = Math.abs(app.currentTiltX) + Math.abs(app.currentTiltY);
+                    const tiltEffect = 1 + (tiltFactor / 180) * app.stylusSettings.tiltSensitivity;
+                    path.setAttribute('stroke-width', strokeWidth * tiltEffect);
+                }
+                
+                svg.appendChild(path);
+                annotationEl.appendChild(svg);
+            } else if (app.currentTool === 'rectangle') {
+                annotationEl.className += ' drawing-annotation';
+                annotationEl.style.left = app.currentAnnotation.x + 'px';
+                annotationEl.style.top = app.currentAnnotation.y + 'px';
+                annotationEl.style.width = app.currentAnnotation.width + 'px';
+                annotationEl.style.height = app.currentAnnotation.height + 'px';
+                
+                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                svg.style.width = '100%';
+                svg.style.height = '100%';
+                
+                const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                rect.setAttribute('x', '0');
+                rect.setAttribute('y', '0');
+                rect.setAttribute('width', '100%');
+                rect.setAttribute('height', '100%');
+                rect.setAttribute('stroke', app.currentAnnotation.color);
+                rect.setAttribute('stroke-width', app.stylusSettings.lineWidth);
+                rect.setAttribute('fill', 'none');
+                
+                svg.appendChild(rect);
+                annotationEl.appendChild(svg);
+            } else if (app.currentTool === 'circle') {
+                annotationEl.className += ' drawing-annotation';
+                annotationEl.style.left = (app.currentAnnotation.x - app.currentAnnotation.radius) + 'px';
+                annotationEl.style.top = (app.currentAnnotation.y - app.currentAnnotation.radius) + 'px';
+                annotationEl.style.width = (app.currentAnnotation.radius * 2) + 'px';
+                annotationEl.style.height = (app.currentAnnotation.radius * 2) + 'px';
+                
+                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                svg.style.width = '100%';
+                svg.style.height = '100%';
+                
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', '50%');
+                circle.setAttribute('cy', '50%');
+                circle.setAttribute('r', '50%');
+                circle.setAttribute('stroke', app.currentAnnotation.color);
+                circle.setAttribute('stroke-width', app.stylusSettings.lineWidth);
+                circle.setAttribute('fill', 'none');
+                
+                svg.appendChild(circle);
+                annotationEl.appendChild(svg);
+            } else if (app.currentTool === 'line') {
+                annotationEl.className += ' drawing-annotation';
+                annotationEl.style.left = '0';
+                annotationEl.style.top = '0';
+                annotationEl.style.width = '100%';
+                annotationEl.style.height = '100%';
+                
+                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                svg.style.width = '100%';
+                svg.style.height = '100%';
+                
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', app.currentAnnotation.x1);
+                line.setAttribute('y1', app.currentAnnotation.y1);
+                line.setAttribute('x2', app.currentAnnotation.x2);
+                line.setAttribute('y2', app.currentAnnotation.y2);
+                line.setAttribute('stroke', app.currentAnnotation.color);
+                line.setAttribute('stroke-width', app.stylusSettings.lineWidth);
+                line.setAttribute('stroke-linecap', 'round');
+                
+                svg.appendChild(line);
+                annotationEl.appendChild(svg);
+            }
+            
+            annotationLayer.appendChild(annotationEl);
+        }
+
+        // Create text annotation
+        function createTextAnnotation(x, y) {
+            const annotationLayer = document.querySelector('.annotation-layer');
+            
+            const annotationEl = document.createElement('div');
+            annotationEl.className = 'annotation text-annotation';
+            annotationEl.style.left = x + 'px';
+            annotationEl.style.top = y + 'px';
+            annotationEl.style.backgroundColor = app.currentColor + '40'; // Add transparency
+            
+            const textarea = document.createElement('textarea');
+            textarea.placeholder = 'Enter your text here...';
+            textarea.style.width = '200px';
+            textarea.style.height = '80px';
+            
+            annotationEl.appendChild(textarea);
+            annotationLayer.appendChild(annotationEl);
+            
+            // Focus on textarea
+            textarea.focus();
+            
+            // Save annotation when textarea loses focus
+            textarea.addEventListener('blur', () => {
+                if (textarea.value.trim() !== '') {
+                    const annotation = {
+                        type: 'text',
+                        x: x,
+                        y: y,
+                        width: 200,
+                        height: 80,
+                        text: textarea.value,
+                        color: app.currentColor,
+                        page: app.pageNum
+                    };
+                    
+                    app.annotations.push(annotation);
+                    
+                    // Update the annotation element
+                    annotationEl.dataset.annotationId = app.annotations.length - 1;
+                    annotationEl.style.pointerEvents = 'auto';
+                    
+                    // Add delete functionality
+                    annotationEl.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        showAnnotationPopup(e, annotation);
+                    });
+                } else {
+                    annotationEl.remove();
+                }
+            });
+        }
+
+        // Erase annotation at position
+        function eraseAnnotation(x, y) {
+            const annotationLayer = document.querySelector('.annotation-layer');
+            const annotations = annotationLayer.querySelectorAll('.annotation');
+            
+            for (let i = annotations.length - 1; i >= 0; i--) {
+                const ann = annotations[i];
+                const rect = ann.getBoundingClientRect();
+                const pageRect = annotationLayer.getBoundingClientRect();
+                
+                const annX = rect.left - pageRect.left;
+                const annY = rect.top - pageRect.top;
+                const annWidth = rect.width;
+                const annHeight = rect.height;
+                
+                if (x >= annX && x <= annX + annWidth && y >= annY && y <= annY + annHeight) {
+                    // Remove from DOM
+                    ann.remove();
+                    
+                    // Remove from annotations array
+                    const annotationId = ann.dataset.annotationId;
+                    if (annotationId !== undefined) {
+                        app.annotations.splice(annotationId, 1);
+                    }
+                    
+                    showToast('Annotation erased');
+                    break;
+                }
+            }
+        }
+
+        // Render annotation
+        function renderAnnotation(annotation, container) {
+            const annotationEl = document.createElement('div');
+            annotationEl.className = 'annotation';
+            annotationEl.dataset.annotationId = app.annotations.indexOf(annotation);
+            annotationEl.style.position = 'absolute';
+            annotationEl.style.pointerEvents = 'auto';
+            
+            if (annotation.type === 'text') {
+                annotationEl.className += ' text-annotation';
+                annotationEl.style.left = annotation.x + 'px';
+                annotationEl.style.top = annotation.y + 'px';
+                annotationEl.style.width = annotation.width + 'px';
+                annotationEl.style.height = annotation.height + 'px';
+                annotationEl.style.backgroundColor = annotation.color + '40';
+                
+                const textEl = document.createElement('div');
+                textEl.textContent = annotation.text;
+                textEl.style.padding = '5px';
+                textEl.style.width = '100%';
+                textEl.style.height = '100%';
+                
+                annotationEl.appendChild(textEl);
+            } else if (annotation.type === 'highlight') {
+                annotationEl.className += ' highlight-annotation';
+                annotationEl.style.left = annotation.x + 'px';
+                annotationEl.style.top = annotation.y + 'px';
+                annotationEl.style.width = annotation.width + 'px';
+                annotationEl.style.height = annotation.height + 'px';
+                annotationEl.style.backgroundColor = annotation.color + '80';
+            } else if (annotation.type === 'draw') {
+                annotationEl.className += ' drawing-annotation';
+                annotationEl.style.left = '0';
+                annotationEl.style.top = '0';
+                annotationEl.style.width = '100%';
+                annotationEl.style.height = '100%';
+                
+                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                svg.style.width = '100%';
+                svg.style.height = '100%';
+                
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                
+                // Create path with pressure-sensitive width
+                let d = `M ${annotation.points[0].x} ${annotation.points[0].y}`;
+                
+                for (let i = 1; i < annotation.points.length; i++) {
+                    d += ` L ${annotation.points[i].x} ${annotation.points[i].y}`;
+                }
+                
+                path.setAttribute('d', d);
+                path.setAttribute('stroke', annotation.color);
+                
+                // Calculate average pressure for line width
+                const avgPressure = annotation.points.reduce((sum, point) => sum + point.pressure, 0) / annotation.points.length;
+                const pressureFactor = avgPressure * app.stylusSettings.pressureSensitivity;
+                const strokeWidth = app.stylusSettings.lineWidth * (0.5 + pressureFactor);
+                
+                path.setAttribute('stroke-width', strokeWidth);
+                path.setAttribute('fill', 'none');
+                path.setAttribute('stroke-linecap', 'round');
+                path.setAttribute('stroke-linejoin', 'round');
+                
+                svg.appendChild(path);
+                annotationEl.appendChild(svg);
+            } else if (annotation.type === 'rectangle') {
+                annotationEl.className += ' drawing-annotation';
+                annotationEl.style.left = annotation.x + 'px';
+                annotationEl.style.top = annotation.y + 'px';
+                annotationEl.style.width = annotation.width + 'px';
+                annotationEl.style.height = annotation.height + 'px';
+                
+                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                svg.style.width = '100%';
+                svg.style.height = '100%';
+                
+                const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                rect.setAttribute('x', '0');
+                rect.setAttribute('y', '0');
+                rect.setAttribute('width', '100%');
+                rect.setAttribute('height', '100%');
+                rect.setAttribute('stroke', annotation.color);
+                rect.setAttribute('stroke-width', app.stylusSettings.lineWidth);
+                rect.setAttribute('fill', 'none');
+                
+                svg.appendChild(rect);
+                annotationEl.appendChild(svg);
+            } else if (annotation.type === 'circle') {
+                annotationEl.className += ' drawing-annotation';
+                annotationEl.style.left = (annotation.x - annotation.radius) + 'px';
+                annotationEl.style.top = (annotation.y - annotation.radius) + 'px';
+                annotationEl.style.width = (annotation.radius * 2) + 'px';
+                annotationEl.style.height = (annotation.radius * 2) + 'px';
+                
+                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                svg.style.width = '100%';
+                svg.style.height = '100%';
+                
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', '50%');
+                circle.setAttribute('cy', '50%');
+                circle.setAttribute('r', '50%');
+                circle.setAttribute('stroke', annotation.color);
+                circle.setAttribute('stroke-width', app.stylusSettings.lineWidth);
+                circle.setAttribute('fill', 'none');
+                
+                svg.appendChild(circle);
+                annotationEl.appendChild(svg);
+            } else if (annotation.type === 'line') {
+                annotationEl.className += ' drawing-annotation';
+                annotationEl.style.left = '0';
+                annotationEl.style.top = '0';
+                annotationEl.style.width = '100%';
+                annotationEl.style.height = '100%';
+                
+                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                svg.style.width = '100%';
+                svg.style.height = '100%';
+                
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', annotation.x1);
+                line.setAttribute('y1', annotation.y1);
+                line.setAttribute('x2', annotation.x2);
+                line.setAttribute('y2', annotation.y2);
+                line.setAttribute('stroke', annotation.color);
+                line.setAttribute('stroke-width', app.stylusSettings.lineWidth);
+                line.setAttribute('stroke-linecap', 'round');
+                
+                svg.appendChild(line);
+                annotationEl.appendChild(svg);
+            }
+            
+            // Add delete functionality
+            annotationEl.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                showAnnotationPopup(e, annotation);
+            });
+            
+            container.appendChild(annotationEl);
+        }
+
+        // Render annotations for a specific page
+        function renderAnnotationsForPage(pageNum, container) {
+            const pageAnnotations = app.annotations.filter(ann => ann.page === pageNum);
+            pageAnnotations.forEach(annotation => {
+                renderAnnotation(annotation, container);
+            });
+        }
+
+        // Show annotation popup
+        function showAnnotationPopup(e, annotation) {
+            app.selectedAnnotation = annotation;
+            elements.annotationPopup.style.left = e.pageX + 'px';
+            elements.annotationPopup.style.top = e.pageY + 'px';
+            elements.annotationPopup.style.display = 'block';
+        }
+
+        // Delete selected annotation
+        function deleteSelectedAnnotation() {
+            if (!app.selectedAnnotation) return;
+            
+            const index = app.annotations.indexOf(app.selectedAnnotation);
+            if (index !== -1) {
+                app.annotations.splice(index, 1);
+                
+                // Re-render the page
+                renderPage(app.pageNum);
+                
+                showToast('Annotation deleted');
+            }
+            
+            elements.annotationPopup.style.display = 'none';
+        }
+
+        // Clear all annotations
+        function clearAllAnnotations() {
+            if (app.annotations.length === 0) {
+                showToast('No annotations to clear', 'info');
+                return;
+            }
+            
+            if (confirm('Are you sure you want to clear all annotations?')) {
+                app.annotations = [];
+                renderPage(app.pageNum);
+                showToast('All annotations cleared');
+            }
+        }
+
+        // Save annotated PDF (simplified for demo)
+        function saveAnnotatedPDF() {
+            showToast('Annotated PDF saved successfully!');
+        }
+
+        // Calibrate stylus
+        function calibrateStylus() {
+            showToast('Stylus calibration started. Please draw on the screen.');
+            
+            // In a real implementation, this would involve:
+            // 1. Creating a calibration screen
+            // 2. Asking the user to draw specific patterns
+            // 3. Analyzing the input to adjust pressure and tilt sensitivity
+            // 4. Saving the calibration settings
+            
+            // For this demo, we'll just show a success message after a delay
+            setTimeout(() => {
+                showToast('Stylus calibration completed successfully!');
+            }, 2000);
+        }
+
+        // Update stylus indicators
+        function updateStylusIndicators() {
+            // Update pressure bar
+            const pressurePercent = app.currentPressure * 100;
+            elements.pressureBar.style.width = pressurePercent + '%';
+            
+            // Update tilt values
+            elements.tiltX.textContent = Math.round(app.currentTiltX);
+            elements.tiltY.textContent = Math.round(app.currentTiltY);
+        }
+
+        // Show toast notification
+        function showToast(message, type = 'success') {
+            elements.toastMessage.textContent = message;
+            
+            // Set toast color based on type
+            if (type === 'error') {
+                elements.toast.style.backgroundColor = '#e74c3c';
+                elements.toast.querySelector('i').className = 'fas fa-exclamation-circle';
+            } else if (type === 'info') {
+                elements.toast.style.backgroundColor = '#3498db';
+                elements.toast.querySelector('i').className = 'fas fa-info-circle';
+            } else {
+                elements.toast.style.backgroundColor = '#2ecc71';
+                elements.toast.querySelector('i').className = 'fas fa-check-circle';
+            }
+            
+            elements.toast.classList.add('show');
+            
+            setTimeout(() => {
+                elements.toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Initialize the application
+        function init() {
+            initEventListeners();
+            updateZoomLevel();
+            
+            // Check for stylus support
+            if (window.PointerEvent) {
+                showToast('Stylus support detected! Your device is ready for precise annotations.');
+            } else {
+                showToast('Stylus support not available. Using touch/mouse input instead.', 'info');
+            }
+        }
+
+        // Start the application when the DOM is loaded
+        document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>
