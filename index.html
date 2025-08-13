@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Annotator - Professional Stylus Edition</title>
+    <title>PDF Annotator - Professional Stylus Edition 2</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
@@ -136,7 +136,7 @@
         .tool-btn.active {
             background-color: #3498db;
             color: white;
-            border-color: #3498db;
+            border-color: #3498db';
         }
         
         .tool-btn i {
@@ -385,7 +385,7 @@
         }
         
         .nav-btn:hover {
-            background-color: #f8f9fa';
+            background-color: #f8f9fa;
         }
         
         .nav-btn:disabled {
@@ -649,6 +649,22 @@
             margin-bottom: 4px;
         }
         
+        .button-test {
+            margin-top: 8px;
+            width: 100%;
+            padding: 6px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        
+        .button-test:hover {
+            background-color: #2980b9;
+        }
+        
         @media (max-width: 1024px) {
             main {
                 flex-direction: column;
@@ -687,7 +703,7 @@
         <div class="header-content">
             <div class="logo">
                 <i class="fas fa-file-pdf"></i>
-                <h1>PDF Annotator - Professional Stylus Edition</h1>
+                <h1>PDF Annotator - Professional Stylus Edition 2</h1>
             </div>
             <div class="user-info">
                 <span>Welcome, User</span>
@@ -755,8 +771,8 @@
                 <h3>Stylus Settings</h3>
                 
                 <div class="setting-item">
-                    <label>Pressure Sensitivity: <span class="setting-value" id="pressure-value">70%</span></label>
-                    <input type="range" id="pressure-sensitivity" min="0" max="100" value="70">
+                    <label>Pressure Sensitivity: <span class="setting-value" id="pressure-value">27%</span></label>
+                    <input type="range" id="pressure-sensitivity" min="0" max="100" value="27">
                     <div class="pressure-indicator">
                         <div class="pressure-bar" id="pressure-bar"></div>
                     </div>
@@ -777,8 +793,8 @@
                 </div>
                 
                 <div class="setting-item">
-                    <label>Max Line Width: <span class="setting-value" id="max-width-value">10px</span></label>
-                    <input type="range" id="max-line-width" min="5" max="30" value="10">
+                    <label>Max Line Width: <span class="setting-value" id="max-width-value">0.5px</span></label>
+                    <input type="range" id="max-line-width" min="0.1" max="10" step="0.1" value="0.5">
                 </div>
                 
                 <div class="setting-item">
@@ -813,6 +829,7 @@
                             <div class="button-toggle-slider"></div>
                         </div>
                     </div>
+                    <button class="button-test" id="test-buttons">Test Button Detection</button>
                 </div>
                 
                 <div class="ink-preview">
@@ -833,7 +850,9 @@
                     <div class="debug-item">Buttons: <span id="debug-buttons">0</span></div>
                     <div class="debug-item">Button 1: <span id="debug-button1">No</span></div>
                     <div class="debug-item">Button 2: <span id="debug-button2">No</span></div>
+                    <div class="debug-item">Button Property: <span id="debug-button-prop">None</span></div>
                     <div class="debug-item">Pressure: <span id="debug-pressure">0</span></div>
+                    <div class="debug-item">Detection Method: <span id="debug-method">None</span></div>
                 </div>
             </div>
             
@@ -930,10 +949,10 @@
             currentAnnotation: null,
             selectedAnnotation: null,
             stylusSettings: {
-                pressureSensitivity: 0.7,
+                pressureSensitivity: 0.27,
                 tiltSensitivity: 0.5,
                 minLineWidth: 0.1,
-                maxLineWidth: 10,
+                maxLineWidth: 0.5,
                 opacityPressure: false,
                 palmRejection: false,
                 button1Eraser: true,
@@ -948,7 +967,8 @@
             activeButtons: 0,
             debugMode: false,
             lastButtonState: 0,
-            buttonHistory: []
+            buttonHistory: [],
+            buttonDetectionMethod: 'none'
         };
 
         // DOM elements
@@ -968,6 +988,7 @@
             zoomLevel: document.getElementById('zoom-level'),
             clearAnnotationsBtn: document.getElementById('clear-annotations'),
             toggleDebugBtn: document.getElementById('toggle-debug'),
+            testButtonsBtn: document.getElementById('test-buttons'),
             toolBtns: document.querySelectorAll('.tool-btn'),
             colorOptions: document.querySelectorAll('.color-option'),
             annotationPopup: document.getElementById('annotation-popup'),
@@ -997,7 +1018,9 @@
             debugButtons: document.getElementById('debug-buttons'),
             debugButton1: document.getElementById('debug-button1'),
             debugButton2: document.getElementById('debug-button2'),
-            debugPressure: document.getElementById('debug-pressure')
+            debugButtonProp: document.getElementById('debug-button-prop'),
+            debugPressure: document.getElementById('debug-pressure'),
+            debugMethod: document.getElementById('debug-method')
         };
 
         // Initialize event listeners
@@ -1035,6 +1058,7 @@
             elements.saveBtn.addEventListener('click', saveAnnotatedPDF);
             elements.calibrateStylus.addEventListener('click', calibrateStylus);
             elements.toggleDebugBtn.addEventListener('click', toggleDebugMode);
+            elements.testButtonsBtn.addEventListener('click', testButtonDetection);
             
             elements.toolBtns.forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -1081,7 +1105,7 @@
             });
             
             elements.maxLineWidth.addEventListener('input', (e) => {
-                app.stylusSettings.maxLineWidth = parseInt(e.target.value);
+                app.stylusSettings.maxLineWidth = parseFloat(e.target.value);
                 elements.maxWidthValue.textContent = e.target.value + 'px';
                 updateInkPreview();
             });
@@ -1121,6 +1145,48 @@
             app.debugMode = !app.debugMode;
             elements.debugInfo.style.display = app.debugMode ? 'block' : 'none';
             showToast(`Debug mode ${app.debugMode ? 'enabled' : 'disabled'}`);
+        }
+
+        // Test button detection
+        function testButtonDetection() {
+            if (!app.debugMode) {
+                showToast('Please enable debug mode first', 'info');
+                return;
+            }
+            
+            showToast('Press and hold each button on your stylus for 2 seconds', 'info');
+            
+            // Set up a temporary listener to capture button events
+            const tempListener = (e) => {
+                if (e.pointerType === 'pen') {
+                    console.log('Button test event:', {
+                        buttons: e.buttons,
+                        button: e.button,
+                        pointerType: e.pointerType,
+                        pressure: e.pressure
+                    });
+                    
+                    // Update debug info
+                    elements.debugButtons.textContent = e.buttons;
+                    elements.debugButtonProp.textContent = e.button !== undefined ? e.button : 'None';
+                    
+                    // Try to detect buttons
+                    const detection = detectButtonMethod(e.buttons, e.button);
+                    app.buttonDetectionMethod = detection.method;
+                    elements.debugMethod.textContent = detection.method;
+                    
+                    showToast(`Detected: Button 1: ${detection.button1 ? 'Yes' : 'No'}, Button 2: ${detection.button2 ? 'Yes' : 'No'}`, 'info');
+                }
+            };
+            
+            // Add temporary listener
+            document.addEventListener('pointerdown', tempListener);
+            
+            // Remove after 10 seconds
+            setTimeout(() => {
+                document.removeEventListener('pointerdown', tempListener);
+                showToast('Button test completed', 'info');
+            }, 10000);
         }
 
         // Initialize ink preview
@@ -1196,54 +1262,100 @@
         }
 
         // Enhanced button detection for Bamboo stylus
-        function isEraserButtonPressed(buttons) {
-            // Standard button mapping: 1=primary, 2=button1, 4=button2
-            // But some styluses might use different mapping
-            
+        function detectButtonMethod(buttons, button) {
             let button1Pressed = false;
             let button2Pressed = false;
+            let method = 'none';
             
-            // Try multiple detection methods for Bamboo CS323AG0A
-            
-            // Method 1: Standard bitmask
+            // Method 1: Standard bitmask detection
             if (app.stylusSettings.button1Eraser) {
-                button1Pressed = (buttons & 2) === 2;
+                button1Pressed = button1Pressed || (buttons & 2) === 2;
             }
             if (app.stylusSettings.button2Eraser) {
-                button2Pressed = (buttons & 4) === 4;
+                button2Pressed = button2Pressed || (buttons & 4) === 4;
+            }
+            
+            if (button1Pressed || button2Pressed) {
+                method = 'standard bitmask';
             }
             
             // Method 2: Alternative mapping (some Bamboo models use this)
             if (!button1Pressed && app.stylusSettings.button1Eraser) {
                 button1Pressed = (buttons & 4) === 4;
+                if (button1Pressed) method = 'alternative mapping';
             }
             if (!button2Pressed && app.stylusSettings.button2Eraser) {
                 button2Pressed = (buttons & 2) === 2;
+                if (button2Pressed) method = 'alternative mapping';
             }
             
-            // Method 3: Check for button state changes (for toggle behavior)
+            // Method 3: Use button property (for some styluses)
+            if (!button1Pressed && !button2Pressed && button !== undefined) {
+                if (app.stylusSettings.button1Eraser && button === 2) {
+                    button1Pressed = true;
+                    method = 'button property';
+                }
+                if (app.stylusSettings.button2Eraser && button === 4) {
+                    button2Pressed = true;
+                    method = 'button property';
+                }
+            }
+            
+            // Method 4: Check for button state changes (for toggle behavior)
             if (!button1Pressed && !button2Pressed && app.buttonHistory.length > 0) {
                 const lastState = app.buttonHistory[app.buttonHistory.length - 1];
                 if (lastState.buttons !== buttons) {
                     // Button state changed, check if it was a button press
                     if (app.stylusSettings.button1Eraser && (buttons & 2) === 2) {
                         button1Pressed = true;
+                        method = 'state change';
                     }
                     if (app.stylusSettings.button2Eraser && (buttons & 4) === 4) {
                         button2Pressed = true;
+                        method = 'state change';
                     }
                 }
             }
             
+            // Method 5: Try additional bitmask values for some stylus models
+            if (!button1Pressed && !button2Pressed) {
+                // Some styluses might use different bitmasks
+                const possibleValues = [1, 8, 16, 32];
+                
+                for (const value of possibleValues) {
+                    if ((buttons & value) === value) {
+                        if (!button1Pressed && app.stylusSettings.button1Eraser) {
+                            button1Pressed = true;
+                            method = `bitmask ${value}`;
+                            break;
+                        }
+                        if (!button2Pressed && app.stylusSettings.button2Eraser) {
+                            button2Pressed = true;
+                            method = `bitmask ${value}`;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            return { button1Pressed, button2Pressed, method };
+        }
+
+        // Check if any eraser button is pressed
+        function isEraserButtonPressed(buttons, button) {
+            const detection = detectButtonMethod(buttons, button);
+            
             // Update debug info
             if (app.debugMode) {
                 elements.debugButtons.textContent = buttons;
-                elements.debugButton1.textContent = button1Pressed ? 'Yes' : 'No';
-                elements.debugButton2.textContent = button2Pressed ? 'Yes' : 'No';
+                elements.debugButton1.textContent = detection.button1Pressed ? 'Yes' : 'No';
+                elements.debugButton2.textContent = detection.button2Pressed ? 'Yes' : 'No';
+                elements.debugButtonProp.textContent = button !== undefined ? button : 'None';
                 elements.debugPressure.textContent = app.currentPressure.toFixed(2);
+                elements.debugMethod.textContent = detection.method;
             }
             
-            return button1Pressed || button2Pressed;
+            return detection.button1Pressed || detection.button2Pressed;
         }
 
         // Handle file selection
@@ -1379,6 +1491,7 @@
                     const pointerEvent = {
                         pointerType: 'mouse',
                         buttons: e.buttons,
+                        button: e.button,
                         pressure: 0.5,
                         clientX: e.clientX,
                         clientY: e.clientY
@@ -1398,6 +1511,7 @@
             if (app.debugMode && e.pointerType === 'pen') {
                 app.buttonHistory.push({
                     buttons: e.buttons,
+                    button: e.button,
                     timestamp: Date.now()
                 });
                 
@@ -1414,7 +1528,7 @@
                 app.lastButtonState = e.buttons;
                 
                 // Check if any eraser button is pressed
-                if (isEraserButtonPressed(e.buttons)) {
+                if (isEraserButtonPressed(e.buttons, e.button)) {
                     // Stylus button is pressed - switch to eraser
                     if (app.currentTool !== 'eraser') {
                         app.previousTool = app.currentTool;
@@ -1622,7 +1736,7 @@
             // Check if we need to restore previous tool after stylus button release
             if (app.isStylusButtonPressed && e.pointerType === 'pen') {
                 // Check if no eraser buttons are pressed
-                if (!isEraserButtonPressed(e.buttons)) {
+                if (!isEraserButtonPressed(e.buttons, e.button)) {
                     app.currentTool = app.previousTool;
                     app.isStylusButtonPressed = false;
                     updateStylusStatus();
@@ -2195,6 +2309,7 @@
             if (window.PointerEvent) {
                 showToast('Stylus support detected! Both buttons can be configured for eraser.');
                 showToast('Default ink color set to black', 'info');
+                showToast('Pressure sensitivity: 27%, Max line width: 0.5px', 'info');
             } else {
                 showToast('Stylus support not available. Using touch/mouse input instead.', 'info');
             }
