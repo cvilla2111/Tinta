@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #808080;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+        }
+
+        .load-button {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            font-size: 18px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .load-button:hover {
+            background-color: #1d4ed8;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .load-button:active {
+            transform: translateY(0);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .pdf-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #000;
+            display: none;
+            z-index: 9999;
+        }
+
+        .pdf-container.active {
+            display: block;
+        }
+
+        .pdf-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .close-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: rgba(255, 255, 255, 0.9);
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            z-index: 10000;
+            transition: all 0.3s ease;
+        }
+
+        .close-button:hover {
+            background-color: rgba(255, 255, 255, 1);
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body>
+    <button class="load-button" onclick="document.getElementById('fileInput').click()">
+        Load Pdf
+    </button>
+    
+    <input type="file" id="fileInput" accept=".pdf" onchange="loadPDF(event)">
+    
+    <div class="pdf-container" id="pdfContainer">
+        <button class="close-button" onclick="closePDF()">×</button>
+        <iframe class="pdf-iframe" id="pdfFrame"></iframe>
+    </div>
+
+    <script>
+        function loadPDF(event) {
+            const file = event.target.files[0];
+            if (file && file.type === 'application/pdf') {
+                const fileURL = URL.createObjectURL(file);
+                const pdfFrame = document.getElementById('pdfFrame');
+                const pdfContainer = document.getElementById('pdfContainer');
+                
+                pdfFrame.src = fileURL;
+                pdfContainer.classList.add('active');
+                
+                // Request fullscreen
+                if (pdfContainer.requestFullscreen) {
+                    pdfContainer.requestFullscreen();
+                } else if (pdfContainer.webkitRequestFullscreen) {
+                    pdfContainer.webkitRequestFullscreen();
+                } else if (pdfContainer.msRequestFullscreen) {
+                    pdfContainer.msRequestFullscreen();
+                }
+            } else {
+                alert('Please select a valid PDF file.');
+            }
+        }
+
+        function closePDF() {
+            const pdfContainer = document.getElementById('pdfContainer');
+            const pdfFrame = document.getElementById('pdfFrame');
+            const fileInput = document.getElementById('fileInput');
+            
+            // Exit fullscreen
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) {
+                document.msExitFullscreen();
+            }
+            
+            // Clear the PDF and hide container
+            pdfFrame.src = '';
+            pdfContainer.classList.remove('active');
+            fileInput.value = '';
+        }
+
+        // Handle escape key to close PDF
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closePDF();
+            }
+        });
+
+        // Handle fullscreen change events
+        document.addEventListener('fullscreenchange', function() {
+            if (!document.fullscreenElement) {
+                closePDF();
+            }
+        });
+
+        document.addEventListener('webkitfullscreenchange', function() {
+            if (!document.webkitFullscreenElement) {
+                closePDF();
+            }
+        });
+
+        document.addEventListener('msfullscreenchange', function() {
+            if (!document.msFullscreenElement) {
+                closePDF();
+            }
+        });
+    </script>
+</body>
+</html>
