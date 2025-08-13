@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Annotator - Professional Stylus Edition</title>
+    <title>PDF Annotator - Professional Stylus Edition 2</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
@@ -413,7 +413,7 @@
         }
         
         .zoom-btn:hover {
-            background-color: #f8f9fa;
+            background-color: #f8f9fa';
         }
         
         .zoom-level {
@@ -446,7 +446,7 @@
         }
         
         .annotation-popup button:hover {
-            background-color: #f8f9fa;
+            background-color: #f8f9fa';
         }
         
         .toast {
@@ -570,6 +570,72 @@
             background-color: #e74c3c;
         }
         
+        .button-config {
+            margin-top: 1rem;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+        }
+        
+        .button-config-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+        }
+        
+        .button-config-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .button-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .button-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: #ecf0f1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            color: #7f8c8d;
+        }
+        
+        .button-toggle {
+            position: relative;
+            width: 40px;
+            height: 20px;
+            background-color: #ccc;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .button-toggle.active {
+            background-color: #9b59b6;
+        }
+        
+        .button-toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 16px;
+            height: 16px;
+            background-color: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+        
+        .button-toggle.active .button-toggle-slider {
+            transform: translateX(20px);
+        }
+        
         @media (max-width: 1024px) {
             main {
                 flex-direction: column;
@@ -675,8 +741,8 @@
                 <h3>Stylus Settings</h3>
                 
                 <div class="setting-item">
-                    <label>Pressure Sensitivity: <span class="setting-value" id="pressure-value">75%</span></label>
-                    <input type="range" id="pressure-sensitivity" min="0" max="100" value="75">
+                    <label>Pressure Sensitivity: <span class="setting-value" id="pressure-value">70%</span></label>
+                    <input type="range" id="pressure-sensitivity" min="0" max="100" value="70">
                     <div class="pressure-indicator">
                         <div class="pressure-bar" id="pressure-bar"></div>
                     </div>
@@ -697,26 +763,42 @@
                 </div>
                 
                 <div class="setting-item">
-                    <label>Max Line Width: <span class="setting-value" id="max-width-value">12px</span></label>
-                    <input type="range" id="max-line-width" min="5" max="30" value="12">
+                    <label>Max Line Width: <span class="setting-value" id="max-width-value">10px</span></label>
+                    <input type="range" id="max-line-width" min="5" max="30" value="10">
                 </div>
                 
                 <div class="setting-item">
                     <label>
-                        <input type="checkbox" id="opacity-pressure" checked> Pressure Opacity
+                        <input type="checkbox" id="opacity-pressure"> Pressure Opacity
                     </label>
                 </div>
                 
                 <div class="setting-item">
                     <label>
-                        <input type="checkbox" id="palm-rejection" checked> Palm Rejection
+                        <input type="checkbox" id="palm-rejection"> Palm Rejection
                     </label>
                 </div>
                 
-                <div class="setting-item">
-                    <label>
-                        <input type="checkbox" id="button-eraser" checked> Button = Eraser
-                    </label>
+                <div class="button-config">
+                    <label>Stylus Button Configuration</label>
+                    <div class="button-config-item">
+                        <div class="button-label">
+                            <div class="button-icon">B1</div>
+                            <span>Button 1 (Barrel)</span>
+                        </div>
+                        <div class="button-toggle active" id="button1-toggle">
+                            <div class="button-toggle-slider"></div>
+                        </div>
+                    </div>
+                    <div class="button-config-item">
+                        <div class="button-label">
+                            <div class="button-icon">B2</div>
+                            <span>Button 2 (Secondary)</span>
+                        </div>
+                        <div class="button-toggle active" id="button2-toggle">
+                            <div class="button-toggle-slider"></div>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="ink-preview">
@@ -823,20 +905,22 @@
             currentAnnotation: null,
             selectedAnnotation: null,
             stylusSettings: {
-                pressureSensitivity: 0.75,
+                pressureSensitivity: 0.7,
                 tiltSensitivity: 0.5,
                 minLineWidth: 0.1,
-                maxLineWidth: 12,
-                opacityPressure: true,
-                palmRejection: true,
-                buttonEraser: true
+                maxLineWidth: 10,
+                opacityPressure: false,
+                palmRejection: false,
+                button1Eraser: true,
+                button2Eraser: true
             },
             currentPressure: 0,
             currentTiltX: 0,
             currentTiltY: 0,
             lastPoint: null,
             inkPreviewCtx: null,
-            isStylusButtonPressed: false
+            isStylusButtonPressed: false,
+            activeButtons: 0
         };
 
         // DOM elements
@@ -874,7 +958,8 @@
             maxWidthValue: document.getElementById('max-width-value'),
             opacityPressure: document.getElementById('opacity-pressure'),
             palmRejection: document.getElementById('palm-rejection'),
-            buttonEraser: document.getElementById('button-eraser'),
+            button1Toggle: document.getElementById('button1-toggle'),
+            button2Toggle: document.getElementById('button2-toggle'),
             calibrateStylus: document.getElementById('calibrate-stylus'),
             inkPreview: document.getElementById('ink-preview'),
             statusIndicator: document.getElementById('status-indicator'),
@@ -970,13 +1055,17 @@
                 app.stylusSettings.palmRejection = e.target.checked;
             });
             
-            elements.buttonEraser.addEventListener('change', (e) => {
-                app.stylusSettings.buttonEraser = e.target.checked;
-                if (e.target.checked) {
-                    showToast('Stylus button will now activate eraser');
-                } else {
-                    showToast('Stylus button eraser disabled');
-                }
+            // Button toggles
+            elements.button1Toggle.addEventListener('click', () => {
+                app.stylusSettings.button1Eraser = !app.stylusSettings.button1Eraser;
+                elements.button1Toggle.classList.toggle('active');
+                showToast(`Button 1 ${app.stylusSettings.button1Eraser ? 'enabled' : 'disabled'} for eraser`);
+            });
+            
+            elements.button2Toggle.addEventListener('click', () => {
+                app.stylusSettings.button2Eraser = !app.stylusSettings.button2Eraser;
+                elements.button2Toggle.classList.toggle('active');
+                showToast(`Button 2 ${app.stylusSettings.button2Eraser ? 'enabled' : 'disabled'} for eraser`);
             });
             
             // Hide popup when clicking outside
@@ -1057,6 +1146,14 @@
                 elements.statusIndicator.className = 'status-indicator status-pen';
                 elements.statusText.textContent = 'Pen';
             }
+        }
+
+        // Check if any eraser button is pressed
+        function isEraserButtonPressed(buttons) {
+            // buttons is a bitmask: 1=primary, 2=button1, 4=button2
+            const button1Pressed = (buttons & 2) === 2 && app.stylusSettings.button1Eraser;
+            const button2Pressed = (buttons & 4) === 4 && app.stylusSettings.button2Eraser;
+            return button1Pressed || button2Pressed;
         }
 
         // Handle file selection
@@ -1193,10 +1290,12 @@
         // Start annotation
         function startAnnotation(e) {
             // Check for stylus button press
-            if (e.pointerType === 'pen' && app.stylusSettings.buttonEraser) {
-                // Check if any button is pressed (buttons property is a bitmask)
-                // 1 = primary button (pen tip), 2 = secondary button (barrel button)
-                if (e.buttons === 2) {
+            if (e.pointerType === 'pen') {
+                // Store active buttons state
+                app.activeButtons = e.buttons;
+                
+                // Check if any eraser button is pressed
+                if (isEraserButtonPressed(e.buttons)) {
                     // Stylus button is pressed - switch to eraser
                     if (app.currentTool !== 'eraser') {
                         app.previousTool = app.currentTool;
@@ -1399,8 +1498,8 @@
             
             // Check if we need to restore previous tool after stylus button release
             if (app.isStylusButtonPressed && e.pointerType === 'pen') {
-                // Check if no buttons are pressed
-                if (e.buttons === 0) {
+                // Check if no eraser buttons are pressed
+                if (!isEraserButtonPressed(e.buttons)) {
                     app.currentTool = app.previousTool;
                     app.isStylusButtonPressed = false;
                     updateStylusStatus();
@@ -1967,7 +2066,7 @@
             
             // Check for stylus support
             if (window.PointerEvent) {
-                showToast('Stylus support detected! Your device is ready for precise annotations.');
+                showToast('Stylus support detected! Both buttons can be configured for eraser.');
             } else {
                 showToast('Stylus support not available. Using touch/mouse input instead.', 'info');
             }
