@@ -66,6 +66,8 @@
             align-items: center !important;
             background-color: rgba(231, 76, 60, 0.8) !important;
             color: white !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
         }
         
         body.fullscreen-mode .fullscreen-btn:hover {
@@ -216,7 +218,7 @@
         
         .tool-btn.stylus-tool.active {
             background-color: #9b59b6;
-            border-color: #9b59b6;
+            border-color: #9b59b6';
         }
         
         .color-picker {
@@ -329,6 +331,18 @@
             max-width: 1280px; /* 16:9 ratio at 720p height */
             aspect-ratio: 16/9;
             touch-action: none;
+            opacity: 0;
+            transform: translateX(20px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        
+        .pdf-page.active {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        
+        .pdf-page.prev-page {
+            transform: translateX(-20px);
         }
         
         .pdf-page canvas {
@@ -362,8 +376,8 @@
         }
         
         .text-annotation textarea {
-            100%;
- width:            height: 100%;
+            width: 100%;
+            height: 100%;
             border: none;
             background: transparent;
             resize: none;
@@ -751,6 +765,7 @@
             z-index: 1000;
             display: none;
             background-color: rgba(231, 76, 60, 0.2);
+            transition: width 0.1s ease, height 0.1s ease;
         }
         
         @media (max-width: 1024px) {
@@ -1061,7 +1076,12 @@
             lastButtonState: 0,
             buttonHistory: [],
             buttonDetectionMethod: 'none',
-            isFullscreen: false
+            isFullscreen: false,
+            lastX: 0,
+            lastY: 0,
+            lastTime: 0,
+            eraserBaseSize: 20,
+            eraserCurrentSize: 20
         };
         // DOM elements
         const elements = {
@@ -1124,14 +1144,12 @@
             
             elements.prevPageBtn.addEventListener('click', () => {
                 if (app.pageNum <= 1) return;
-                app.pageNum--;
-                queueRenderPage(app.pageNum);
+                changePage(app.pageNum - 1);
             });
             
             elements.nextPageBtn.addEventListener('click', () => {
                 if (app.pageNum >= app.pdfDoc.numPages) return;
-                app.pageNum++;
-                queueRenderPage(app.pageNum);
+                changePage(app.pageNum + 1);
             });
             
             elements.zoomInBtn.addEventListener('click', () => {
@@ -1159,15 +1177,13 @@
                 // Left arrow key
                 if (e.key === 'ArrowLeft') {
                     if (app.pageNum > 1) {
-                        app.pageNum--;
-                        queueRenderPage(app.pageNum);
+                        changePage(app.pageNum - 1);
                     }
                 }
                 // Right arrow key
                 else if (e.key === 'ArrowRight') {
                     if (app.pdfDoc && app.pageNum < app.pdfDoc.numPages) {
-                        app.pageNum++;
-                        queueRenderPage(app.pageNum);
+                        changePage(app.pageNum + 1);
                     }
                 }
                 // ESC key to exit fullscreen
@@ -1292,11 +1308,31 @@
         function updateEraserCursor(x, y) {
             if (!x || !y) return;
             
-            const eraserSize = 20; // Size of the eraser cursor
-            elements.eraserCursor.style.width = eraserSize + 'px';
-            elements.eraserCursor.style.height = eraserSize + 'px';
-            elements.eraserCursor.style.left = (x - eraserSize/2) + 'px';
-            elements.eraserCursor.style.top = (y - eraserSize/2) + 'px';
+            // Calculate speed-based size
+            const currentTime = Date.now();
+            if (app.lastTime > 0) {
+                const timeDiff = currentTime - app.lastTime;
+                if (timeDiff > 0) {
+                    const distance = Math.sqrt(
+                        Math.pow(x - app.lastX, 2) + 
+                        Math.pow(y - app.lastY, 2)
+                    );
+                    const speed = distance / timeDiff; // pixels per millisecond
+                    
+                    // Adjust eraser size based on speed (faster = larger)
+                    const sizeMultiplier = Math.min(3, 1 + speed * 10); // Cap at 3x base size
+                    app.eraserCurrentSize = app.eraserBaseSize * sizeMultiplier;
+                }
+            }
+            
+            app.lastX = x;
+            app.lastY = y;
+            app.lastTime = currentTime;
+            
+            elements.eraserCursor.style.width = app.eraserCurrentSize + 'px';
+            elements.eraserCursor.style.height = app.eraserCurrentSize + 'px';
+            elements.eraserCursor.style.left = (x - app.eraserCurrentSize/2) + 'px';
+            elements.eraserCursor.style.top = (y - app.eraserCurrentSize/2) + 'px';
         }
         // Toggle debug mode
         function toggleDebugMode() {
@@ -1558,6 +1594,29 @@
                 showToast('Error loading PDF', 'error');
             });
         }
+        // Change page with animation
+        function changePage(newPageNum) {
+            if (app.pageRendering || newPageNum === app.pageNum) return;
+            
+            // Get current page element
+            const currentPageEl = document.querySelector('.pdf-page.active');
+            
+            // Add animation class to current page
+            if (currentPageEl) {
+                currentPageEl.classList.remove('active');
+                currentPageEl.classList.add('prev-page');
+            }
+            
+            // Update page number
+            app.pageNum = newPageNum;
+            
+            // Render new page
+            renderPage(app.pageNum);
+            
+            // Update navigation buttons
+            elements.prevPageBtn.disabled = app.pageNum <= 1;
+            elements.nextPageBtn.disabled = app.pageNum >= app.pdfDoc.numPages;
+        }
         // Render page
         function renderPage(num) {
             app.pageRendering = true;
@@ -1621,6 +1680,11 @@
                     
                     // Re-render annotations for this page
                     renderAnnotationsForPage(num, annotationLayer);
+                    
+                    // Trigger animation
+                    setTimeout(() => {
+                        pageContainer.classList.add('active');
+                    }, 10);
                     
                     if (app.pageNumPending !== null) {
                         renderPage(app.pageNumPending);
@@ -2209,8 +2273,8 @@
             const annotationLayer = document.querySelector('.annotation-layer');
             const drawingAnnotations = annotationLayer.querySelectorAll('.drawing-annotation');
             
-            // Eraser radius
-            const eraserRadius = 10;
+            // Eraser radius based on current size
+            const eraserRadius = app.eraserCurrentSize / 2;
             
             for (const annEl of drawingAnnotations) {
                 const svg = annEl.querySelector('svg');
@@ -2583,6 +2647,7 @@
                 showToast('Default ink color set to black', 'info');
                 showToast('Max line width set to 5.2px', 'info');
                 showToast('Use left/right arrow keys to navigate pages', 'info');
+                showToast('Eraser size increases with movement speed', 'info');
             } else {
                 showToast('Stylus support not available. Using touch/mouse input instead.', 'info');
             }
