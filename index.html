@@ -762,7 +762,7 @@
             z-index: 1000;
             display: none;
             background-color: rgba(127, 140, 141, 0.2);
-            transition: width 0.1s ease, height 0.1s ease;
+            transition: width 0.05s ease, height 0.05s ease; /* Faster transition */
         }
         
         @media (max-width: 1024px) {
@@ -803,7 +803,7 @@
         <div class="header-content">
             <div class="logo">
                 <i class="fas fa-file-pdf"></i>
-                <h1>PDF Annotator - Professional Stylus Edition</h1>
+                <h1>PDF Annotator - Professional Stylus Edition 2</h1>
             </div>
             <div class="user-info">
                 <span>Welcome, User</span>
@@ -1079,7 +1079,13 @@
             lastY: 0,
             lastTime: 0,
             eraserBaseSize: 10,
-            eraserCurrentSize: 10
+            eraserCurrentSize: 10,
+            // Performance optimizations
+            rafId: null,
+            pendingRender: false,
+            pointBuffer: [],
+            lastRenderTime: 0,
+            renderThrottle: 16 // ~60fps
         };
         
         // DOM elements
@@ -1808,6 +1814,9 @@
                 pressure: e.pressure || 0.5
             };
             
+            // Clear point buffer for new stroke
+            app.pointBuffer = [];
+            
             // Create temporary annotation
             if (app.currentTool === 'text') {
                 createTextAnnotation(app.startX, app.startY);
@@ -1896,53 +1905,21 @@
             if (app.currentTool === 'highlight') {
                 app.currentAnnotation.width = currentX - app.startX;
                 app.currentAnnotation.height = 20;
+                renderTemporaryAnnotation();
             } else if (app.currentTool === 'pen') {
                 const pressure = e.pressure || 0.5;
                 const tiltX = e.tiltX || 0;
                 const tiltY = e.tiltY || 0;
                 
-                // Add interpolated points for smoother drawing
-                if (app.lastPoint) {
-                    const distance = Math.sqrt(
-                        Math.pow(currentX - app.lastPoint.x, 2) + 
-                        Math.pow(currentY - app.lastPoint.y, 2)
-                    );
-                    
-                    // More interpolation points for smoother curves
-                    if (distance > 2) { // Reduced from 5
-                        const steps = Math.ceil(distance / 1); // Increased steps
-                        for (let i = 1; i <= steps; i++) {
-                            const t = i / steps;
-                            const interpolatedX = app.lastPoint.x + (currentX - app.lastPoint.x) * t;
-                            const interpolatedY = app.lastPoint.y + (currentY - app.lastPoint.y) * t;
-                            const interpolatedPressure = app.lastPoint.pressure + (pressure - app.lastPoint.pressure) * t;
-                            
-                            app.currentAnnotation.points.push({
-                                x: interpolatedX,
-                                y: interpolatedY,
-                                pressure: interpolatedPressure,
-                                tiltX: tiltX,
-                                tiltY: tiltY
-                            });
-                        }
-                    } else {
-                        app.currentAnnotation.points.push({
-                            x: currentX,
-                            y: currentY,
-                            pressure: pressure,
-                            tiltX: tiltX,
-                            tiltY: tiltY
-                        });
-                    }
-                } else {
-                    app.currentAnnotation.points.push({
-                        x: currentX,
-                        y: currentY,
-                        pressure: pressure,
-                        tiltX: tiltX,
-                        tiltY: tiltY
-                    });
-                }
+                // Add point to buffer for batch processing
+                app.pointBuffer.push({
+                    x: currentX,
+                    y: currentY,
+                    pressure: pressure,
+                    tiltX: tiltX,
+                    tiltY: tiltY,
+                    timestamp: Date.now()
+                });
                 
                 // Update last point
                 app.lastPoint = {
@@ -1950,12 +1927,19 @@
                     y: currentY,
                     pressure: pressure
                 };
+                
+                // Use requestAnimationFrame for smoother rendering
+                if (!app.pendingRender) {
+                    app.pendingRender = true;
+                    app.rafId = requestAnimationFrame(processPenPoints);
+                }
             } else if (app.currentTool === 'eraser') {
                 // Continue erasing
                 eraseAnnotation(currentX, currentY);
             } else if (app.currentTool === 'rectangle') {
                 app.currentAnnotation.width = currentX - app.startX;
                 app.currentAnnotation.height = currentY - app.startY;
+                renderTemporaryAnnotation();
             } else if (app.currentTool === 'circle') {
                 const dx = currentX - app.startX;
                 const dy = currentY - app.startY;
@@ -1973,13 +1957,114 @@
                 
                 // Store the last radius for smoothing
                 app.lastPoint = { radius: app.currentAnnotation.radius };
+                renderTemporaryAnnotation();
             } else if (app.currentTool === 'line') {
                 app.currentAnnotation.x2 = currentX;
                 app.currentAnnotation.y2 = currentY;
+                renderTemporaryAnnotation();
+            }
+        }
+        
+        // Process pen points with requestAnimationFrame for smoother rendering
+        function processPenPoints() {
+            if (app.pointBuffer.length === 0) {
+                app.pendingRender = false;
+                return;
             }
             
-            // Redraw temporary annotation
+            const now = Date.now();
+            if (now - app.lastRenderTime < app.renderThrottle) {
+                app.rafId = requestAnimationFrame(processPenPoints);
+                return;
+            }
+            
+            app.lastRenderTime = now;
+            
+            // Process all buffered points
+            const points = app.pointBuffer;
+            app.pointBuffer = [];
+            
+            // Add points to current annotation with enhanced interpolation
+            if (app.lastPoint && points.length > 0) {
+                const firstPoint = points[0];
+                const distance = Math.sqrt(
+                    Math.pow(firstPoint.x - app.lastPoint.x, 2) + 
+                    Math.pow(firstPoint.y - app.lastPoint.y, 2)
+                );
+                
+                // More interpolation points for smoother curves
+                if (distance > 1) { // Reduced threshold for more points
+                    const steps = Math.ceil(distance / 0.5); // Even more steps
+                    for (let i = 1; i <= steps; i++) {
+                        const t = i / steps;
+                        const interpolatedX = app.lastPoint.x + (firstPoint.x - app.lastPoint.x) * t;
+                        const interpolatedY = app.lastPoint.y + (firstPoint.y - app.lastPoint.y) * t;
+                        const interpolatedPressure = app.lastPoint.pressure + (firstPoint.pressure - app.lastPoint.pressure) * t;
+                        
+                        app.currentAnnotation.points.push({
+                            x: interpolatedX,
+                            y: interpolatedY,
+                            pressure: interpolatedPressure,
+                            tiltX: firstPoint.tiltX,
+                            tiltY: firstPoint.tiltY
+                        });
+                    }
+                } else {
+                    app.currentAnnotation.points.push({
+                        x: firstPoint.x,
+                        y: firstPoint.y,
+                        pressure: firstPoint.pressure,
+                        tiltX: firstPoint.tiltX,
+                        tiltY: firstPoint.tiltY
+                    });
+                }
+                
+                // Process remaining points in buffer
+                for (let i = 1; i < points.length; i++) {
+                    const prevPoint = points[i-1];
+                    const currPoint = points[i];
+                    const distance = Math.sqrt(
+                        Math.pow(currPoint.x - prevPoint.x, 2) + 
+                        Math.pow(currPoint.y - prevPoint.y, 2)
+                    );
+                    
+                    if (distance > 1) {
+                        const steps = Math.ceil(distance / 0.5);
+                        for (let j = 1; j <= steps; j++) {
+                            const t = j / steps;
+                            const interpolatedX = prevPoint.x + (currPoint.x - prevPoint.x) * t;
+                            const interpolatedY = prevPoint.y + (currPoint.y - prevPoint.y) * t;
+                            const interpolatedPressure = prevPoint.pressure + (currPoint.pressure - prevPoint.pressure) * t;
+                            
+                            app.currentAnnotation.points.push({
+                                x: interpolatedX,
+                                y: interpolatedY,
+                                pressure: interpolatedPressure,
+                                tiltX: currPoint.tiltX,
+                                tiltY: currPoint.tiltY
+                            });
+                        }
+                    } else {
+                        app.currentAnnotation.points.push({
+                            x: currPoint.x,
+                            y: currPoint.y,
+                            pressure: currPoint.pressure,
+                            tiltX: currPoint.tiltX,
+                            tiltY: currPoint.tiltY
+                        });
+                    }
+                }
+            }
+            
+            // Render the updated annotation
             renderTemporaryAnnotation();
+            
+            // Continue processing if there are more points
+            if (app.pointBuffer.length > 0) {
+                app.rafId = requestAnimationFrame(processPenPoints);
+            } else {
+                app.pendingRender = false;
+            }
         }
         
         // End annotation
@@ -1987,6 +2072,17 @@
             if (!app.isDrawing) return;
             
             app.isDrawing = false;
+            
+            // Cancel any pending animation frame
+            if (app.rafId) {
+                cancelAnimationFrame(app.rafId);
+                app.rafId = null;
+            }
+            
+            // Process any remaining points in buffer
+            if (app.pointBuffer.length > 0) {
+                processPenPoints();
+            }
             
             // Reset the circle smoothing point
             if (app.currentTool === 'circle') {
@@ -2176,8 +2272,8 @@
             const segments = [];
             if (points.length < 2) return segments;
             
-            // Apply smoothing to points for smoother curves
-            const smoothedPoints = smoothPoints(points);
+            // Apply Chaikin's curve smoothing for ultra-smooth curves
+            const smoothedPoints = chaikinSmoothing(points, 2); // 2 iterations for extra smoothness
             
             let currentSegment = {
                 points: [smoothedPoints[0]],
@@ -2189,7 +2285,7 @@
                 const pressureDiff = Math.abs(point.pressure - currentSegment.avgPressure);
                 
                 // Smaller pressure threshold for more segments
-                if (pressureDiff > 0.05 && currentSegment.points.length > 1) {
+                if (pressureDiff > 0.03 && currentSegment.points.length > 1) {
                     const d = createSmoothPathData(currentSegment.points);
                     const width = calculateLineWidth(currentSegment.avgPressure);
                     const opacity = app.stylusSettings.opacityPressure ? 
@@ -2219,28 +2315,41 @@
             return segments;
         }
         
-        // Add point smoothing function
-        function smoothPoints(points) {
+        // Chaikin's curve smoothing algorithm for ultra-smooth curves
+        function chaikinSmoothing(points, iterations = 1) {
             if (points.length < 3) return points;
             
-            const smoothed = [points[0]];
+            let smoothed = [...points];
             
-            for (let i = 1; i < points.length - 1; i++) {
-                const prev = points[i-1];
-                const curr = points[i];
-                const next = points[i+1];
+            for (let iter = 0; iter < iterations; iter++) {
+                const newPoints = [smoothed[0]];
                 
-                // Apply simple smoothing
-                smoothed.push({
-                    x: (prev.x + curr.x + next.x) / 3,
-                    y: (prev.y + curr.y + next.y) / 3,
-                    pressure: (prev.pressure + curr.pressure + next.pressure) / 3,
-                    tiltX: curr.tiltX,
-                    tiltY: curr.tiltY
-                });
+                for (let i = 0; i < smoothed.length - 1; i++) {
+                    const p0 = smoothed[i];
+                    const p1 = smoothed[i + 1];
+                    
+                    // First new point at 1/4
+                    newPoints.push({
+                        x: p0.x * 0.75 + p1.x * 0.25,
+                        y: p0.y * 0.75 + p1.y * 0.25,
+                        pressure: p0.pressure * 0.75 + p1.pressure * 0.25,
+                        tiltX: p0.tiltX,
+                        tiltY: p0.tiltY
+                    });
+                    
+                    // Second new point at 3/4
+                    newPoints.push({
+                        x: p0.x * 0.25 + p1.x * 0.75,
+                        y: p0.y * 0.25 + p1.y * 0.75,
+                        pressure: p0.pressure * 0.25 + p1.pressure * 0.75,
+                        tiltX: p1.tiltX,
+                        tiltY: p1.tiltY
+                    });
+                }
+                
+                smoothed = newPoints;
             }
             
-            smoothed.push(points[points.length - 1]);
             return smoothed;
         }
         
@@ -2259,11 +2368,11 @@
                     const p1 = points[i];
                     const p2 = points[i+1];
                     
-                    // Calculate control points
-                    const cp1x = p1.x - (p2.x - p0.x) / 6;
-                    const cp1y = p1.y - (p2.y - p0.y) / 6;
-                    const cp2x = p1.x + (p2.x - p0.x) / 6;
-                    const cp2y = p1.y + (p2.y - p0.y) / 6;
+                    // Calculate control points for smoother curves
+                    const cp1x = p1.x - (p2.x - p0.x) / 8; // Reduced influence for smoother curves
+                    const cp1y = p1.y - (p2.y - p0.y) / 8;
+                    const cp2x = p1.x + (p2.x - p0.x) / 8;
+                    const cp2y = p1.y + (p2.y - p0.y) / 8;
                     
                     d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p1.x} ${p1.y}`;
                 }
@@ -2715,6 +2824,8 @@
                 showToast('Circle tool now uses gray color', 'info');
                 showToast('Eraser cursor is now gray', 'info');
                 showToast('Circle drawing is now smoother', 'info');
+                showToast('Ink rendering is now ultra-smooth', 'info');
+                showToast('Stylus latency has been reduced', 'info');
             } else {
                 showToast('Stylus support not available. Using touch/mouse input instead.', 'info');
             }
