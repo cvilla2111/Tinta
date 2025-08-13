@@ -14,64 +14,6 @@ body {
     transition: all 0.3s ease;
 }
 
-body.fullscreen-mode {
-    overflow: hidden;
-}
-
-body.fullscreen-mode header,
-body.fullscreen-mode .sidebar {
-    display: none;
-}
-
-body.fullscreen-mode main {
-    padding: 0;
-    max-width: 100%;
-}
-
-body.fullscreen-mode .pdf-toolbar {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    z-index: 100;
-    background-color: rgba(248, 249, 250, 0.9);
-    border-radius: 8px;
-    padding: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-}
-
-body.fullscreen-mode .pdf-actions,
-body.fullscreen-mode .page-navigation,
-body.fullscreen-mode .zoom-controls {
-    display: none;
-}
-
-body.fullscreen-mode .fullscreen-btn {
-    display: flex !important;
-    width: 40px !important;
-    height: 40px !important;
-    border-radius: 50% !important;
-    padding: 0 !important;
-    justify-content: center !important;
-    align-items: center !important;
-    background-color: rgba(231, 76, 60, 0.8) !important;
-    color: white !important;
-    cursor: pointer !important;
-    transition: all 0.2s ease !important;
-}
-
-body.fullscreen-mode .fullscreen-btn:hover {
-    background-color: rgba(192, 57, 43, 0.9) !important;
-    transform: scale(1.1) !important;
-}
-
-body.fullscreen-mode .fullscreen-btn i {
-    margin-right: 0 !important;
-}
-
-body.fullscreen-mode .fullscreen-btn span {
-    display: none !important;
-}
-
 header {
     background-color: #2c3e50;
     color: white;
