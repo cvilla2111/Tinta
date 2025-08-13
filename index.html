@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Annotator - Enhanced Stylus Edition</title>
+    <title>PDF Annotator - Professional Stylus Edition</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
@@ -385,7 +385,7 @@
         }
         
         .nav-btn:hover {
-            background-color: #f8f9fa';
+            background-color: #f8f9fa;
         }
         
         .nav-btn:disabled {
@@ -413,7 +413,7 @@
         }
         
         .zoom-btn:hover {
-            background-color: #f8f9fa';
+            background-color: #f8f9fa;
         }
         
         .zoom-level {
@@ -446,7 +446,7 @@
         }
         
         .annotation-popup button:hover {
-            background-color: #f8f9fa';
+            background-color: #f8f9fa;
         }
         
         .toast {
@@ -546,6 +546,30 @@
             margin-top: 8px;
         }
         
+        .stylus-status {
+            margin-top: 1rem;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-pen {
+            background-color: #9b59b6;
+        }
+        
+        .status-eraser {
+            background-color: #e74c3c;
+        }
+        
         @media (max-width: 1024px) {
             main {
                 flex-direction: column;
@@ -584,7 +608,7 @@
         <div class="header-content">
             <div class="logo">
                 <i class="fas fa-file-pdf"></i>
-                <h1>PDF Annotator - Enhanced Stylus Edition</h1>
+                <h1>PDF Annotator - Professional Stylus Edition</h1>
             </div>
             <div class="user-info">
                 <span>Welcome, User</span>
@@ -600,7 +624,7 @@
             <div class="tool-section">
                 <h3>Tools</h3>
                 <div class="tools">
-                    <div class="tool-btn active" data-tool="select">
+                    <div class="tool-btn" data-tool="select">
                         <i class="fas fa-mouse-pointer"></i>
                         <span>Select</span>
                     </div>
@@ -612,11 +636,7 @@
                         <i class="fas fa-highlighter"></i>
                         <span>Highlight</span>
                     </div>
-                    <div class="tool-btn stylus-tool active" data-tool="draw">
-                        <i class="fas fa-pencil-alt"></i>
-                        <span>Draw</span>
-                    </div>
-                    <div class="tool-btn stylus-tool" data-tool="pen">
+                    <div class="tool-btn stylus-tool active" data-tool="pen">
                         <i class="fas fa-pen"></i>
                         <span>Pen</span>
                     </div>
@@ -672,8 +692,8 @@
                 </div>
                 
                 <div class="setting-item">
-                    <label>Min Line Width: <span class="setting-value" id="min-width-value">1px</span></label>
-                    <input type="range" id="min-line-width" min="1" max="10" value="1">
+                    <label>Min Line Width: <span class="setting-value" id="min-width-value">0.1px</span></label>
+                    <input type="range" id="min-line-width" min="0.1" max="5" step="0.1" value="0.1">
                 </div>
                 
                 <div class="setting-item">
@@ -693,9 +713,23 @@
                     </label>
                 </div>
                 
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="button-eraser" checked> Button = Eraser
+                    </label>
+                </div>
+                
                 <div class="ink-preview">
                     <label>Ink Preview</label>
                     <canvas class="ink-preview-canvas" id="ink-preview"></canvas>
+                </div>
+                
+                <div class="stylus-status">
+                    <label>Stylus Mode:</label>
+                    <div>
+                        <span class="status-indicator status-pen" id="status-indicator"></span>
+                        <span id="status-text">Pen</span>
+                    </div>
                 </div>
             </div>
             
@@ -779,7 +813,8 @@
             scale: 1.2,
             canvas: null,
             ctx: null,
-            currentTool: 'draw',
+            currentTool: 'pen',
+            previousTool: 'pen',
             currentColor: '#f1c40f',
             annotations: [],
             isDrawing: false,
@@ -790,16 +825,18 @@
             stylusSettings: {
                 pressureSensitivity: 0.75,
                 tiltSensitivity: 0.5,
-                minLineWidth: 1,
+                minLineWidth: 0.1,
                 maxLineWidth: 12,
                 opacityPressure: true,
-                palmRejection: true
+                palmRejection: true,
+                buttonEraser: true
             },
             currentPressure: 0,
             currentTiltX: 0,
             currentTiltY: 0,
             lastPoint: null,
-            inkPreviewCtx: null
+            inkPreviewCtx: null,
+            isStylusButtonPressed: false
         };
 
         // DOM elements
@@ -837,8 +874,11 @@
             maxWidthValue: document.getElementById('max-width-value'),
             opacityPressure: document.getElementById('opacity-pressure'),
             palmRejection: document.getElementById('palm-rejection'),
+            buttonEraser: document.getElementById('button-eraser'),
             calibrateStylus: document.getElementById('calibrate-stylus'),
-            inkPreview: document.getElementById('ink-preview')
+            inkPreview: document.getElementById('ink-preview'),
+            statusIndicator: document.getElementById('status-indicator'),
+            statusText: document.getElementById('status-text')
         };
 
         // Initialize event listeners
@@ -881,6 +921,8 @@
                     elements.toolBtns.forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                     app.currentTool = btn.dataset.tool;
+                    app.previousTool = app.currentTool;
+                    updateStylusStatus();
                 });
             });
             
@@ -908,7 +950,7 @@
             });
             
             elements.minLineWidth.addEventListener('input', (e) => {
-                app.stylusSettings.minLineWidth = parseInt(e.target.value);
+                app.stylusSettings.minLineWidth = parseFloat(e.target.value);
                 elements.minWidthValue.textContent = e.target.value + 'px';
                 updateInkPreview();
             });
@@ -926,6 +968,15 @@
             
             elements.palmRejection.addEventListener('change', (e) => {
                 app.stylusSettings.palmRejection = e.target.checked;
+            });
+            
+            elements.buttonEraser.addEventListener('change', (e) => {
+                app.stylusSettings.buttonEraser = e.target.checked;
+                if (e.target.checked) {
+                    showToast('Stylus button will now activate eraser');
+                } else {
+                    showToast('Stylus button eraser disabled');
+                }
             });
             
             // Hide popup when clicking outside
@@ -995,6 +1046,17 @@
             const adjustedPressure = Math.pow(pressure, 1.5 - sensitivity);
             
             return min + (max - min) * adjustedPressure;
+        }
+
+        // Update stylus status indicator
+        function updateStylusStatus() {
+            if (app.currentTool === 'eraser') {
+                elements.statusIndicator.className = 'status-indicator status-eraser';
+                elements.statusText.textContent = 'Eraser';
+            } else {
+                elements.statusIndicator.className = 'status-indicator status-pen';
+                elements.statusText.textContent = 'Pen';
+            }
         }
 
         // Handle file selection
@@ -1130,6 +1192,22 @@
 
         // Start annotation
         function startAnnotation(e) {
+            // Check for stylus button press
+            if (e.pointerType === 'pen' && app.stylusSettings.buttonEraser) {
+                // Check if any button is pressed (buttons property is a bitmask)
+                // 1 = primary button (pen tip), 2 = secondary button (barrel button)
+                if (e.buttons === 2) {
+                    // Stylus button is pressed - switch to eraser
+                    if (app.currentTool !== 'eraser') {
+                        app.previousTool = app.currentTool;
+                        app.currentTool = 'eraser';
+                        app.isStylusButtonPressed = true;
+                        updateStylusStatus();
+                        updateToolButtonSelection();
+                    }
+                }
+            }
+            
             // Check if it's a stylus event and apply palm rejection
             if (e.pointerType === 'pen' && app.stylusSettings.palmRejection) {
                 // Enhanced palm rejection: ignore if pressure is too low
@@ -1171,7 +1249,7 @@
                     color: app.currentColor,
                     page: app.pageNum
                 };
-            } else if (app.currentTool === 'draw' || app.currentTool === 'pen') {
+            } else if (app.currentTool === 'pen') {
                 app.currentAnnotation = {
                     type: 'draw',
                     points: [{
@@ -1222,7 +1300,7 @@
 
         // Continue annotation
         function continueAnnotation(e) {
-            if (!app.isDrawing || app.currentTool === 'text' || app.currentTool === 'eraser') return;
+            if (!app.isDrawing || app.currentTool === 'text') return;
             
             const rect = e.currentTarget.getBoundingClientRect();
             const currentX = e.clientX - rect.left;
@@ -1239,7 +1317,7 @@
             if (app.currentTool === 'highlight') {
                 app.currentAnnotation.width = currentX - app.startX;
                 app.currentAnnotation.height = 20;
-            } else if (app.currentTool === 'draw' || app.currentTool === 'pen') {
+            } else if (app.currentTool === 'pen') {
                 const pressure = e.pressure || 0.5;
                 const tiltX = e.tiltX || 0;
                 const tiltY = e.tiltY || 0;
@@ -1293,6 +1371,9 @@
                     y: currentY,
                     pressure: pressure
                 };
+            } else if (app.currentTool === 'eraser') {
+                // Continue erasing
+                eraseAnnotation(currentX, currentY);
             } else if (app.currentTool === 'rectangle') {
                 app.currentAnnotation.width = currentX - app.startX;
                 app.currentAnnotation.height = currentY - app.startY;
@@ -1316,7 +1397,18 @@
             app.isDrawing = false;
             app.lastPoint = null;
             
-            if (app.currentAnnotation) {
+            // Check if we need to restore previous tool after stylus button release
+            if (app.isStylusButtonPressed && e.pointerType === 'pen') {
+                // Check if no buttons are pressed
+                if (e.buttons === 0) {
+                    app.currentTool = app.previousTool;
+                    app.isStylusButtonPressed = false;
+                    updateStylusStatus();
+                    updateToolButtonSelection();
+                }
+            }
+            
+            if (app.currentAnnotation && app.currentTool !== 'eraser') {
                 // Add to annotations array
                 app.annotations.push(app.currentAnnotation);
                 
@@ -1335,6 +1427,16 @@
             updateStylusIndicators();
         }
 
+        // Update tool button selection
+        function updateToolButtonSelection() {
+            elements.toolBtns.forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.tool === app.currentTool) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+
         // Render temporary annotation
         function renderTemporaryAnnotation() {
             const annotationLayer = document.querySelector('.annotation-layer');
@@ -1345,7 +1447,7 @@
                 tempAnnotation.remove();
             }
             
-            if (!app.currentAnnotation) return;
+            if (!app.currentAnnotation || app.currentTool === 'eraser') return;
             
             // Create temporary annotation element
             const annotationEl = document.createElement('div');
@@ -1359,7 +1461,7 @@
                 annotationEl.style.width = app.currentAnnotation.width + 'px';
                 annotationEl.style.height = app.currentAnnotation.height + 'px';
                 annotationEl.style.backgroundColor = app.currentAnnotation.color + '80'; // Add transparency
-            } else if (app.currentTool === 'draw' || app.currentTool === 'pen') {
+            } else if (app.currentTool === 'pen') {
                 annotationEl.className += ' drawing-annotation';
                 annotationEl.style.left = '0';
                 annotationEl.style.top = '0';
@@ -1610,7 +1712,8 @@
                         app.annotations.splice(annotationId, 1);
                     }
                     
-                    showToast('Annotation erased');
+                    // Show eraser feedback
+                    showToast('Annotation erased', 'info');
                     break;
                 }
             }
@@ -1860,6 +1963,7 @@
             initEventListeners();
             initInkPreview();
             updateZoomLevel();
+            updateStylusStatus();
             
             // Check for stylus support
             if (window.PointerEvent) {
