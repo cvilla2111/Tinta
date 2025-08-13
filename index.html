@@ -47,10 +47,7 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         
-        body.fullscreen-mode .pdf-actions {
-            display: none;
-        }
-        
+        body.fullscreen-mode .pdf-actions,
         body.fullscreen-mode .page-navigation,
         body.fullscreen-mode .zoom-controls {
             display: none;
@@ -201,7 +198,7 @@
         .tool-btn.active {
             background-color: #3498db;
             color: white;
-            border-color: #3498db';
+            border-color: #3498db;
         }
         
         .tool-btn i {
@@ -218,7 +215,7 @@
         
         .tool-btn.stylus-tool.active {
             background-color: #9b59b6;
-            border-color: #9b59b6';
+            border-color: #9b59b6;
         }
         
         .color-picker {
@@ -505,7 +502,7 @@
         }
         
         .zoom-btn:hover {
-            background-color: #f8f9fa';
+            background-color: #f8f9fa;
         }
         
         .zoom-level {
@@ -538,7 +535,7 @@
         }
         
         .annotation-popup button:hover {
-            background-color: #f8f9fa';
+            background-color: #f8f9fa;
         }
         
         .toast {
@@ -759,12 +756,12 @@
         
         .eraser-cursor {
             position: absolute;
-            border: 2px solid #7f8c8d; /* Changed from red to gray */
+            border: 2px solid #7f8c8d;
             border-radius: 50%;
             pointer-events: none;
             z-index: 1000;
             display: none;
-            background-color: rgba(127, 140, 141, 0.2); /* Changed from red to gray */
+            background-color: rgba(127, 140, 141, 0.2);
             transition: width 0.1s ease, height 0.1s ease;
         }
         
@@ -806,7 +803,7 @@
         <div class="header-content">
             <div class="logo">
                 <i class="fas fa-file-pdf"></i>
-                <h1>PDF Annotator - Professional Stylus Edition 2</h1>
+                <h1>PDF Annotator - Professional Stylus Edition</h1>
             </div>
             <div class="user-info">
                 <span>Welcome, User</span>
@@ -860,7 +857,7 @@
             <div class="tool-section">
                 <h3>Colors</h3>
                 <div class="color-picker">
-                    <div class="color-option" style="background-color: #000000;" data-color="#000000"></div>
+                    <div class="color-option active" style="background-color: #000000;" data-color="#000000"></div>
                     <div class="color-option" style="background-color: #e74c3c;" data-color="#e74c3c"></div>
                     <div class="color-option" style="background-color: #3498db;" data-color="#3498db"></div>
                     <div class="color-option" style="background-color: #2ecc71;" data-color="#2ecc71"></div>
@@ -1081,7 +1078,7 @@
             lastX: 0,
             lastY: 0,
             lastTime: 0,
-            eraserBaseSize: 10, // Reduced from 20
+            eraserBaseSize: 10,
             eraserCurrentSize: 10
         };
         
@@ -1175,26 +1172,18 @@
             elements.testButtonsBtn.addEventListener('click', testButtonDetection);
             elements.fullscreenBtn.addEventListener('click', toggleFullscreen);
             
-            // Add keyboard navigation
+            // Keyboard navigation
             document.addEventListener('keydown', (e) => {
-                // Left arrow key
-                if (e.key === 'ArrowLeft') {
-                    if (app.pageNum > 1) {
-                        changePage(app.pageNum - 1);
-                    }
-                }
-                // Right arrow key
-                else if (e.key === 'ArrowRight') {
-                    if (app.pdfDoc && app.pageNum < app.pdfDoc.numPages) {
-                        changePage(app.pageNum + 1);
-                    }
-                }
-                // ESC key to exit fullscreen
-                else if (e.key === 'Escape' && app.isFullscreen) {
+                if (e.key === 'ArrowLeft' && app.pageNum > 1) {
+                    changePage(app.pageNum - 1);
+                } else if (e.key === 'ArrowRight' && app.pdfDoc && app.pageNum < app.pdfDoc.numPages) {
+                    changePage(app.pageNum + 1);
+                } else if (e.key === 'Escape' && app.isFullscreen) {
                     toggleFullscreen();
                 }
             });
             
+            // Tool selection
             elements.toolBtns.forEach(btn => {
                 btn.addEventListener('click', () => {
                     elements.toolBtns.forEach(b => b.classList.remove('active'));
@@ -1213,7 +1202,7 @@
                 });
             });
             
-            // Set black as the default active color
+            // Color selection
             elements.colorOptions.forEach(option => {
                 if (option.dataset.color === '#000000') {
                     option.classList.add('active');
@@ -1313,7 +1302,6 @@
         function updateEraserCursor(x, y) {
             if (!x || !y) return;
             
-            // Calculate speed-based size
             const currentTime = Date.now();
             if (app.lastTime > 0) {
                 const timeDiff = currentTime - app.lastTime;
@@ -1468,13 +1456,10 @@
             let method = 'none';
             
             // Method 1: Standard bitmask detection (excluding primary touch)
-            // Bitmask 1 is just the stylus touching the screen, not a button press
             if (app.stylusSettings.button1Eraser) {
-                // Primary button typically uses bitmask 32 (as seen in your debug info)
                 button1Pressed = (buttons & 32) === 32;
             }
             if (app.stylusSettings.button2Eraser) {
-                // Secondary button typically uses bitmask 2
                 button2Pressed = (buttons & 2) === 2;
             }
             
@@ -1485,11 +1470,9 @@
             // Method 2: Alternative mapping (only if standard didn't work)
             if (!button1Pressed && !button2Pressed) {
                 if (app.stylusSettings.button1Eraser) {
-                    // Check other possible values for button 1
                     button1Pressed = (buttons & 16) === 16 || (buttons & 8) === 8;
                 }
                 if (app.stylusSettings.button2Eraser) {
-                    // Check other possible values for button 2
                     button2Pressed = (buttons & 4) === 4;
                 }
                 
@@ -1515,7 +1498,6 @@
                 const lastState = app.buttonHistory[app.buttonHistory.length - 1];
                 if (lastState.buttons !== buttons) {
                     // Button state changed, check if it was a button press
-                    // Ignore bitmask 1 (just touch) for state changes
                     if (app.stylusSettings.button1Eraser && (buttons & 32) === 32) {
                         button1Pressed = true;
                         method = 'state change';
@@ -1529,8 +1511,6 @@
             
             // Method 5: Try additional bitmask values for some stylus models
             if (!button1Pressed && !button2Pressed) {
-                // Some styluses might use different bitmasks
-                // But we exclude bitmask 1 which is just touch
                 const possibleValues = [8, 16, 64, 128];
                 
                 for (const value of possibleValues) {
@@ -1773,7 +1753,7 @@
                 }
             }
             
-            // Check for stylus button press (ignore bitmask 1 which is just touch)
+            // Check for stylus button press
             if (e.pointerType === 'pen') {
                 // Store active buttons state
                 app.activeButtons = e.buttons;
@@ -2015,7 +1995,7 @@
             
             // Check if we need to restore previous tool after stylus button release
             if (app.isStylusButtonPressed && e.pointerType === 'pen') {
-                // Check if no eraser buttons are pressed (ignore bitmask 1 which is just touch)
+                // Check if no eraser buttons are pressed
                 const currentButtons = e.buttons;
                 const isButtonPressed = (currentButtons & 32) === 32 || (currentButtons & 2) === 2;
                 
@@ -2422,9 +2402,6 @@
         
         // Check if a point is near a path segment
         function isPointNearPath(x, y, pathData, threshold) {
-            // Simple implementation - check distance to path endpoints
-            // In a real implementation, you would use a more sophisticated algorithm
-            
             // Extract points from path data
             const points = pathData.match(/(\d+\.?\d*)/g);
             if (!points || points.length < 2) return false;
@@ -2680,12 +2657,6 @@
         // Calibrate stylus
         function calibrateStylus() {
             showToast('Stylus calibration started. Please draw on the screen.');
-            
-            // In a real implementation, this would involve:
-            // 1. Creating a calibration screen
-            // 2. Asking the user to draw specific patterns
-            // 3. Analyzing the input to adjust pressure and tilt sensitivity
-            // 4. Saving the calibration settings
             
             // For this demo, we'll just show a success message after a delay
             setTimeout(() => {
