@@ -759,12 +759,12 @@
         
         .eraser-cursor {
             position: absolute;
-            border: 2px solid #e74c3c;
+            border: 2px solid #7f8c8d; /* Changed from red to gray */
             border-radius: 50%;
             pointer-events: none;
             z-index: 1000;
             display: none;
-            background-color: rgba(231, 76, 60, 0.2);
+            background-color: rgba(127, 140, 141, 0.2); /* Changed from red to gray */
             transition: width 0.1s ease, height 0.1s ease;
         }
         
@@ -1877,6 +1877,8 @@
                     color: '#cccccc', // Gray color for circles
                     page: app.pageNum
                 };
+                // Initialize smoothing point for circles
+                app.lastPoint = { radius: 0 };
             } else if (app.currentTool === 'line') {
                 app.currentAnnotation = {
                     type: 'line',
@@ -1977,7 +1979,20 @@
             } else if (app.currentTool === 'circle') {
                 const dx = currentX - app.startX;
                 const dy = currentY - app.startY;
-                app.currentAnnotation.radius = Math.sqrt(dx * dx + dy * dy);
+                
+                // Apply smoothing to reduce shakiness
+                if (app.lastPoint) {
+                    // Calculate the average of the last few positions to smooth the circle
+                    const smoothingFactor = 0.7; // Higher = more smoothing
+                    const smoothedRadius = app.lastPoint.radius * smoothingFactor + 
+                                          Math.sqrt(dx * dx + dy * dy) * (1 - smoothingFactor);
+                    app.currentAnnotation.radius = smoothedRadius;
+                } else {
+                    app.currentAnnotation.radius = Math.sqrt(dx * dx + dy * dy);
+                }
+                
+                // Store the last radius for smoothing
+                app.lastPoint = { radius: app.currentAnnotation.radius };
             } else if (app.currentTool === 'line') {
                 app.currentAnnotation.x2 = currentX;
                 app.currentAnnotation.y2 = currentY;
@@ -1992,7 +2007,11 @@
             if (!app.isDrawing) return;
             
             app.isDrawing = false;
-            app.lastPoint = null;
+            
+            // Reset the circle smoothing point
+            if (app.currentTool === 'circle') {
+                app.lastPoint = null;
+            }
             
             // Check if we need to restore previous tool after stylus button release
             if (app.isStylusButtonPressed && e.pointerType === 'pen') {
@@ -2723,6 +2742,8 @@
                 showToast('Use left/right arrow keys to navigate pages', 'info');
                 showToast('Eraser size increases with movement speed', 'info');
                 showToast('Circle tool now uses gray color', 'info');
+                showToast('Eraser cursor is now gray', 'info');
+                showToast('Circle drawing is now smoother', 'info');
             } else {
                 showToast('Stylus support not available. Using touch/mouse input instead.', 'info');
             }
