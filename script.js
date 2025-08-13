@@ -20,7 +20,7 @@ const app = {
     currentAnnotation: null,
     selectedAnnotation: null,
     stylusSettings: {
-        pressureSensitivity: 0.27,
+        pressureSensitivity: 0.28,
         tiltSensitivity: 0.5,
         minLineWidth: 0.1,
         maxLineWidth: 5.2,
@@ -1785,11 +1785,15 @@ function init() {
     updateZoomLevel();
     updateStylusStatus();
     
+    // Set initial display values for new defaults
+    elements.pressureValue.textContent = '28%';
+    elements.minWidthValue.textContent = '1px';
+    
     // Check for stylus support
     if (window.PointerEvent) {
         showToast('Stylus support detected! Both buttons can be configured for eraser.');
-        showToast('Default ink color set to black', 'info');
-        showToast('Max line width set to 5.2px', 'info');
+        showToast('Default pressure sensitivity set to 28%', 'info');
+        showToast('Default min line width set to 1px', 'info');
         showToast('Use left/right arrow keys to navigate pages', 'info');
         showToast('Eraser size increases with movement speed', 'info');
         showToast('Circle tool now uses gray color', 'info');
