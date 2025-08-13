@@ -21,6 +21,298 @@ function initEventListeners() {
             elements.eraserCursor.style.display = 'none';
         }
     });
+
+
+    // Debug function to check if elements exist
+function debugElements() {
+    console.log('=== Debugging Elements ===');
+    
+    // Check critical elements
+    const criticalElements = [
+        'uploadBtn', 'fileInput', 'prevPageBtn', 'nextPageBtn', 
+        'zoomInBtn', 'zoomOutBtn', 'clearAnnotationsBtn', 'saveBtn',
+        'calibrateStylus', 'toggleDebugBtn', 'testButtonsBtn'
+    ];
+    
+    criticalElements.forEach(elementId => {
+        const element = elements[elementId];
+        if (element) {
+            console.log(`✓ ${elementId}: Found`, element);
+        } else {
+            console.error(`✗ ${elementId}: NOT FOUND`);
+        }
+    });
+    
+    // Check tool buttons
+    console.log(`Tool buttons found: ${elements.toolBtns.length}`);
+    elements.toolBtns.forEach((btn, index) => {
+        console.log(`Tool button ${index}:`, btn);
+    });
+    
+    // Check color options
+    console.log(`Color options found: ${elements.colorOptions.length}`);
+    elements.colorOptions.forEach((option, index) => {
+        console.log(`Color option ${index}:`, option);
+    });
+}
+
+// Modify the init function to include debugging
+function init() {
+    console.log('=== Initializing Application ===');
+    
+    try {
+        initEventListeners();
+        console.log('✓ Event listeners initialized');
+        
+        initInkPreview();
+        console.log('✓ Ink preview initialized');
+        
+        updateZoomLevel();
+        console.log('✓ Zoom level updated');
+        
+        updateStylusStatus();
+        console.log('✓ Stylus status updated');
+        
+        // Set initial display values for new defaults
+        elements.pressureValue.textContent = '28%';
+        elements.minWidthValue.textContent = '1px';
+        console.log('✓ Default values set');
+        
+        // Debug elements
+        debugElements();
+        
+        // Check for stylus support
+        if (window.PointerEvent) {
+            console.log('✓ Stylus support detected');
+            showToast('Stylus support detected! Both buttons can be configured for eraser.');
+            showToast('Default pressure sensitivity set to 28%', 'info');
+            showToast('Default min line width set to 1px', 'info');
+            showToast('Use left/right arrow keys to navigate pages', 'info');
+            showToast('Eraser size increases with movement speed', 'info');
+            showToast('Circle tool now uses gray color', 'info');
+            showToast('Eraser cursor is now gray', 'info');
+            showToast('Circle drawing is now smoother', 'info');
+            showToast('Ink rendering is now ultra-smooth', 'info');
+            showToast('Stylus latency has been reduced', 'info');
+        } else {
+            console.log('✗ Stylus support not available');
+            showToast('Stylus support not available. Using touch/mouse input instead.', 'info');
+        }
+        
+        console.log('=== Application Initialized Successfully ===');
+    } catch (error) {
+        console.error('Error during initialization:', error);
+        showToast('Error initializing application', 'error');
+    }
+}
+
+// Add event listener debugging
+function initEventListeners() {
+    console.log('=== Setting Up Event Listeners ===');
+    
+    try {
+        // Upload functionality
+        console.log('Setting up upload listeners...');
+        elements.uploadBtn.addEventListener('click', () => {
+            console.log('Upload button clicked');
+            elements.fileInput.click();
+        });
+        elements.uploadAreaBtn.addEventListener('click', () => {
+            console.log('Upload area button clicked');
+            elements.fileInput.click();
+        });
+        elements.fileInput.addEventListener('change', (e) => {
+            console.log('File input changed', e.target.files);
+            handleFileSelect(e);
+        });
+        
+        // Navigation
+        console.log('Setting up navigation listeners...');
+        elements.prevPageBtn.addEventListener('click', () => {
+            console.log('Previous page button clicked');
+            if (app.pageNum <= 1) return;
+            changePage(app.pageNum - 1);
+        });
+        
+        elements.nextPageBtn.addEventListener('click', () => {
+            console.log('Next page button clicked');
+            if (app.pageNum >= app.pdfDoc.numPages) return;
+            changePage(app.pageNum + 1);
+        });
+        
+        // Zoom controls
+        console.log('Setting up zoom listeners...');
+        elements.zoomInBtn.addEventListener('click', () => {
+            console.log('Zoom in button clicked');
+            app.scale += 0.2;
+            renderPage(app.pageNum);
+            updateZoomLevel();
+        });
+        
+        elements.zoomOutBtn.addEventListener('click', () => {
+            console.log('Zoom out button clicked');
+            if (app.scale <= 0.4) return;
+            app.scale -= 0.2;
+            renderPage(app.pageNum);
+            updateZoomLevel();
+        });
+        
+        // Other buttons
+        console.log('Setting up other button listeners...');
+        elements.clearAnnotationsBtn.addEventListener('click', () => {
+            console.log('Clear annotations button clicked');
+            clearAllAnnotations();
+        });
+        
+        elements.saveBtn.addEventListener('click', () => {
+            console.log('Save button clicked');
+            saveAnnotatedPDF();
+        });
+        
+        elements.calibrateStylus.addEventListener('click', () => {
+            console.log('Calibrate stylus button clicked');
+            calibrateStylus();
+        });
+        
+        elements.toggleDebugBtn.addEventListener('click', () => {
+            console.log('Toggle debug button clicked');
+            toggleDebugMode();
+        });
+        
+        elements.testButtonsBtn.addEventListener('click', () => {
+            console.log('Test buttons button clicked');
+            testButtonDetection();
+        });
+        
+        // Keyboard navigation
+        console.log('Setting up keyboard listeners...');
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' && app.pageNum > 1) {
+                console.log('Left arrow key pressed');
+                changePage(app.pageNum - 1);
+            } else if (e.key === 'ArrowRight' && app.pdfDoc && app.pageNum < app.pdfDoc.numPages) {
+                console.log('Right arrow key pressed');
+                changePage(app.pageNum + 1);
+            }
+        });
+        
+        // Tool selection
+        console.log('Setting up tool selection listeners...');
+        elements.toolBtns.forEach((btn, index) => {
+            btn.addEventListener('click', () => {
+                console.log(`Tool button ${index} clicked:`, btn.dataset.tool);
+                elements.toolBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                app.currentTool = btn.dataset.tool;
+                app.previousTool = app.currentTool;
+                updateStylusStatus();
+                
+                // Show/hide eraser cursor based on tool
+                if (app.currentTool === 'eraser') {
+                    elements.eraserCursor.style.display = 'block';
+                    updateEraserCursor();
+                } else {
+                    elements.eraserCursor.style.display = 'none';
+                }
+            });
+        });
+        
+        // Color selection
+        console.log('Setting up color selection listeners...');
+        elements.colorOptions.forEach((option, index) => {
+            if (option.dataset.color === '#000000') {
+                option.classList.add('active');
+            }
+            
+            option.addEventListener('click', () => {
+                console.log(`Color option ${index} clicked:`, option.dataset.color);
+                elements.colorOptions.forEach(o => o.classList.remove('active'));
+                option.classList.add('active');
+                app.currentColor = option.dataset.color;
+                updateInkPreview();
+            });
+        });
+        
+        elements.deleteAnnotationBtn.addEventListener('click', () => {
+            console.log('Delete annotation button clicked');
+            deleteSelectedAnnotation();
+        });
+        
+        // Stylus settings
+        console.log('Setting up stylus settings listeners...');
+        elements.pressureSensitivity.addEventListener('input', (e) => {
+            console.log('Pressure sensitivity changed:', e.target.value);
+            app.stylusSettings.pressureSensitivity = e.target.value / 100;
+            elements.pressureValue.textContent = e.target.value + '%';
+            updateInkPreview();
+        });
+        
+        elements.tiltSensitivity.addEventListener('input', (e) => {
+            console.log('Tilt sensitivity changed:', e.target.value);
+            app.stylusSettings.tiltSensitivity = e.target.value / 100;
+            elements.tiltValue.textContent = e.target.value + '%';
+        });
+        
+        elements.minLineWidth.addEventListener('input', (e) => {
+            console.log('Min line width changed:', e.target.value);
+            app.stylusSettings.minLineWidth = parseFloat(e.target.value);
+            elements.minWidthValue.textContent = e.target.value + 'px';
+            updateInkPreview();
+        });
+        
+        elements.maxLineWidth.addEventListener('input', (e) => {
+            console.log('Max line width changed:', e.target.value);
+            app.stylusSettings.maxLineWidth = parseFloat(e.target.value);
+            elements.maxWidthValue.textContent = e.target.value + 'px';
+            updateInkPreview();
+        });
+        
+        elements.opacityPressure.addEventListener('change', (e) => {
+            console.log('Opacity pressure changed:', e.target.checked);
+            app.stylusSettings.opacityPressure = e.target.checked;
+            updateInkPreview();
+        });
+        
+        elements.palmRejection.addEventListener('change', (e) => {
+            console.log('Palm rejection changed:', e.target.checked);
+            app.stylusSettings.palmRejection = e.target.checked;
+        });
+        
+        // Button toggles
+        console.log('Setting up button toggle listeners...');
+        elements.button1Toggle.addEventListener('click', () => {
+            console.log('Button 1 toggle clicked');
+            app.stylusSettings.button1Eraser = !app.stylusSettings.button1Eraser;
+            elements.button1Toggle.classList.toggle('active');
+            showToast(`Button 1 ${app.stylusSettings.button1Eraser ? 'enabled' : 'disabled'} for eraser`);
+        });
+        
+        elements.button2Toggle.addEventListener('click', () => {
+            console.log('Button 2 toggle clicked');
+            app.stylusSettings.button2Eraser = !app.stylusSettings.button2Eraser;
+            elements.button2Toggle.classList.toggle('active');
+            showToast(`Button 2 ${app.stylusSettings.button2Eraser ? 'enabled' : 'disabled'} for eraser`);
+        });
+        
+        // Hide popup when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!elements.annotationPopup.contains(e.target)) {
+                elements.annotationPopup.style.display = 'none';
+            }
+        });
+        
+        // Update eraser cursor position on mouse move
+        document.addEventListener('mousemove', (e) => {
+            if (app.currentTool === 'eraser') {
+                updateEraserCursor(e.clientX, e.clientY);
+            }
+        });
+        
+        console.log('✓ All event listeners set up successfully');
+    } catch (error) {
+        console.error('Error setting up event listeners:', error);
+    }
+}
     
     // ... rest of existing event listeners ...
 }
