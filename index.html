@@ -57,7 +57,28 @@
         }
         
         body.fullscreen-mode .fullscreen-btn {
-            display: block !important;
+            display: flex !important;
+            width: 40px !important;
+            height: 40px !important;
+            border-radius: 50% !important;
+            padding: 0 !important;
+            justify-content: center !important;
+            align-items: center !important;
+            background-color: rgba(231, 76, 60, 0.8) !important;
+            color: white !important;
+        }
+        
+        body.fullscreen-mode .fullscreen-btn:hover {
+            background-color: rgba(192, 57, 43, 0.9) !important;
+            transform: scale(1.1) !important;
+        }
+        
+        body.fullscreen-mode .fullscreen-btn i {
+            margin-right: 0 !important;
+        }
+        
+        body.fullscreen-mode .fullscreen-btn span {
+            display: none !important;
         }
         
         header {
@@ -341,8 +362,8 @@
         }
         
         .text-annotation textarea {
-            width: 100%;
-            height: 100%;
+            100%;
+ width:            height: 100%;
             border: none;
             background: transparent;
             resize: none;
@@ -732,34 +753,6 @@
             background-color: rgba(231, 76, 60, 0.2);
         }
         
-        .fullscreen-exit-btn {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            width: 40px;
-            height: 40px;
-            background-color: rgba(231, 76, 60, 0.8);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 1001;
-            font-size: 1.2rem;
-            transition: all 0.2s ease;
-        }
-        
-        .fullscreen-exit-btn:hover {
-            background-color: rgba(192, 57, 43, 0.9);
-            transform: scale(1.1);
-        }
-        
-        body.fullscreen-mode .fullscreen-exit-btn {
-            display: flex;
-        }
-        
         @media (max-width: 1024px) {
             main {
                 flex-direction: column;
@@ -1025,10 +1018,6 @@
     
     <div class="eraser-cursor" id="eraser-cursor"></div>
     
-    <button class="fullscreen-exit-btn" id="fullscreen-exit-btn">
-        <i class="fas fa-times"></i>
-    </button>
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script>
         // Set the worker source for PDF.js
@@ -1093,7 +1082,6 @@
             toggleDebugBtn: document.getElementById('toggle-debug'),
             testButtonsBtn: document.getElementById('test-buttons'),
             fullscreenBtn: document.getElementById('fullscreen-btn'),
-            fullscreenExitBtn: document.getElementById('fullscreen-exit-btn'),
             toolBtns: document.querySelectorAll('.tool-btn'),
             colorOptions: document.querySelectorAll('.color-option'),
             annotationPopup: document.getElementById('annotation-popup'),
@@ -1165,7 +1153,6 @@
             elements.toggleDebugBtn.addEventListener('click', toggleDebugMode);
             elements.testButtonsBtn.addEventListener('click', testButtonDetection);
             elements.fullscreenBtn.addEventListener('click', toggleFullscreen);
-            elements.fullscreenExitBtn.addEventListener('click', toggleFullscreen);
             
             // Add keyboard navigation
             document.addEventListener('keydown', (e) => {
@@ -1289,8 +1276,8 @@
             document.body.classList.toggle('fullscreen-mode', app.isFullscreen);
             
             if (app.isFullscreen) {
-                elements.fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i> Exit Fullscreen';
-                showToast('Fullscreen mode enabled. Press ESC or click Exit Fullscreen to return.');
+                elements.fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
+                showToast('Fullscreen mode enabled. Press ESC or click the exit button to return.');
             } else {
                 elements.fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i> Fullscreen';
                 showToast('Exited fullscreen mode');
