@@ -305,14 +305,16 @@
             margin-bottom: 1.5rem;
             position: relative;
             width: 100%;
-            max-width: 800px;
+            max-width: 1280px; /* 16:9 ratio at 720p height */
+            aspect-ratio: 16/9;
             touch-action: none;
         }
         
         .pdf-page canvas {
             display: block;
             width: 100%;
-            height: auto;
+            height: 100%;
+            object-fit: contain;
         }
         
         .annotation-layer {
@@ -730,6 +732,34 @@
             background-color: rgba(231, 76, 60, 0.2);
         }
         
+        .fullscreen-exit-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            background-color: rgba(231, 76, 60, 0.8);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1001;
+            font-size: 1.2rem;
+            transition: all 0.2s ease;
+        }
+        
+        .fullscreen-exit-btn:hover {
+            background-color: rgba(192, 57, 43, 0.9);
+            transform: scale(1.1);
+        }
+        
+        body.fullscreen-mode .fullscreen-exit-btn {
+            display: flex;
+        }
+        
         @media (max-width: 1024px) {
             main {
                 flex-direction: column;
@@ -995,6 +1025,10 @@
     
     <div class="eraser-cursor" id="eraser-cursor"></div>
     
+    <button class="fullscreen-exit-btn" id="fullscreen-exit-btn">
+        <i class="fas fa-times"></i>
+    </button>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script>
         // Set the worker source for PDF.js
@@ -1059,6 +1093,7 @@
             toggleDebugBtn: document.getElementById('toggle-debug'),
             testButtonsBtn: document.getElementById('test-buttons'),
             fullscreenBtn: document.getElementById('fullscreen-btn'),
+            fullscreenExitBtn: document.getElementById('fullscreen-exit-btn'),
             toolBtns: document.querySelectorAll('.tool-btn'),
             colorOptions: document.querySelectorAll('.color-option'),
             annotationPopup: document.getElementById('annotation-popup'),
@@ -1130,6 +1165,29 @@
             elements.toggleDebugBtn.addEventListener('click', toggleDebugMode);
             elements.testButtonsBtn.addEventListener('click', testButtonDetection);
             elements.fullscreenBtn.addEventListener('click', toggleFullscreen);
+            elements.fullscreenExitBtn.addEventListener('click', toggleFullscreen);
+            
+            // Add keyboard navigation
+            document.addEventListener('keydown', (e) => {
+                // Left arrow key
+                if (e.key === 'ArrowLeft') {
+                    if (app.pageNum > 1) {
+                        app.pageNum--;
+                        queueRenderPage(app.pageNum);
+                    }
+                }
+                // Right arrow key
+                else if (e.key === 'ArrowRight') {
+                    if (app.pdfDoc && app.pageNum < app.pdfDoc.numPages) {
+                        app.pageNum++;
+                        queueRenderPage(app.pageNum);
+                    }
+                }
+                // ESC key to exit fullscreen
+                else if (e.key === 'Escape' && app.isFullscreen) {
+                    toggleFullscreen();
+                }
+            });
             
             elements.toolBtns.forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -1521,18 +1579,30 @@
             app.annotations = app.annotations.filter(ann => ann.page !== num);
             
             app.pdfDoc.getPage(num).then(function(page) {
+                // Calculate viewport with 16:9 aspect ratio
                 const viewport = page.getViewport({ scale: app.scale });
+                
+                // Calculate dimensions to maintain 16:9 ratio
+                const targetWidth = 1280; // Max width for 16:9 at 720p height
+                const targetHeight = targetWidth * 9 / 16;
+                
+                // Calculate scale to fit within target dimensions while maintaining aspect ratio
+                const scaleX = targetWidth / viewport.width;
+                const scaleY = targetHeight / viewport.height;
+                const scale = Math.min(scaleX, scaleY, app.scale);
+                
+                const scaledViewport = page.getViewport({ scale: scale });
                 
                 // Prepare canvas using PDF page dimensions
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
+                canvas.height = scaledViewport.height;
+                canvas.width = scaledViewport.width;
                 
                 // Render PDF page into canvas context
                 const renderContext = {
                     canvasContext: ctx,
-                    viewport: viewport
+                    viewport: scaledViewport
                 };
                 
                 const renderTask = page.render(renderContext);
@@ -1543,7 +1613,7 @@
                     // Clear previous page content
                     elements.pdfViewer.innerHTML = '';
                     
-                    // Create page container
+                    // Create page container with 16:9 aspect ratio
                     const pageContainer = document.createElement('div');
                     pageContainer.className = 'pdf-page';
                     pageContainer.dataset.pageNum = num;
@@ -2525,6 +2595,7 @@
                 showToast('Stylus support detected! Both buttons can be configured for eraser.');
                 showToast('Default ink color set to black', 'info');
                 showToast('Max line width set to 5.2px', 'info');
+                showToast('Use left/right arrow keys to navigate pages', 'info');
             } else {
                 showToast('Stylus support not available. Using touch/mouse input instead.', 'info');
             }
