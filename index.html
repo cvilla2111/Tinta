@@ -11,9 +11,8 @@
             padding: 0;
             box-sizing: border-box;
         }
-
         body {
-            background-color: #808080;
+            background-color: #d3d3d3; /* Lighter gray background */
             height: 100vh;
             display: flex;
             justify-content: center;
@@ -21,35 +20,38 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             overflow: hidden;
         }
-
         .load-button {
+            position: fixed; /* Fixed position */
+            bottom: 30px; /* 30px from bottom */
+            right: 30px; /* 30px from right */
             background-color: #2563eb;
             color: white;
             border: none;
-            padding: 16px 32px;
-            font-size: 18px;
-            font-weight: 600;
-            border-radius: 8px;
+            width: 60px; /* Fixed width */
+            height: 60px; /* Fixed height */
+            border-radius: 50%; /* Circular shape */
             cursor: pointer;
             transition: all 0.3s ease;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            font-size: 28px; /* Larger font for plus symbol */
+            font-weight: 300;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
         }
-
         .load-button:hover {
             background-color: #1d4ed8;
             transform: translateY(-2px);
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
         }
-
         .load-button:active {
             transform: translateY(0);
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
-
         #fileInput {
             display: none;
         }
-
         .pdf-container {
             position: fixed;
             top: 0;
@@ -61,11 +63,19 @@
             z-index: 9999;
             overflow: hidden;
         }
-
         .pdf-container.active {
             display: block;
         }
-
+        .pdf-container.small-rectangle {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 400px;
+            height: 500px;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+        }
         .pdf-canvas {
             position: absolute;
             top: 0;
@@ -73,40 +83,8 @@
             width: 100%;
             height: 100%;
             object-fit: contain;
-            transition: transform 0.4s ease;
+            border-radius: 8px;
         }
-
-        .current-page {
-            transform: translateX(0);
-            z-index: 1;
-        }
-
-        .next-page {
-            transform: translateX(100%);
-            z-index: 2;
-        }
-
-        .prev-page {
-            transform: translateX(-100%);
-            z-index: 2;
-        }
-
-        .slide-out-left {
-            transform: translateX(-100%);
-        }
-
-        .slide-out-right {
-            transform: translateX(100%);
-        }
-
-        .slide-in-left {
-            transform: translateX(0);
-        }
-
-        .slide-in-right {
-            transform: translateX(0);
-        }
-
         .loading-indicator {
             position: absolute;
             top: 50%;
@@ -115,9 +93,7 @@
             color: white;
             font-size: 18px;
             display: none;
-            z-index: 10;
         }
-
         .loading-indicator.active {
             display: block;
         }
@@ -125,36 +101,35 @@
 </head>
 <body>
     <button class="load-button" onclick="document.getElementById('fileInput').click()">
-        Load Pdf
+        +
     </button>
     
     <input type="file" id="fileInput" accept=".pdf" onchange="loadPDF(event)">
     
     <div class="pdf-container" id="pdfContainer">
-        <canvas class="pdf-canvas current-page" id="currentCanvas"></canvas>
-        <canvas class="pdf-canvas next-page" id="nextCanvas"></canvas>
+        <canvas class="pdf-canvas" id="pdfCanvas"></canvas>
         <div class="loading-indicator" id="loadingIndicator">Loading PDF...</div>
     </div>
-
+    
     <script>
         // Set the worker source for PDF.js
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
+        
         let pdfDoc = null;
         let currentPage = 1;
-        let isTransitioning = false;
+        let pageRendering = false;
+        let pageNumPending = null;
         const scale = 1.5;
-        const currentCanvas = document.getElementById('currentCanvas');
-        const nextCanvas = document.getElementById('nextCanvas');
-        const currentCtx = currentCanvas.getContext('2d');
-        const nextCtx = nextCanvas.getContext('2d');
-
+        const canvas = document.getElementById('pdfCanvas');
+        const ctx = canvas.getContext('2d');
+        const pdfContainer = document.getElementById('pdfContainer');
+        
         function loadPDF(event) {
             const file = event.target.files[0];
             if (file && file.type === 'application/pdf') {
                 const fileReader = new FileReader();
                 
-                document.getElementById('pdfContainer').classList.add('active');
+                pdfContainer.classList.add('active');
                 document.getElementById('loadingIndicator').classList.add('active');
                 
                 fileReader.onload = function() {
@@ -165,7 +140,6 @@
                         document.getElementById('loadingIndicator').classList.remove('active');
                         
                         // Request fullscreen
-                        const pdfContainer = document.getElementById('pdfContainer');
                         if (pdfContainer.requestFullscreen) {
                             pdfContainer.requestFullscreen();
                         } else if (pdfContainer.webkitRequestFullscreen) {
@@ -175,7 +149,7 @@
                         }
                         
                         // Render first page
-                        renderPage(currentPage, currentCanvas, currentCtx);
+                        renderPage(currentPage);
                     }).catch(function(error) {
                         console.error('Error loading PDF:', error);
                         document.getElementById('loadingIndicator').classList.remove('active');
@@ -189,151 +163,149 @@
                 alert('Please select a valid PDF file.');
             }
         }
-
-        function renderPage(num, canvas, ctx) {
-            return new Promise((resolve) => {
-                pdfDoc.getPage(num).then(function(page) {
-                    const viewport = page.getViewport({scale: scale});
-                    canvas.height = viewport.height;
-                    canvas.width = viewport.width;
-
-                    const renderContext = {
-                        canvasContext: ctx,
-                        viewport: viewport
-                    };
-                    
-                    const renderTask = page.render(renderContext);
-                    
-                    renderTask.promise.then(function() {
-                        resolve();
-                    });
+        
+        function renderPage(num) {
+            pageRendering = true;
+            
+            pdfDoc.getPage(num).then(function(page) {
+                const viewport = page.getViewport({scale: scale});
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                const renderContext = {
+                    canvasContext: ctx,
+                    viewport: viewport
+                };
+                
+                const renderTask = page.render(renderContext);
+                
+                renderTask.promise.then(function() {
+                    pageRendering = false;
+                    if (pageNumPending !== null) {
+                        renderPage(pageNumPending);
+                        pageNumPending = null;
+                    }
                 });
             });
         }
-
-        async function changePage(newPage, direction) {
-            if (isTransitioning || !pdfDoc) return;
-            
-            // Check boundaries
-            if (newPage < 1 || newPage > pdfDoc.numPages) return;
-            
-            isTransitioning = true;
-            
-            // Set up next canvas position based on direction
-            if (direction === 'next') {
-                nextCanvas.className = 'pdf-canvas next-page';
+        
+        function queueRenderPage(num) {
+            if (pageRendering) {
+                pageNumPending = num;
             } else {
-                nextCanvas.className = 'pdf-canvas prev-page';
+                renderPage(num);
             }
-            
-            // Render the new page on the next canvas
-            await renderPage(newPage, nextCanvas, nextCtx);
-            
-            // Start the transition
-            setTimeout(() => {
-                if (direction === 'next') {
-                    currentCanvas.className = 'pdf-canvas slide-out-left';
-                    nextCanvas.className = 'pdf-canvas slide-in-right';
-                } else {
-                    currentCanvas.className = 'pdf-canvas slide-out-right';
-                    nextCanvas.className = 'pdf-canvas slide-in-left';
-                }
-            }, 50);
-            
-            // After transition completes, swap canvases and reset
-            setTimeout(() => {
-                // Swap canvases
-                const tempCanvas = currentCanvas;
-                const tempCtx = currentCtx;
-                
-                currentCanvas = nextCanvas;
-                currentCtx = nextCtx;
-                nextCanvas = tempCanvas;
-                nextCtx = tempCtx;
-                
-                // Update the DOM elements
-                currentCanvas.id = 'currentCanvas';
-                nextCanvas.id = 'nextCanvas';
-                
-                // Reset classes
-                currentCanvas.className = 'pdf-canvas current-page';
-                nextCanvas.className = 'pdf-canvas next-page';
-                
-                // Update current page
-                currentPage = newPage;
-                
-                // Clear next canvas
-                nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
-                
-                isTransitioning = false;
-            }, 450); // Slightly longer than the transition to ensure it completes
         }
-
+        
         function closePDF() {
-            const pdfContainer = document.getElementById('pdfContainer');
-            const fileInput = document.getElementById('fileInput');
-            
-            // Exit fullscreen
-            if (document.exitFullscreen) {
+            // Exit fullscreen if in fullscreen
+            if (document.fullscreenElement) {
                 document.exitFullscreen();
-            } else if (document.webkitExitFullscreen) {
+            } else if (document.webkitFullscreenElement) {
                 document.webkitExitFullscreen();
-            } else if (document.msExitFullscreen) {
+            } else if (document.msFullscreenElement) {
                 document.msExitFullscreen();
             }
             
             // Clear the PDF and hide container
-            currentCtx.clearRect(0, 0, currentCanvas.width, currentCanvas.height);
-            nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
-            pdfContainer.classList.remove('active');
-            fileInput.value = '';
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            pdfContainer.classList.remove('active', 'small-rectangle');
+            document.getElementById('fileInput').value = '';
             pdfDoc = null;
             currentPage = 1;
-            isTransitioning = false;
         }
-
+        
         // Handle keyboard events
         document.addEventListener('keydown', function(event) {
             if (!pdfDoc) return;
             
             switch(event.key) {
                 case 'Escape':
-                    closePDF();
+                    if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) {
+                        // Exit fullscreen and show in small rectangle
+                        if (document.exitFullscreen) {
+                            document.exitFullscreen();
+                        } else if (document.webkitExitFullscreen) {
+                            document.webkitExitFullscreen();
+                        } else if (document.msExitFullscreen) {
+                            document.msExitFullscreen();
+                        }
+                        
+                        // After exiting fullscreen, show in small rectangle
+                        setTimeout(() => {
+                            pdfContainer.classList.add('small-rectangle');
+                            // Re-render to fit small rectangle
+                            queueRenderPage(currentPage);
+                        }, 100);
+                    } else if (pdfContainer.classList.contains('small-rectangle')) {
+                        // If already in small rectangle, close PDF
+                        closePDF();
+                    }
                     break;
                 case 'ArrowLeft':
                     event.preventDefault();
-                    changePage(currentPage - 1, 'prev');
+                    if (currentPage > 1) {
+                        currentPage--;
+                        queueRenderPage(currentPage);
+                    }
                     break;
                 case 'ArrowRight':
                     event.preventDefault();
-                    changePage(currentPage + 1, 'next');
+                    if (currentPage < pdfDoc.numPages) {
+                        currentPage++;
+                        queueRenderPage(currentPage);
+                    }
                     break;
             }
         });
-
+        
+        // Handle click on small rectangle to return to fullscreen
+        pdfContainer.addEventListener('click', function() {
+            if (pdfContainer.classList.contains('small-rectangle')) {
+                pdfContainer.classList.remove('small-rectangle');
+                
+                // Request fullscreen
+                if (pdfContainer.requestFullscreen) {
+                    pdfContainer.requestFullscreen();
+                } else if (pdfContainer.webkitRequestFullscreen) {
+                    pdfContainer.webkitRequestFullscreen();
+                } else if (pdfContainer.msRequestFullscreen) {
+                    pdfContainer.msRequestFullscreen();
+                }
+                
+                // Re-render for fullscreen size
+                setTimeout(() => {
+                    queueRenderPage(currentPage);
+                }, 100);
+            }
+        });
+        
         // Handle fullscreen change events
         document.addEventListener('fullscreenchange', function() {
-            if (!document.fullscreenElement) {
-                closePDF();
+            if (!document.fullscreenElement && pdfDoc && !pdfContainer.classList.contains('small-rectangle')) {
+                // If exiting fullscreen and not already in small rectangle, show it
+                pdfContainer.classList.add('small-rectangle');
+                queueRenderPage(currentPage);
             }
         });
-
+        
         document.addEventListener('webkitfullscreenchange', function() {
-            if (!document.webkitFullscreenElement) {
-                closePDF();
+            if (!document.webkitFullscreenElement && pdfDoc && !pdfContainer.classList.contains('small-rectangle')) {
+                pdfContainer.classList.add('small-rectangle');
+                queueRenderPage(currentPage);
             }
         });
-
+        
         document.addEventListener('msfullscreenchange', function() {
-            if (!document.msFullscreenElement) {
-                closePDF();
+            if (!document.msFullscreenElement && pdfDoc && !pdfContainer.classList.contains('small-rectangle')) {
+                pdfContainer.classList.add('small-rectangle');
+                queueRenderPage(currentPage);
             }
         });
-
+        
         // Handle window resize to adjust canvas
         window.addEventListener('resize', function() {
-            if (pdfDoc && !isTransitioning) {
-                renderPage(currentPage, currentCanvas, currentCtx);
+            if (pdfDoc) {
+                queueRenderPage(currentPage);
             }
         });
     </script>
