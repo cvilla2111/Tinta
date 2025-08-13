@@ -271,19 +271,22 @@ function initEventListeners() {
     elements.deleteAnnotationBtn.addEventListener('click', deleteSelectedAnnotation);
     
     // Stylus settings
-    // Pressure sensitivity event listener
-elements.pressureSensitivity.addEventListener('input', (e) => {
-    app.stylusSettings.pressureSensitivity = e.target.value / 100;
-    elements.pressureValue.textContent = e.target.value + '%';
-    updateInkPreview();
-});
-
-// Min line width event listener
-elements.minLineWidth.addEventListener('input', (e) => {
-    app.stylusSettings.minLineWidth = parseFloat(e.target.value);
-    elements.minWidthValue.textContent = e.target.value + 'px';
-    updateInkPreview();
-});
+    elements.pressureSensitivity.addEventListener('input', (e) => {
+        app.stylusSettings.pressureSensitivity = e.target.value / 100;
+        elements.pressureValue.textContent = e.target.value + '%';
+        updateInkPreview();
+    });
+    
+    elements.tiltSensitivity.addEventListener('input', (e) => {
+        app.stylusSettings.tiltSensitivity = e.target.value / 100;
+        elements.tiltValue.textContent = e.target.value + '%';
+    });
+    
+    elements.minLineWidth.addEventListener('input', (e) => {
+        app.stylusSettings.minLineWidth = parseFloat(e.target.value);
+        elements.minWidthValue.textContent = e.target.value + 'px';
+        updateInkPreview();
+    });
     
     elements.maxLineWidth.addEventListener('input', (e) => {
         app.stylusSettings.maxLineWidth = parseFloat(e.target.value);
