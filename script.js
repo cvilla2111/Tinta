@@ -556,6 +556,11 @@ function loadPDF(data) {
         elements.uploadArea.style.display = 'none';
         
         showToast('PDF loaded successfully');
+        
+        // Automatically enter fullscreen mode after PDF is loaded
+        if (!app.isFullscreen) {
+            toggleFullscreen();
+        }
     }).catch(function(error) {
         console.error('Error loading PDF:', error);
         showToast('Error loading PDF', 'error');
