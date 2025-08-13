@@ -125,7 +125,6 @@ const app = {
     lastButtonState: 0,
     buttonHistory: [],
     buttonDetectionMethod: 'none',
-    isFullscreen: false,
     lastX: 0,
     lastY: 0,
     lastTime: 0,
@@ -157,7 +156,6 @@ const elements = {
     clearAnnotationsBtn: document.getElementById('clear-annotations'),
     toggleDebugBtn: document.getElementById('toggle-debug'),
     testButtonsBtn: document.getElementById('test-buttons'),
-    fullscreenBtn: document.getElementById('fullscreen-btn'),
     toolBtns: document.querySelectorAll('.tool-btn'),
     colorOptions: document.querySelectorAll('.color-option'),
     annotationPopup: document.getElementById('annotation-popup'),
@@ -227,7 +225,6 @@ function initEventListeners() {
     elements.calibrateStylus.addEventListener('click', calibrateStylus);
     elements.toggleDebugBtn.addEventListener('click', toggleDebugMode);
     elements.testButtonsBtn.addEventListener('click', testButtonDetection);
-    elements.fullscreenBtn.addEventListener('click', toggleFullscreen);
     
     // Keyboard navigation
     document.addEventListener('keydown', (e) => {
@@ -235,8 +232,6 @@ function initEventListeners() {
             changePage(app.pageNum - 1);
         } else if (e.key === 'ArrowRight' && app.pdfDoc && app.pageNum < app.pdfDoc.numPages) {
             changePage(app.pageNum + 1);
-        } else if (e.key === 'Escape' && app.isFullscreen) {
-            toggleFullscreen();
         }
     });
     
@@ -333,24 +328,6 @@ elements.minLineWidth.addEventListener('input', (e) => {
     });
 }
 
-// Toggle fullscreen mode
-function toggleFullscreen() {
-    app.isFullscreen = !app.isFullscreen;
-    document.body.classList.toggle('fullscreen-mode', app.isFullscreen);
-    
-    if (app.isFullscreen) {
-        elements.fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
-        showToast('Fullscreen mode enabled. Press ESC or click the exit button to return.');
-    } else {
-        elements.fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i> Fullscreen';
-        showToast('Exited fullscreen mode');
-    }
-    
-    // Re-render current page to adjust layout
-    if (app.pdfDoc) {
-        renderPage(app.pageNum);
-    }
-}
 
 // Update eraser cursor position and size
 function updateEraserCursor(x, y) {
@@ -639,10 +616,6 @@ function loadPDF(data) {
         
         showToast('PDF loaded successfully');
         
-        // Automatically enter fullscreen mode after PDF is loaded
-        if (!app.isFullscreen) {
-            toggleFullscreen();
-        }
     }).catch(function(error) {
         console.error('Error loading PDF:', error);
         showToast('Error loading PDF', 'error');
