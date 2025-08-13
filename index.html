@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Annotator - Professional Stylus Edition 2</title>
+    <title>PDF Annotator - Professional Stylus Edition</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
@@ -385,7 +385,7 @@
         }
         
         .nav-btn:hover {
-            background-color: #f8f9fa;
+            background-color: #f8f9fa';
         }
         
         .nav-btn:disabled {
@@ -636,6 +636,19 @@
             transform: translateX(20px);
         }
         
+        .debug-info {
+            margin-top: 1rem;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            color: #7f8c8d;
+        }
+        
+        .debug-item {
+            margin-bottom: 4px;
+        }
+        
         @media (max-width: 1024px) {
             main {
                 flex-direction: column;
@@ -728,10 +741,11 @@
             <div class="tool-section">
                 <h3>Colors</h3>
                 <div class="color-picker">
-                    <div class="color-option active" style="background-color: #f1c40f;" data-color="#f1c40f"></div>
+                    <div class="color-option" style="background-color: #000000;" data-color="#000000"></div>
                     <div class="color-option" style="background-color: #e74c3c;" data-color="#e74c3c"></div>
                     <div class="color-option" style="background-color: #3498db;" data-color="#3498db"></div>
                     <div class="color-option" style="background-color: #2ecc71;" data-color="#2ecc71"></div>
+                    <div class="color-option" style="background-color: #f1c40f;" data-color="#f1c40f"></div>
                     <div class="color-option" style="background-color: #9b59b6;" data-color="#9b59b6"></div>
                     <div class="color-option" style="background-color: #34495e;" data-color="#34495e"></div>
                 </div>
@@ -813,12 +827,23 @@
                         <span id="status-text">Pen</span>
                     </div>
                 </div>
+                
+                <div class="debug-info" id="debug-info" style="display: none;">
+                    <label>Stylus Debug Info:</label>
+                    <div class="debug-item">Buttons: <span id="debug-buttons">0</span></div>
+                    <div class="debug-item">Button 1: <span id="debug-button1">No</span></div>
+                    <div class="debug-item">Button 2: <span id="debug-button2">No</span></div>
+                    <div class="debug-item">Pressure: <span id="debug-pressure">0</span></div>
+                </div>
             </div>
             
             <div class="tool-section">
                 <h3>Actions</h3>
                 <button class="btn" id="clear-annotations">
                     <i class="fas fa-eraser"></i> Clear All
+                </button>
+                <button class="btn" id="toggle-debug" style="margin-top: 8px; width: 100%;">
+                    <i class="fas fa-bug"></i> Toggle Debug
                 </button>
             </div>
         </aside>
@@ -897,7 +922,7 @@
             ctx: null,
             currentTool: 'pen',
             previousTool: 'pen',
-            currentColor: '#f1c40f',
+            currentColor: '#000000',
             annotations: [],
             isDrawing: false,
             startX: 0,
@@ -920,7 +945,10 @@
             lastPoint: null,
             inkPreviewCtx: null,
             isStylusButtonPressed: false,
-            activeButtons: 0
+            activeButtons: 0,
+            debugMode: false,
+            lastButtonState: 0,
+            buttonHistory: []
         };
 
         // DOM elements
@@ -939,6 +967,7 @@
             zoomOutBtn: document.getElementById('zoom-out'),
             zoomLevel: document.getElementById('zoom-level'),
             clearAnnotationsBtn: document.getElementById('clear-annotations'),
+            toggleDebugBtn: document.getElementById('toggle-debug'),
             toolBtns: document.querySelectorAll('.tool-btn'),
             colorOptions: document.querySelectorAll('.color-option'),
             annotationPopup: document.getElementById('annotation-popup'),
@@ -963,7 +992,12 @@
             calibrateStylus: document.getElementById('calibrate-stylus'),
             inkPreview: document.getElementById('ink-preview'),
             statusIndicator: document.getElementById('status-indicator'),
-            statusText: document.getElementById('status-text')
+            statusText: document.getElementById('status-text'),
+            debugInfo: document.getElementById('debug-info'),
+            debugButtons: document.getElementById('debug-buttons'),
+            debugButton1: document.getElementById('debug-button1'),
+            debugButton2: document.getElementById('debug-button2'),
+            debugPressure: document.getElementById('debug-pressure')
         };
 
         // Initialize event listeners
@@ -1000,6 +1034,7 @@
             elements.clearAnnotationsBtn.addEventListener('click', clearAllAnnotations);
             elements.saveBtn.addEventListener('click', saveAnnotatedPDF);
             elements.calibrateStylus.addEventListener('click', calibrateStylus);
+            elements.toggleDebugBtn.addEventListener('click', toggleDebugMode);
             
             elements.toolBtns.forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -1011,7 +1046,12 @@
                 });
             });
             
+            // Set black as the default active color
             elements.colorOptions.forEach(option => {
+                if (option.dataset.color === '#000000') {
+                    option.classList.add('active');
+                }
+                
                 option.addEventListener('click', () => {
                     elements.colorOptions.forEach(o => o.classList.remove('active'));
                     option.classList.add('active');
@@ -1074,6 +1114,13 @@
                     elements.annotationPopup.style.display = 'none';
                 }
             });
+        }
+
+        // Toggle debug mode
+        function toggleDebugMode() {
+            app.debugMode = !app.debugMode;
+            elements.debugInfo.style.display = app.debugMode ? 'block' : 'none';
+            showToast(`Debug mode ${app.debugMode ? 'enabled' : 'disabled'}`);
         }
 
         // Initialize ink preview
@@ -1148,11 +1195,54 @@
             }
         }
 
-        // Check if any eraser button is pressed
+        // Enhanced button detection for Bamboo stylus
         function isEraserButtonPressed(buttons) {
-            // buttons is a bitmask: 1=primary, 2=button1, 4=button2
-            const button1Pressed = (buttons & 2) === 2 && app.stylusSettings.button1Eraser;
-            const button2Pressed = (buttons & 4) === 4 && app.stylusSettings.button2Eraser;
+            // Standard button mapping: 1=primary, 2=button1, 4=button2
+            // But some styluses might use different mapping
+            
+            let button1Pressed = false;
+            let button2Pressed = false;
+            
+            // Try multiple detection methods for Bamboo CS323AG0A
+            
+            // Method 1: Standard bitmask
+            if (app.stylusSettings.button1Eraser) {
+                button1Pressed = (buttons & 2) === 2;
+            }
+            if (app.stylusSettings.button2Eraser) {
+                button2Pressed = (buttons & 4) === 4;
+            }
+            
+            // Method 2: Alternative mapping (some Bamboo models use this)
+            if (!button1Pressed && app.stylusSettings.button1Eraser) {
+                button1Pressed = (buttons & 4) === 4;
+            }
+            if (!button2Pressed && app.stylusSettings.button2Eraser) {
+                button2Pressed = (buttons & 2) === 2;
+            }
+            
+            // Method 3: Check for button state changes (for toggle behavior)
+            if (!button1Pressed && !button2Pressed && app.buttonHistory.length > 0) {
+                const lastState = app.buttonHistory[app.buttonHistory.length - 1];
+                if (lastState.buttons !== buttons) {
+                    // Button state changed, check if it was a button press
+                    if (app.stylusSettings.button1Eraser && (buttons & 2) === 2) {
+                        button1Pressed = true;
+                    }
+                    if (app.stylusSettings.button2Eraser && (buttons & 4) === 4) {
+                        button2Pressed = true;
+                    }
+                }
+            }
+            
+            // Update debug info
+            if (app.debugMode) {
+                elements.debugButtons.textContent = buttons;
+                elements.debugButton1.textContent = button1Pressed ? 'Yes' : 'No';
+                elements.debugButton2.textContent = button2Pressed ? 'Yes' : 'No';
+                elements.debugPressure.textContent = app.currentPressure.toFixed(2);
+            }
+            
             return button1Pressed || button2Pressed;
         }
 
@@ -1282,6 +1372,21 @@
             pageContainer.addEventListener('pointerup', endAnnotation);
             pageContainer.addEventListener('pointercancel', endAnnotation);
             
+            // Also listen for mousedown for better compatibility
+            pageContainer.addEventListener('mousedown', (e) => {
+                if (e.pointerType !== 'pen') {
+                    // Convert mouse event to pointer-like event
+                    const pointerEvent = {
+                        pointerType: 'mouse',
+                        buttons: e.buttons,
+                        pressure: 0.5,
+                        clientX: e.clientX,
+                        clientY: e.clientY
+                    };
+                    startAnnotation(pointerEvent);
+                }
+            });
+            
             // Prevent default touch actions to enable stylus
             pageContainer.addEventListener('touchstart', (e) => e.preventDefault());
             pageContainer.addEventListener('touchmove', (e) => e.preventDefault());
@@ -1289,10 +1394,24 @@
 
         // Start annotation
         function startAnnotation(e) {
+            // Record button state for debugging
+            if (app.debugMode && e.pointerType === 'pen') {
+                app.buttonHistory.push({
+                    buttons: e.buttons,
+                    timestamp: Date.now()
+                });
+                
+                // Keep only last 10 states
+                if (app.buttonHistory.length > 10) {
+                    app.buttonHistory.shift();
+                }
+            }
+            
             // Check for stylus button press
             if (e.pointerType === 'pen') {
                 // Store active buttons state
                 app.activeButtons = e.buttons;
+                app.lastButtonState = e.buttons;
                 
                 // Check if any eraser button is pressed
                 if (isEraserButtonPressed(e.buttons)) {
@@ -1303,6 +1422,10 @@
                         app.isStylusButtonPressed = true;
                         updateStylusStatus();
                         updateToolButtonSelection();
+                        
+                        if (app.debugMode) {
+                            console.log('Switched to eraser mode');
+                        }
                     }
                 }
             }
@@ -1504,6 +1627,10 @@
                     app.isStylusButtonPressed = false;
                     updateStylusStatus();
                     updateToolButtonSelection();
+                    
+                    if (app.debugMode) {
+                        console.log('Returned to pen mode');
+                    }
                 }
             }
             
@@ -2067,6 +2194,7 @@
             // Check for stylus support
             if (window.PointerEvent) {
                 showToast('Stylus support detected! Both buttons can be configured for eraser.');
+                showToast('Default ink color set to black', 'info');
             } else {
                 showToast('Stylus support not available. Using touch/mouse input instead.', 'info');
             }
