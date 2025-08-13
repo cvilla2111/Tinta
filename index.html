@@ -19,6 +19,45 @@
             display: flex;
             flex-direction: column;
             min-height: 100vh;
+            transition: all 0.3s ease;
+        }
+        
+        body.fullscreen-mode {
+            overflow: hidden;
+        }
+        
+        body.fullscreen-mode header,
+        body.fullscreen-mode .sidebar {
+            display: none;
+        }
+        
+        body.fullscreen-mode main {
+            padding: 0;
+            max-width: 100%;
+        }
+        
+        body.fullscreen-mode .pdf-toolbar {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 100;
+            background-color: rgba(248, 249, 250, 0.9);
+            border-radius: 8px;
+            padding: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        body.fullscreen-mode .pdf-actions {
+            display: none;
+        }
+        
+        body.fullscreen-mode .page-navigation,
+        body.fullscreen-mode .zoom-controls {
+            display: none;
+        }
+        
+        body.fullscreen-mode .fullscreen-btn {
+            display: block !important;
         }
         
         header {
@@ -26,6 +65,7 @@
             color: white;
             padding: 1rem 2rem;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
         }
         
         .header-content {
@@ -78,6 +118,7 @@
             margin: 0 auto;
             padding: 1.5rem;
             gap: 1.5rem;
+            transition: all 0.3s ease;
         }
         
         .sidebar {
@@ -87,6 +128,7 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.05);
             padding: 1.5rem;
             height: fit-content;
+            transition: all 0.3s ease;
         }
         
         .sidebar h2 {
@@ -188,6 +230,7 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            transition: all 0.3s ease;
         }
         
         .pdf-toolbar {
@@ -236,6 +279,14 @@
         
         .btn-stylus:hover {
             background-color: #8e44ad;
+        }
+        
+        .fullscreen-btn {
+            background-color: #2ecc71;
+        }
+        
+        .fullscreen-btn:hover {
+            background-color: #27ae60;
         }
         
         .pdf-viewer {
@@ -309,6 +360,10 @@
         .drawing-annotation svg {
             width: 100%;
             height: 100%;
+        }
+        
+        .path-segment {
+            pointer-events: none;
         }
         
         .upload-area {
@@ -665,6 +720,16 @@
             background-color: #2980b9;
         }
         
+        .eraser-cursor {
+            position: absolute;
+            border: 2px solid #e74c3c;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+            background-color: rgba(231, 76, 60, 0.2);
+        }
+        
         @media (max-width: 1024px) {
             main {
                 flex-direction: column;
@@ -793,8 +858,8 @@
                 </div>
                 
                 <div class="setting-item">
-                    <label>Max Line Width: <span class="setting-value" id="max-width-value">0.5px</span></label>
-                    <input type="range" id="max-line-width" min="0.1" max="10" step="0.1" value="0.5">
+                    <label>Max Line Width: <span class="setting-value" id="max-width-value">5.2px</span></label>
+                    <input type="range" id="max-line-width" min="0.1" max="10" step="0.1" value="5.2">
                 </div>
                 
                 <div class="setting-item">
@@ -880,6 +945,9 @@
                     <button class="btn btn-secondary" id="save-btn" disabled>
                         <i class="fas fa-save"></i> Save Annotated
                     </button>
+                    <button class="btn fullscreen-btn" id="fullscreen-btn">
+                        <i class="fas fa-expand"></i> Fullscreen
+                    </button>
                 </div>
                 
                 <div class="page-navigation">
@@ -924,6 +992,9 @@
         <i class="fas fa-check-circle"></i>
         <span id="toast-message">Action completed successfully</span>
     </div>
+    
+    <div class="eraser-cursor" id="eraser-cursor"></div>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script>
         // Set the worker source for PDF.js
@@ -950,7 +1021,7 @@
                 pressureSensitivity: 0.27,
                 tiltSensitivity: 0.5,
                 minLineWidth: 0.1,
-                maxLineWidth: 0.5,
+                maxLineWidth: 5.2, // Changed from 0.5 to 5.2
                 opacityPressure: false,
                 palmRejection: false,
                 button1Eraser: true,
@@ -966,7 +1037,8 @@
             debugMode: false,
             lastButtonState: 0,
             buttonHistory: [],
-            buttonDetectionMethod: 'none'
+            buttonDetectionMethod: 'none',
+            isFullscreen: false
         };
         // DOM elements
         const elements = {
@@ -986,6 +1058,7 @@
             clearAnnotationsBtn: document.getElementById('clear-annotations'),
             toggleDebugBtn: document.getElementById('toggle-debug'),
             testButtonsBtn: document.getElementById('test-buttons'),
+            fullscreenBtn: document.getElementById('fullscreen-btn'),
             toolBtns: document.querySelectorAll('.tool-btn'),
             colorOptions: document.querySelectorAll('.color-option'),
             annotationPopup: document.getElementById('annotation-popup'),
@@ -1017,7 +1090,8 @@
             debugButton2: document.getElementById('debug-button2'),
             debugButtonProp: document.getElementById('debug-button-prop'),
             debugPressure: document.getElementById('debug-pressure'),
-            debugMethod: document.getElementById('debug-method')
+            debugMethod: document.getElementById('debug-method'),
+            eraserCursor: document.getElementById('eraser-cursor')
         };
         // Initialize event listeners
         function initEventListeners() {
@@ -1055,6 +1129,7 @@
             elements.calibrateStylus.addEventListener('click', calibrateStylus);
             elements.toggleDebugBtn.addEventListener('click', toggleDebugMode);
             elements.testButtonsBtn.addEventListener('click', testButtonDetection);
+            elements.fullscreenBtn.addEventListener('click', toggleFullscreen);
             
             elements.toolBtns.forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -1063,6 +1138,14 @@
                     app.currentTool = btn.dataset.tool;
                     app.previousTool = app.currentTool;
                     updateStylusStatus();
+                    
+                    // Show/hide eraser cursor based on tool
+                    if (app.currentTool === 'eraser') {
+                        elements.eraserCursor.style.display = 'block';
+                        updateEraserCursor();
+                    } else {
+                        elements.eraserCursor.style.display = 'none';
+                    }
                 });
             });
             
@@ -1134,6 +1217,41 @@
                     elements.annotationPopup.style.display = 'none';
                 }
             });
+            
+            // Update eraser cursor position on mouse move
+            document.addEventListener('mousemove', (e) => {
+                if (app.currentTool === 'eraser') {
+                    updateEraserCursor(e.clientX, e.clientY);
+                }
+            });
+        }
+        // Toggle fullscreen mode
+        function toggleFullscreen() {
+            app.isFullscreen = !app.isFullscreen;
+            document.body.classList.toggle('fullscreen-mode', app.isFullscreen);
+            
+            if (app.isFullscreen) {
+                elements.fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i> Exit Fullscreen';
+                showToast('Fullscreen mode enabled. Press ESC or click Exit Fullscreen to return.');
+            } else {
+                elements.fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i> Fullscreen';
+                showToast('Exited fullscreen mode');
+            }
+            
+            // Re-render current page to adjust layout
+            if (app.pdfDoc) {
+                renderPage(app.pageNum);
+            }
+        }
+        // Update eraser cursor position and size
+        function updateEraserCursor(x, y) {
+            if (!x || !y) return;
+            
+            const eraserSize = 20; // Size of the eraser cursor
+            elements.eraserCursor.style.width = eraserSize + 'px';
+            elements.eraserCursor.style.height = eraserSize + 'px';
+            elements.eraserCursor.style.left = (x - eraserSize/2) + 'px';
+            elements.eraserCursor.style.top = (y - eraserSize/2) + 'px';
         }
         // Toggle debug mode
         function toggleDebugMode() {
@@ -1529,6 +1647,10 @@
                         updateStylusStatus();
                         updateToolButtonSelection();
                         
+                        // Show eraser cursor
+                        elements.eraserCursor.style.display = 'block';
+                        updateEraserCursor(e.clientX, e.clientY);
+                        
                         if (app.debugMode) {
                             console.log('Switched to eraser mode');
                         }
@@ -1592,7 +1714,7 @@
                     tool: app.currentTool
                 };
             } else if (app.currentTool === 'eraser') {
-                // Eraser tool - find and remove annotations at this position
+                // Eraser tool - find and remove path segments at this position
                 eraseAnnotation(app.startX, app.startY);
             } else if (app.currentTool === 'rectangle') {
                 app.currentAnnotation = {
@@ -1632,6 +1754,11 @@
             const rect = e.currentTarget.getBoundingClientRect();
             const currentX = e.clientX - rect.left;
             const currentY = e.clientY - rect.top;
+            
+            // Update eraser cursor position
+            if (app.currentTool === 'eraser') {
+                updateEraserCursor(e.clientX, e.clientY);
+            }
             
             // Update stylus indicators
             if (e.pointerType === 'pen') {
@@ -1735,6 +1862,11 @@
                     updateStylusStatus();
                     updateToolButtonSelection();
                     
+                    // Hide eraser cursor if not in eraser mode
+                    if (app.currentTool !== 'eraser') {
+                        elements.eraserCursor.style.display = 'none';
+                    }
+                    
                     if (app.debugMode) {
                         console.log('Returned to pen mode');
                     }
@@ -1814,6 +1946,7 @@
                     path.setAttribute('fill', 'none');
                     path.setAttribute('stroke-linecap', 'round');
                     path.setAttribute('stroke-linejoin', 'round');
+                    path.classList.add('path-segment');
                     
                     if (app.stylusSettings.opacityPressure) {
                         path.setAttribute('opacity', segment.opacity);
@@ -2014,14 +2147,52 @@
                 }
             });
         }
-        // Erase annotation at position
+        // Erase annotation at position (now erases individual path segments)
         function eraseAnnotation(x, y) {
             const annotationLayer = document.querySelector('.annotation-layer');
-            const annotations = annotationLayer.querySelectorAll('.annotation');
+            const drawingAnnotations = annotationLayer.querySelectorAll('.drawing-annotation');
             
-            for (let i = annotations.length - 1; i >= 0; i--) {
-                const ann = annotations[i];
-                const rect = ann.getBoundingClientRect();
+            // Eraser radius
+            const eraserRadius = 10;
+            
+            for (const annEl of drawingAnnotations) {
+                const svg = annEl.querySelector('svg');
+                if (!svg) continue;
+                
+                const paths = svg.querySelectorAll('.path-segment');
+                let segmentsRemoved = false;
+                
+                for (const path of paths) {
+                    // Get the path data
+                    const pathData = path.getAttribute('d');
+                    if (!pathData) continue;
+                    
+                    // Check if the eraser position intersects with this path segment
+                    if (isPointNearPath(x, y, pathData, eraserRadius)) {
+                        // Remove this path segment
+                        path.remove();
+                        segmentsRemoved = true;
+                    }
+                }
+                
+                // If all segments were removed, remove the entire annotation
+                if (segmentsRemoved && svg.querySelectorAll('.path-segment').length === 0) {
+                    // Remove from DOM
+                    annEl.remove();
+                    
+                    // Remove from annotations array
+                    const annotationId = annEl.dataset.annotationId;
+                    if (annotationId !== undefined) {
+                        app.annotations.splice(annotationId, 1);
+                    }
+                }
+            }
+            
+            // Also check other annotation types (text, highlight, etc.)
+            const otherAnnotations = annotationLayer.querySelectorAll('.annotation:not(.drawing-annotation)');
+            
+            for (const annEl of otherAnnotations) {
+                const rect = annEl.getBoundingClientRect();
                 const pageRect = annotationLayer.getBoundingClientRect();
                 
                 const annX = rect.left - pageRect.left;
@@ -2029,12 +2200,13 @@
                 const annWidth = rect.width;
                 const annHeight = rect.height;
                 
+                // Check if the eraser is within this annotation
                 if (x >= annX && x <= annX + annWidth && y >= annY && y <= annY + annHeight) {
                     // Remove from DOM
-                    ann.remove();
+                    annEl.remove();
                     
                     // Remove from annotations array
-                    const annotationId = ann.dataset.annotationId;
+                    const annotationId = annEl.dataset.annotationId;
                     if (annotationId !== undefined) {
                         app.annotations.splice(annotationId, 1);
                     }
@@ -2044,6 +2216,71 @@
                     break;
                 }
             }
+        }
+        // Check if a point is near a path segment
+        function isPointNearPath(x, y, pathData, threshold) {
+            // Simple implementation - check distance to path endpoints
+            // In a real implementation, you would use a more sophisticated algorithm
+            
+            // Extract points from path data
+            const points = pathData.match(/(\d+\.?\d*)/g);
+            if (!points || points.length < 2) return false;
+            
+            // Convert to numbers
+            for (let i = 0; i < points.length; i++) {
+                points[i] = parseFloat(points[i]);
+            }
+            
+            // Check distance to each line segment
+            for (let i = 0; i < points.length - 2; i += 2) {
+                const x1 = points[i];
+                const y1 = points[i + 1];
+                const x2 = points[i + 2];
+                const y2 = points[i + 3];
+                
+                // Calculate distance from point to line segment
+                const distance = pointToLineDistance(x, y, x1, y1, x2, y2);
+                
+                if (distance <= threshold) {
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+        // Calculate distance from point to line segment
+        function pointToLineDistance(x, y, x1, y1, x2, y2) {
+            // Calculate the distance from point (x,y) to line segment (x1,y1)-(x2,y2)
+            const A = x - x1;
+            const B = y - y1;
+            const C = x2 - x1;
+            const D = y2 - y1;
+            
+            const dot = A * C + B * D;
+            const lenSq = C * C + D * D;
+            let param = -1;
+            
+            if (lenSq !== 0) {
+                param = dot / lenSq;
+            }
+            
+            let xx, yy;
+            
+            if (param < 0) {
+                xx = x1;
+                yy = y1;
+            } else if (param > 1) {
+                xx = x2;
+                yy = y2;
+            } else {
+                xx = x1 + param * C;
+                yy = y1 + param * D;
+            }
+            
+            const dx = x - xx;
+            const dy = y - yy;
+            
+            return Math.sqrt(dx * dx + dy * dy);
         }
         // Render annotation
         function renderAnnotation(annotation, container) {
@@ -2097,6 +2334,7 @@
                     path.setAttribute('fill', 'none');
                     path.setAttribute('stroke-linecap', 'round');
                     path.setAttribute('stroke-linejoin', 'round');
+                    path.classList.add('path-segment');
                     
                     if (app.stylusSettings.opacityPressure) {
                         path.setAttribute('opacity', segment.opacity);
@@ -2286,7 +2524,7 @@
             if (window.PointerEvent) {
                 showToast('Stylus support detected! Both buttons can be configured for eraser.');
                 showToast('Default ink color set to black', 'info');
-                showToast('Pressure sensitivity: 27%, Max line width: 0.5px', 'info');
+                showToast('Max line width set to 5.2px', 'info');
             } else {
                 showToast('Stylus support not available. Using touch/mouse input instead.', 'info');
             }
