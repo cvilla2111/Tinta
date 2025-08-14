@@ -3,1689 +3,467 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Viewer with Stylus Support - Tinta</title>
-    <link href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>PDF Drawing App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    
-    <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#00677C">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <meta name="apple-mobile-web-app-title" content="Tinta">
-    <meta name="msapplication-TileColor" content="#00677C">
-    
-    <!-- Web App Manifest -->
-    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlRpbnRhIFBERiBWaWV3ZXIiLAogICJzaG9ydF9uYW1lIjogIlRpbnRhIiwKICAiZGVzY3JpcHRpb24iOiAiQSBQREYgdmlld2VyIHdpdGggc3R5bHVzIHN1cHBvcnQgZm9yIGFubm90YXRpb24iLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiI0U0RjBGNCIsCiAgInRoZW1lX2NvbG9yIjogIiMwMDY3N0MiLAogICJvcmllbnRhdGlvbiI6ICJwb3J0cmFpdC1wcmltYXJ5IiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sO2Jhc2U2NCxQSE4yWnlCNFZXeHVjejBpYUhSMGNEb3ZMM2QzZHk1M015NXZjbWN2TWpBd01DOXpkbWNpSUhCeVpYTmxjblpsUVhOd1pXTjBVbUZ6WlRZMFpYaDBjOWdpSUhOMGVYQmxQU0pwWkQwaVRUSTFNalUwTVRFMU5UazNPQ3dnWTJ1WlhoaGJYQnNaUzVqYjIwaU1qVTBNVEUxTlRrM09Dd2dZMjl1WlhoaGJYQnNaUzVqYjIwaUx6NDhMM0ErQ2p3dmMzWm5QZz09IiwKICAgICAgInNpemVzIjogIjE5MngxOTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIgogICAgfSwKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUI0Vld4dWN6MGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtY2lNakF3TUM5emRtY2lJSEJ5WlhObGNuWmxRWE53WldOMFVtRnpaVFkwWlhoMGN5Z2lJSE4wZVhCbFBTSnBaRDBpVFRJMU1qVTBNVEUxTlRrM09Dd2dZMjl1WlhoaGJYQnNaUzVqYjIwaUx6NDhMM0ErQ2p3dmMzWm5QZz09IiwKICAgICAgInNpemVzIjogIjUxMhx1MTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIgogICAgfSwKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUI0Vld4dWN6MGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtY2lNakF3TUM5emRtY2lJSEJ5WlhObGNuWmxRWE53WldOMFVtRnpaVFkwWlhoMGN5Z2lJSE4wZVhCbFBTSnBaRDBpVFRJMU1qVTBNVEUxTlRrM09Dd2dZMjl1WlhoaGJYQnNaUzVqYjIwaUx6NDhMM0ErQ2p3dmMzWm5QZz09IiwKICAgICAgInNpemVzIjogIjM4NHgzODQiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIgogICAgfQogIF0KfQ==">
-    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE',
+                        'bg-light': '#FFFFFF',
+                        'bg-dark': '#181818'
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            background-color: #E4F0F4;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-family: 'Mulish', sans-serif;
-            overflow: hidden;
-        }
-        .background-rectangle {
-            position: fixed;
-            top: 60px;
-            left: 100px;
-            width: calc(100vw - 100px);
-            height: calc(100vh - 60px);
-            background-color: #F5FAFD;
-            border-radius: 10px 0 0 0;
-            z-index: 1;
-        }
-        .app-title {
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            font-size: 30px;
-            color: #00677C;
-            font-weight: 600;
-            z-index: 100;
-            display: flex;
-            align-items: center;
-        }
-        .app-title svg {
-            margin-right: 0;
-        }
-        .load-button {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            background-color: #00677C;
-            color: white;
-            border: none;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            font-size: 36px;
-            font-weight: 100;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        .load-button:hover {
-            background-color: #004d5d;
-            transform: translateY(-2px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        }
-        .load-button:active {
-            transform: translateY(0);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-        #fileInput {
-            display: none;
-        }
-        .pdf-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background-color: #000;
-            display: none;
-            z-index: 9999;
-            overflow: hidden;
-        }
-        .pdf-container.active {
-            display: block;
-        }
-        .pdf-container.small-rectangle {
-            background-color: transparent;
-        }
-        .pdf-rectangle-wrapper {
-            position: fixed;
-            top: 80px;
-            left: 130px;
-            width: 240px;
-            height: 135px;
-            background-color: #fff;
-            border-radius: 8px;
-            cursor: pointer;
-            z-index: 10000;
-            display: none;
-        }
-        .pdf-container.small-rectangle .pdf-rectangle-wrapper {
-            display: block;
-        }
-        .pdf-image {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            border-radius: 8px;
-        }
-        .pdf-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            border-radius: 0;
-        }
-        .pdf-container.small-rectangle .pdf-canvas {
-            display: none;
-        }
-        .pdf-container:not(.small-rectangle) .pdf-canvas {
-            display: block;
-        }
-        .loading-indicator {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            font-size: 18px;
-            display: none;
-        }
-        .loading-indicator.active {
-            display: block;
-        }
-        .pdf-container.small-rectangle .loading-indicator {
-            color: #333;
-        }
-        .close-button {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background-color: rgba(255, 255, 255, 0.9);
-            border: none;
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            font-weight: bold;
-            color: #333;
-            transition: all 0.3s ease;
-            z-index: 10001;
-        }
-        .close-button:hover {
-            background-color: #fff;
-            transform: scale(1.1);
-        }
-        .pdf-container.small-rectangle .close-button {
-            display: flex;
-        }
-        .pdf-container:not(.small-rectangle) .close-button {
-            display: none;
-        }
-        .pdf-filename {
-            position: absolute;
-            bottom: -45px;
-            left: 0;
-            width: 100%;
-            text-align: center;
-            background-color: transparent;
-            color: #000;
-            padding: 6px 12px;
-            border-radius: 0;
-            font-size: 14px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            z-index: 9999;
-            transform: translateX(0);
-        }
-        .pdf-container.small-rectangle .pdf-filename {
-            display: block;
-        }
-        .pdf-container:not(.small-rectangle) .pdf-filename {
-            display: none;
-        }
-        
-        /* Drawing tools styles */
-        .drawing-tools {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: #ffffff;
-            border-radius: 12px;
-            padding: 10px 15px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-            z-index: 10002;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            cursor: move;
-            user-select: none;
-            touch-action: none;
-        }
-        .pdf-container:not(.small-rectangle) .drawing-tools {
-            opacity: 1;
-        }
-        .tool-button {
-            background: none;
-            border: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #333;
-            font-size: 18px;
-            transition: all 0.2s ease;
-            touch-action: manipulation;
-        }
-        .tool-button:hover {
-            background-color: rgba(0, 103, 124, 0.1);
-        }
-        .tool-button.active {
-            background-color: #00677C;
-            color: white;
-        }
-        .tool-button:active {
-            transform: scale(0.95);
-        }
-        .tool-divider {
-            width: 1px;
-            height: 30px;
-            background-color: #ddd;
-        }
-        .color-picker {
-            width: 30px;
-            height: 30px;
-            border: 2px solid #ddd;
-            border-radius: 50%;
-            cursor: pointer;
-            overflow: hidden;
-            transition: all 0.2s ease;
-            touch-action: manipulation;
-        }
-        .color-picker:hover {
-            border-color: #00677C;
-        }
-        .thickness-slider {
-            width: 100px;
-            height: 6px;
-            border-radius: 3px;
-            background: #ddd;
-            outline: none;
-            cursor: pointer;
-            touch-action: manipulation;
-        }
-        .thickness-value {
-            font-size: 14px;
-            color: #333;
-            min-width: 25px;
-            text-align: center;
-            font-weight: 600;
-        }
-        .drag-handle {
-            position: absolute;
-            top: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 40px;
-            height: 6px;
-            background-color: #ddd;
-            border-radius: 3px;
-            cursor: grab;
-        }
-        .drag-handle:active {
-            cursor: grabbing;
-        }
-        
-        /* Drawing canvas */
         .drawing-canvas {
             position: absolute;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 10001;
-            touch-action: none;
+            pointer-events: auto;
+            cursor: crosshair;
         }
-        .pdf-container.small-rectangle .drawing-canvas {
-            display: none;
-        }
-        
-        /* Position indicator for toolbar */
-        .position-indicator {
-            position: absolute;
-            bottom: -30px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: rgba(0, 103, 124, 0.8);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            pointer-events: none;
-        }
-        .drawing-tools.dragging .position-indicator {
-            opacity: 1;
-        }
-        
-        /* Visual feedback for stylus */
-        .tool-button.stylus-active {
-            transform: scale(0.9);
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-        
-        /* Eraser cursor indicator - Changed to circle */
-        .eraser-cursor {
-            position: absolute;
-            border: 2px dotted #FF0000;
-            border-radius: 50%;
-            pointer-events: none;
-            z-index: 10003;
-            display: none;
-            box-shadow: 0 0 0 1px rgba(255, 0, 0, 0.3);
-            transition: width 0.1s ease, height 0.1s ease, margin-left 0.1s ease, margin-top 0.1s ease;
-        }
-        .pdf-container:not(.small-rectangle) .eraser-cursor {
-            display: block;
-        }
-        
-        /* Install button */
-        .install-button {
-            position: fixed;
-            bottom: 30px;
-            right: 100px;
-            background-color: #00677C;
-            color: white;
-            border: none;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            font-size: 24px;
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        .install-button:hover {
-            background-color: #004d5d;
-            transform: translateY(-2px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        }
-        .install-button:active {
-            transform: translateY(0);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-        
-        /* Pressure sensitivity controls */
-        .pressure-controls {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .pressure-toggle {
+        .pdf-container {
             position: relative;
             display: inline-block;
-            width: 40px;
-            height: 22px;
         }
-        
-        .pressure-toggle input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-        
-        .toggle-slider {
-            position: absolute;
-            cursor: pointer;
+        .toolbar {
+            position: sticky;
             top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #ccc;
-            transition: .4s;
-            border-radius: 22px;
+            z-index: 10;
         }
-        
-        .toggle-slider:before {
-            position: absolute;
-            content: "";
-            height: 16px;
-            width: 16px;
-            left: 3px;
-            bottom: 3px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-        
-        input:checked + .toggle-slider {
-            background-color: #00677C;
-        }
-        
-        input:checked + .toggle-slider:before {
-            transform: translateX(18px);
-        }
-        
-        .pressure-sliders {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        
-        .pressure-min-max {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        
-        .pressure-label {
-            font-size: 12px;
-            color: #666;
-            min-width: 25px;
-        }
-        
-        .pressure-min-slider, .pressure-max-slider, .pressure-sensitivity-slider {
-            width: 60px;
-            height: 6px;
-            border-radius: 3px;
-            background: #ddd;
-            outline: none;
-            cursor: pointer;
-            touch-action: manipulation;
-        }
-        
-        .pressure-min-value, .pressure-max-value, .pressure-sensitivity-value {
-            font-size: 12px;
-            color: #333;
-            min-width: 20px;
-            text-align: center;
-            font-weight: 600;
-        }
-        
-        .pressure-icon {
-            font-size: 18px;
-            color: #333;
-        }
-        
-        /* Pressure cursor indicator */
-        .pressure-cursor {
-            position: absolute;
-            border: 2px solid #00677C;
-            border-radius: 50%;
-            pointer-events: none;
-            z-index: 10003;
-            display: none;
-            box-shadow: 0 0 0 1px rgba(0, 103, 124, 0.3);
-            transition: width 0.1s ease, height 0.1s ease, margin-left 0.1s ease, margin-top 0.1s ease;
-        }
-        .pdf-container:not(.small-rectangle) .pressure-cursor {
-            display: block;
+        .tool-active {
+            background-color: #5D5CDE;
+            color: white;
         }
     </style>
 </head>
-<body>
-    <!-- Background rectangle for aesthetic purposes -->
-    <div class="background-rectangle"></div>
-    
-    <!-- App title with icon -->
-    <h1 class="app-title">
-        <svg xmlns="http://www.w3.org/2000/svg" height="40px" viewBox="0 -960 960 960" width="40px" fill="#00677C">
-            <path d="m307-324-87-358 260-238 260 238-87 358H307Zm52.33-66.67h241.34l65.66-269-153-139V-668q14 8.67 22.67 23 8.67 14.33 8.67 31.67 0 26.33-18.84 45.16Q507-549.33 480-549.33t-45.83-18.84q-18.84-18.83-18.84-45.16 0-17.34 8.67-31.67 8.67-14.33 22.67-23v-130.67l-153 139 65.66 269ZM160-120l21.33-59.67q8-23 27.67-37t43.67-14h454.66q24 0 43.67 14t27.67 37L800-120H160Z"/>
-        </svg>
-        Tinta
-    </h1>
-    
-    <button class="load-button" onclick="document.getElementById('fileInput').click()">
-        +
-    </button>
-    
-    <button class="install-button" id="installButton" title="Install App">
-        <i class="fas fa-download"></i>
-    </button>
-    
-    <input type="file" id="fileInput" accept=".pdf" onchange="loadPDF(event)">
-    
-    <div class="pdf-container" id="pdfContainer">
-        <canvas class="pdf-canvas" id="pdfCanvas"></canvas>
-        <canvas class="drawing-canvas" id="drawingCanvas"></canvas>
-        <div class="loading-indicator" id="loadingIndicator">Loading PDF...</div>
-        
-        <!-- Eraser cursor indicator - Now circular -->
-        <div class="eraser-cursor" id="eraserCursor"></div>
-        
-        <!-- Pressure cursor indicator -->
-        <div class="pressure-cursor" id="pressureCursor"></div>
-        
-        <!-- Drawing Tools -->
-        <div class="drawing-tools" id="drawingTools">
-            <div class="drag-handle"></div>
-            <button class="tool-button active" id="penTool" title="Pen">
-                <i class="fas fa-pen"></i>
-            </button>
-            <button class="tool-button" id="eraserTool" title="Eraser">
-                <i class="fas fa-eraser"></i>
-            </button>
-            <div class="tool-divider"></div>
-            <input type="color" class="color-picker" id="colorPicker" value="#FF0000" title="Pen Color">
-            <div class="tool-divider"></div>
-            <input type="range" class="thickness-slider" id="thicknessSlider" min="1" max="20" value="3" title="Pen Thickness">
-            <span class="thickness-value" id="thicknessValue">3</span>
-            <div class="tool-divider"></div>
-            
-            <!-- Pressure Sensitivity Controls -->
-            <div class="pressure-controls">
-                <i class="fas fa-hand-paper pressure-icon" title="Pressure Sensitivity"></i>
-                <label class="pressure-toggle">
-                    <input type="checkbox" id="pressureToggle">
-                    <span class="toggle-slider"></span>
+<body class="bg-bg-light dark:bg-bg-dark text-gray-900 dark:text-gray-100 min-h-screen">
+    <!-- Toolbar -->
+    <div class="toolbar bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
+        <div class="flex flex-wrap items-center gap-4">
+            <!-- File Input -->
+            <div class="flex items-center gap-2">
+                <label for="pdfFile" class="px-4 py-2 bg-primary text-white rounded-lg cursor-pointer hover:bg-opacity-90 transition-colors text-base">
+                    Load PDF
                 </label>
-                <div class="pressure-sliders">
-                    <div class="pressure-min-max">
-                        <span class="pressure-label">Min:</span>
-                        <input type="range" class="pressure-min-slider" id="pressureMinSlider" min="1" max="10" value="1" title="Minimum Line Width">
-                        <span class="pressure-min-value" id="pressureMinValue">1</span>
-                    </div>
-                    <div class="pressure-min-max">
-                        <span class="pressure-label">Max:</span>
-                        <input type="range" class="pressure-max-slider" id="pressureMaxSlider" min="1" max="20" value="6" title="Maximum Line Width">
-                        <span class="pressure-max-value" id="pressureMaxValue">6</span>
-                    </div>
-                    <div class="pressure-min-max">
-                        <span class="pressure-label">Sense:</span>
-                        <input type="range" class="pressure-sensitivity-slider" id="pressureSensitivitySlider" min="0.5" max="3" step="0.1" value="1.5" title="Pressure Sensitivity">
-                        <span class="pressure-sensitivity-value" id="pressureSensitivityValue">1.5</span>
-                    </div>
+                <input type="file" id="pdfFile" accept=".pdf" class="hidden">
+            </div>
+
+            <!-- Drawing Tools -->
+            <div class="flex items-center gap-2">
+                <button id="penTool" class="tool-active px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 transition-colors text-base">
+                    ✏️ Pen
+                </button>
+                <button id="highlighterTool" class="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-base">
+                    🖍️ Highlight
+                </button>
+                <button id="eraserTool" class="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-base">
+                    🗑️ Eraser
+                </button>
+            </div>
+
+            <!-- Color Picker -->
+            <div class="flex items-center gap-2">
+                <label class="text-sm font-medium">Color:</label>
+                <input type="color" id="colorPicker" value="#000000" class="w-10 h-10 rounded border border-gray-300 dark:border-gray-600">
+                <div class="flex gap-1">
+                    <button class="color-preset w-6 h-6 rounded-full border-2 border-gray-300" style="background-color: #000000" data-color="#000000"></button>
+                    <button class="color-preset w-6 h-6 rounded-full border-2 border-gray-300" style="background-color: #FF0000" data-color="#FF0000"></button>
+                    <button class="color-preset w-6 h-6 rounded-full border-2 border-gray-300" style="background-color: #00FF00" data-color="#00FF00"></button>
+                    <button class="color-preset w-6 h-6 rounded-full border-2 border-gray-300" style="background-color: #0000FF" data-color="#0000FF"></button>
+                    <button class="color-preset w-6 h-6 rounded-full border-2 border-gray-300" style="background-color: #FFFF00" data-color="#FFFF00"></button>
+                </div>
+            </div>
+
+            <!-- Brush Size -->
+            <div class="flex items-center gap-2">
+                <label class="text-sm font-medium">Size:</label>
+                <input type="range" id="brushSize" min="1" max="20" value="3" class="w-20">
+                <span id="sizeDisplay" class="text-sm w-8">3px</span>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center gap-2">
+                <button id="clearAll" class="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-base">
+                    Clear All
+                </button>
+                <button id="saveAnnotated" class="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-base">
+                    Save PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="p-4">
+        <!-- Instructions -->
+        <div id="instructions" class="text-center py-8">
+            <div class="max-w-md mx-auto">
+                <h1 class="text-2xl font-bold mb-4">PDF Drawing App</h1>
+                <p class="text-gray-600 dark:text-gray-400 mb-4">
+                    Load a PDF file to start drawing and annotating. Supports pressure-sensitive stylus input (MPP compatible).
+                </p>
+                <div class="text-sm text-gray-500 dark:text-gray-500">
+                    <p>• Use pen tool for precise drawing</p>
+                    <p>• Use highlighter for transparent annotations</p>
+                    <p>• Eraser removes drawings</p>
+                    <p>• Pressure sensitivity adjusts line width</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- PDF Viewer -->
+        <div id="pdfViewer" class="hidden">
+            <div class="text-center mb-4">
+                <span class="text-sm text-gray-600 dark:text-gray-400">
+                    Page <span id="currentPage">1</span> of <span id="totalPages">1</span>
+                </span>
+                <div class="inline-flex gap-2 ml-4">
+                    <button id="prevPage" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-base">
+                        Previous
+                    </button>
+                    <button id="nextPage" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-base">
+                        Next
+                    </button>
                 </div>
             </div>
             
-            <div class="tool-divider"></div>
-            <button class="tool-button" id="clearTool" title="Clear Drawing">
-                <i class="fas fa-trash"></i>
-            </button>
-            <div class="position-indicator" id="positionIndicator">Drag to move</div>
-        </div>
-        
-        <div class="pdf-rectangle-wrapper" id="pdfRectangleWrapper">
-            <button class="close-button" onclick="closePDF()">×</button>
-            <img class="pdf-image" id="pdfImage" src="" alt="PDF Preview">
-            <div class="loading-indicator" id="loadingIndicatorSmall">Loading PDF...</div>
-            <div class="pdf-filename" id="pdfFilename"></div>
+            <div class="flex justify-center">
+                <div id="pdfContainer" class="pdf-container border border-gray-300 dark:border-gray-600">
+                    <canvas id="pdfCanvas"></canvas>
+                    <canvas id="drawingCanvas" class="drawing-canvas"></canvas>
+                </div>
+            </div>
         </div>
     </div>
-    
+
     <script>
-        // Set the worker source for PDF.js
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        
-        // PWA Installation
-        let deferredPrompt;
-        const installButton = document.getElementById('installButton');
-        
-        // Register service worker for PWA
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                // Create a simple service worker inline
-                const serviceWorkerContent = `
-                    self.addEventListener('install', event => {
-                        console.log('Service Worker installing.');
-                    });
-                    
-                    self.addEventListener('activate', event => {
-                        console.log('Service Worker activating.');
-                    });
-                    
-                    self.addEventListener('fetch', event => {
-                        event.respondWith(
-                            fetch(event.request).catch(() => {
-                                return caches.match(event.request);
-                            })
-                        );
-                    });
-                `;
-                
-                const blob = new Blob([serviceWorkerContent], { type: 'application/javascript' });
-                const serviceWorkerUrl = URL.createObjectURL(blob);
-                
-                navigator.serviceWorker.register(serviceWorkerUrl)
-                    .then(registration => {
-                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                    })
-                    .catch(error => {
-                        console.log('ServiceWorker registration failed: ', error);
-                    });
-            });
+        // Dark mode setup
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
         }
-        
-        // Listen for the beforeinstallprompt event
-        window.addEventListener('beforeinstallprompt', (e) => {
-            // Prevent the mini-infobar from appearing on mobile
-            e.preventDefault();
-            // Stash the event so it can be triggered later
-            deferredPrompt = e;
-            // Update UI to notify the user they can install the PWA
-            installButton.style.display = 'flex';
-        });
-        
-        // Install button click handler
-        installButton.addEventListener('click', async () => {
-            if (deferredPrompt) {
-                // Show the install prompt
-                deferredPrompt.prompt();
-                // Wait for the user to respond to the prompt
-                const { outcome } = await deferredPrompt.userChoice;
-                console.log(`User response to the install prompt: ${outcome}`);
-                // We've used the prompt, and can't use it again, throw it away
-                deferredPrompt = null;
-                // Hide the install button
-                installButton.style.display = 'none';
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
             }
         });
-        
-        // Hide the install button if the PWA is successfully installed
-        window.addEventListener('appinstalled', () => {
-            installButton.style.display = 'none';
-            console.log('PWA was installed');
-        });
-        
-        // Check if the app is running in standalone mode (already installed)
-        if (window.matchMedia('(display-mode: standalone)').matches || 
-            window.navigator.standalone === true) {
-            installButton.style.display = 'none';
-        }
-        
-        let pdfDoc = null;
-        let pdfBlob = null;
+
+        // PDF.js setup
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        // App state
+        let currentPDF = null;
         let currentPage = 1;
-        let pageRendering = false;
-        let pageNumPending = null;
-        const scale = 1.5;
-        const canvas = document.getElementById('pdfCanvas');
-        const ctx = canvas.getContext('2d');
-        const pdfContainer = document.getElementById('pdfContainer');
-        const pdfFilename = document.getElementById('pdfFilename');
-        const pdfImage = document.getElementById('pdfImage');
-        const pdfRectangleWrapper = document.getElementById('pdfRectangleWrapper');
-        const loadingIndicatorSmall = document.getElementById('loadingIndicatorSmall');
-        
-        // Drawing variables
-        const drawingCanvas = document.getElementById('drawingCanvas');
-        const drawingCtx = drawingCanvas.getContext('2d');
-        let isDrawing = false;
+        let totalPages = 0;
         let currentTool = 'pen';
-        let penColor = '#FF0000';
-        let penThickness = 3;
+        let isDrawing = false;
+        let drawings = {}; // Store drawings per page
         let lastX = 0;
         let lastY = 0;
-        
-        // Smooth drawing variables
-        let points = [];
-        let lastPoint = null;
-        
-        // Pressure sensitivity variables
-        let pressureSensitive = false;
-        let pressureMin = 1;
-        let pressureMax = 6;
-        let pressureSensitivity = 1.5; // New pressure sensitivity factor
-        let lastPressure = 0.5;
-        
-        // Drawing tools elements
-        const penTool = document.getElementById('penTool');
-        const eraserTool = document.getElementById('eraserTool');
+
+        // Canvas elements
+        const pdfCanvas = document.getElementById('pdfCanvas');
+        const drawingCanvas = document.getElementById('drawingCanvas');
+        const pdfCtx = pdfCanvas.getContext('2d');
+        const drawingCtx = drawingCanvas.getContext('2d');
+
+        // UI elements
+        const pdfFile = document.getElementById('pdfFile');
+        const instructions = document.getElementById('instructions');
+        const pdfViewer = document.getElementById('pdfViewer');
+        const currentPageSpan = document.getElementById('currentPage');
+        const totalPagesSpan = document.getElementById('totalPages');
+        const prevPageBtn = document.getElementById('prevPage');
+        const nextPageBtn = document.getElementById('nextPage');
+        const brushSize = document.getElementById('brushSize');
+        const sizeDisplay = document.getElementById('sizeDisplay');
         const colorPicker = document.getElementById('colorPicker');
-        const thicknessSlider = document.getElementById('thicknessSlider');
-        const thicknessValue = document.getElementById('thicknessValue');
-        const clearTool = document.getElementById('clearTool');
-        const drawingTools = document.getElementById('drawingTools');
-        const positionIndicator = document.getElementById('positionIndicator');
-        
-        // Pressure sensitivity elements
-        const pressureToggle = document.getElementById('pressureToggle');
-        const pressureMinSlider = document.getElementById('pressureMinSlider');
-        const pressureMaxSlider = document.getElementById('pressureMaxSlider');
-        const pressureSensitivitySlider = document.getElementById('pressureSensitivitySlider');
-        const pressureMinValue = document.getElementById('pressureMinValue');
-        const pressureMaxValue = document.getElementById('pressureMaxValue');
-        const pressureSensitivityValue = document.getElementById('pressureSensitivityValue');
-        const pressureCursor = document.getElementById('pressureCursor');
-        
-        // Eraser cursor elements
-        const eraserCursor = document.getElementById('eraserCursor');
-        
-        // Drag variables
-        let isDragging = false;
-        let dragStartX = 0;
-        let dragStartY = 0;
-        let toolbarStartX = 0;
-        let toolbarStartY = 0;
-        
-        // Speed tracking variables for eraser cursor
-        let cursorLastX = 0;
-        let cursorLastY = 0;
-        let cursorLastTime = 0;
-        let cursorSpeed = 0;
-        let cursorBaseSize = 0;
-        let currentEraserMultiplier = 1.0;
-        
-        // Helper function to clean up PDF resources
-        function cleanupPdfResources() {
-            // Cancel any pending page rendering
-            if (pageRendering && pageNumPending !== null) {
-                pageNumPending = null;
-            }
-            
-            // Destroy PDF document if it exists
-            if (pdfDoc) {
-                pdfDoc.destroy().then(() => {
-                    pdfDoc = null;
-                }).catch(error => {
-                    console.error('Error destroying PDF document:', error);
-                    pdfDoc = null;
-                });
-            }
-            
-            // Clear canvas and release memory
-            if (canvas) {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                canvas.width = 0;
-                canvas.height = 0;
-            }
-            
-            // Clear drawing canvas
-            if (drawingCanvas) {
-                drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-                drawingCanvas.width = 0;
-                drawingCanvas.height = 0;
-            }
-            
-            // Revoke blob URL if exists
-            if (pdfBlob) {
-                URL.revokeObjectURL(pdfBlob);
-                pdfBlob = null;
-            }
-            
-            // Reset state
+
+        // Tool buttons
+        const penTool = document.getElementById('penTool');
+        const highlighterTool = document.getElementById('highlighterTool');
+        const eraserTool = document.getElementById('eraserTool');
+        const clearAll = document.getElementById('clearAll');
+        const saveAnnotated = document.getElementById('saveAnnotated');
+
+        // Load PDF file
+        pdfFile.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const arrayBuffer = await file.arrayBuffer();
+            currentPDF = await pdfjsLib.getDocument(arrayBuffer).promise;
+            totalPages = currentPDF.numPages;
             currentPage = 1;
-            pageRendering = false;
-            pageNumPending = null;
+            drawings = {};
+
+            totalPagesSpan.textContent = totalPages;
+            instructions.classList.add('hidden');
+            pdfViewer.classList.remove('hidden');
+            
+            await renderPage(currentPage);
+        });
+
+        // Render PDF page
+        async function renderPage(pageNum) {
+            const page = await currentPDF.getPage(pageNum);
+            const viewport = page.getViewport({ scale: 1.5 });
+
+            // Set canvas size
+            pdfCanvas.width = viewport.width;
+            pdfCanvas.height = viewport.height;
+            drawingCanvas.width = viewport.width;
+            drawingCanvas.height = viewport.height;
+
+            // Render PDF
+            await page.render({
+                canvasContext: pdfCtx,
+                viewport: viewport
+            }).promise;
+
+            // Restore drawings for this page
+            restoreDrawings(pageNum);
+            
+            currentPageSpan.textContent = pageNum;
+            prevPageBtn.disabled = pageNum === 1;
+            nextPageBtn.disabled = pageNum === totalPages;
         }
-        
-        function loadPDF(event) {
-            const file = event.target.files[0];
-            if (!file) {
-                console.log('No file selected');
-                return;
+
+        // Page navigation
+        prevPageBtn.addEventListener('click', () => {
+            if (currentPage > 1) {
+                saveCurrentDrawings();
+                currentPage--;
+                renderPage(currentPage);
             }
-            
-            console.log('File selected:', file.name, file.type, file.size);
-            
-            if (file.type !== 'application/pdf') {
-                alert('Please select a valid PDF file.');
-                return;
+        });
+
+        nextPageBtn.addEventListener('click', () => {
+            if (currentPage < totalPages) {
+                saveCurrentDrawings();
+                currentPage++;
+                renderPage(currentPage);
             }
-            
-            // Clean up any existing PDF resources
-            cleanupPdfResources();
-            
-            // Show loading indicator
-            pdfContainer.classList.add('active');
-            document.getElementById('loadingIndicator').classList.add('active');
-            
-            try {
-                // Create a blob URL for the file
-                pdfBlob = URL.createObjectURL(file);
-                console.log('Blob URL created:', pdfBlob);
-                
-                // Store and display filename
-                const fileName = file.name;
-                pdfFilename.textContent = fileName;
-                
-                // Load PDF from blob URL
-                const loadingTask = pdfjsLib.getDocument(pdfBlob);
-                
-                loadingTask.promise.then(function(pdf) {
-                    console.log('PDF loaded successfully. Pages:', pdf.numPages);
-                    pdfDoc = pdf;
-                    document.getElementById('loadingIndicator').classList.remove('active');
-                    
-                    // Request fullscreen
-                    if (pdfContainer.requestFullscreen) {
-                        pdfContainer.requestFullscreen().catch(err => {
-                            console.error('Error attempting to enable fullscreen:', err);
-                        });
-                    } else if (pdfContainer.webkitRequestFullscreen) {
-                        pdfContainer.webkitRequestFullscreen();
-                    } else if (pdfContainer.msRequestFullscreen) {
-                        pdfContainer.msRequestFullscreen();
-                    }
-                    
-                    // Render first page on fullscreen canvas
-                    renderPage(currentPage, canvas, ctx);
-                }).catch(function(error) {
-                    console.error('Error loading PDF:', error);
-                    document.getElementById('loadingIndicator').classList.remove('active');
-                    alert('Error loading PDF. Please try another file.\n\nError: ' + error.message);
-                    closePDF();
-                });
-                
-            } catch (error) {
-                console.error('Error in loadPDF:', error);
-                document.getElementById('loadingIndicator').classList.remove('active');
-                alert('Error processing PDF file. Please try another file.');
-                closePDF();
-            }
-        }
-        
-        function renderPage(num, canvas, ctx) {
-            return new Promise((resolve, reject) => {
-                if (!pdfDoc) {
-                    console.error('No PDF document loaded');
-                    resolve();
-                    return;
-                }
-                
-                console.log('Rendering page:', num);
-                
-                pdfDoc.getPage(num).then(function(page) {
-                    console.log('Page loaded successfully:', num);
-                    const viewport = page.getViewport({scale: scale});
-                    canvas.height = viewport.height;
-                    canvas.width = viewport.width;
-                    
-                    // Set drawing canvas to same dimensions
-                    drawingCanvas.height = viewport.height;
-                    drawingCanvas.width = viewport.width;
-                    
-                    const renderContext = {
-                        canvasContext: ctx,
-                        viewport: viewport
-                    };
-                    
-                    const renderTask = page.render(renderContext);
-                    
-                    renderTask.promise.then(function() {
-                        console.log('Page rendered successfully:', num);
-                        resolve();
-                    }).catch(function(error) {
-                        console.error('Error rendering page:', error);
-                        resolve();
-                    });
-                }).catch(function(error) {
-                    console.error('Error getting page:', error);
-                    resolve();
-                });
+        });
+
+        // Tool selection
+        function selectTool(tool) {
+            currentTool = tool;
+            document.querySelectorAll('.tool-active').forEach(btn => {
+                btn.classList.remove('tool-active');
+                btn.classList.add('hover:bg-gray-100', 'dark:hover:bg-gray-700');
             });
+            
+            const toolBtn = document.getElementById(tool + 'Tool');
+            toolBtn.classList.add('tool-active');
+            toolBtn.classList.remove('hover:bg-gray-100', 'dark:hover:bg-gray-700');
+            
+            // Update cursor
+            if (tool === 'eraser') {
+                drawingCanvas.style.cursor = 'grab';
+            } else {
+                drawingCanvas.style.cursor = 'crosshair';
+            }
         }
-        
-        function renderPageToImage(pageNum) {
-            return new Promise((resolve) => {
-                if (!pdfDoc) {
-                    resolve('');
-                    return;
-                }
-                
-                // Create a temporary canvas
-                const tempCanvas = document.createElement('canvas');
-                const tempCtx = tempCanvas.getContext('2d');
-                
-                pdfDoc.getPage(pageNum).then(function(page) {
-                    const viewport = page.getViewport({scale: scale});
-                    tempCanvas.height = viewport.height;
-                    tempCanvas.width = viewport.width;
-                    
-                    const renderContext = {
-                        canvasContext: tempCtx,
-                        viewport: viewport
-                    };
-                    
-                    const renderTask = page.render(renderContext);
-                    
-                    renderTask.promise.then(function() {
-                        // Convert to data URL
-                        const dataUrl = tempCanvas.toDataURL();
-                        // Clean up the temporary canvas
-                        tempCanvas.width = 0;
-                        tempCanvas.height = 0;
-                        resolve(dataUrl);
-                    }).catch(function(error) {
-                        console.error('Error rendering page to image:', error);
-                        // Clean up the temporary canvas
-                        tempCanvas.width = 0;
-                        tempCanvas.height = 0;
-                        resolve('');
-                    });
-                }).catch(function(error) {
-                    console.error('Error getting page for image:', error);
-                    // Clean up the temporary canvas
-                    tempCanvas.width = 0;
-                    tempCanvas.height = 0;
-                    resolve('');
-                });
+
+        penTool.addEventListener('click', () => selectTool('pen'));
+        highlighterTool.addEventListener('click', () => selectTool('highlighter'));
+        eraserTool.addEventListener('click', () => selectTool('eraser'));
+
+        // Brush size control
+        brushSize.addEventListener('input', (e) => {
+            sizeDisplay.textContent = e.target.value + 'px';
+        });
+
+        // Color presets
+        document.querySelectorAll('.color-preset').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                colorPicker.value = e.target.dataset.color;
             });
-        }
-        
-        async function queueRenderPage(num) {
-            if (pageRendering) {
-                pageNumPending = num;
-            } else {
-                pageRendering = true;
-                await renderPage(num, canvas, ctx);
-                pageRendering = false;
-                if (pageNumPending !== null) {
-                    const pending = pageNumPending;
-                    pageNumPending = null;
-                    queueRenderPage(pending);
-                }
-            }
-        }
-        
-        function closePDF() {
-            console.log('Closing PDF');
-            
-            // Exit fullscreen if in fullscreen
-            if (document.fullscreenElement) {
-                document.exitFullscreen().catch(err => {
-                    console.error('Error attempting to exit fullscreen:', err);
-                });
-            } else if (document.webkitFullscreenElement) {
-                document.webkitExitFullscreen();
-            } else if (document.msFullscreenElement) {
-                document.msExitFullscreen();
-            }
-            
-            // Clean up all PDF resources
-            cleanupPdfResources();
-            
-            // Reset UI
-            pdfContainer.classList.remove('active', 'small-rectangle');
-            document.getElementById('fileInput').value = '';
-            pdfFilename.textContent = '';
-            pdfImage.src = '';
-        }
-        
-        // Update eraser cursor size
-        function updateEraserCursor() {
-            cursorBaseSize = penThickness * 3 * 2; // Eraser is 3x pen thickness, and we want the circle to be that size
-            eraserCursor.style.width = cursorBaseSize + 'px';
-            eraserCursor.style.height = cursorBaseSize + 'px';
-            eraserCursor.style.marginLeft = -cursorBaseSize / 2 + 'px';
-            eraserCursor.style.marginTop = -cursorBaseSize / 2 + 'px';
-        }
-        
-        // Calculate cursor speed and update eraser cursor size
-        function updateEraserSpeed(x, y) {
-            const currentTime = Date.now();
-            
-            if (cursorLastTime === 0) {
-                // First time, initialize
-                cursorLastX = x;
-                cursorLastY = y;
-                cursorLastTime = currentTime;
-                return;
-            }
-            
-            const timeDelta = currentTime - cursorLastTime;
-            if (timeDelta === 0) return;
-            
-            // Calculate distance
-            const distance = Math.sqrt(Math.pow(x - cursorLastX, 2) + Math.pow(y - cursorLastY, 2));
-            
-            // Calculate speed in pixels per second
-            cursorSpeed = (distance / timeDelta) * 1000;
-            
-            // Map speed to size multiplier with enhanced effect
-            const minMultiplier = 1.0;
-            const maxMultiplier = 5.0; // Increased from 3.0 to 5.0 for more dramatic effect
-            const maxSpeed = 2000; // pixels per second
-            
-            let multiplier = minMultiplier + (cursorSpeed / maxSpeed) * (maxMultiplier - minMultiplier);
-            multiplier = Math.min(maxMultiplier, Math.max(minMultiplier, multiplier));
-            
-            // Apply smoothing to make size changes more gradual
-            const smoothingFactor = 0.3;
-            const currentWidth = parseFloat(eraserCursor.style.width) || cursorBaseSize;
-            const targetWidth = cursorBaseSize * multiplier;
-            const newWidth = currentWidth + (targetWidth - currentWidth) * smoothingFactor;
-            
-            // Update eraser cursor size
-            eraserCursor.style.width = newWidth + 'px';
-            eraserCursor.style.height = newWidth + 'px';
-            eraserCursor.style.marginLeft = -newWidth / 2 + 'px';
-            eraserCursor.style.marginTop = -newWidth / 2 + 'px';
-            
-            // Store the current multiplier for drawing
-            currentEraserMultiplier = newWidth / cursorBaseSize;
-            
-            // Update last position and time
-            cursorLastX = x;
-            cursorLastY = y;
-            cursorLastTime = currentTime;
-        }
-        
-        // Update pressure cursor size
-        function updatePressureCursor(pressure) {
-            if (!pressureSensitive || currentTool !== 'pen') {
-                pressureCursor.style.display = 'none';
-                return;
-            }
-            
-            // Calculate size based on min, max, and current pressure
-            const size = pressureMin + (pressureMax - pressureMin) * pressure;
-            
-            pressureCursor.style.width = size + 'px';
-            pressureCursor.style.height = size + 'px';
-            pressureCursor.style.marginLeft = -size / 2 + 'px';
-            pressureCursor.style.marginTop = -size / 2 + 'px';
-            pressureCursor.style.display = 'block';
-        }
-        
-        // Smooth drawing functions
-        function getMidPoint(p1, p2) {
-            return {
-                x: (p1.x + p2.x) / 2,
-                y: (p1.y + p2.y) / 2,
-                pressure: (p1.pressure + p2.pressure) / 2
-            };
-        }
-        
-        function drawSmoothLine(points) {
-            if (points.length < 2) return;
-            
-            drawingCtx.beginPath();
-            drawingCtx.moveTo(points[0].x, points[0].y);
-            
-            // Draw the first segment
-            if (points.length === 2) {
-                drawingCtx.lineTo(points[1].x, points[1].y);
-            } else {
-                // Draw smooth curves for 3 or more points
-                for (let i = 1; i < points.length - 2; i++) {
-                    const mp = getMidPoint(points[i], points[i + 1]);
-                    drawingCtx.quadraticCurveTo(points[i].x, points[i].y, mp.x, mp.y);
-                }
-                
-                // Draw the last segment
-                const last = points.length - 1;
-                drawingCtx.quadraticCurveTo(
-                    points[last - 1].x, 
-                    points[last - 1].y, 
-                    points[last].x, 
-                    points[last].y
-                );
-            }
-            
-            drawingCtx.stroke();
-        }
-        
+        });
+
         // Drawing functions
         function startDrawing(e) {
-            if (pdfContainer.classList.contains('small-rectangle') || isDragging) return;
-            
             isDrawing = true;
-            points = [];
-            
-            const [x, y] = getCoordinates(e);
-            
-            // Get pressure if available
-            if (e.pressure !== undefined) {
-                lastPressure = e.pressure;
-            } else {
-                lastPressure = 0.5; // Default pressure
-            }
-            
-            // Add the first point
-            points.push({x, y, pressure: lastPressure});
-            lastPoint = {x, y, pressure: lastPressure};
-            
-            // Reset cursor tracking when starting to draw
+            const rect = drawingCanvas.getBoundingClientRect();
+            lastX = e.clientX - rect.left;
+            lastY = e.clientY - rect.top;
+
             if (currentTool === 'eraser') {
-                cursorLastTime = 0;
+                erase(lastX, lastY);
+            } else {
+                setupBrush();
+                drawingCtx.beginPath();
+                drawingCtx.moveTo(lastX, lastY);
             }
         }
-        
+
         function draw(e) {
-            if (!isDrawing || pdfContainer.classList.contains('small-rectangle') || isDragging) return;
-            
-            const [currentX, currentY] = getCoordinates(e);
-            
-            // Get pressure if available
-            let currentPressure = 0.5; // Default pressure
-            if (e.pressure !== undefined) {
-                currentPressure = e.pressure;
-            }
-            
-            // Add the current point
-            const currentPoint = {x: currentX, y: currentY, pressure: currentPressure};
-            points.push(currentPoint);
-            
-            // Set drawing style
-            if (currentTool === 'pen') {
-                drawingCtx.globalCompositeOperation = 'source-over';
-                drawingCtx.strokeStyle = penColor;
+            if (!isDrawing) return;
+
+            const rect = drawingCanvas.getBoundingClientRect();
+            const currentX = e.clientX - rect.left;
+            const currentY = e.clientY - rect.top;
+
+            if (currentTool === 'eraser') {
+                erase(currentX, currentY);
+            } else {
+                // Get pressure for stylus support
+                const pressure = e.pressure || 0.5;
+                const size = parseInt(brushSize.value) * (0.5 + pressure);
                 
-                // Apply pressure sensitivity if enabled
-                if (pressureSensitive) {
-                    // Apply pressure sensitivity factor to make pressure more pronounced
-                    const adjustedPressure = Math.pow(currentPressure, 1 / pressureSensitivity);
-                    const effectiveThickness = pressureMin + (pressureMax - pressureMin) * adjustedPressure;
-                    drawingCtx.lineWidth = effectiveThickness;
-                } else {
-                    drawingCtx.lineWidth = penThickness;
-                }
-            } else if (currentTool === 'eraser') {
-                drawingCtx.globalCompositeOperation = 'destination-out';
-                // Use dynamic eraser size based on speed
-                drawingCtx.lineWidth = (penThickness * 3) * currentEraserMultiplier;
+                drawingCtx.lineWidth = size;
+                drawingCtx.lineTo(currentX, currentY);
+                drawingCtx.stroke();
+                drawingCtx.beginPath();
+                drawingCtx.moveTo(currentX, currentY);
             }
-            
+
+            lastX = currentX;
+            lastY = currentY;
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+            drawingCtx.beginPath();
+        }
+
+        function setupBrush() {
+            const size = parseInt(brushSize.value);
+            const color = colorPicker.value;
+
+            drawingCtx.strokeStyle = color;
+            drawingCtx.lineWidth = size;
             drawingCtx.lineCap = 'round';
             drawingCtx.lineJoin = 'round';
-            
-            // Draw smooth line
-            drawSmoothLine(points);
-            
-            // Keep only the last few points for performance
-            if (points.length > 10) {
-                points = points.slice(-5);
-            }
-            
-            // Update last point
-            lastPoint = currentPoint;
-            lastPressure = currentPressure;
-        }
-        
-        function stopDrawing() {
-            if (!isDrawing) return;
-            
-            isDrawing = false;
-            
-            // Draw the final smoothed line
-            if (points.length > 1) {
-                // Set drawing style
-                if (currentTool === 'pen') {
-                    drawingCtx.globalCompositeOperation = 'source-over';
-                    drawingCtx.strokeStyle = penColor;
-                    
-                    // Apply pressure sensitivity if enabled
-                    if (pressureSensitive) {
-                        // Use the average pressure for the final stroke
-                        const avgPressure = points.reduce((sum, p) => sum + p.pressure, 0) / points.length;
-                        // Apply pressure sensitivity factor to make pressure more pronounced
-                        const adjustedPressure = Math.pow(avgPressure, 1 / pressureSensitivity);
-                        const effectiveThickness = pressureMin + (pressureMax - pressureMin) * adjustedPressure;
-                        drawingCtx.lineWidth = effectiveThickness;
-                    } else {
-                        drawingCtx.lineWidth = penThickness;
-                    }
-                } else if (currentTool === 'eraser') {
-                    drawingCtx.globalCompositeOperation = 'destination-out';
-                    drawingCtx.lineWidth = (penThickness * 3) * currentEraserMultiplier;
-                }
-                
-                drawingCtx.lineCap = 'round';
-                drawingCtx.lineJoin = 'round';
-                
-                // Draw the final smooth line
-                drawSmoothLine(points);
-            }
-            
-            // Clear points
-            points = [];
-            lastPoint = null;
-        }
-        
-        function getCoordinates(e) {
-            const rect = drawingCanvas.getBoundingClientRect();
-            const scaleX = drawingCanvas.width / rect.width;
-            const scaleY = drawingCanvas.height / rect.height;
-            
-            if (e.touches && e.touches[0]) {
-                return [
-                    (e.touches[0].clientX - rect.left) * scaleX,
-                    (e.touches[0].clientY - rect.top) * scaleY
-                ];
+
+            if (currentTool === 'highlighter') {
+                drawingCtx.globalAlpha = 0.3;
+                drawingCtx.globalCompositeOperation = 'multiply';
             } else {
-                return [
-                    (e.clientX - rect.left) * scaleX,
-                    (e.clientY - rect.top) * scaleY
-                ];
+                drawingCtx.globalAlpha = 1;
+                drawingCtx.globalCompositeOperation = 'source-over';
             }
         }
-        
-        // Update eraser cursor position and size based on speed
-        function updateEraserCursorPosition(e) {
-            if (currentTool === 'eraser' && !pdfContainer.classList.contains('small-rectangle')) {
-                const rect = drawingCanvas.getBoundingClientRect();
-                const x = e.clientX || (e.touches && e.touches[0].clientX);
-                const y = e.clientY || (e.touches && e.touches[0].clientY);
-                
-                if (x && y) {
-                    // Update position
-                    eraserCursor.style.left = x + 'px';
-                    eraserCursor.style.top = y + 'px';
-                    eraserCursor.style.display = 'block';
-                    
-                    // Update size based on speed
-                    updateEraserSpeed(x, y);
-                }
-            } else {
-                eraserCursor.style.display = 'none';
-                // Reset tracking when not in eraser mode
-                cursorLastTime = 0;
-            }
+
+        function erase(x, y) {
+            const eraseSize = parseInt(brushSize.value) * 2;
+            drawingCtx.globalCompositeOperation = 'destination-out';
+            drawingCtx.beginPath();
+            drawingCtx.arc(x, y, eraseSize, 0, Math.PI * 2);
+            drawingCtx.fill();
         }
-        
-        // Update pressure cursor position and size
-        function updatePressureCursorPosition(e) {
-            if (pressureSensitive && currentTool === 'pen' && !pdfContainer.classList.contains('small-rectangle')) {
-                const rect = drawingCanvas.getBoundingClientRect();
-                const x = e.clientX || (e.touches && e.touches[0].clientX);
-                const y = e.clientY || (e.touches && e.touches[0].clientY);
-                
-                if (x && y) {
-                    // Update position
-                    pressureCursor.style.left = x + 'px';
-                    pressureCursor.style.top = y + 'px';
-                    
-                    // Get pressure if available
-                    let pressure = 0.5; // Default pressure
-                    if (e.pressure !== undefined) {
-                        pressure = e.pressure;
-                    }
-                    
-                    // Update size based on pressure
-                    updatePressureCursor(pressure);
-                }
-            } else {
-                pressureCursor.style.display = 'none';
-            }
-        }
-        
-        // Drawing tool event listeners with stylus support
-        function handleToolButtonPress(button, action) {
-            return function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                // Add visual feedback for stylus
-                button.classList.add('stylus-active');
-                
-                // Execute the action
-                action();
-                
-                // Remove visual feedback after a short delay
-                setTimeout(() => {
-                    button.classList.remove('stylus-active');
-                }, 150);
-            };
-        }
-        
-        // Pen tool
-        penTool.addEventListener('pointerdown', handleToolButtonPress(penTool, () => {
-            currentTool = 'pen';
-            penTool.classList.add('active');
-            eraserTool.classList.remove('active');
-            eraserCursor.style.display = 'none';
-            pressureCursor.style.display = pressureSensitive ? 'block' : 'none';
-        }));
-        
-        // Eraser tool
-        eraserTool.addEventListener('pointerdown', handleToolButtonPress(eraserTool, () => {
-            currentTool = 'eraser';
-            eraserTool.classList.add('active');
-            penTool.classList.remove('active');
-            updateEraserCursor();
-            pressureCursor.style.display = 'none';
-            // Reset cursor tracking when switching to eraser
-            cursorLastTime = 0;
-        }));
-        
-        // Clear tool
-        clearTool.addEventListener('pointerdown', handleToolButtonPress(clearTool, () => {
-            drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-        }));
-        
-        // Color picker with stylus support
-        colorPicker.addEventListener('pointerdown', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-        });
-        
-        colorPicker.addEventListener('change', (e) => {
-            penColor = e.target.value;
-        });
-        
-        // Thickness slider with stylus support
-        thicknessSlider.addEventListener('pointerdown', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-        });
-        
-        thicknessSlider.addEventListener('input', (e) => {
-            penThickness = e.target.value;
-            thicknessValue.textContent = penThickness;
-            updateEraserCursor();
-        });
-        
-        // Pressure sensitivity toggle
-        pressureToggle.addEventListener('change', (e) => {
-            pressureSensitive = e.target.checked;
-            pressureCursor.style.display = pressureSensitive && currentTool === 'pen' ? 'block' : 'none';
-        });
-        
-        // Pressure min slider
-        pressureMinSlider.addEventListener('pointerdown', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-        });
-        
-        pressureMinSlider.addEventListener('input', (e) => {
-            pressureMin = parseInt(e.target.value);
-            pressureMinValue.textContent = pressureMin;
-            
-            // Ensure min is not greater than max
-            if (pressureMin > pressureMax) {
-                pressureMax = pressureMin;
-                pressureMaxSlider.value = pressureMax;
-                pressureMaxValue.textContent = pressureMax;
-            }
-        });
-        
-        // Pressure max slider
-        pressureMaxSlider.addEventListener('pointerdown', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-        });
-        
-        pressureMaxSlider.addEventListener('input', (e) => {
-            pressureMax = parseInt(e.target.value);
-            pressureMaxValue.textContent = pressureMax;
-            
-            // Ensure max is not less than min
-            if (pressureMax < pressureMin) {
-                pressureMin = pressureMax;
-                pressureMinSlider.value = pressureMin;
-                pressureMinValue.textContent = pressureMin;
-            }
-        });
-        
-        // Pressure sensitivity slider
-        pressureSensitivitySlider.addEventListener('pointerdown', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-        });
-        
-        pressureSensitivitySlider.addEventListener('input', (e) => {
-            pressureSensitivity = parseFloat(e.target.value);
-            pressureSensitivityValue.textContent = pressureSensitivity.toFixed(1);
-        });
-        
-        // Drawing canvas event listeners
-        drawingCanvas.addEventListener('pointerdown', (e) => {
-            startDrawing(e);
-            updatePressureCursorPosition(e);
-        });
-        
-        drawingCanvas.addEventListener('pointermove', (e) => {
-            draw(e);
-            updateEraserCursorPosition(e);
-            updatePressureCursorPosition(e);
-        });
-        
+
+        // Event listeners for drawing (supporting both mouse and touch/stylus)
+        drawingCanvas.addEventListener('pointerdown', startDrawing);
+        drawingCanvas.addEventListener('pointermove', draw);
         drawingCanvas.addEventListener('pointerup', stopDrawing);
-        drawingCanvas.addEventListener('pointerout', () => {
-            stopDrawing();
-            eraserCursor.style.display = 'none';
-            pressureCursor.style.display = 'none';
-        });
-        
-        // Touch events for mobile
-        drawingCanvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            startDrawing(e);
-            updatePressureCursorPosition(e);
-        });
-        
-        drawingCanvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            draw(e);
-            updateEraserCursorPosition(e);
-            updatePressureCursorPosition(e);
-        });
-        
-        drawingCanvas.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            stopDrawing();
-        });
-        
-        // Drag functionality for toolbar
-        drawingTools.addEventListener('pointerdown', startDrag);
-        document.addEventListener('pointermove', drag);
-        document.addEventListener('pointerup', stopDrag);
-        
-        function startDrag(e) {
-            // Don't start drag if clicking on a tool button or control
-            if (e.target.closest('.tool-button') || 
-                e.target.closest('.color-picker') || 
-                e.target.closest('.thickness-slider') ||
-                e.target.closest('.pressure-controls')) {
-                return;
-            }
-            
-            isDragging = true;
-            drawingTools.classList.add('dragging');
-            
-            dragStartX = e.clientX;
-            dragStartY = e.clientY;
-            
-            const rect = drawingTools.getBoundingClientRect();
-            toolbarStartX = rect.left;
-            toolbarStartY = rect.top;
-            
-            // Remove transform to get actual position
-            drawingTools.style.transform = 'none';
+        drawingCanvas.addEventListener('pointerout', stopDrawing);
+
+        // Prevent scrolling while drawing
+        drawingCanvas.addEventListener('touchstart', (e) => e.preventDefault());
+        drawingCanvas.addEventListener('touchmove', (e) => e.preventDefault());
+
+        // Save/restore drawings per page
+        function saveCurrentDrawings() {
+            if (!currentPDF) return;
+            drawings[currentPage] = drawingCanvas.toDataURL();
         }
-        
-        function drag(e) {
-            if (!isDragging) return;
-            
-            const deltaX = e.clientX - dragStartX;
-            const deltaY = e.clientY - dragStartY;
-            
-            let newX = toolbarStartX + deltaX;
-            let newY = toolbarStartY + deltaY;
-            
-            // Constrain to viewport
-            const toolbarRect = drawingTools.getBoundingClientRect();
-            const viewportWidth = window.innerWidth;
-            const viewportHeight = window.innerHeight;
-            
-            // Keep toolbar within viewport bounds
-            newX = Math.max(10, Math.min(newX, viewportWidth - toolbarRect.width - 10));
-            newY = Math.max(10, Math.min(newY, viewportHeight - toolbarRect.height - 10));
-            
-            drawingTools.style.left = newX + 'px';
-            drawingTools.style.top = newY + 'px';
-            
-            // Update position indicator
-            positionIndicator.textContent = `X: ${Math.round(newX)}, Y: ${Math.round(newY)}`;
-        }
-        
-        function stopDrag() {
-            if (isDragging) {
-                isDragging = false;
-                drawingTools.classList.remove('dragging');
-                
-                // Save position to localStorage
-                const rect = drawingTools.getBoundingClientRect();
-                localStorage.setItem('toolbarPosition', JSON.stringify({
-                    left: rect.left,
-                    top: rect.top
-                }));
+
+        function restoreDrawings(pageNum) {
+            drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+            if (drawings[pageNum]) {
+                const img = new Image();
+                img.onload = () => {
+                    drawingCtx.drawImage(img, 0, 0);
+                };
+                img.src = drawings[pageNum];
             }
         }
-        
-        // Restore toolbar position from localStorage
-        function restoreToolbarPosition() {
-            const savedPosition = localStorage.getItem('toolbarPosition');
-            if (savedPosition) {
-                try {
-                    const position = JSON.parse(savedPosition);
-                    drawingTools.style.left = position.left + 'px';
-                    drawingTools.style.top = position.top + 'px';
-                    drawingTools.style.transform = 'none';
-                } catch (e) {
-                    console.error('Error restoring toolbar position:', e);
-                }
-            }
+
+        // Clear all drawings
+        clearAll.addEventListener('click', () => {
+            if (showConfirmDialog('Are you sure you want to clear all drawings?', () => {
+                drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+                delete drawings[currentPage];
+            })) {}
+        });
+
+        // Custom confirm dialog
+        function showConfirmDialog(message, onConfirm) {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-sm w-full mx-4">
+                    <p class="text-gray-700 dark:text-gray-300 mb-4">${message}</p>
+                    <div class="flex justify-end space-x-3">
+                        <button class="cancel-btn px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-base">Cancel</button>
+                        <button class="confirm-btn px-4 py-2 bg-red-500 text-white hover:bg-red-600 rounded text-base">Confirm</button>
+                    </div>
+                </div>
+            `;
+            
+            modal.querySelector('.cancel-btn').onclick = () => modal.remove();
+            modal.querySelector('.confirm-btn').onclick = () => {
+                modal.remove();
+                onConfirm();
+            };
+            
+            document.body.appendChild(modal);
         }
-        
-        // Handle keyboard events
-        document.addEventListener('keydown', function(event) {
-            if (!pdfDoc) return;
+
+        // Save annotated PDF
+        saveAnnotated.addEventListener('click', async () => {
+            if (!currentPDF) return;
+
+            saveCurrentDrawings();
             
-            switch(event.key) {
-                case 'Escape':
-                    if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) {
-                        // Exit fullscreen and show in small rectangle
-                        if (document.exitFullscreen) {
-                            document.exitFullscreen().catch(err => {
-                                console.error('Error attempting to exit fullscreen:', err);
-                            });
-                        } else if (document.webkitExitFullscreen) {
-                            document.webkitExitFullscreen();
-                        } else if (document.msExitFullscreen) {
-                            document.msExitFullscreen();
-                        }
-                        
-                        // After exiting fullscreen, show in small rectangle
-                        setTimeout(async () => {
-                            pdfContainer.classList.add('small-rectangle');
-                            
-                            // Show loading indicator
-                            loadingIndicatorSmall.classList.add('active');
-                            
-                            // Render current page to image
-                            const imageUrl = await renderPageToImage(currentPage);
-                            pdfImage.src = imageUrl;
-                            
-                            // Hide loading indicator
-                            loadingIndicatorSmall.classList.remove('active');
-                            
-                            // Clean up PDF document to save memory
-                            if (pdfDoc) {
-                                pdfDoc.destroy().then(() => {
-                                    pdfDoc = null;
-                                }).catch(error => {
-                                    console.error('Error destroying PDF document:', error);
-                                    pdfDoc = null;
-                                });
-                            }
-                        }, 100);
-                    }
-                    break;
-                case 'ArrowLeft':
-                    event.preventDefault();
-                    if (currentPage > 1) {
-                        currentPage--;
-                        queueRenderPage(currentPage);
-                    }
-                    break;
-                case 'ArrowRight':
-                    event.preventDefault();
-                    if (currentPage < pdfDoc.numPages) {
-                        currentPage++;
-                        queueRenderPage(currentPage);
-                    }
-                    break;
-            }
-        });
-        
-        // Handle click on small rectangle to return to fullscreen
-        pdfRectangleWrapper.addEventListener('click', async function(event) {
-            // Don't trigger if clicking on close button
-            if (event.target.classList.contains('close-button')) return;
+            // Create a new canvas to combine PDF and drawings
+            const combinedCanvas = document.createElement('canvas');
+            const combinedCtx = combinedCanvas.getContext('2d');
             
-            if (pdfContainer.classList.contains('small-rectangle')) {
-                pdfContainer.classList.remove('small-rectangle');
-                
-                // Show loading indicator
-                document.getElementById('loadingIndicator').classList.add('active');
-                
-                // Reload PDF from stored Blob
-                if (pdfBlob) {
-                    try {
-                        pdfDoc = await pdfjsLib.getDocument(pdfBlob).promise;
-                        
-                        // Request fullscreen
-                        if (pdfContainer.requestFullscreen) {
-                            pdfContainer.requestFullscreen().catch(err => {
-                                console.error('Error attempting to enable fullscreen:', err);
-                            });
-                        } else if (pdfContainer.webkitRequestFullscreen) {
-                            pdfContainer.webkitRequestFullscreen();
-                        } else if (pdfContainer.msRequestFullscreen) {
-                            pdfContainer.msRequestFullscreen();
-                        }
-                        
-                        // Hide loading indicator
-                        document.getElementById('loadingIndicator').classList.remove('active');
-                        
-                        // Render current page
-                        await renderPage(currentPage, canvas, ctx);
-                        
-                        // Restore toolbar position
-                        restoreToolbarPosition();
-                        
-                        // Update cursors if needed
-                        if (currentTool === 'eraser') {
-                            updateEraserCursor();
-                        } else if (currentTool === 'pen' && pressureSensitive) {
-                            pressureCursor.style.display = 'block';
-                        }
-                    } catch (error) {
-                        console.error('Error loading PDF:', error);
-                        document.getElementById('loadingIndicator').classList.remove('active');
-                        alert('Error loading PDF. Please try again.');
-                        closePDF();
-                    }
-                }
-            }
-        });
-        
-        // Handle fullscreen change events
-        function handleFullscreenChange() {
-            if (!document.fullscreenElement && 
-                !document.webkitFullscreenElement && 
-                !document.msFullscreenElement && 
-                pdfDoc && 
-                !pdfContainer.classList.contains('small-rectangle')) {
-                
-                // If exiting fullscreen and not already in small rectangle, show it
-                setTimeout(async () => {
-                    pdfContainer.classList.add('small-rectangle');
+            // For simplicity, we'll save the current page as an image
+            // In a full implementation, you'd use PDF-lib to create a proper PDF
+            combinedCanvas.width = pdfCanvas.width;
+            combinedCanvas.height = pdfCanvas.height;
+            
+            combinedCtx.drawImage(pdfCanvas, 0, 0);
+            if (drawings[currentPage]) {
+                const drawingImg = new Image();
+                drawingImg.onload = () => {
+                    combinedCtx.drawImage(drawingImg, 0, 0);
                     
-                    // Show loading indicator
-                    loadingIndicatorSmall.classList.add('active');
-                    
-                    // Render current page to image
-                    const imageUrl = await renderPageToImage(currentPage);
-                    pdfImage.src = imageUrl;
-                    
-                    // Hide loading indicator
-                    loadingIndicatorSmall.classList.remove('active');
-                    
-                    // Clean up PDF document to save memory
-                    if (pdfDoc) {
-                        pdfDoc.destroy().then(() => {
-                            pdfDoc = null;
-                        }).catch(error => {
-                            console.error('Error destroying PDF document:', error);
-                            pdfDoc = null;
-                        });
-                    }
-                }, 100);
-            }
-        }
-        
-        // Add fullscreen change event listeners
-        document.addEventListener('fullscreenchange', handleFullscreenChange);
-        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-        document.addEventListener('msfullscreenchange', handleFullscreenChange);
-        
-        // Handle window resize to adjust canvas
-        window.addEventListener('resize', function() {
-            if (pdfDoc && !pdfContainer.classList.contains('small-rectangle')) {
-                queueRenderPage(currentPage);
+                    // Download as image
+                    combinedCanvas.toBlob((blob) => {
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `annotated-page-${currentPage}.png`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                    });
+                };
+                drawingImg.src = drawings[currentPage];
+            } else {
+                // No drawings, just download the PDF page
+                combinedCanvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `page-${currentPage}.png`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                });
             }
         });
-        
-        // Clean up resources when the page is unloaded
-        window.addEventListener('beforeunload', function() {
-            cleanupPdfResources();
-        });
-        
-        // Debug: Log PDF.js version
-        console.log('PDF.js version:', pdfjsLib.version);
     </script>
 </body>
 </html>
