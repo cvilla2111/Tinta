@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Viewer with Stylus Support</title>
+    <title>PDF Viewer with Stylus Support - Tinta</title>
     <link href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -14,10 +14,9 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="Tinta">
     <meta name="msapplication-TileColor" content="#00677C">
-    <meta name="msapplication-config" content="browserconfig.xml">
     
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlRpbnRhIiwKICAic2hvcnRfbmFtZSI6ICJUaW50YSIsCiAgImRlc2NyaXB0aW9uIjogIlBERiBWaWV3ZXIgd2l0aCBTdHlsdXMgU3VwcG9ydCIsCiAgInN0YXJ0X3VybCI6ICIuIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjRTRGMEY0IiwKICAidGhlbWVfY29sb3IiOiAiIzAwNjc3QyIsCiAgIm9yaWVudGF0aW9uIjogInBvcnRyYWl0LXByaW1hcnkiLAogICJpY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUI0Yld4dWN6MGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtY3ZNakF3TUM5emRtY2lJSEJ5WlhObGNuWmxRWE53WldOMFVtRnpaVFkwWlhoMGN5Z2lJSE4wZVhCbFBTSnBaRDBpVFRJMU1qVTBNVEUxTlRrM09Dd2dZMjl1WlhoaGJYQnNaUzVqYjIwaU1qVTBNVEUxTlRrM09Dd2dZMjl1WlhoaGJYQnNaUzVqYjIwaUx6NDhMM0ErQ2p3dmMzWm5QZz09IiwKICAgICAgInNpemVzIjogIjE5MngxOTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIgogICAgfSwKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUI0Yld4dWN6MGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtY3ZNakF3TUM5emRtY2lJSEJ5WlhObGNuWmxRWE53WldOMFVtRnpaVFkwWlhoMGN5Z2lJSE4wZVhCbFBTSnBaRDBpVFRJMU1qVTBNVEUxTlRrM09Dd2dZMjl1WlhoaGJYQnNaUzVqYjIwaU1qVTBNVEUxTlRrM09Dd2dZMjl1WlhoaGJYQnNaUzVqYjIwaUx6NDhMM0ErQ2p3dmMzWm5QZz09IiwKICAgICAgInNpemVzIjogIjUxMgx1MTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIgogICAgfSwKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUI0Yld4dWN6MGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtY3ZNakF3TUM5emRtY2lJSEJ5WlhObGNuWmxRWE53WldOMFVtRnpaVFkwWlhoMGN5Z2lJSE4wZVhCbFBTSnBaRDBpVFRJMU1qVTBNVEUxTlRrM09Dd2dZMjl1WlhoaGJYQnNaUzVqYjIwaU1qVTBNVEUxTlRrM09Dd2dZMjl1WlhoaGJYQnNaUzVqYjIwaUx6NDhMM0ErQ2p3dmMzWm5QZz09IiwKICAgICAgInNpemVzIjogIjM4NHgzODQiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIgogICAgfQogIF0KfQ==">
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlRpbnRhIFBERiBWaWV3ZXIiLAogICJzaG9ydF9uYW1lIjogIlRpbnRhIiwKICAiZGVzY3JpcHRpb24iOiAiQSBQREYgdmlld2VyIHdpdGggc3R5bHVzIHN1cHBvcnQgZm9yIGFubm90YXRpb24iLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiI0U0RjBGNCIsCiAgInRoZW1lX2NvbG9yIjogIiMwMDY3N0MiLAogICJvcmllbnRhdGlvbiI6ICJwb3J0cmFpdC1wcmltYXJ5IiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sO2Jhc2U2NCxQSE4yWnlCNFZXeHVjejBpYUhSMGNEb3ZMM2QzZHk1M015NXZjbWN2TWpBd01DOXpkbWNpSUhCeVpYTmxjblpsUVhOd1pXTjBVbUZ6WlRZMFpYaDBjOWdpSUhOMGVYQmxQU0pwWkQwaVRUSTFNalUwTVRFMU5UazNPQ3dnWTJ1WlhoaGJYQnNaUzVqYjIwaU1qVTBNVEUxTlRrM09Dd2dZMjl1WlhoaGJYQnNaUzVqYjIwaUx6NDhMM0ErQ2p3dmMzWm5QZz09IiwKICAgICAgInNpemVzIjogIjE5MngxOTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIgogICAgfSwKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUI0Vld4dWN6MGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtY2lNakF3TUM5emRtY2lJSEJ5WlhObGNuWmxRWE53WldOMFVtRnpaVFkwWlhoMGN5Z2lJSE4wZVhCbFBTSnBaRDBpVFRJMU1qVTBNVEUxTlRrM09Dd2dZMjl1WlhoaGJYQnNaUzVqYjIwaU1qVTBNVEUxTlRrM09Dd2dZMjl1WlhoaGJYQnNaUzVqYjIwaUx6NDhMM0ErQ2p3dmMzWm5QZz09IiwKICAgICAgInNpemVzIjogIjUxMhx1MTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIgogICAgfSwKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUI0Vld4dWN6MGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtY2lNakF3TUM5emRtY2lJSEJ5WlhObGNuWmxRWE53WldOMFVtRnpaVFkwWlhoMGN5Z2lJSE4wZVhCbFBTSnBaRDBpVFRJMU1qVTBNVEUxTlRrM09Dd2dZMjl1WlhoaGJYQnNaUzVqYjIwaUx6NDhMM0ErQ2p3dmMzWm5QZz09IiwKICAgICAgInNpemVzIjogIjM4NHgzODQiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIgogICAgfQogIF0KfQ==">
     
     <style>
         * {
@@ -359,6 +358,7 @@
             z-index: 10003;
             display: none;
             box-shadow: 0 0 0 1px rgba(255, 0, 0, 0.3);
+            transition: width 0.1s ease, height 0.1s ease, margin-left 0.1s ease, margin-top 0.1s ease;
         }
         .pdf-container:not(.small-rectangle) .eraser-cursor {
             display: block;
@@ -379,7 +379,7 @@
             transition: all 0.3s ease;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             font-size: 24px;
-            display: flex;
+            display: none;
             justify-content: center;
             align-items: center;
             z-index: 1000;
@@ -393,9 +393,6 @@
             transform: translateY(0);
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
-        .install-button.hidden {
-            display: none;
-        }
     </style>
 </head>
 <body>
@@ -407,14 +404,14 @@
         <svg xmlns="http://www.w3.org/2000/svg" height="40px" viewBox="0 -960 960 960" width="40px" fill="#00677C">
             <path d="m307-324-87-358 260-238 260 238-87 358H307Zm52.33-66.67h241.34l65.66-269-153-139V-668q14 8.67 22.67 23 8.67 14.33 8.67 31.67 0 26.33-18.84 45.16Q507-549.33 480-549.33t-45.83-18.84q-18.84-18.83-18.84-45.16 0-17.34 8.67-31.67 8.67-14.33 22.67-23v-130.67l-153 139 65.66 269ZM160-120l21.33-59.67q8-23 27.67-37t43.67-14h454.66q24 0 43.67 14t27.67 37L800-120H160Z"/>
         </svg>
-        Tinta 2
+        Tinta
     </h1>
     
     <button class="load-button" onclick="document.getElementById('fileInput').click()">
         +
     </button>
     
-    <button class="install-button hidden" id="installButton" title="Install App">
+    <button class="install-button" id="installButton" title="Install App">
         <i class="fas fa-download"></i>
     </button>
     
@@ -507,7 +504,7 @@
             // Stash the event so it can be triggered later
             deferredPrompt = e;
             // Update UI to notify the user they can install the PWA
-            installButton.classList.remove('hidden');
+            installButton.style.display = 'flex';
         });
         
         // Install button click handler
@@ -521,20 +518,20 @@
                 // We've used the prompt, and can't use it again, throw it away
                 deferredPrompt = null;
                 // Hide the install button
-                installButton.classList.add('hidden');
+                installButton.style.display = 'none';
             }
         });
         
         // Hide the install button if the PWA is successfully installed
         window.addEventListener('appinstalled', () => {
-            installButton.classList.add('hidden');
+            installButton.style.display = 'none';
             console.log('PWA was installed');
         });
         
         // Check if the app is running in standalone mode (already installed)
         if (window.matchMedia('(display-mode: standalone)').matches || 
             window.navigator.standalone === true) {
-            installButton.classList.add('hidden');
+            installButton.style.display = 'none';
         }
         
         let pdfDoc = null;
@@ -581,6 +578,14 @@
         let toolbarStartX = 0;
         let toolbarStartY = 0;
         
+        // Speed tracking variables for eraser cursor
+        let cursorLastX = 0;
+        let cursorLastY = 0;
+        let cursorLastTime = 0;
+        let cursorSpeed = 0;
+        let cursorBaseSize = 0;
+        let currentEraserMultiplier = 1.0;
+        
         // Helper function to clean up PDF resources
         function cleanupPdfResources() {
             // Cancel any pending page rendering
@@ -626,22 +631,39 @@
         
         function loadPDF(event) {
             const file = event.target.files[0];
-            if (file && file.type === 'application/pdf') {
-                // Clean up any existing PDF resources
-                cleanupPdfResources();
-                
+            if (!file) {
+                console.log('No file selected');
+                return;
+            }
+            
+            console.log('File selected:', file.name, file.type, file.size);
+            
+            if (file.type !== 'application/pdf') {
+                alert('Please select a valid PDF file.');
+                return;
+            }
+            
+            // Clean up any existing PDF resources
+            cleanupPdfResources();
+            
+            // Show loading indicator
+            pdfContainer.classList.add('active');
+            document.getElementById('loadingIndicator').classList.add('active');
+            
+            try {
                 // Create a blob URL for the file
                 pdfBlob = URL.createObjectURL(file);
+                console.log('Blob URL created:', pdfBlob);
                 
                 // Store and display filename
                 const fileName = file.name;
                 pdfFilename.textContent = fileName;
                 
-                pdfContainer.classList.add('active');
-                document.getElementById('loadingIndicator').classList.add('active');
-                
                 // Load PDF from blob URL
-                pdfjsLib.getDocument(pdfBlob).promise.then(function(pdf) {
+                const loadingTask = pdfjsLib.getDocument(pdfBlob);
+                
+                loadingTask.promise.then(function(pdf) {
+                    console.log('PDF loaded successfully. Pages:', pdf.numPages);
                     pdfDoc = pdf;
                     document.getElementById('loadingIndicator').classList.remove('active');
                     
@@ -661,22 +683,30 @@
                 }).catch(function(error) {
                     console.error('Error loading PDF:', error);
                     document.getElementById('loadingIndicator').classList.remove('active');
-                    alert('Error loading PDF. Please try another file.');
+                    alert('Error loading PDF. Please try another file.\n\nError: ' + error.message);
                     closePDF();
                 });
-            } else {
-                alert('Please select a valid PDF file.');
+                
+            } catch (error) {
+                console.error('Error in loadPDF:', error);
+                document.getElementById('loadingIndicator').classList.remove('active');
+                alert('Error processing PDF file. Please try another file.');
+                closePDF();
             }
         }
         
         function renderPage(num, canvas, ctx) {
-            return new Promise((resolve) => {
+            return new Promise((resolve, reject) => {
                 if (!pdfDoc) {
+                    console.error('No PDF document loaded');
                     resolve();
                     return;
                 }
                 
+                console.log('Rendering page:', num);
+                
                 pdfDoc.getPage(num).then(function(page) {
+                    console.log('Page loaded successfully:', num);
                     const viewport = page.getViewport({scale: scale});
                     canvas.height = viewport.height;
                     canvas.width = viewport.width;
@@ -693,6 +723,7 @@
                     const renderTask = page.render(renderContext);
                     
                     renderTask.promise.then(function() {
+                        console.log('Page rendered successfully:', num);
                         resolve();
                     }).catch(function(error) {
                         console.error('Error rendering page:', error);
@@ -768,6 +799,8 @@
         }
         
         function closePDF() {
+            console.log('Closing PDF');
+            
             // Exit fullscreen if in fullscreen
             if (document.fullscreenElement) {
                 document.exitFullscreen().catch(err => {
@@ -791,11 +824,61 @@
         
         // Update eraser cursor size
         function updateEraserCursor() {
-            const eraserSize = penThickness * 3 * 2; // Eraser is 3x pen thickness, and we want the square to be that size
-            eraserCursor.style.width = eraserSize + 'px';
-            eraserCursor.style.height = eraserSize + 'px';
-            eraserCursor.style.marginLeft = -eraserSize / 2 + 'px';
-            eraserCursor.style.marginTop = -eraserSize / 2 + 'px';
+            cursorBaseSize = penThickness * 3 * 2; // Eraser is 3x pen thickness, and we want the square to be that size
+            eraserCursor.style.width = cursorBaseSize + 'px';
+            eraserCursor.style.height = cursorBaseSize + 'px';
+            eraserCursor.style.marginLeft = -cursorBaseSize / 2 + 'px';
+            eraserCursor.style.marginTop = -cursorBaseSize / 2 + 'px';
+        }
+        
+        // Calculate cursor speed and update eraser cursor size
+        function updateEraserSpeed(x, y) {
+            const currentTime = Date.now();
+            
+            if (cursorLastTime === 0) {
+                // First time, initialize
+                cursorLastX = x;
+                cursorLastY = y;
+                cursorLastTime = currentTime;
+                return;
+            }
+            
+            const timeDelta = currentTime - cursorLastTime;
+            if (timeDelta === 0) return;
+            
+            // Calculate distance
+            const distance = Math.sqrt(Math.pow(x - cursorLastX, 2) + Math.pow(y - cursorLastY, 2));
+            
+            // Calculate speed in pixels per second
+            cursorSpeed = (distance / timeDelta) * 1000;
+            
+            // Map speed to size multiplier
+            const minMultiplier = 1.0;
+            const maxMultiplier = 3.0;
+            const maxSpeed = 2000; // pixels per second
+            
+            let multiplier = minMultiplier + (cursorSpeed / maxSpeed) * (maxMultiplier - minMultiplier);
+            multiplier = Math.min(maxMultiplier, Math.max(minMultiplier, multiplier));
+            
+            // Apply smoothing to make size changes more gradual
+            const smoothingFactor = 0.3;
+            const currentWidth = parseFloat(eraserCursor.style.width) || cursorBaseSize;
+            const targetWidth = cursorBaseSize * multiplier;
+            const newWidth = currentWidth + (targetWidth - currentWidth) * smoothingFactor;
+            
+            // Update eraser cursor size
+            eraserCursor.style.width = newWidth + 'px';
+            eraserCursor.style.height = newWidth + 'px';
+            eraserCursor.style.marginLeft = -newWidth / 2 + 'px';
+            eraserCursor.style.marginTop = -newWidth / 2 + 'px';
+            
+            // Store the current multiplier for drawing
+            currentEraserMultiplier = newWidth / cursorBaseSize;
+            
+            // Update last position and time
+            cursorLastX = x;
+            cursorLastY = y;
+            cursorLastTime = currentTime;
         }
         
         // Drawing functions
@@ -804,6 +887,11 @@
             
             isDrawing = true;
             [lastX, lastY] = getCoordinates(e);
+            
+            // Reset cursor tracking when starting to draw
+            if (currentTool === 'eraser') {
+                cursorLastTime = 0;
+            }
         }
         
         function draw(e) {
@@ -821,7 +909,8 @@
                 drawingCtx.lineWidth = penThickness;
             } else if (currentTool === 'eraser') {
                 drawingCtx.globalCompositeOperation = 'destination-out';
-                drawingCtx.lineWidth = penThickness * 3; // Eraser is thicker
+                // Use dynamic eraser size based on speed
+                drawingCtx.lineWidth = (penThickness * 3) * currentEraserMultiplier;
             }
             
             drawingCtx.lineCap = 'round';
@@ -853,7 +942,7 @@
             }
         }
         
-        // Update eraser cursor position
+        // Update eraser cursor position and size based on speed
         function updateEraserCursorPosition(e) {
             if (currentTool === 'eraser' && !pdfContainer.classList.contains('small-rectangle')) {
                 const rect = drawingCanvas.getBoundingClientRect();
@@ -861,12 +950,18 @@
                 const y = e.clientY || (e.touches && e.touches[0].clientY);
                 
                 if (x && y) {
+                    // Update position
                     eraserCursor.style.left = x + 'px';
                     eraserCursor.style.top = y + 'px';
                     eraserCursor.style.display = 'block';
+                    
+                    // Update size based on speed
+                    updateEraserSpeed(x, y);
                 }
             } else {
                 eraserCursor.style.display = 'none';
+                // Reset tracking when not in eraser mode
+                cursorLastTime = 0;
             }
         }
         
@@ -903,6 +998,8 @@
             eraserTool.classList.add('active');
             penTool.classList.remove('active');
             updateEraserCursor();
+            // Reset cursor tracking when switching to eraser
+            cursorLastTime = 0;
         }));
         
         // Clear tool
@@ -1204,6 +1301,9 @@
         window.addEventListener('beforeunload', function() {
             cleanupPdfResources();
         });
+        
+        // Debug: Log PDF.js version
+        console.log('PDF.js version:', pdfjsLib.version);
     </script>
 </body>
 </html>
