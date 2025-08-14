@@ -7,6 +7,18 @@
     <link href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#00677C">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="Tinta">
+    <meta name="msapplication-TileColor" content="#00677C">
+    <meta name="msapplication-config" content="browserconfig.xml">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlRpbnRhIiwKICAic2hvcnRfbmFtZSI6ICJUaW50YSIsCiAgImRlc2NyaXB0aW9uIjogIlBERiBWaWV3ZXIgd2l0aCBTdHlsdXMgU3VwcG9ydCIsCiAgInN0YXJ0X3VybCI6ICIuIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjRTRGMEY0IiwKICAidGhlbWVfY29sb3IiOiAiIzAwNjc3QyIsCiAgIm9yaWVudGF0aW9uIjogInBvcnRyYWl0LXByaW1hcnkiLAogICJpY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUI0Yld4dWN6MGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtY3ZNakF3TUM5emRtY2lJSEJ5WlhObGNuWmxRWE53WldOMFVtRnpaVFkwWlhoMGN5Z2lJSE4wZVhCbFBTSnBaRDBpVFRJMU1qVTBNVEUxTlRrM09Dd2dZMjl1WlhoaGJYQnNaUzVqYjIwaU1qVTBNVEUxTlRrM09Dd2dZMjl1WlhoaGJYQnNaUzVqYjIwaUx6NDhMM0ErQ2p3dmMzWm5QZz09IiwKICAgICAgInNpemVzIjogIjE5MngxOTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIgogICAgfSwKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUI0Yld4dWN6MGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtY3ZNakF3TUM5emRtY2lJSEJ5WlhObGNuWmxRWE53WldOMFVtRnpaVFkwWlhoMGN5Z2lJSE4wZVhCbFBTSnBaRDBpVFRJMU1qVTBNVEUxTlRrM09Dd2dZMjl1WlhoaGJYQnNaUzVqYjIwaU1qVTBNVEUxTlRrM09Dd2dZMjl1WlhoaGJYQnNaUzVqYjIwaUx6NDhMM0ErQ2p3dmMzWm5QZz09IiwKICAgICAgInNpemVzIjogIjUxMgx1MTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIgogICAgfSwKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUI0Yld4dWN6MGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtY3ZNakF3TUM5emRtY2lJSEJ5WlhObGNuWmxRWE53WldOMFVtRnpaVFkwWlhoMGN5Z2lJSE4wZVhCbFBTSnBaRDBpVFRJMU1qVTBNVEUxTlRrM09Dd2dZMjl1WlhoaGJYQnNaUzVqYjIwaU1qVTBNVEUxTlRrM09Dd2dZMjl1WlhoaGJYQnNaUzVqYjIwaUx6NDhMM0ErQ2p3dmMzWm5QZz09IiwKICAgICAgInNpemVzIjogIjM4NHgzODQiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIgogICAgfQogIF0KfQ==">
+    
     <style>
         * {
             margin: 0;
@@ -337,6 +349,53 @@
             transform: scale(0.9);
             box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
         }
+        
+        /* Eraser cursor indicator */
+        .eraser-cursor {
+            position: absolute;
+            border: 2px dotted #FF0000;
+            border-radius: 4px;
+            pointer-events: none;
+            z-index: 10003;
+            display: none;
+            box-shadow: 0 0 0 1px rgba(255, 0, 0, 0.3);
+        }
+        .pdf-container:not(.small-rectangle) .eraser-cursor {
+            display: block;
+        }
+        
+        /* Install button */
+        .install-button {
+            position: fixed;
+            bottom: 30px;
+            right: 100px;
+            background-color: #00677C;
+            color: white;
+            border: none;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            font-size: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .install-button:hover {
+            background-color: #004d5d;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        .install-button:active {
+            transform: translateY(0);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .install-button.hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -355,12 +414,19 @@
         +
     </button>
     
+    <button class="install-button hidden" id="installButton" title="Install App">
+        <i class="fas fa-download"></i>
+    </button>
+    
     <input type="file" id="fileInput" accept=".pdf" onchange="loadPDF(event)">
     
     <div class="pdf-container" id="pdfContainer">
         <canvas class="pdf-canvas" id="pdfCanvas"></canvas>
         <canvas class="drawing-canvas" id="drawingCanvas"></canvas>
         <div class="loading-indicator" id="loadingIndicator">Loading PDF...</div>
+        
+        <!-- Eraser cursor indicator -->
+        <div class="eraser-cursor" id="eraserCursor"></div>
         
         <!-- Drawing Tools -->
         <div class="drawing-tools" id="drawingTools">
@@ -395,6 +461,82 @@
         // Set the worker source for PDF.js
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         
+        // PWA Installation
+        let deferredPrompt;
+        const installButton = document.getElementById('installButton');
+        
+        // Register service worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // Create a simple service worker inline
+                const serviceWorkerContent = `
+                    self.addEventListener('install', event => {
+                        console.log('Service Worker installing.');
+                    });
+                    
+                    self.addEventListener('activate', event => {
+                        console.log('Service Worker activating.');
+                    });
+                    
+                    self.addEventListener('fetch', event => {
+                        event.respondWith(
+                            fetch(event.request).catch(() => {
+                                return caches.match(event.request);
+                            })
+                        );
+                    });
+                `;
+                
+                const blob = new Blob([serviceWorkerContent], { type: 'application/javascript' });
+                const serviceWorkerUrl = URL.createObjectURL(blob);
+                
+                navigator.serviceWorker.register(serviceWorkerUrl)
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('ServiceWorker registration failed: ', error);
+                    });
+            });
+        }
+        
+        // Listen for the beforeinstallprompt event
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent the mini-infobar from appearing on mobile
+            e.preventDefault();
+            // Stash the event so it can be triggered later
+            deferredPrompt = e;
+            // Update UI to notify the user they can install the PWA
+            installButton.classList.remove('hidden');
+        });
+        
+        // Install button click handler
+        installButton.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                // Show the install prompt
+                deferredPrompt.prompt();
+                // Wait for the user to respond to the prompt
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`User response to the install prompt: ${outcome}`);
+                // We've used the prompt, and can't use it again, throw it away
+                deferredPrompt = null;
+                // Hide the install button
+                installButton.classList.add('hidden');
+            }
+        });
+        
+        // Hide the install button if the PWA is successfully installed
+        window.addEventListener('appinstalled', () => {
+            installButton.classList.add('hidden');
+            console.log('PWA was installed');
+        });
+        
+        // Check if the app is running in standalone mode (already installed)
+        if (window.matchMedia('(display-mode: standalone)').matches || 
+            window.navigator.standalone === true) {
+            installButton.classList.add('hidden');
+        }
+        
         let pdfDoc = null;
         let pdfBlob = null;
         let currentPage = 1;
@@ -428,6 +570,9 @@
         const clearTool = document.getElementById('clearTool');
         const drawingTools = document.getElementById('drawingTools');
         const positionIndicator = document.getElementById('positionIndicator');
+        
+        // Eraser cursor elements
+        const eraserCursor = document.getElementById('eraserCursor');
         
         // Drag variables
         let isDragging = false;
@@ -644,6 +789,15 @@
             pdfImage.src = '';
         }
         
+        // Update eraser cursor size
+        function updateEraserCursor() {
+            const eraserSize = penThickness * 3 * 2; // Eraser is 3x pen thickness, and we want the square to be that size
+            eraserCursor.style.width = eraserSize + 'px';
+            eraserCursor.style.height = eraserSize + 'px';
+            eraserCursor.style.marginLeft = -eraserSize / 2 + 'px';
+            eraserCursor.style.marginTop = -eraserSize / 2 + 'px';
+        }
+        
         // Drawing functions
         function startDrawing(e) {
             if (pdfContainer.classList.contains('small-rectangle') || isDragging) return;
@@ -699,6 +853,23 @@
             }
         }
         
+        // Update eraser cursor position
+        function updateEraserCursorPosition(e) {
+            if (currentTool === 'eraser' && !pdfContainer.classList.contains('small-rectangle')) {
+                const rect = drawingCanvas.getBoundingClientRect();
+                const x = e.clientX || (e.touches && e.touches[0].clientX);
+                const y = e.clientY || (e.touches && e.touches[0].clientY);
+                
+                if (x && y) {
+                    eraserCursor.style.left = x + 'px';
+                    eraserCursor.style.top = y + 'px';
+                    eraserCursor.style.display = 'block';
+                }
+            } else {
+                eraserCursor.style.display = 'none';
+            }
+        }
+        
         // Drawing tool event listeners with stylus support
         function handleToolButtonPress(button, action) {
             return function(e) {
@@ -723,6 +894,7 @@
             currentTool = 'pen';
             penTool.classList.add('active');
             eraserTool.classList.remove('active');
+            eraserCursor.style.display = 'none';
         }));
         
         // Eraser tool
@@ -730,6 +902,7 @@
             currentTool = 'eraser';
             eraserTool.classList.add('active');
             penTool.classList.remove('active');
+            updateEraserCursor();
         }));
         
         // Clear tool
@@ -756,13 +929,20 @@
         thicknessSlider.addEventListener('input', (e) => {
             penThickness = e.target.value;
             thicknessValue.textContent = penThickness;
+            updateEraserCursor();
         });
         
         // Drawing canvas event listeners
         drawingCanvas.addEventListener('pointerdown', startDrawing);
-        drawingCanvas.addEventListener('pointermove', draw);
+        drawingCanvas.addEventListener('pointermove', (e) => {
+            draw(e);
+            updateEraserCursorPosition(e);
+        });
         drawingCanvas.addEventListener('pointerup', stopDrawing);
-        drawingCanvas.addEventListener('pointerout', stopDrawing);
+        drawingCanvas.addEventListener('pointerout', () => {
+            stopDrawing();
+            eraserCursor.style.display = 'none';
+        });
         
         // Touch events for mobile
         drawingCanvas.addEventListener('touchstart', (e) => {
@@ -773,6 +953,7 @@
         drawingCanvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
             draw(e);
+            updateEraserCursorPosition(e);
         });
         
         drawingCanvas.addEventListener('touchend', (e) => {
@@ -957,6 +1138,11 @@
                         
                         // Restore toolbar position
                         restoreToolbarPosition();
+                        
+                        // Update eraser cursor if eraser is active
+                        if (currentTool === 'eraser') {
+                            updateEraserCursor();
+                        }
                     } catch (error) {
                         console.error('Error loading PDF:', error);
                         document.getElementById('loadingIndicator').classList.remove('active');
