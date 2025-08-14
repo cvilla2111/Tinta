@@ -13,55 +13,55 @@
             box-sizing: border-box;
         }
         body {
-            background-color: #E4F0F4; /* Updated homescreen background color */
+            background-color: #E4F0F4;
             height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-family: 'Mulish', sans-serif; /* Added Mulish font */
+            font-family: 'Mulish', sans-serif;
             overflow: hidden;
         }
         .background-rectangle {
-            position: absolute;
-            top: 10vh; /* 10% from top */
-            left: 20vw; /* 20% from left */
-            width: 80vw; /* 80% of viewport width (100% - 20% left margin) */
-            height: 90vh; /* 90% of viewport height (100% - 10% top margin) */
-            background-color: #F5FAFD; /* Updated background rectangle color */
-            border-radius: 20px 0 0 0; /* Only top-left corner rounded */
-            z-index: 1; /* Behind other elements */
+            position: fixed;
+            top: 50px; /* Fixed top position */
+            left: 100px; /* Fixed left position */
+            width: calc(100vw - 100px); /* Touch right edge of window */
+            height: calc(100vh - 50px); /* Touch bottom edge of window */
+            background-color: #F5FAFD;
+            border-radius: 20px 0 0 0;
+            z-index: 1;
         }
         .app-title {
-            position: absolute;
-            top: 30px; /* 30px from top */
-            left: 30px; /* 30px from left */
-            font-size: 30px; /* Changed from 38px to 30px */
-            color: #00677C; /* Same color as load button */
-            font-weight: 600; /* Semi-bold weight */
-            z-index: 100; /* Above background but below button */
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            font-size: 30px;
+            color: #00677C;
+            font-weight: 600;
+            z-index: 100;
         }
         .load-button {
-            position: fixed; /* Fixed position */
-            bottom: 30px; /* 30px from bottom */
-            right: 30px; /* 30px from right */
-            background-color: #00677C; /* Updated button color */
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background-color: #00677C;
             color: white;
             border: none;
-            width: 60px; /* Fixed width */
-            height: 60px; /* Fixed height */
-            border-radius: 50%; /* Circular shape */
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
             cursor: pointer;
             transition: all 0.3s ease;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            font-size: 36px; /* Bigger font for plus symbol */
-            font-weight: 100; /* Thinner font weight */
+            font-size: 36px;
+            font-weight: 100;
             display: flex;
             justify-content: center;
             align-items: center;
             z-index: 1000;
         }
         .load-button:hover {
-            background-color: #004d5d; /* Darker shade for hover */
+            background-color: #004d5d;
             transform: translateY(-2px);
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
         }
@@ -87,23 +87,23 @@
             display: block;
         }
         .pdf-container.small-rectangle {
-            background-color: transparent; /* Make background transparent */
+            background-color: transparent;
         }
         .pdf-rectangle-wrapper {
-            position: absolute;
-            top: calc(10vh + 30px); /* 30px inside the background rectangle from top */
-            left: calc(20vw + 30px); /* 30px inside the background rectangle from left */
-            width: 240px; /* Smaller fixed width */
-            height: 135px; /* Smaller fixed height (16:9 aspect ratio) */
+            position: fixed;
+            top: 80px;
+            left: 130px;
+            width: 240px;
+            height: 135px;
             background-color: #fff;
             border-radius: 8px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
             cursor: pointer;
             z-index: 10000;
-            display: none; /* Hidden by default */
+            display: none;
         }
         .pdf-container.small-rectangle .pdf-rectangle-wrapper {
-            display: block; /* Show in small rectangle mode */
+            display: block;
         }
         .pdf-image {
             position: absolute;
@@ -121,13 +121,13 @@
             width: 100%;
             height: 100%;
             object-fit: contain;
-            border-radius: 0; /* No border radius in fullscreen */
+            border-radius: 0;
         }
         .pdf-container.small-rectangle .pdf-canvas {
-            display: none; /* Hide fullscreen canvas in small rectangle mode */
+            display: none;
         }
         .pdf-container:not(.small-rectangle) .pdf-canvas {
-            display: block; /* Show fullscreen canvas in fullscreen mode */
+            display: block;
         }
         .loading-indicator {
             position: absolute;
@@ -142,7 +142,7 @@
             display: block;
         }
         .pdf-container.small-rectangle .loading-indicator {
-            color: #333; /* Dark text for white background */
+            color: #333;
         }
         .close-button {
             position: absolute;
@@ -175,7 +175,7 @@
         }
         .pdf-filename {
             position: absolute;
-            bottom: -30px; /* Position relative to wrapper */
+            bottom: -30px;
             left: 0;
             width: 100%;
             text-align: center;
@@ -188,7 +188,7 @@
             overflow: hidden;
             text-overflow: ellipsis;
             z-index: 9999;
-            transform: translateX(0); /* Reset transform */
+            transform: translateX(0);
         }
         .pdf-container.small-rectangle .pdf-filename {
             display: block;
@@ -241,48 +241,82 @@
         const pdfRectangleWrapper = document.getElementById('pdfRectangleWrapper');
         const loadingIndicatorSmall = document.getElementById('loadingIndicatorSmall');
         
+        // Helper function to clean up PDF resources
+        function cleanupPdfResources() {
+            // Cancel any pending page rendering
+            if (pageRendering && pageNumPending !== null) {
+                pageNumPending = null;
+            }
+            
+            // Destroy PDF document if it exists
+            if (pdfDoc) {
+                pdfDoc.destroy().then(() => {
+                    pdfDoc = null;
+                }).catch(error => {
+                    console.error('Error destroying PDF document:', error);
+                    pdfDoc = null;
+                });
+            }
+            
+            // Clear canvas and release memory
+            if (canvas) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                canvas.width = 0;
+                canvas.height = 0;
+            }
+            
+            // Revoke blob URL if exists
+            if (pdfBlob) {
+                URL.revokeObjectURL(pdfBlob);
+                pdfBlob = null;
+            }
+            
+            // Reset state
+            currentPage = 1;
+            pageRendering = false;
+            pageNumPending = null;
+        }
+        
         function loadPDF(event) {
             const file = event.target.files[0];
             if (file && file.type === 'application/pdf') {
-                // Store the file as a Blob for later use
-                pdfBlob = new Blob([file], { type: 'application/pdf' });
+                // Clean up any existing PDF resources
+                cleanupPdfResources();
+                
+                // Create a blob URL for the file
+                pdfBlob = URL.createObjectURL(file);
                 
                 // Store and display filename
                 const fileName = file.name;
                 pdfFilename.textContent = fileName;
                 
-                const fileReader = new FileReader();
-                
                 pdfContainer.classList.add('active');
                 document.getElementById('loadingIndicator').classList.add('active');
                 
-                fileReader.onload = function() {
-                    const typedarray = new Uint8Array(this.result);
+                // Load PDF from blob URL
+                pdfjsLib.getDocument(pdfBlob).promise.then(function(pdf) {
+                    pdfDoc = pdf;
+                    document.getElementById('loadingIndicator').classList.remove('active');
                     
-                    pdfjsLib.getDocument(typedarray).promise.then(function(pdf) {
-                        pdfDoc = pdf;
-                        document.getElementById('loadingIndicator').classList.remove('active');
-                        
-                        // Request fullscreen
-                        if (pdfContainer.requestFullscreen) {
-                            pdfContainer.requestFullscreen();
-                        } else if (pdfContainer.webkitRequestFullscreen) {
-                            pdfContainer.webkitRequestFullscreen();
-                        } else if (pdfContainer.msRequestFullscreen) {
-                            pdfContainer.msRequestFullscreen();
-                        }
-                        
-                        // Render first page on fullscreen canvas
-                        renderPage(currentPage, canvas, ctx);
-                    }).catch(function(error) {
-                        console.error('Error loading PDF:', error);
-                        document.getElementById('loadingIndicator').classList.remove('active');
-                        alert('Error loading PDF. Please try another file.');
-                        closePDF();
-                    });
-                };
-                
-                fileReader.readAsArrayBuffer(file);
+                    // Request fullscreen
+                    if (pdfContainer.requestFullscreen) {
+                        pdfContainer.requestFullscreen().catch(err => {
+                            console.error('Error attempting to enable fullscreen:', err);
+                        });
+                    } else if (pdfContainer.webkitRequestFullscreen) {
+                        pdfContainer.webkitRequestFullscreen();
+                    } else if (pdfContainer.msRequestFullscreen) {
+                        pdfContainer.msRequestFullscreen();
+                    }
+                    
+                    // Render first page on fullscreen canvas
+                    renderPage(currentPage, canvas, ctx);
+                }).catch(function(error) {
+                    console.error('Error loading PDF:', error);
+                    document.getElementById('loadingIndicator').classList.remove('active');
+                    alert('Error loading PDF. Please try another file.');
+                    closePDF();
+                });
             } else {
                 alert('Please select a valid PDF file.');
             }
@@ -290,6 +324,11 @@
         
         function renderPage(num, canvas, ctx) {
             return new Promise((resolve) => {
+                if (!pdfDoc) {
+                    resolve();
+                    return;
+                }
+                
                 pdfDoc.getPage(num).then(function(page) {
                     const viewport = page.getViewport({scale: scale});
                     canvas.height = viewport.height;
@@ -303,7 +342,13 @@
                     
                     renderTask.promise.then(function() {
                         resolve();
+                    }).catch(function(error) {
+                        console.error('Error rendering page:', error);
+                        resolve();
                     });
+                }).catch(function(error) {
+                    console.error('Error getting page:', error);
+                    resolve();
                 });
             });
         }
@@ -334,8 +379,23 @@
                     renderTask.promise.then(function() {
                         // Convert to data URL
                         const dataUrl = tempCanvas.toDataURL();
+                        // Clean up the temporary canvas
+                        tempCanvas.width = 0;
+                        tempCanvas.height = 0;
                         resolve(dataUrl);
+                    }).catch(function(error) {
+                        console.error('Error rendering page to image:', error);
+                        // Clean up the temporary canvas
+                        tempCanvas.width = 0;
+                        tempCanvas.height = 0;
+                        resolve('');
                     });
+                }).catch(function(error) {
+                    console.error('Error getting page for image:', error);
+                    // Clean up the temporary canvas
+                    tempCanvas.width = 0;
+                    tempCanvas.height = 0;
+                    resolve('');
                 });
             });
         }
@@ -358,20 +418,21 @@
         function closePDF() {
             // Exit fullscreen if in fullscreen
             if (document.fullscreenElement) {
-                document.exitFullscreen();
+                document.exitFullscreen().catch(err => {
+                    console.error('Error attempting to exit fullscreen:', err);
+                });
             } else if (document.webkitFullscreenElement) {
                 document.webkitExitFullscreen();
             } else if (document.msFullscreenElement) {
                 document.msExitFullscreen();
             }
             
-            // Clear the PDF and hide container
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Clean up all PDF resources
+            cleanupPdfResources();
+            
+            // Reset UI
             pdfContainer.classList.remove('active', 'small-rectangle');
             document.getElementById('fileInput').value = '';
-            pdfDoc = null;
-            pdfBlob = null;
-            currentPage = 1;
             pdfFilename.textContent = '';
             pdfImage.src = '';
         }
@@ -385,10 +446,12 @@
                     if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) {
                         // Exit fullscreen and show in small rectangle
                         if (document.exitFullscreen) {
-                            document.exitFullscreen();
+                            document.exitFullscreen().catch(err => {
+                                console.error('Error attempting to exit fullscreen:', err);
+                            });
                         } else if (document.webkitExitFullscreen) {
                             document.webkitExitFullscreen();
-                        } else if (document.msExitFullscreen()) {
+                        } else if (document.msExitFullscreen) {
                             document.msExitFullscreen();
                         }
                         
@@ -406,11 +469,17 @@
                             // Hide loading indicator
                             loadingIndicatorSmall.classList.remove('active');
                             
-                            // Unload PDF to save memory
-                            pdfDoc = null;
+                            // Clean up PDF document to save memory
+                            if (pdfDoc) {
+                                pdfDoc.destroy().then(() => {
+                                    pdfDoc = null;
+                                }).catch(error => {
+                                    console.error('Error destroying PDF document:', error);
+                                    pdfDoc = null;
+                                });
+                            }
                         }, 100);
                     }
-                    // ESC key no longer closes the PDF rectangle
                     break;
                 case 'ArrowLeft':
                     event.preventDefault();
@@ -442,43 +511,43 @@
                 
                 // Reload PDF from stored Blob
                 if (pdfBlob) {
-                    const fileReader = new FileReader();
-                    
-                    fileReader.onload = async function() {
-                        const typedarray = new Uint8Array(this.result);
+                    try {
+                        pdfDoc = await pdfjsLib.getDocument(pdfBlob).promise;
                         
-                        try {
-                            pdfDoc = await pdfjsLib.getDocument(typedarray).promise;
-                            
-                            // Request fullscreen
-                            if (pdfContainer.requestFullscreen()) {
-                                pdfContainer.requestFullscreen();
-                            } else if (pdfContainer.webkitRequestFullscreen) {
-                                pdfContainer.webkitRequestFullscreen();
-                            } else if (pdfContainer.msRequestFullscreen) {
-                                pdfContainer.msRequestFullscreen();
-                            }
-                            
-                            // Hide loading indicator
-                            document.getElementById('loadingIndicator').classList.remove('active');
-                            
-                            // Render current page
-                            await renderPage(currentPage, canvas, ctx);
-                        } catch (error) {
-                            console.error('Error loading PDF:', error);
-                            document.getElementById('loadingIndicator').classList.remove('active');
-                            alert('Error loading PDF. Please try again.');
+                        // Request fullscreen
+                        if (pdfContainer.requestFullscreen) {
+                            pdfContainer.requestFullscreen().catch(err => {
+                                console.error('Error attempting to enable fullscreen:', err);
+                            });
+                        } else if (pdfContainer.webkitRequestFullscreen) {
+                            pdfContainer.webkitRequestFullscreen();
+                        } else if (pdfContainer.msRequestFullscreen) {
+                            pdfContainer.msRequestFullscreen();
                         }
-                    };
-                    
-                    fileReader.readAsArrayBuffer(pdfBlob);
+                        
+                        // Hide loading indicator
+                        document.getElementById('loadingIndicator').classList.remove('active');
+                        
+                        // Render current page
+                        await renderPage(currentPage, canvas, ctx);
+                    } catch (error) {
+                        console.error('Error loading PDF:', error);
+                        document.getElementById('loadingIndicator').classList.remove('active');
+                        alert('Error loading PDF. Please try again.');
+                        closePDF();
+                    }
                 }
             }
         });
         
         // Handle fullscreen change events
-        document.addEventListener('fullscreenchange', function() {
-            if (!document.fullscreenElement && pdfDoc && !pdfContainer.classList.contains('small-rectangle')) {
+        function handleFullscreenChange() {
+            if (!document.fullscreenElement && 
+                !document.webkitFullscreenElement && 
+                !document.msFullscreenElement && 
+                pdfDoc && 
+                !pdfContainer.classList.contains('small-rectangle')) {
+                
                 // If exiting fullscreen and not already in small rectangle, show it
                 setTimeout(async () => {
                     pdfContainer.classList.add('small-rectangle');
@@ -493,59 +562,34 @@
                     // Hide loading indicator
                     loadingIndicatorSmall.classList.remove('active');
                     
-                    // Unload PDF to save memory
-                    pdfDoc = null;
+                    // Clean up PDF document to save memory
+                    if (pdfDoc) {
+                        pdfDoc.destroy().then(() => {
+                            pdfDoc = null;
+                        }).catch(error => {
+                            console.error('Error destroying PDF document:', error);
+                            pdfDoc = null;
+                        });
+                    }
                 }, 100);
             }
-        });
+        }
         
-        document.addEventListener('webkitfullscreenchange', function() {
-            if (!document.webkitFullscreenElement && pdfDoc && !pdfContainer.classList.contains('small-rectangle')) {
-                setTimeout(async () => {
-                    pdfContainer.classList.add('small-rectangle');
-                    
-                    // Show loading indicator
-                    loadingIndicatorSmall.classList.add('active');
-                    
-                    // Render current page to image
-                    const imageUrl = await renderPageToImage(currentPage);
-                    pdfImage.src = imageUrl;
-                    
-                    // Hide loading indicator
-                    loadingIndicatorSmall.classList.remove('active');
-                    
-                    // Unload PDF to save memory
-                    pdfDoc = null;
-                }, 100);
-            }
-        });
-        
-        document.addEventListener('msfullscreenchange', function() {
-            if (!document.msFullscreenElement && pdfDoc && !pdfContainer.classList.contains('small-rectangle')) {
-                setTimeout(async () => {
-                    pdfContainer.classList.add('small-rectangle');
-                    
-                    // Show loading indicator
-                    loadingIndicatorSmall.classList.add('active');
-                    
-                    // Render current page to image
-                    const imageUrl = await renderPageToImage(currentPage);
-                    pdfImage.src = imageUrl;
-                    
-                    // Hide loading indicator
-                    loadingIndicatorSmall.classList.remove('active');
-                    
-                    // Unload PDF to save memory
-                    pdfDoc = null;
-                }, 100);
-            }
-        });
+        // Add fullscreen change event listeners
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.addEventListener('msfullscreenchange', handleFullscreenChange);
         
         // Handle window resize to adjust canvas
         window.addEventListener('resize', function() {
             if (pdfDoc && !pdfContainer.classList.contains('small-rectangle')) {
                 queueRenderPage(currentPage);
             }
+        });
+        
+        // Clean up resources when the page is unloaded
+        window.addEventListener('beforeunload', function() {
+            cleanupPdfResources();
         });
     </script>
 </body>
