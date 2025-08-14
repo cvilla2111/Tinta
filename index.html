@@ -27,10 +27,15 @@
             left: 0;
             pointer-events: auto;
             cursor: crosshair;
+            will-change: contents;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
         }
         .pdf-container {
             position: relative;
             display: inline-block;
+            contain: layout style paint;
         }
         .toolbar {
             position: sticky;
@@ -40,6 +45,22 @@
         .tool-active {
             background-color: #5D5CDE;
             color: white;
+        }
+        canvas {
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+        }
+        .performance-hint {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            z-index: 1000;
         }
     </style>
 </head>
@@ -166,14 +187,28 @@
         let currentTool = 'pen';
         let isDrawing = false;
         let drawings = {}; // Store drawings per page
-        let lastX = 0;
-        let lastY = 0;
+        
+        // Ultra low latency drawing state
+        let currentStroke = [];
+        let smoothingBuffer = [];
+        let lastTime = 0;
+        let frameCount = 0;
+        let animationFrameId = null;
+        let strokeQueue = [];
+        let isAnimating = false;
 
         // Canvas elements
         const pdfCanvas = document.getElementById('pdfCanvas');
         const drawingCanvas = document.getElementById('drawingCanvas');
         const pdfCtx = pdfCanvas.getContext('2d');
-        const drawingCtx = drawingCanvas.getContext('2d');
+        const drawingCtx = drawingCanvas.getContext('2d', {
+            alpha: true,
+            desynchronized: true,
+            powerPreference: 'high-performance'
+        });
+
+        // Optimize canvas for low latency
+        drawingCtx.imageSmoothingEnabled = false;
 
         // UI elements
         const pdfFile = document.getElementById('pdfFile');
@@ -290,50 +325,191 @@
             });
         });
 
-        // Drawing functions
+        // Ultra low latency drawing functions
+        function getPointerData(e) {
+            const rect = drawingCanvas.getBoundingClientRect();
+            return {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top,
+                pressure: e.pressure || 0.5,
+                timestamp: performance.now(),
+                tiltX: e.tiltX || 0,
+                tiltY: e.tiltY || 0
+            };
+        }
+
         function startDrawing(e) {
             isDrawing = true;
-            const rect = drawingCanvas.getBoundingClientRect();
-            lastX = e.clientX - rect.left;
-            lastY = e.clientY - rect.top;
+            const pointer = getPointerData(e);
+            currentStroke = [pointer];
+            smoothingBuffer = [pointer];
 
             if (currentTool === 'eraser') {
-                erase(lastX, lastY);
+                fastErase(pointer.x, pointer.y);
             } else {
+                // Immediate feedback - draw first point
                 setupBrush();
+                drawingCtx.globalCompositeOperation = 'source-over';
                 drawingCtx.beginPath();
-                drawingCtx.moveTo(lastX, lastY);
+                drawingCtx.arc(pointer.x, pointer.y, getBrushSize(pointer.pressure) / 2, 0, Math.PI * 2);
+                drawingCtx.fill();
             }
+
+            // Start animation loop for smooth rendering
+            if (!isAnimating) {
+                isAnimating = true;
+                animateStroke();
+            }
+
+            e.preventDefault();
         }
 
         function draw(e) {
             if (!isDrawing) return;
 
-            const rect = drawingCanvas.getBoundingClientRect();
-            const currentX = e.clientX - rect.left;
-            const currentY = e.clientY - rect.top;
-
-            if (currentTool === 'eraser') {
-                erase(currentX, currentY);
-            } else {
-                // Get pressure for stylus support
-                const pressure = e.pressure || 0.5;
-                const size = parseInt(brushSize.value) * (0.5 + pressure);
-                
-                drawingCtx.lineWidth = size;
-                drawingCtx.lineTo(currentX, currentY);
-                drawingCtx.stroke();
-                drawingCtx.beginPath();
-                drawingCtx.moveTo(currentX, currentY);
+            const pointer = getPointerData(e);
+            currentStroke.push(pointer);
+            
+            // Add to smoothing buffer (keep last 3 points for smoothing)
+            smoothingBuffer.push(pointer);
+            if (smoothingBuffer.length > 3) {
+                smoothingBuffer.shift();
             }
 
-            lastX = currentX;
-            lastY = currentY;
+            // Immediate response for ultra-low latency
+            if (currentTool === 'eraser') {
+                fastErase(pointer.x, pointer.y);
+            } else {
+                // Predict next point for even lower perceived latency
+                predictAndDraw(pointer);
+            }
+
+            e.preventDefault();
         }
 
-        function stopDrawing() {
+        function stopDrawing(e) {
+            if (!isDrawing) return;
+            
             isDrawing = false;
+            isAnimating = false;
+            
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+
+            // Finalize stroke with high quality rendering
+            if (currentStroke.length > 1 && currentTool !== 'eraser') {
+                finalizeStroke();
+            }
+
+            currentStroke = [];
+            smoothingBuffer = [];
+            e.preventDefault();
+        }
+
+        function predictAndDraw(currentPointer) {
+            if (smoothingBuffer.length < 2) return;
+
+            // Simple velocity-based prediction
+            const prev = smoothingBuffer[smoothingBuffer.length - 2];
+            const vx = currentPointer.x - prev.x;
+            const vy = currentPointer.y - prev.y;
+            
+            // Predict next point based on velocity
+            const predictedX = currentPointer.x + vx * 0.3;
+            const predictedY = currentPointer.y + vy * 0.3;
+
+            // Draw immediate stroke segment
+            setupBrush();
+            const size = getBrushSize(currentPointer.pressure);
+            
+            drawingCtx.lineWidth = size;
             drawingCtx.beginPath();
+            drawingCtx.moveTo(prev.x, prev.y);
+            drawingCtx.lineTo(currentPointer.x, currentPointer.y);
+            drawingCtx.stroke();
+        }
+
+        function animateStroke() {
+            if (!isAnimating || !isDrawing) return;
+
+            // Process stroke queue for smooth rendering
+            if (currentStroke.length > 1) {
+                renderSmoothStroke();
+            }
+
+            animationFrameId = requestAnimationFrame(animateStroke);
+        }
+
+        function renderSmoothStroke() {
+            if (currentStroke.length < 2) return;
+
+            const points = currentStroke.slice(-4); // Use last 4 points for smoothing
+            if (points.length < 2) return;
+
+            setupBrush();
+            
+            // Use quadratic curves for smoother lines
+            for (let i = 1; i < points.length; i++) {
+                const prev = points[i - 1];
+                const curr = points[i];
+                
+                const size = getBrushSize(curr.pressure);
+                drawingCtx.lineWidth = size;
+                
+                if (i === 1) {
+                    drawingCtx.beginPath();
+                    drawingCtx.moveTo(prev.x, prev.y);
+                }
+                
+                if (i === points.length - 1) {
+                    drawingCtx.lineTo(curr.x, curr.y);
+                } else {
+                    const next = points[i + 1];
+                    const cpx = curr.x;
+                    const cpy = curr.y;
+                    const endX = (curr.x + next.x) / 2;
+                    const endY = (curr.y + next.y) / 2;
+                    
+                    drawingCtx.quadraticCurveTo(cpx, cpy, endX, endY);
+                }
+            }
+            
+            drawingCtx.stroke();
+        }
+
+        function finalizeStroke() {
+            // High-quality final render of the complete stroke
+            setupBrush();
+            
+            if (currentStroke.length < 2) return;
+            
+            drawingCtx.beginPath();
+            drawingCtx.moveTo(currentStroke[0].x, currentStroke[0].y);
+            
+            for (let i = 1; i < currentStroke.length; i++) {
+                const point = currentStroke[i];
+                const size = getBrushSize(point.pressure);
+                drawingCtx.lineWidth = size;
+                drawingCtx.lineTo(point.x, point.y);
+            }
+            
+            drawingCtx.stroke();
+        }
+
+        function getBrushSize(pressure) {
+            const baseSize = parseInt(brushSize.value);
+            return Math.max(1, baseSize * (0.3 + pressure * 0.7));
+        }
+
+        function fastErase(x, y) {
+            const eraseSize = parseInt(brushSize.value) * 2;
+            drawingCtx.save();
+            drawingCtx.globalCompositeOperation = 'destination-out';
+            drawingCtx.beginPath();
+            drawingCtx.arc(x, y, eraseSize, 0, Math.PI * 2);
+            drawingCtx.fill();
+            drawingCtx.restore();
         }
 
         function setupBrush() {
@@ -362,15 +538,37 @@
             drawingCtx.fill();
         }
 
-        // Event listeners for drawing (supporting both mouse and touch/stylus)
-        drawingCanvas.addEventListener('pointerdown', startDrawing);
-        drawingCanvas.addEventListener('pointermove', draw);
-        drawingCanvas.addEventListener('pointerup', stopDrawing);
-        drawingCanvas.addEventListener('pointerout', stopDrawing);
+        // Ultra low latency event listeners
+        drawingCanvas.addEventListener('pointerdown', startDrawing, { passive: false });
+        drawingCanvas.addEventListener('pointermove', draw, { passive: false });
+        drawingCanvas.addEventListener('pointerup', stopDrawing, { passive: false });
+        drawingCanvas.addEventListener('pointerout', stopDrawing, { passive: false });
+        drawingCanvas.addEventListener('pointercancel', stopDrawing, { passive: false });
 
-        // Prevent scrolling while drawing
-        drawingCanvas.addEventListener('touchstart', (e) => e.preventDefault());
-        drawingCanvas.addEventListener('touchmove', (e) => e.preventDefault());
+        // High frequency event capture for ultra-responsive stylus
+        drawingCanvas.addEventListener('pointermove', draw, { capture: true, passive: false });
+
+        // Prevent all default behaviors that could cause lag
+        drawingCanvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+        drawingCanvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+        drawingCanvas.addEventListener('touchend', (e) => e.preventDefault(), { passive: false });
+        drawingCanvas.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+        drawingCanvas.addEventListener('gesturechange', (e) => e.preventDefault(), { passive: false });
+
+        // Disable context menu to prevent interference
+        drawingCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        // Performance monitoring
+        let perfMonitor = null;
+        if (performance.mark) {
+            perfMonitor = setInterval(() => {
+                const now = performance.now();
+                frameCount++;
+                if (frameCount % 60 === 0) {
+                    console.log(`Drawing performance: ${frameCount} frames processed`);
+                }
+            }, 16); // Monitor at 60fps
+        }
 
         // Save/restore drawings per page
         function saveCurrentDrawings() {
