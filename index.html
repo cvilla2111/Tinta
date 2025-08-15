@@ -1,402 +1,464 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
+<!DOCTYPE html><html lang="en"><head><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Annotator</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/@material/web@latest/dist/material.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@material/web@latest/dist/material.min.js"></script>
+    <title>PDF Annotation App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'md-primary': '#6750A4',
+                        'md-on-primary': '#FFFFFF',
+                        'md-primary-container': '#EADDFF',
+                        'md-on-primary-container': '#21005D',
+                        'md-surface': '#FEF7FF',
+                        'md-on-surface': '#1D1B20',
+                        'md-surface-variant': '#E7E0EC',
+                        'md-on-surface-variant': '#49454F',
+                        'md-outline': '#79747E',
+                        'md-surface-container': '#F3EDF7',
+                        'md-surface-container-high': '#ECE6F0',
+                    }
+                }
+            },
+            darkMode: 'class'
+        }
+
+        // Dark mode detection
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+
+        // Configure PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
     <style>
-        body {
-            font-family: 'Roboto', sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f5f5f5;
-            overflow: hidden;
+        .md-elevation-3 {
+            box-shadow: 0px 1px 3px 0px rgba(0, 0, 0, 0.30), 0px 4px 8px 3px rgba(0, 0, 0, 0.15);
         }
-        
-        .app-container {
-            height: 100vh;
-            width: 100vw;
-            position: relative;
-            transition: all 0.3s ease;
+        .md-elevation-1 {
+            box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.30), 0px 1px 3px 1px rgba(0, 0, 0, 0.15);
         }
-        
-        .load-button {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 10;
-        }
-        
-        .pdf-viewer {
-            width: 100%;
-            height: 100%;
-            background-color: white;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .thumbnail-container {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 20;
-            opacity: 0;
-            transform: scale(0);
-            transition: all 0.3s ease;
-        }
-        
-        .thumbnail-container.active {
-            opacity: 1;
-            transform: scale(1);
-        }
-        
-        .thumbnail {
-            width: 120px;
-            height: 80px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            cursor: pointer;
-            transition: transform 0.2s ease;
-        }
-        
-        .thumbnail:hover {
-            transform: scale(1.05);
-        }
-        
         .annotation-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            pointer-events: none;
+            touch-action: none;
         }
-        
-        .fullscreen-exit {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            z-index: 15;
-            color: white;
-            background-color: rgba(0,0,0,0.5);
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
+        .fullscreen-container {
+            background: #000;
         }
-        
-        @media print {
-            .load-button, .thumbnail-container, .fullscreen-exit { display: none; }
+        .thumbnail-container {
+            background: linear-gradient(135deg, #f3edf7 0%, #e7e0ec 100%);
+        }
+        .dark .thumbnail-container {
+            background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
         }
     </style>
 </head>
-<body>
-    <div class="app-container" id="appContainer">
-        <!-- Load Button -->
-        <md-fab type="elevated" class="load-button" onclick="loadPdf()">
-            <md-icon slot="icon">upload_file</md-icon>
-        </md-fab>
+<body class="bg-md-surface dark:bg-gray-900 text-md-on-surface dark:text-gray-100 min-h-screen">
+    <div id="root"></div>
 
-        <!-- PDF Viewer Container -->
-        <div class="pdf-viewer" id="pdfViewer">
-            <canvas id="pdfCanvas" class="annotation-canvas"></canvas>
-            <canvas id="annotationCanvas" class="annotation-canvas"></canvas>
-            
-            <!-- Fullscreen Exit Button -->
-            <div class="fullscreen-exit" onclick="exitFullscreen()" style="display: none;" id="exitBtn">
-                <md-icon>fullscreen_exit</md-icon>
-            </div>
-        </div>
+    <script type="text/babel">
+        const { useState, useRef, useEffect, useCallback } = React;
 
-        <!-- Thumbnail Container -->
-        <div class="thumbnail-container" id="thumbnailContainer">
-            <img class="thumbnail" id="thumbnail" alt="PDF Thumbnail" />
-        </div>
-    </div>
+        const PDFAnnotationApp = () => {
+            const [pdfDoc, setPdfDoc] = useState(null);
+            const [currentPage, setCurrentPage] = useState(1);
+            const [totalPages, setTotalPages] = useState(0);
+            const [isFullscreen, setIsFullscreen] = useState(false);
+            const [shouldEnterFullscreen, setShouldEnterFullscreen] = useState(false);
+            const [isDrawing, setIsDrawing] = useState(false);
+            const [thumbnailSrc, setThumbnailSrc] = useState(null);
+            const [annotations, setAnnotations] = useState(new Map());
+            
+            const fileInputRef = useRef(null);
+            const canvasRef = useRef(null);
+            const svgRef = useRef(null);
+            const containerRef = useRef(null);
+            const thumbnailRef = useRef(null);
+            const currentPathRef = useRef(null);
+            const isDrawingRef = useRef(false);
 
-    <input type="file" id="fileInput" accept=".pdf" style="display: none;" onchange="handleFileSelect(event)">
-    
-    <script>
-        // Global variables
-        let pdfDoc = null;
-        let currentPage = 1;
-        let canvas = document.getElementById('pdfCanvas');
-        let ctx = canvas.getContext('2d');
-        let annotCtx = document.getElementById('annotationCanvas').getContext('2d');
-        let isDrawing = false;
-        let strokes = [];
-        let currentStroke = [];
-
-        // Initialize PDF.js worker
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
-        // Load PDF function
-        function loadPdf() {
-            document.getElementById('fileInput').click();
-        }
-
-        // Handle file selection
-        function handleFileSelect(event) {
-            const file = event.target.files[0];
-            if (file && file.type === "application/pdf") {
-                const fileReader = new FileReader();
-                fileReader.onload = function(e) {
-                    loadPdfFromData(e.target.result);
-                };
-                fileReader.readAsArrayBuffer(file);
-            }
-        }
-
-        // Load PDF from data
-        async function loadPdfFromData(data) {
-            try {
-                pdfDoc = await pdfjsLib.getDocument({data}).promise;
-                currentPage = 1;
-                
-                // Enter fullscreen
-                requestFullscreen(document.documentElement);
-                
-                // Render first page
-                renderPage(currentPage);
-                
-                // Setup annotation canvas
-                setupAnnotationCanvas();
-            } catch (error) {
-                console.error("Error loading PDF:", error);
-                alert("Failed to load PDF");
-            }
-        }
-
-        // Request fullscreen
-        function requestFullscreen(element) {
-            if (element.requestFullscreen) {
-                element.requestFullscreen().then(() => {
-                    document.getElementById('exitBtn').style.display = 'flex';
-                });
-            } else if (element.webkitRequestFullscreen) {
-                element.webkitRequestFullscreen().then(() => {
-                    document.getElementById('exitBtn').style.display = 'flex';
-                });
-            } else if (element.msRequestFullscreen) {
-                element.msRequestFullscreen().then(() => {
-                    document.getElementById('exitBtn').style.display = 'flex';
-                });
-            }
-        }
-
-        // Exit fullscreen
-        function exitFullscreen() {
-            if (document.exitFullscreen) {
-                document.exitFullscreen().then(() => {
-                    showThumbnail();
-                });
-            } else if (document.webkitExitFullscreen) {
-                document.webkitExitFullscreen().then(() => {
-                    showThumbnail();
-                });
-            } else if (document.msExitFullscreen) {
-                document.msExitFullscreen().then(() => {
-                    showThumbnail();
-                });
-            }
-        }
-
-        // Show thumbnail
-        function showThumbnail() {
-            document.getElementById('exitBtn').style.display = 'none';
-            document.getElementById('thumbnailContainer').classList.add('active');
-            
-            // Generate thumbnail
-            generateThumbnail();
-        }
-
-        // Generate thumbnail
-        async function generateThumbnail() {
-            if (!pdfDoc) return;
-            
-            const page = await pdfDoc.getPage(1);
-            const viewport = page.getViewport({scale: 0.25});
-            
-            const tempCanvas = document.createElement('canvas');
-            const tempCtx = tempCanvas.getContext('2d');
-            tempCanvas.width = viewport.width;
-            tempCanvas.height = viewport.height;
-            
-            await page.render({
-                canvasContext: tempCtx,
-                viewport: viewport
-            }).promise;
-            
-            document.getElementById('thumbnail').src = tempCanvas.toDataURL();
-        }
-
-        // Resume from thumbnail
-        document.getElementById('thumbnail').addEventListener('pointerdown', function(e) {
-            if (e.pointerType === 'pen') {
-                e.preventDefault();
-                requestFullscreen(document.documentElement);
-                document.getElementById('thumbnailContainer').classList.remove('active');
-                redrawAnnotations();
-            }
-        });
-
-        // Render PDF page
-        async function renderPage(num) {
-            if (!pdfDoc) return;
-            
-            const page = await pdfDoc.getPage(num);
-            const viewport = page.getViewport({scale: window.devicePixelRatio || 1});
-            
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
-            
-            document.getElementById('annotationCanvas').height = viewport.height;
-            document.getElementById('annotationCanvas').width = viewport.width;
-            
-            const renderContext = {
-                canvasContext: ctx,
-                viewport: viewport
-            };
-            
-            await page.render(renderContext).promise;
-            redrawAnnotations();
-        }
-
-        // Setup annotation canvas
-        function setupAnnotationCanvas() {
-            const annotCanvas = document.getElementById('annotationCanvas');
-            
-            // Pointer events for stylus
-            annotCanvas.addEventListener('pointerdown', startDrawing);
-            annotCanvas.addEventListener('pointermove', draw);
-            annotCanvas.addEventListener('pointerup', stopDrawing);
-            annotCanvas.addEventListener('pointercancel', stopDrawing);
-            
-            // Prevent context menu on right-click
-            annotCanvas.addEventListener('contextmenu', e => e.preventDefault());
-        }
-
-        // Drawing functions
-        function startDrawing(e) {
-            if (e.pointerType !== 'pen') return;
-            
-            isDrawing = true;
-            currentStroke = [{
-                x: e.offsetX * (window.devicePixelRatio || 1),
-                y: e.offsetY * (window.devicePixelRatio || 1),
-                pressure: e.pressure || 0.5
-            }];
-        }
-
-        function draw(e) {
-            if (!isDrawing || e.pointerType !== 'pen') return;
-            
-            currentStroke.push({
-                x: e.offsetX * (window.devicePixelRatio || 1),
-                y: e.offsetY * (window.devicePixelRatio || 1),
-                pressure: e.pressure || 0.5
-            });
-            
-            redrawAnnotations();
-        }
-
-        function stopDrawing() {
-            if (!isDrawing) return;
-            
-            isDrawing = false;
-            strokes.push([...currentStroke]);
-            currentStroke = [];
-        }
-
-        // Redraw annotations
-        function redrawAnnotations() {
-            annotCtx.clearRect(0, 0, annotCtx.canvas.width, annotCtx.canvas.height);
-            
-            // Draw saved strokes
-            strokes.forEach(stroke => {
-                if (stroke.length > 1) {
-                    annotCtx.beginPath();
-                    annotCtx.moveTo(stroke[0].x, stroke[0].y);
+            // Load PDF file
+            const loadPDF = async (file) => {
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                    setPdfDoc(pdf);
+                    setTotalPages(pdf.numPages);
+                    setCurrentPage(1);
                     
-                    for (let i = 1; i < stroke.length; i++) {
-                        const point = stroke[i];
-                        const prevPoint = stroke[i-1];
+                    // Generate thumbnail from first page
+                    const page = await pdf.getPage(1);
+                    const viewport = page.getViewport({ scale: 0.3 });
+                    const thumbnailCanvas = document.createElement('canvas');
+                    const thumbnailCtx = thumbnailCanvas.getContext('2d');
+                    thumbnailCanvas.width = viewport.width;
+                    thumbnailCanvas.height = viewport.height;
+                    
+                    await page.render({
+                        canvasContext: thumbnailCtx,
+                        viewport: viewport
+                    }).promise;
+                    
+                    setThumbnailSrc(thumbnailCanvas.toDataURL());
+                    
+                    // Enter fullscreen immediately (using the file input user gesture)
+                    requestFullscreen();
+                } catch (error) {
+                    console.error('Error loading PDF:', error);
+                }
+            };
+
+            // Direct fullscreen request
+            const requestFullscreen = () => {
+                const element = document.documentElement;
+                if (element.requestFullscreen) {
+                    element.requestFullscreen().then(() => {
+                        setIsFullscreen(true);
+                    }).catch(err => {
+                        console.log('Fullscreen request failed:', err);
+                    });
+                } else if (element.webkitRequestFullscreen) {
+                    element.webkitRequestFullscreen();
+                    setIsFullscreen(true);
+                } else if (element.msRequestFullscreen) {
+                    element.msRequestFullscreen();
+                    setIsFullscreen(true);
+                }
+            };
+
+            // Render PDF page with SVG overlay
+            const renderPage = async (pageNum) => {
+                if (!pdfDoc || !canvasRef.current) return;
+
+                const page = await pdfDoc.getPage(pageNum);
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                
+                // Calculate scale to fit full screen width
+                const pageViewport = page.getViewport({ scale: 1.0 });
+                const scale = window.innerWidth / pageViewport.width;
+                const viewport = page.getViewport({ scale });
+                
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                
+                // Clear and render page
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                await page.render({
+                    canvasContext: ctx,
+                    viewport: viewport
+                }).promise;
+
+                // Setup SVG overlay - SVG doesn't get cleared when dimensions change!
+                const svg = svgRef.current;
+                if (svg) {
+                    svg.style.width = viewport.width + 'px';
+                    svg.style.height = viewport.height + 'px';
+                    svg.setAttribute('viewBox', `0 0 ${viewport.width} ${viewport.height}`);
+                    
+                    // Clear existing paths and restore annotations for this page
+                    svg.innerHTML = '';
+                    const pageAnnotations = annotations.get(pageNum) || [];
+                    pageAnnotations.forEach((annotation, index) => {
+                        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                         
-                        // Calculate line thickness based on pressure
-                        const lineWidth = Math.max(1, point.pressure * 5);
-                        annotCtx.lineWidth = lineWidth;
-                        annotCtx.lineCap = 'round';
-                        annotCtx.strokeStyle = '#000000';
+                        path.setAttribute('d', annotation.pathData);
+                        path.setAttribute('stroke', annotation.color);
+                        path.setAttribute('stroke-width', '3');
+                        path.setAttribute('stroke-linecap', 'round');
+                        path.setAttribute('stroke-linejoin', 'round');
+                        path.setAttribute('fill', 'none');
                         
-                        annotCtx.lineTo(point.x, point.y);
-                        annotCtx.stroke();
-                        annotCtx.beginPath();
-                        annotCtx.moveTo(point.x, point.y);
+                        svg.appendChild(path);
+                    });
+                }
+            };
+
+
+
+            // Fullscreen management
+            const enterFullscreen = () => {
+                if (containerRef.current) {
+                    if (containerRef.current.requestFullscreen) {
+                        containerRef.current.requestFullscreen();
+                    } else if (containerRef.current.webkitRequestFullscreen) {
+                        containerRef.current.webkitRequestFullscreen();
+                    } else if (containerRef.current.msRequestFullscreen) {
+                        containerRef.current.msRequestFullscreen();
                     }
                 }
-            });
-            
-            // Draw current stroke
-            if (currentStroke.length > 1) {
-                annotCtx.beginPath();
-                annotCtx.moveTo(currentStroke[0].x, currentStroke[0].y);
-                
-                for (let i = 1; i < currentStroke.length; i++) {
-                    const point = currentStroke[i];
-                    const prevPoint = currentStroke[i-1];
-                    
-                    const lineWidth = Math.max(1, point.pressure * 5);
-                    annotCtx.lineWidth = lineWidth;
-                    annotCtx.lineCap = 'round';
-                    annotCtx.strokeStyle = '#000000';
-                    
-                    annotCtx.lineTo(point.x, point.y);
-                    annotCtx.stroke();
-                    annotCtx.beginPath();
-                    annotCtx.moveTo(point.x, point.y);
+            };
+
+            const exitFullscreen = () => {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
                 }
-            }
-        }
+            };
 
-        // Handle fullscreen change
-        document.addEventListener('fullscreenchange', () => {
-            if (!document.fullscreenElement) {
-                showThumbnail();
-            }
-        });
+            // Simplified SVG Drawing functions - no state updates to avoid crashes
+            const startDrawing = (e) => {
+                if (!isFullscreen || !svgRef.current) return;
+                
+                // Only allow stylus input
+                if (e.pointerType !== 'pen') return;
+                
+                setIsDrawing(true);
+                
+                const rect = svgRef.current.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                // Create simple SVG path - no complex state management
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('stroke', '#800080');
+                path.setAttribute('stroke-width', '3');
+                path.setAttribute('stroke-linecap', 'round');
+                path.setAttribute('stroke-linejoin', 'round');
+                path.setAttribute('fill', 'none');
+                path.setAttribute('d', `M ${x} ${y}`);
+                
+                currentPathRef.current = {
+                    element: path,
+                    pathData: `M ${x} ${y}`
+                };
+                
+                svgRef.current.appendChild(path);
+            };
 
-        document.addEventListener('webkitfullscreenchange', () => {
-            if (!document.webkitFullscreenElement) {
-                showThumbnail();
-            }
-        });
+            const draw = (e) => {
+                if (!isDrawing || !isFullscreen || e.pointerType !== 'pen' || !currentPathRef.current) return;
+                
+                const rect = svgRef.current.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                // Simple path update - no array manipulation
+                currentPathRef.current.pathData += ` L ${x} ${y}`;
+                currentPathRef.current.element.setAttribute('d', currentPathRef.current.pathData);
+            };
 
-        document.addEventListener('msfullscreenchange', () => {
-            if (!document.msFullscreenElement) {
-                showThumbnail();
-            }
-        });
+            const stopDrawing = () => {
+                if (!isDrawing || !currentPathRef.current) return;
+                
+                setIsDrawing(false);
+                
+                // Simple persistence - just save the complete path data string
+                const pathData = currentPathRef.current.pathData;
+                if (pathData && pathData.length > 5) { // Only save if there's actual drawing
+                    setAnnotations(prev => {
+                        const newMap = new Map(prev);
+                        const pageAnnotations = newMap.get(currentPage) || [];
+                        const newAnnotation = {
+                            pathData: pathData,
+                            color: '#800080'
+                        };
+                        newMap.set(currentPage, [...pageAnnotations, newAnnotation]);
+                        return newMap;
+                    });
+                }
+                
+                currentPathRef.current = null;
+            };
 
-        // Initial setup
-        document.addEventListener('DOMContentLoaded', () => {
-            // Set default canvas size
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            document.getElementById('annotationCanvas').width = window.innerWidth;
-            document.getElementById('annotationCanvas').height = window.innerHeight;
-        });
+            // Handle thumbnail click (stylus only)
+            const handleThumbnailClick = (e) => {
+                if (e.pointerType === 'pen') {
+                    requestFullscreen();
+                }
+            };
 
-        // Handle window resize
-        window.addEventListener('resize', () => {
-            if (pdfDoc && document.fullscreenElement) {
-                renderPage(currentPage);
-            }
-        });
+            // Navigation
+            const nextPage = () => {
+                if (currentPage < totalPages) {
+                    setCurrentPage(currentPage + 1);
+                }
+            };
+
+            const prevPage = () => {
+                if (currentPage > 1) {
+                    setCurrentPage(currentPage - 1);
+                }
+            };
+
+            // Effects
+            useEffect(() => {
+                const handleFullscreenChange = () => {
+                    setIsFullscreen(!!document.fullscreenElement);
+                };
+
+                const handleKeyDown = (e) => {
+                    if (isFullscreen && pdfDoc) {
+                        if (e.key === 'ArrowLeft') {
+                            e.preventDefault();
+                            prevPage();
+                        } else if (e.key === 'ArrowRight') {
+                            e.preventDefault();
+                            nextPage();
+                        }
+                    }
+                };
+
+                document.addEventListener('fullscreenchange', handleFullscreenChange);
+                document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+                document.addEventListener('msfullscreenchange', handleFullscreenChange);
+                document.addEventListener('keydown', handleKeyDown);
+
+                return () => {
+                    document.removeEventListener('fullscreenchange', handleFullscreenChange);
+                    document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+                    document.removeEventListener('msfullscreenchange', handleFullscreenChange);
+                    document.removeEventListener('keydown', handleKeyDown);
+                };
+            }, [isFullscreen, pdfDoc, currentPage, totalPages]);
+
+            // Effect to handle fullscreen trigger
+            useEffect(() => {
+                if (shouldEnterFullscreen && pdfDoc && containerRef.current) {
+                    // Reset the trigger
+                    setShouldEnterFullscreen(false);
+                    
+                    // Enter fullscreen after a brief delay to ensure DOM is ready
+                    const timer = setTimeout(() => {
+                        enterFullscreen();
+                    }, 50);
+                    
+                    return () => clearTimeout(timer);
+                }
+            }, [shouldEnterFullscreen, pdfDoc]);
+
+            // Single effect to handle PDF rendering
+            useEffect(() => {
+                if (pdfDoc && isFullscreen) {
+                    const timer = setTimeout(() => {
+                        renderPage(currentPage);
+                    }, 150);
+                    return () => clearTimeout(timer);
+                }
+            }, [currentPage, pdfDoc, isFullscreen]);
+
+            // Removed old ref sync - no longer needed for SVG approach
+
+            // All annotation restoration is now handled directly in renderPage - no useEffect needed
+
+            return (
+                <div className="min-h-screen bg-md-surface dark:bg-gray-900">
+                    {!pdfDoc ? (
+                        // Load screen
+                        <div className="flex flex-col items-center justify-center min-h-screen p-6">
+                            <div className="bg-md-surface-container dark:bg-gray-800 rounded-3xl p-8 md-elevation-3 max-w-md w-full">
+                                <div className="text-center mb-8">
+                                    <div className="w-16 h-16 bg-md-primary-container dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <svg className="w-8 h-8 text-md-on-primary-container dark:text-gray-300" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+                                        </svg>
+                                    </div>
+                                    <h1 className="text-2xl font-bold text-md-on-surface dark:text-gray-100 mb-2">
+                                        PDF Annotation
+                                    </h1>
+                                    <p className="text-md-on-surface-variant dark:text-gray-400">
+                                        Load a PDF to start annotating with your stylus
+                                    </p>
+                                </div>
+                                
+                                <button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="w-full bg-md-primary hover:bg-md-primary/90 text-md-on-primary py-4 px-6 rounded-xl font-medium transition-colors md-elevation-1"
+                                >
+                                    Load PDF
+                                </button>
+                                
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept=".pdf"
+                                    onChange={(e) => {
+                                        const file = e.target.files[0];
+                                        if (file) loadPDF(file);
+                                    }}
+                                    className="hidden"
+                                />
+                            </div>
+                        </div>
+                    ) : isFullscreen ? (
+                        // Fullscreen PDF viewer
+                        <div ref={containerRef} className="fullscreen-container relative w-full h-screen flex items-start justify-start overflow-hidden">
+                            <div className="relative">
+                                <canvas ref={canvasRef} className="block" />
+                                <svg
+                                    ref={svgRef}
+                                    className="absolute top-0 left-0 cursor-crosshair"
+                                    style={{ touchAction: 'none' }}
+                                    onPointerDown={startDrawing}
+                                    onPointerMove={draw}
+                                    onPointerUp={stopDrawing}
+                                    onPointerLeave={stopDrawing}
+                                />
+                            </div>
+                        </div>
+                    ) : (
+                        // Thumbnail view
+                        <div className="min-h-screen flex items-center justify-center p-6">
+                            <div className="thumbnail-container rounded-2xl p-8 md-elevation-3 max-w-md w-full">
+                                <div className="text-center mb-6">
+                                    <h2 className="text-xl font-bold text-md-on-surface dark:text-gray-100 mb-2">
+                                        PDF Loaded
+                                    </h2>
+                                    <p className="text-md-on-surface-variant dark:text-gray-400 text-sm">
+                                        Touch with stylus to resume annotation
+                                    </p>
+                                </div>
+                                
+                                {thumbnailSrc && (
+                                    <div
+                                        className="relative cursor-pointer rounded-xl overflow-hidden md-elevation-1 hover:md-elevation-3 transition-shadow"
+                                        onPointerDown={handleThumbnailClick}
+                                    >
+                                        <img
+                                            ref={thumbnailRef}
+                                            src={thumbnailSrc}
+                                            alt="PDF Thumbnail"
+                                            className="w-full h-auto"
+                                        />
+                                        <div className="absolute inset-0 bg-black/10 hover:bg-black/5 transition-colors flex items-center justify-center">
+                                            <div className="bg-white/90 dark:bg-gray-800/90 rounded-full p-3">
+                                                <svg className="w-8 h-8 text-md-primary" fill="currentColor" viewBox="0 0 24 24">
+                                                    <path d="M8,5.14V19.14L19,12.14L8,5.14Z" />
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                <div className="mt-6 text-center">
+                                    <p className="text-sm text-md-on-surface-variant dark:text-gray-400">
+                                        Pages: {totalPages} • Annotations preserved
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        ReactDOM.render(<PDFAnnotationApp />, document.getElementById('root'));
     </script>
-</body>
-</html>
+
+
+</body></html>
