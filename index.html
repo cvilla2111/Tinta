@@ -80,13 +80,28 @@
             const [isDrawing, setIsDrawing] = useState(false);
             const [thumbnailSrc, setThumbnailSrc] = useState(null);
             const [annotations, setAnnotations] = useState(new Map());
+            const [fileName, setFileName] = useState('');
+            const [selectedColor, setSelectedColor] = useState('#800080');
+            const [penSize, setPenSize] = useState(3);
+            const [selectedTool, setSelectedTool] = useState('pen');
+            const [toolbarPosition, setToolbarPosition] = useState({ x: (window.innerWidth - 600) / 2, y: window.innerHeight - 100 });
+            const [eraserPosition, setEraserPosition] = useState({ x: 0, y: 0 });
+            const [showEraserCircle, setShowEraserCircle] = useState(false);
+            const [isDraggingToolbar, setIsDraggingToolbar] = useState(false);
+            const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+            const [pressureSensitivity, setPressureSensitivity] = useState(1.0);
+            const [toolbarMinimized, setToolbarMinimized] = useState(false);
+            const [currentEraserSize, setCurrentEraserSize] = useState(penSize * 3);
+            const [smoothedSpeed, setSmoothedSpeed] = useState(0);
+            const lastMoveTimeRef = useRef(0);
+            const lastPositionRef = useRef({ x: 0, y: 0 });
             
             const fileInputRef = useRef(null);
             const canvasRef = useRef(null);
-            const svgRef = useRef(null);
+            const drawingCanvasRef = useRef(null);
             const containerRef = useRef(null);
             const thumbnailRef = useRef(null);
-            const currentPathRef = useRef(null);
+            const lastPointRef = useRef(null);
             const isDrawingRef = useRef(false);
 
             // Load PDF file
@@ -138,7 +153,7 @@
                 }
             };
 
-            // Render PDF page with SVG overlay
+            // Render PDF page with Canvas overlay for raster drawing
             const renderPage = async (pageNum) => {
                 if (!pdfDoc || !canvasRef.current) return;
 
@@ -161,32 +176,28 @@
                     viewport: viewport
                 }).promise;
 
-                // Setup SVG overlay - SVG doesn't get cleared when dimensions change!
-                const svg = svgRef.current;
-                if (svg) {
-                    svg.style.width = viewport.width + 'px';
-                    svg.style.height = viewport.height + 'px';
-                    svg.setAttribute('viewBox', `0 0 ${viewport.width} ${viewport.height}`);
+                // Setup drawing canvas overlay
+                const drawingCanvas = drawingCanvasRef.current;
+                if (drawingCanvas) {
+                    drawingCanvas.width = viewport.width;
+                    drawingCanvas.height = viewport.height;
+                    drawingCanvas.style.width = viewport.width + 'px';
+                    drawingCanvas.style.height = viewport.height + 'px';
                     
-                    // Clear existing paths and restore annotations for this page
-                    svg.innerHTML = '';
-                    const pageAnnotations = annotations.get(pageNum) || [];
-                    pageAnnotations.forEach((annotation, index) => {
-                        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                        
-                        path.setAttribute('d', annotation.pathData);
-                        path.setAttribute('stroke', annotation.color);
-                        path.setAttribute('stroke-width', '3');
-                        path.setAttribute('stroke-linecap', 'round');
-                        path.setAttribute('stroke-linejoin', 'round');
-                        path.setAttribute('fill', 'none');
-                        
-                        svg.appendChild(path);
-                    });
+                    const drawingCtx = drawingCanvas.getContext('2d');
+                    drawingCtx.clearRect(0, 0, viewport.width, viewport.height);
+                    
+                    // Restore annotations for this page from saved image data
+                    const pageAnnotations = annotations.get(pageNum);
+                    if (pageAnnotations && pageAnnotations.imageData) {
+                        const img = new Image();
+                        img.onload = () => {
+                            drawingCtx.drawImage(img, 0, 0);
+                        };
+                        img.src = pageAnnotations.imageData;
+                    }
                 }
             };
-
-
 
             // Fullscreen management
             const enterFullscreen = () => {
@@ -211,76 +222,107 @@
                 }
             };
 
-            // Simplified SVG Drawing functions - no state updates to avoid crashes
+            // Canvas-based drawing functions with perfect pixel erasing
             const startDrawing = (e) => {
-                if (!isFullscreen || !svgRef.current) return;
+                if (!isFullscreen || !drawingCanvasRef.current) return;
                 
                 // Only allow stylus input
                 if (e.pointerType !== 'pen') return;
                 
                 setIsDrawing(true);
                 
-                const rect = svgRef.current.getBoundingClientRect();
+                const rect = drawingCanvasRef.current.getBoundingClientRect();
                 const x = e.clientX - rect.left;
                 const y = e.clientY - rect.top;
                 
-                // Create simple SVG path - no complex state management
-                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                path.setAttribute('stroke', '#800080');
-                path.setAttribute('stroke-width', '3');
-                path.setAttribute('stroke-linecap', 'round');
-                path.setAttribute('stroke-linejoin', 'round');
-                path.setAttribute('fill', 'none');
-                path.setAttribute('d', `M ${x} ${y}`);
+                const ctx = drawingCanvasRef.current.getContext('2d');
                 
-                currentPathRef.current = {
-                    element: path,
-                    pathData: `M ${x} ${y}`
-                };
-                
-                svgRef.current.appendChild(path);
+                if (selectedTool === 'eraser') {
+                    // Eraser mode: erase pixels in circular area
+                    eraseAtPoint(ctx, x, y);
+                } else {
+                    // Drawing mode: start new stroke
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.strokeStyle = selectedColor;
+                    ctx.lineWidth = penSize;
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+                    
+                    // Apply tool-specific styles
+                    if (selectedTool === 'highlighter') {
+                        ctx.globalAlpha = 0.5;
+                        ctx.lineWidth = Math.max(penSize, 8);
+                    } else {
+                        ctx.globalAlpha = 1.0;
+                    }
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
+                    lastPointRef.current = { x, y };
+                }
             };
 
             const draw = (e) => {
-                if (!isDrawing || !isFullscreen || e.pointerType !== 'pen' || !currentPathRef.current) return;
+                if (!isDrawing || !isFullscreen || e.pointerType !== 'pen') return;
                 
-                const rect = svgRef.current.getBoundingClientRect();
+                const rect = drawingCanvasRef.current.getBoundingClientRect();
                 const x = e.clientX - rect.left;
                 const y = e.clientY - rect.top;
                 
-                // Simple path update - no array manipulation
-                currentPathRef.current.pathData += ` L ${x} ${y}`;
-                currentPathRef.current.element.setAttribute('d', currentPathRef.current.pathData);
+                const ctx = drawingCanvasRef.current.getContext('2d');
+                
+                if (selectedTool === 'eraser') {
+                    // Continue erasing pixels
+                    eraseAtPoint(ctx, x, y);
+                } else {
+                    // Continue drawing stroke
+                    ctx.lineTo(x, y);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
+                }
             };
 
             const stopDrawing = () => {
-                if (!isDrawing || !currentPathRef.current) return;
+                if (!isDrawing) return;
                 
                 setIsDrawing(false);
                 
-                // Simple persistence - just save the complete path data string
-                const pathData = currentPathRef.current.pathData;
-                if (pathData && pathData.length > 5) { // Only save if there's actual drawing
+                // Save the canvas state as image data for this page
+                if (drawingCanvasRef.current) {
+                    const imageData = drawingCanvasRef.current.toDataURL();
                     setAnnotations(prev => {
                         const newMap = new Map(prev);
-                        const pageAnnotations = newMap.get(currentPage) || [];
-                        const newAnnotation = {
-                            pathData: pathData,
-                            color: '#800080'
-                        };
-                        newMap.set(currentPage, [...pageAnnotations, newAnnotation]);
+                        newMap.set(currentPage, { imageData });
                         return newMap;
                     });
                 }
                 
-                currentPathRef.current = null;
+                lastPointRef.current = null;
             };
 
-            // Handle thumbnail click (stylus only)
+            // Speed-responsive pixel eraser
+            const eraseAtPoint = (ctx, x, y) => {
+                // Use dynamic size that matches the visual circle
+                const eraserSize = currentEraserSize;
+                
+                // Set composite operation to erase pixels
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.globalAlpha = 1.0;
+                
+                // Draw a circle to erase pixels in that area
+                ctx.beginPath();
+                ctx.arc(x, y, eraserSize, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Reset composite operation
+                ctx.globalCompositeOperation = 'source-over';
+            };
+
+            // Handle thumbnail click (any touch/click)
             const handleThumbnailClick = (e) => {
-                if (e.pointerType === 'pen') {
-                    requestFullscreen();
-                }
+                e.preventDefault();
+                requestFullscreen();
             };
 
             // Navigation
@@ -314,18 +356,38 @@
                     }
                 };
 
+                // Global toolbar drag handling
+                const handleGlobalPointerMove = (e) => {
+                    if (isDraggingToolbar) {
+                        setToolbarPosition({
+                            x: e.clientX - dragOffset.x,
+                            y: e.clientY - dragOffset.y
+                        });
+                    }
+                };
+
+                const handleGlobalPointerUp = () => {
+                    if (isDraggingToolbar) {
+                        setIsDraggingToolbar(false);
+                    }
+                };
+
                 document.addEventListener('fullscreenchange', handleFullscreenChange);
                 document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
                 document.addEventListener('msfullscreenchange', handleFullscreenChange);
                 document.addEventListener('keydown', handleKeyDown);
+                document.addEventListener('pointermove', handleGlobalPointerMove);
+                document.addEventListener('pointerup', handleGlobalPointerUp);
 
                 return () => {
                     document.removeEventListener('fullscreenchange', handleFullscreenChange);
                     document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
                     document.removeEventListener('msfullscreenchange', handleFullscreenChange);
                     document.removeEventListener('keydown', handleKeyDown);
+                    document.removeEventListener('pointermove', handleGlobalPointerMove);
+                    document.removeEventListener('pointerup', handleGlobalPointerUp);
                 };
-            }, [isFullscreen, pdfDoc, currentPage, totalPages]);
+            }, [isFullscreen, pdfDoc, currentPage, totalPages, isDraggingToolbar, dragOffset]);
 
             // Effect to handle fullscreen trigger
             useEffect(() => {
@@ -351,10 +413,6 @@
                     return () => clearTimeout(timer);
                 }
             }, [currentPage, pdfDoc, isFullscreen]);
-
-            // Removed old ref sync - no longer needed for SVG approach
-
-            // All annotation restoration is now handled directly in renderPage - no useEffect needed
 
             return (
                 <div className="min-h-screen bg-md-surface dark:bg-gray-900">
@@ -389,68 +447,258 @@
                                     accept=".pdf"
                                     onChange={(e) => {
                                         const file = e.target.files[0];
-                                        if (file) loadPDF(file);
+                                        if (file) {
+                                            setFileName(file.name);
+                                            loadPDF(file);
+                                        }
                                     }}
                                     className="hidden"
                                 />
                             </div>
                         </div>
                     ) : isFullscreen ? (
-                        // Fullscreen PDF viewer
+                        // Fullscreen PDF viewer with pill toolbar
                         <div ref={containerRef} className="fullscreen-container relative w-full h-screen flex items-start justify-start overflow-hidden">
                             <div className="relative">
                                 <canvas ref={canvasRef} className="block" />
-                                <svg
-                                    ref={svgRef}
-                                    className="absolute top-0 left-0 cursor-crosshair"
-                                    style={{ touchAction: 'none' }}
+                                <canvas
+                                    ref={drawingCanvasRef}
+                                    className="absolute top-0 left-0 block"
+                                    style={{ 
+                                        touchAction: 'none',
+                                        cursor: selectedTool === 'eraser' ? 'none' : 'crosshair'
+                                    }}
                                     onPointerDown={startDrawing}
-                                    onPointerMove={draw}
+                                    onPointerMove={(e) => {
+                                        // Always update eraser position when eraser is selected
+                                        if (selectedTool === 'eraser' && drawingCanvasRef.current) {
+                                            const rect = drawingCanvasRef.current.getBoundingClientRect();
+                                            const newX = e.clientX - rect.left;
+                                            const newY = e.clientY - rect.top;
+                                            const currentTime = performance.now();
+                                            
+                                            // Smooth speed calculation
+                                            if (lastMoveTimeRef.current > 0 && lastPositionRef.current.x !== 0) {
+                                                const deltaTime = currentTime - lastMoveTimeRef.current;
+                                                const deltaX = newX - lastPositionRef.current.x;
+                                                const deltaY = newY - lastPositionRef.current.y;
+                                                const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                                                
+                                                if (deltaTime > 0 && deltaTime < 100) { // Only use recent movements
+                                                    const currentSpeed = distance / deltaTime; // pixels per ms
+                                                    // Exponential smoothing for responsive but smooth changes
+                                                    const newSmoothedSpeed = smoothedSpeed * 0.7 + currentSpeed * 0.3;
+                                                    setSmoothedSpeed(newSmoothedSpeed);
+                                                    
+                                                    const speedMultiplier = Math.min(1 + (newSmoothedSpeed * 1.5), 2.5); // Max 2.5x size
+                                                    const dynamicSize = (penSize * 3) * speedMultiplier;
+                                                    setCurrentEraserSize(dynamicSize);
+                                                }
+                                            }
+                                            
+                                            // Update position immediately for smooth circle following
+                                            setEraserPosition({ x: newX, y: newY });
+                                            lastPositionRef.current = { x: newX, y: newY };
+                                            lastMoveTimeRef.current = currentTime;
+                                            setShowEraserCircle(true);
+                                        } else {
+                                            setShowEraserCircle(false);
+                                        }
+                                        draw(e);
+                                    }}
                                     onPointerUp={stopDrawing}
-                                    onPointerLeave={stopDrawing}
+                                    onPointerLeave={() => {
+                                        setShowEraserCircle(false);
+                                        stopDrawing();
+                                    }}
+                                    onPointerEnter={(e) => {
+                                        if (selectedTool === 'eraser' && drawingCanvasRef.current) {
+                                            const rect = drawingCanvasRef.current.getBoundingClientRect();
+                                            setEraserPosition({
+                                                x: e.clientX - rect.left,
+                                                y: e.clientY - rect.top
+                                            });
+                                            setShowEraserCircle(true);
+                                        }
+                                    }}
                                 />
+                                
+                                {/* Dynamic Eraser Circle - Size increases with speed, no transitions for smoothness */}
+                                {showEraserCircle && selectedTool === 'eraser' && (
+                                    <div
+                                        className="absolute pointer-events-none"
+                                        style={{
+                                            left: `${eraserPosition.x - currentEraserSize}px`,
+                                            top: `${eraserPosition.y - currentEraserSize}px`,
+                                            width: `${currentEraserSize * 2}px`,
+                                            height: `${currentEraserSize * 2}px`,
+                                            border: '2px dashed #808080',
+                                            borderRadius: '50%',
+                                            zIndex: 999,
+                                            background: 'rgba(128, 128, 128, 0.1)',
+                                            transform: 'translateZ(0)', // Hardware acceleration
+                                            willChange: 'transform, width, height' // Optimize for changes
+                                        }}
+                                    />
+                                )}
+                            </div>
+                            
+                            {/* Horizontal Pill Toolbar - Bottom Positioned */}
+                            <div
+                                className="absolute bg-gray-900 rounded-full shadow-2xl border border-gray-700 cursor-move"
+                                style={{
+                                    left: `${toolbarPosition.x}px`,
+                                    bottom: '20px',
+                                    zIndex: 1000,
+                                    userSelect: 'none',
+                                    minWidth: '600px',
+                                    height: '60px',
+                                    touchAction: 'none'
+                                }}
+                                onPointerDown={(e) => {
+                                    // Only start drag if clicking on empty space, not buttons
+                                    if (e.target.closest('button, input')) {
+                                        return;
+                                    }
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setDragOffset({
+                                        x: e.clientX - rect.left,
+                                        y: e.clientY - rect.top
+                                    });
+                                    setIsDraggingToolbar(true);
+                                }}
+                            >
+                                <div className="flex items-center justify-between h-full px-6 py-2">
+                                    {/* Left: Colors */}
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-white text-xs font-bold">🎨</span>
+                                        <div className="flex gap-1">
+                                            {['#000000', '#FF0000', '#0000FF', '#800080', '#FFA500'].map((color) => (
+                                                <button
+                                                    key={color}
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        setSelectedColor(color);
+                                                    }}
+                                                    className={`w-8 h-8 rounded-full border-2 transition-all hover:scale-110 ${
+                                                        selectedColor === color ? 'border-white shadow-lg' : 'border-gray-400'
+                                                    }`}
+                                                    style={{ backgroundColor: color }}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Center: Tools & Size */}
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex gap-1">
+                                            {[
+                                                { tool: 'pen', icon: '✏️' },
+                                                { tool: 'highlighter', icon: '🖍️' },
+                                                { tool: 'eraser', icon: '🧽' }
+                                            ].map((toolOption) => (
+                                                <button
+                                                    key={toolOption.tool}
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        setSelectedTool(toolOption.tool);
+                                                    }}
+                                                    className={`px-3 py-2 text-sm rounded-full transition-all hover:scale-105 ${
+                                                        selectedTool === toolOption.tool
+                                                            ? 'bg-blue-500 text-white'
+                                                            : 'bg-gray-700 text-gray-300'
+                                                    }`}
+                                                >
+                                                    {toolOption.icon}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        
+                                        <div className="text-white text-xs">
+                                            Size: {penSize}px
+                                            <input
+                                                type="range"
+                                                min="1"
+                                                max="30"
+                                                value={penSize}
+                                                onChange={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    setPenSize(parseInt(e.target.value));
+                                                }}
+                                                className="ml-2 w-20 h-1 bg-gray-600 rounded appearance-none"
+                                            />
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Right: Actions & Status */}
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                // Clear current page annotations
+                                                setAnnotations(prev => {
+                                                    const newMap = new Map(prev);
+                                                    newMap.delete(currentPage);
+                                                    return newMap;
+                                                });
+                                                // Clear drawing canvas
+                                                if (drawingCanvasRef.current) {
+                                                    const ctx = drawingCanvasRef.current.getContext('2d');
+                                                    ctx.clearRect(0, 0, drawingCanvasRef.current.width, drawingCanvasRef.current.height);
+                                                }
+                                            }}
+                                            className="px-3 py-1 bg-red-600 text-white text-xs rounded-full hover:bg-red-700"
+                                        >
+                                            Clear
+                                        </button>
+                                        
+                                        <div className="text-white text-xs">
+                                            Page {currentPage}/{totalPages}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     ) : (
-                        // Thumbnail view
-                        <div className="min-h-screen flex items-center justify-center p-6">
-                            <div className="thumbnail-container rounded-2xl p-8 md-elevation-3 max-w-md w-full">
-                                <div className="text-center mb-6">
-                                    <h2 className="text-xl font-bold text-md-on-surface dark:text-gray-100 mb-2">
-                                        PDF Loaded
-                                    </h2>
-                                    <p className="text-md-on-surface-variant dark:text-gray-400 text-sm">
-                                        Touch with stylus to resume annotation
-                                    </p>
-                                </div>
-                                
-                                {thumbnailSrc && (
+                        // Clean thumbnail view at (400, 200)
+                        <div className="min-h-screen relative">
+                            {/* PDF Thumbnail positioned at x:400 y:200 with 200px width */}
+                            {thumbnailSrc && (
+                                <>
                                     <div
-                                        className="relative cursor-pointer rounded-xl overflow-hidden md-elevation-1 hover:md-elevation-3 transition-shadow"
+                                        className="absolute cursor-pointer rounded-xl overflow-hidden md-elevation-1 hover:md-elevation-3 transition-shadow"
+                                        style={{
+                                            left: '400px',
+                                            top: '200px',
+                                            width: '200px'
+                                        }}
                                         onPointerDown={handleThumbnailClick}
                                     >
                                         <img
                                             ref={thumbnailRef}
                                             src={thumbnailSrc}
                                             alt="PDF Thumbnail"
-                                            className="w-full h-auto"
+                                            style={{
+                                                width: '200px',
+                                                height: 'auto'
+                                            }}
                                         />
-                                        <div className="absolute inset-0 bg-black/10 hover:bg-black/5 transition-colors flex items-center justify-center">
-                                            <div className="bg-white/90 dark:bg-gray-800/90 rounded-full p-3">
-                                                <svg className="w-8 h-8 text-md-primary" fill="currentColor" viewBox="0 0 24 24">
-                                                    <path d="M8,5.14V19.14L19,12.14L8,5.14Z" />
-                                                </svg>
-                                            </div>
-                                        </div>
                                     </div>
-                                )}
-                                
-                                <div className="mt-6 text-center">
-                                    <p className="text-sm text-md-on-surface-variant dark:text-gray-400">
-                                        Pages: {totalPages} • Annotations preserved
-                                    </p>
-                                </div>
-                            </div>
+                                    
+                                    {/* Filename positioned closer and centered below thumbnail */}
+                                    <div className="absolute" style={{ left: '400px', top: '328px', width: '200px' }}>
+                                        <p className="text-sm text-md-on-surface dark:text-gray-100 font-medium text-center truncate">
+                                            {fileName}
+                                        </p>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     )}
                 </div>
