@@ -3,665 +3,421 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Drawing App</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <title>PDF Annotation App</title>
+    
+    <!-- Material Design 3 -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@material/web/all.min.js"></script>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .load-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .pdf-viewer {
+            position: relative;
+            width: 100%;
+            height: calc(100vh - 200px);
+            overflow: hidden;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        .thumbnail-container {
+            display: none;
+            justify-content: center;
+            align-items: center;
+            height: calc(100vh - 200px);
+            position: relative;
+        }
+        
+        .thumbnail {
+            width: 180px;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 16px;
+            cursor: crosshair;
+            transition: transform 0.2s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .thumbnail:hover {
+            transform: scale(1.05);
+        }
+        
+        .annotation-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        .fullscreen-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            color: white;
+            background-color: rgba(0,0,0,0.5);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            .pdf-viewer, .thumbnail {
+                visibility: visible;
+                position: static;
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="load-section">
+            <md-filled-button id="loadBtn" icon="upload">Load PDF</md-filled-button>
+            <input type="file" id="fileInput" accept=".pdf" style="display: none;">
+        </div>
+        
+        <div id="pdfContainer">
+            <div id="viewer" class="pdf-viewer">
+                <canvas id="pdfCanvas"></canvas>
+                <canvas id="annotationCanvas" class="annotation-canvas"></canvas>
+                <div class="fullscreen-btn" id="fullscreenBtn">
+                    <span class="material-icons">expand_fullscreen</span>
+                </div>
+            </div>
+            
+            <div id="thumbnailView" class="thumbnail-container">
+                <img id="thumbnailImg" class="thumbnail" alt="PDF Preview">
+                <canvas id="thumbnailAnnotation" class="annotation-canvas"></canvas>
+            </div>
+        </div>
+    </div>
+
     <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#5D5CDE',
-                        'bg-light': '#FFFFFF',
-                        'bg-dark': '#181818'
+        const { useState, useEffect, useRef } = React;
+        
+        // Initialize Material Components
+        mdCore.initialize();
+        
+        // Global variables
+        let pdfDoc = null;
+        let pageNum = 1;
+        let pageRendering = false;
+        let pageNumPending = null;
+        let scale = 1.5;
+        let canvas = document.getElementById('pdfCanvas');
+        let ctx = canvas.getContext('2d');
+        let annotationCtx = document.getElementById('annotationCanvas').getContext('2d');
+        let thumbnailCtx = document.getElementById('thumbnailAnnotation').getContext('2d');
+        let isFullscreen = false;
+        let annotations = {};
+        let currentStroke = [];
+        let isDrawing = false;
+        
+        // Load PDF Button Handler
+        document.getElementById('loadBtn').addEventListener('click', () => {
+            document.getElementById('fileInput').click();
+        });
+        
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file && file.type === 'application/pdf') {
+                loadPDF(file);
+            }
+        });
+        
+        // Load PDF Function
+        async function loadPDF(file) {
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                pdfDoc = await pdfjsLib.getDocument(arrayBuffer).promise;
+                
+                // Enter fullscreen
+                await enterFullscreen();
+                
+                // Render first page
+                renderPage(pageNum);
+                
+                // Generate thumbnail
+                generateThumbnail();
+                
+                // Save to local storage
+                saveSessionState(file.name);
+            } catch (error) {
+                console.error('Error loading PDF:', error);
+                alert('Failed to load PDF. Please try another file.');
+            }
+        }
+        
+        // Render PDF Page
+        function renderPage(num) {
+            pageRendering = true;
+            pdfDoc.getPage(num).then(function(page) {
+                const viewport = page.getViewport({ scale: scale });
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                
+                const renderContext = {
+                    canvasContext: ctx,
+                    viewport: viewport
+                };
+                
+                const renderTask = page.render(renderContext);
+                renderTask.promise.then(() => {
+                    pageRendering = false;
+                    
+                    if (pageNumPending !== null) {
+                        renderPage(pageNumPending);
+                        pageNumPending = null;
+                    }
+                    
+                    // Draw existing annotations
+                    drawAnnotations(num);
+                });
+            });
+            
+            document.getElementById('page_num').textContent = num;
+        }
+        
+        // Queue rendering if already rendering
+        function queueRenderPage(num) {
+            if (pageRendering) {
+                pageNumPending = num;
+            } else {
+                renderPage(num);
+            }
+        }
+        
+        // Generate thumbnail of first page
+        async function generateThumbnail() {
+            const page = await pdfDoc.getPage(1);
+            const viewport = page.getViewport({ scale: 0.3 });
+            
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.height = viewport.height;
+            tempCanvas.width = viewport.width;
+            
+            await page.render({
+                canvasContext: tempCtx,
+                viewport: viewport
+            }).promise;
+            
+            document.getElementById('thumbnailImg').src = tempCanvas.toDataURL();
+        }
+        
+        // Drawing functionality
+        function setupDrawing() {
+            const annotationCanvas = document.getElementById('annotationCanvas');
+            
+            annotationCanvas.addEventListener('pointerdown', startDrawing);
+            annotationCanvas.addEventListener('pointermove', draw);
+            annotationCanvas.addEventListener('pointerup', stopDrawing);
+            annotationCanvas.addEventListener('pointerleave', stopDrawing);
+            
+            // Prevent context menu on right click
+            annotationCanvas.addEventListener('contextmenu', e => e.preventDefault());
+        }
+        
+        function startDrawing(e) {
+            if (!isFullscreen) return;
+            
+            isDrawing = true;
+            currentStroke = [];
+            
+            const rect = annotationCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            currentStroke.push({
+                x, y,
+                pressure: e.pressure || 0.5,
+                time: Date.now()
+            });
+            
+            annotationCtx.beginPath();
+            annotationCtx.moveTo(x, y);
+        }
+        
+        function draw(e) {
+            if (!isDrawing || !isFullscreen) return;
+            
+            const rect = annotationCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            currentStroke.push({
+                x, y,
+                pressure: e.pressure || 0.5,
+                time: Date.now()
+            });
+            
+            const lastPoint = currentStroke[currentStroke.length - 2];
+            const currentPoint = currentStroke[currentStroke.length - 1];
+            
+            annotationCtx.lineWidth = Math.max(currentPoint.pressure * 5, 1);
+            annotationCtx.lineCap = 'round';
+            annotationCtx.strokeStyle = '#FF0000'; // Red color for annotations
+            
+            annotationCtx.lineTo(x, y);
+            annotationCtx.stroke();
+        }
+        
+        function stopDrawing() {
+            if (!isDrawing) return;
+            
+            isDrawing = false;
+            
+            if (currentStroke.length > 1) {
+                if (!annotations[pageNum]) {
+                    annotations[pageNum] = [];
+                }
+                annotations[pageNum].push([...currentStroke]);
+            }
+            
+            currentStroke = [];
+        }
+        
+        function drawAnnotations(pageNumber) {
+            if (!annotations[pageNumber]) return;
+            
+            annotationCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+            
+            annotations[pageNumber].forEach(stroke => {
+                if (stroke.length < 2) return;
+                
+                annotationCtx.beginPath();
+                annotationCtx.moveTo(stroke[0].x, stroke[0].y);
+                
+                for (let i = 1; i < stroke.length; i++) {
+                    const point = stroke[i];
+                    annotationCtx.lineWidth = Math.max(point.pressure * 5, 1);
+                    annotationCtx.lineCap = 'round';
+                    annotationCtx.strokeStyle = '#FF0000';
+                    annotationCtx.lineTo(point.x, point.y);
+                    annotationCtx.stroke();
+                }
+            });
+        }
+        
+        // Fullscreen management
+        async function enterFullscreen() {
+            try {
+                await document.documentElement.requestFullscreen();
+                isFullscreen = true;
+                document.getElementById('viewer').style.display = 'block';
+                document.getElementById('thumbnailView').style.display = 'none';
+                setupDrawing();
+            } catch (err) {
+                console.error('Could not enter fullscreen:', err);
+            }
+        }
+        
+        function exitFullscreen() {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            }
+        }
+        
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                isFullscreen = false;
+                document.getElementById('viewer').style.display = 'none';
+                document.getElementById('thumbnailView').style.display = 'flex';
+                saveSessionState();
+            }
+        });
+        
+        // Thumbnail interaction
+        document.getElementById('thumbnailImg').addEventListener('pointerdown', async (e) => {
+            if (e.pointerType === 'pen' || e.pointerType === 'touch') {
+                await enterFullscreen();
+                renderPage(pageNum);
+                drawAnnotations(pageNum);
+            }
+        });
+        
+        // Save/Load session state
+        function saveSessionState(pdfName = '') {
+            const sessionData = {
+                pdfName,
+                currentPage: pageNum,
+                annotations: annotations,
+                timestamp: new Date().toISOString()
+            };
+            
+            localStorage.setItem('pdfSession', JSON.stringify(sessionData));
+        }
+        
+        function loadSessionState() {
+            const saved = localStorage.getItem('pdfSession');
+            if (saved) {
+                const sessionData = JSON.parse(saved);
+                annotations = sessionData.annotations || {};
+                pageNum = sessionData.currentPage || 1;
+                
+                if (sessionData.pdfName) {
+                    // Here you would typically re-load the PDF
+                    // For demo purposes, we'll just restore annotations
+                    if (isFullscreen) {
+                        renderPage(pageNum);
+                        drawAnnotations(pageNum);
                     }
                 }
             }
         }
-    </script>
-    <style>
-        .drawing-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            pointer-events: auto;
-            cursor: crosshair;
-            will-change: contents;
-            image-rendering: pixelated;
-            image-rendering: -moz-crisp-edges;
-            image-rendering: crisp-edges;
-        }
-        .pdf-container {
-            position: relative;
-            display: inline-block;
-            contain: layout style paint;
-        }
-        .toolbar {
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
-        .tool-active {
-            background-color: #5D5CDE;
-            color: white;
-        }
-        canvas {
-            image-rendering: pixelated;
-            image-rendering: -moz-crisp-edges;
-            image-rendering: crisp-edges;
-        }
-        .performance-hint {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 8px 12px;
-            border-radius: 4px;
-            font-size: 12px;
-            z-index: 1000;
-        }
-    </style>
-</head>
-<body class="bg-bg-light dark:bg-bg-dark text-gray-900 dark:text-gray-100 min-h-screen">
-    <!-- Toolbar -->
-    <div class="toolbar bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
-        <div class="flex flex-wrap items-center gap-4">
-            <!-- File Input -->
-            <div class="flex items-center gap-2">
-                <label for="pdfFile" class="px-4 py-2 bg-primary text-white rounded-lg cursor-pointer hover:bg-opacity-90 transition-colors text-base">
-                    Load PDF
-                </label>
-                <input type="file" id="pdfFile" accept=".pdf" class="hidden">
-            </div>
-
-            <!-- Drawing Tools -->
-            <div class="flex items-center gap-2">
-                <button id="penTool" class="tool-active px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 transition-colors text-base">
-                    ✏️ Pen
-                </button>
-                <button id="highlighterTool" class="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-base">
-                    🖍️ Highlight
-                </button>
-                <button id="eraserTool" class="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-base">
-                    🗑️ Eraser
-                </button>
-            </div>
-
-            <!-- Color Picker -->
-            <div class="flex items-center gap-2">
-                <label class="text-sm font-medium">Color:</label>
-                <input type="color" id="colorPicker" value="#000000" class="w-10 h-10 rounded border border-gray-300 dark:border-gray-600">
-                <div class="flex gap-1">
-                    <button class="color-preset w-6 h-6 rounded-full border-2 border-gray-300" style="background-color: #000000" data-color="#000000"></button>
-                    <button class="color-preset w-6 h-6 rounded-full border-2 border-gray-300" style="background-color: #FF0000" data-color="#FF0000"></button>
-                    <button class="color-preset w-6 h-6 rounded-full border-2 border-gray-300" style="background-color: #00FF00" data-color="#00FF00"></button>
-                    <button class="color-preset w-6 h-6 rounded-full border-2 border-gray-300" style="background-color: #0000FF" data-color="#0000FF"></button>
-                    <button class="color-preset w-6 h-6 rounded-full border-2 border-gray-300" style="background-color: #FFFF00" data-color="#FFFF00"></button>
-                </div>
-            </div>
-
-            <!-- Brush Size -->
-            <div class="flex items-center gap-2">
-                <label class="text-sm font-medium">Size:</label>
-                <input type="range" id="brushSize" min="1" max="20" value="3" class="w-20">
-                <span id="sizeDisplay" class="text-sm w-8">3px</span>
-            </div>
-
-            <!-- Actions -->
-            <div class="flex items-center gap-2">
-                <button id="clearAll" class="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-base">
-                    Clear All
-                </button>
-                <button id="saveAnnotated" class="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-base">
-                    Save PDF
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Content -->
-    <div class="p-4">
-        <!-- Instructions -->
-        <div id="instructions" class="text-center py-8">
-            <div class="max-w-md mx-auto">
-                <h1 class="text-2xl font-bold mb-4">PDF Drawing App</h1>
-                <p class="text-gray-600 dark:text-gray-400 mb-4">
-                    Load a PDF file to start drawing and annotating. Supports pressure-sensitive stylus input (MPP compatible).
-                </p>
-                <div class="text-sm text-gray-500 dark:text-gray-500">
-                    <p>• Use pen tool for precise drawing</p>
-                    <p>• Use highlighter for transparent annotations</p>
-                    <p>• Eraser removes drawings</p>
-                    <p>• Pressure sensitivity adjusts line width</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- PDF Viewer -->
-        <div id="pdfViewer" class="hidden">
-            <div class="text-center mb-4">
-                <span class="text-sm text-gray-600 dark:text-gray-400">
-                    Page <span id="currentPage">1</span> of <span id="totalPages">1</span>
-                </span>
-                <div class="inline-flex gap-2 ml-4">
-                    <button id="prevPage" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-base">
-                        Previous
-                    </button>
-                    <button id="nextPage" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-base">
-                        Next
-                    </button>
-                </div>
-            </div>
-            
-            <div class="flex justify-center">
-                <div id="pdfContainer" class="pdf-container border border-gray-300 dark:border-gray-600">
-                    <canvas id="pdfCanvas"></canvas>
-                    <canvas id="drawingCanvas" class="drawing-canvas"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // Dark mode setup
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            document.documentElement.classList.add('dark');
-        }
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
-            if (event.matches) {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
-        });
-
-        // PDF.js setup
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
-        // App state
-        let currentPDF = null;
-        let currentPage = 1;
-        let totalPages = 0;
-        let currentTool = 'pen';
-        let isDrawing = false;
-        let drawings = {}; // Store drawings per page
         
-        // Ultra low latency drawing state
-        let currentStroke = [];
-        let smoothingBuffer = [];
-        let lastTime = 0;
-        let frameCount = 0;
-        let animationFrameId = null;
-        let strokeQueue = [];
-        let isAnimating = false;
-
-        // Canvas elements
-        const pdfCanvas = document.getElementById('pdfCanvas');
-        const drawingCanvas = document.getElementById('drawingCanvas');
-        const pdfCtx = pdfCanvas.getContext('2d');
-        const drawingCtx = drawingCanvas.getContext('2d', {
-            alpha: true,
-            desynchronized: true,
-            powerPreference: 'high-performance'
-        });
-
-        // Optimize canvas for low latency
-        drawingCtx.imageSmoothingEnabled = false;
-
-        // UI elements
-        const pdfFile = document.getElementById('pdfFile');
-        const instructions = document.getElementById('instructions');
-        const pdfViewer = document.getElementById('pdfViewer');
-        const currentPageSpan = document.getElementById('currentPage');
-        const totalPagesSpan = document.getElementById('totalPages');
-        const prevPageBtn = document.getElementById('prevPage');
-        const nextPageBtn = document.getElementById('nextPage');
-        const brushSize = document.getElementById('brushSize');
-        const sizeDisplay = document.getElementById('sizeDisplay');
-        const colorPicker = document.getElementById('colorPicker');
-
-        // Tool buttons
-        const penTool = document.getElementById('penTool');
-        const highlighterTool = document.getElementById('highlighterTool');
-        const eraserTool = document.getElementById('eraserTool');
-        const clearAll = document.getElementById('clearAll');
-        const saveAnnotated = document.getElementById('saveAnnotated');
-
-        // Load PDF file
-        pdfFile.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const arrayBuffer = await file.arrayBuffer();
-            currentPDF = await pdfjsLib.getDocument(arrayBuffer).promise;
-            totalPages = currentPDF.numPages;
-            currentPage = 1;
-            drawings = {};
-
-            totalPagesSpan.textContent = totalPages;
-            instructions.classList.add('hidden');
-            pdfViewer.classList.remove('hidden');
+        // Initialize
+        window.onload = function() {
+            loadSessionState();
             
-            await renderPage(currentPage);
-        });
-
-        // Render PDF page
-        async function renderPage(pageNum) {
-            const page = await currentPDF.getPage(pageNum);
-            const viewport = page.getViewport({ scale: 1.5 });
-
-            // Set canvas size
-            pdfCanvas.width = viewport.width;
-            pdfCanvas.height = viewport.height;
-            drawingCanvas.width = viewport.width;
-            drawingCanvas.height = viewport.height;
-
-            // Render PDF
-            await page.render({
-                canvasContext: pdfCtx,
-                viewport: viewport
-            }).promise;
-
-            // Restore drawings for this page
-            restoreDrawings(pageNum);
-            
-            currentPageSpan.textContent = pageNum;
-            prevPageBtn.disabled = pageNum === 1;
-            nextPageBtn.disabled = pageNum === totalPages;
-        }
-
-        // Page navigation
-        prevPageBtn.addEventListener('click', () => {
-            if (currentPage > 1) {
-                saveCurrentDrawings();
-                currentPage--;
-                renderPage(currentPage);
-            }
-        });
-
-        nextPageBtn.addEventListener('click', () => {
-            if (currentPage < totalPages) {
-                saveCurrentDrawings();
-                currentPage++;
-                renderPage(currentPage);
-            }
-        });
-
-        // Tool selection
-        function selectTool(tool) {
-            currentTool = tool;
-            document.querySelectorAll('.tool-active').forEach(btn => {
-                btn.classList.remove('tool-active');
-                btn.classList.add('hover:bg-gray-100', 'dark:hover:bg-gray-700');
-            });
-            
-            const toolBtn = document.getElementById(tool + 'Tool');
-            toolBtn.classList.add('tool-active');
-            toolBtn.classList.remove('hover:bg-gray-100', 'dark:hover:bg-gray-700');
-            
-            // Update cursor
-            if (tool === 'eraser') {
-                drawingCanvas.style.cursor = 'grab';
-            } else {
-                drawingCanvas.style.cursor = 'crosshair';
-            }
-        }
-
-        penTool.addEventListener('click', () => selectTool('pen'));
-        highlighterTool.addEventListener('click', () => selectTool('highlighter'));
-        eraserTool.addEventListener('click', () => selectTool('eraser'));
-
-        // Brush size control
-        brushSize.addEventListener('input', (e) => {
-            sizeDisplay.textContent = e.target.value + 'px';
-        });
-
-        // Color presets
-        document.querySelectorAll('.color-preset').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                colorPicker.value = e.target.dataset.color;
-            });
-        });
-
-        // Ultra low latency drawing functions
-        function getPointerData(e) {
-            const rect = drawingCanvas.getBoundingClientRect();
-            return {
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top,
-                pressure: e.pressure || 0.5,
-                timestamp: performance.now(),
-                tiltX: e.tiltX || 0,
-                tiltY: e.tiltY || 0
-            };
-        }
-
-        function startDrawing(e) {
-            isDrawing = true;
-            const pointer = getPointerData(e);
-            currentStroke = [pointer];
-            smoothingBuffer = [pointer];
-
-            if (currentTool === 'eraser') {
-                fastErase(pointer.x, pointer.y);
-            } else {
-                // Immediate feedback - draw first point
-                setupBrush();
-                drawingCtx.globalCompositeOperation = 'source-over';
-                drawingCtx.beginPath();
-                drawingCtx.arc(pointer.x, pointer.y, getBrushSize(pointer.pressure) / 2, 0, Math.PI * 2);
-                drawingCtx.fill();
-            }
-
-            // Start animation loop for smooth rendering
-            if (!isAnimating) {
-                isAnimating = true;
-                animateStroke();
-            }
-
-            e.preventDefault();
-        }
-
-        function draw(e) {
-            if (!isDrawing) return;
-
-            const pointer = getPointerData(e);
-            currentStroke.push(pointer);
-            
-            // Add to smoothing buffer (keep last 3 points for smoothing)
-            smoothingBuffer.push(pointer);
-            if (smoothingBuffer.length > 3) {
-                smoothingBuffer.shift();
-            }
-
-            // Immediate response for ultra-low latency
-            if (currentTool === 'eraser') {
-                fastErase(pointer.x, pointer.y);
-            } else {
-                // Predict next point for even lower perceived latency
-                predictAndDraw(pointer);
-            }
-
-            e.preventDefault();
-        }
-
-        function stopDrawing(e) {
-            if (!isDrawing) return;
-            
-            isDrawing = false;
-            isAnimating = false;
-            
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-            }
-
-            // Finalize stroke with high quality rendering
-            if (currentStroke.length > 1 && currentTool !== 'eraser') {
-                finalizeStroke();
-            }
-
-            currentStroke = [];
-            smoothingBuffer = [];
-            e.preventDefault();
-        }
-
-        function predictAndDraw(currentPointer) {
-            if (smoothingBuffer.length < 2) return;
-
-            // Simple velocity-based prediction
-            const prev = smoothingBuffer[smoothingBuffer.length - 2];
-            const vx = currentPointer.x - prev.x;
-            const vy = currentPointer.y - prev.y;
-            
-            // Predict next point based on velocity
-            const predictedX = currentPointer.x + vx * 0.3;
-            const predictedY = currentPointer.y + vy * 0.3;
-
-            // Draw immediate stroke segment
-            setupBrush();
-            const size = getBrushSize(currentPointer.pressure);
-            
-            drawingCtx.lineWidth = size;
-            drawingCtx.beginPath();
-            drawingCtx.moveTo(prev.x, prev.y);
-            drawingCtx.lineTo(currentPointer.x, currentPointer.y);
-            drawingCtx.stroke();
-        }
-
-        function animateStroke() {
-            if (!isAnimating || !isDrawing) return;
-
-            // Process stroke queue for smooth rendering
-            if (currentStroke.length > 1) {
-                renderSmoothStroke();
-            }
-
-            animationFrameId = requestAnimationFrame(animateStroke);
-        }
-
-        function renderSmoothStroke() {
-            if (currentStroke.length < 2) return;
-
-            const points = currentStroke.slice(-4); // Use last 4 points for smoothing
-            if (points.length < 2) return;
-
-            setupBrush();
-            
-            // Use quadratic curves for smoother lines
-            for (let i = 1; i < points.length; i++) {
-                const prev = points[i - 1];
-                const curr = points[i];
-                
-                const size = getBrushSize(curr.pressure);
-                drawingCtx.lineWidth = size;
-                
-                if (i === 1) {
-                    drawingCtx.beginPath();
-                    drawingCtx.moveTo(prev.x, prev.y);
-                }
-                
-                if (i === points.length - 1) {
-                    drawingCtx.lineTo(curr.x, curr.y);
+            // Setup fullscreen button
+            document.getElementById('fullscreenBtn').addEventListener('click', () => {
+                if (isFullscreen) {
+                    exitFullscreen();
                 } else {
-                    const next = points[i + 1];
-                    const cpx = curr.x;
-                    const cpy = curr.y;
-                    const endX = (curr.x + next.x) / 2;
-                    const endY = (curr.y + next.y) / 2;
-                    
-                    drawingCtx.quadraticCurveTo(cpx, cpy, endX, endY);
+                    enterFullscreen();
                 }
-            }
-            
-            drawingCtx.stroke();
-        }
-
-        function finalizeStroke() {
-            // High-quality final render of the complete stroke
-            setupBrush();
-            
-            if (currentStroke.length < 2) return;
-            
-            drawingCtx.beginPath();
-            drawingCtx.moveTo(currentStroke[0].x, currentStroke[0].y);
-            
-            for (let i = 1; i < currentStroke.length; i++) {
-                const point = currentStroke[i];
-                const size = getBrushSize(point.pressure);
-                drawingCtx.lineWidth = size;
-                drawingCtx.lineTo(point.x, point.y);
-            }
-            
-            drawingCtx.stroke();
-        }
-
-        function getBrushSize(pressure) {
-            const baseSize = parseInt(brushSize.value);
-            return Math.max(1, baseSize * (0.3 + pressure * 0.7));
-        }
-
-        function fastErase(x, y) {
-            const eraseSize = parseInt(brushSize.value) * 2;
-            drawingCtx.save();
-            drawingCtx.globalCompositeOperation = 'destination-out';
-            drawingCtx.beginPath();
-            drawingCtx.arc(x, y, eraseSize, 0, Math.PI * 2);
-            drawingCtx.fill();
-            drawingCtx.restore();
-        }
-
-        function setupBrush() {
-            const size = parseInt(brushSize.value);
-            const color = colorPicker.value;
-
-            drawingCtx.strokeStyle = color;
-            drawingCtx.lineWidth = size;
-            drawingCtx.lineCap = 'round';
-            drawingCtx.lineJoin = 'round';
-
-            if (currentTool === 'highlighter') {
-                drawingCtx.globalAlpha = 0.3;
-                drawingCtx.globalCompositeOperation = 'multiply';
-            } else {
-                drawingCtx.globalAlpha = 1;
-                drawingCtx.globalCompositeOperation = 'source-over';
-            }
-        }
-
-        function erase(x, y) {
-            const eraseSize = parseInt(brushSize.value) * 2;
-            drawingCtx.globalCompositeOperation = 'destination-out';
-            drawingCtx.beginPath();
-            drawingCtx.arc(x, y, eraseSize, 0, Math.PI * 2);
-            drawingCtx.fill();
-        }
-
-        // Ultra low latency event listeners
-        drawingCanvas.addEventListener('pointerdown', startDrawing, { passive: false });
-        drawingCanvas.addEventListener('pointermove', draw, { passive: false });
-        drawingCanvas.addEventListener('pointerup', stopDrawing, { passive: false });
-        drawingCanvas.addEventListener('pointerout', stopDrawing, { passive: false });
-        drawingCanvas.addEventListener('pointercancel', stopDrawing, { passive: false });
-
-        // High frequency event capture for ultra-responsive stylus
-        drawingCanvas.addEventListener('pointermove', draw, { capture: true, passive: false });
-
-        // Prevent all default behaviors that could cause lag
-        drawingCanvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
-        drawingCanvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
-        drawingCanvas.addEventListener('touchend', (e) => e.preventDefault(), { passive: false });
-        drawingCanvas.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
-        drawingCanvas.addEventListener('gesturechange', (e) => e.preventDefault(), { passive: false });
-
-        // Disable context menu to prevent interference
-        drawingCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
-
-        // Performance monitoring
-        let perfMonitor = null;
-        if (performance.mark) {
-            perfMonitor = setInterval(() => {
-                const now = performance.now();
-                frameCount++;
-                if (frameCount % 60 === 0) {
-                    console.log(`Drawing performance: ${frameCount} frames processed`);
-                }
-            }, 16); // Monitor at 60fps
-        }
-
-        // Save/restore drawings per page
-        function saveCurrentDrawings() {
-            if (!currentPDF) return;
-            drawings[currentPage] = drawingCanvas.toDataURL();
-        }
-
-        function restoreDrawings(pageNum) {
-            drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-            if (drawings[pageNum]) {
-                const img = new Image();
-                img.onload = () => {
-                    drawingCtx.drawImage(img, 0, 0);
-                };
-                img.src = drawings[pageNum];
-            }
-        }
-
-        // Clear all drawings
-        clearAll.addEventListener('click', () => {
-            if (showConfirmDialog('Are you sure you want to clear all drawings?', () => {
-                drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-                delete drawings[currentPage];
-            })) {}
-        });
-
-        // Custom confirm dialog
-        function showConfirmDialog(message, onConfirm) {
-            const modal = document.createElement('div');
-            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-            modal.innerHTML = `
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-sm w-full mx-4">
-                    <p class="text-gray-700 dark:text-gray-300 mb-4">${message}</p>
-                    <div class="flex justify-end space-x-3">
-                        <button class="cancel-btn px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-base">Cancel</button>
-                        <button class="confirm-btn px-4 py-2 bg-red-500 text-white hover:bg-red-600 rounded text-base">Confirm</button>
-                    </div>
-                </div>
-            `;
-            
-            modal.querySelector('.cancel-btn').onclick = () => modal.remove();
-            modal.querySelector('.confirm-btn').onclick = () => {
-                modal.remove();
-                onConfirm();
-            };
-            
-            document.body.appendChild(modal);
-        }
-
-        // Save annotated PDF
-        saveAnnotated.addEventListener('click', async () => {
-            if (!currentPDF) return;
-
-            saveCurrentDrawings();
-            
-            // Create a new canvas to combine PDF and drawings
-            const combinedCanvas = document.createElement('canvas');
-            const combinedCtx = combinedCanvas.getContext('2d');
-            
-            // For simplicity, we'll save the current page as an image
-            // In a full implementation, you'd use PDF-lib to create a proper PDF
-            combinedCanvas.width = pdfCanvas.width;
-            combinedCanvas.height = pdfCanvas.height;
-            
-            combinedCtx.drawImage(pdfCanvas, 0, 0);
-            if (drawings[currentPage]) {
-                const drawingImg = new Image();
-                drawingImg.onload = () => {
-                    combinedCtx.drawImage(drawingImg, 0, 0);
-                    
-                    // Download as image
-                    combinedCanvas.toBlob((blob) => {
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `annotated-page-${currentPage}.png`;
-                        a.click();
-                        URL.revokeObjectURL(url);
-                    });
-                };
-                drawingImg.src = drawings[currentPage];
-            } else {
-                // No drawings, just download the PDF page
-                combinedCanvas.toBlob((blob) => {
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `page-${currentPage}.png`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                });
-            }
-        });
+            });
+        };
+        
+        // Cleanup on unload
+        window.onbeforeunload = function() {
+            saveSessionState();
+        };
+    </script>
+    
+    <!-- PDF.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        // Configure PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     </script>
 </body>
 </html>
