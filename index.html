@@ -3,56 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Annotation App</title>
-    
-    <!-- Material Design 3 -->
+    <title>PDF Annotator</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@material/web/all.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@material/web@latest/dist/material.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@material/web@latest/dist/material.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
         body {
             font-family: 'Roboto', sans-serif;
             margin: 0;
             padding: 0;
             background-color: #f5f5f5;
+            overflow: hidden;
         }
         
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
+        .app-container {
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+            transition: all 0.3s ease;
         }
         
-        .load-section {
-            text-align: center;
-            margin-bottom: 30px;
+        .load-button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
         }
         
         .pdf-viewer {
-            position: relative;
             width: 100%;
-            height: calc(100vh - 200px);
+            height: 100%;
+            background-color: white;
+            position: relative;
             overflow: hidden;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
         }
         
         .thumbnail-container {
-            display: none;
-            justify-content: center;
-            align-items: center;
-            height: calc(100vh - 200px);
-            position: relative;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 20;
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.3s ease;
+        }
+        
+        .thumbnail-container.active {
+            opacity: 1;
+            transform: scale(1);
         }
         
         .thumbnail {
-            width: 180px;
-            height: 120px;
-            object-fit: cover;
-            border-radius: 16px;
-            cursor: crosshair;
+            width: 120px;
+            height: 80px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            cursor: pointer;
             transition: transform 0.2s ease;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
         
         .thumbnail:hover {
@@ -63,16 +71,14 @@
             position: absolute;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
             pointer-events: none;
         }
         
-        .fullscreen-btn {
+        .fullscreen-exit {
             position: absolute;
             top: 20px;
             right: 20px;
-            z-index: 100;
+            z-index: 15;
             color: white;
             background-color: rgba(0,0,0,0.5);
             border-radius: 50%;
@@ -85,339 +91,312 @@
         }
         
         @media print {
-            body * {
-                visibility: hidden;
-            }
-            .pdf-viewer, .thumbnail {
-                visibility: visible;
-                position: static;
-                display: block;
-            }
+            .load-button, .thumbnail-container, .fullscreen-exit { display: none; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="load-section">
-            <md-filled-button id="loadBtn" icon="upload">Load PDF</md-filled-button>
-            <input type="file" id="fileInput" accept=".pdf" style="display: none;">
-        </div>
-        
-        <div id="pdfContainer">
-            <div id="viewer" class="pdf-viewer">
-                <canvas id="pdfCanvas"></canvas>
-                <canvas id="annotationCanvas" class="annotation-canvas"></canvas>
-                <div class="fullscreen-btn" id="fullscreenBtn">
-                    <span class="material-icons">expand_fullscreen</span>
-                </div>
-            </div>
+    <div class="app-container" id="appContainer">
+        <!-- Load Button -->
+        <md-fab type="elevated" class="load-button" onclick="loadPdf()">
+            <md-icon slot="icon">upload_file</md-icon>
+        </md-fab>
+
+        <!-- PDF Viewer Container -->
+        <div class="pdf-viewer" id="pdfViewer">
+            <canvas id="pdfCanvas" class="annotation-canvas"></canvas>
+            <canvas id="annotationCanvas" class="annotation-canvas"></canvas>
             
-            <div id="thumbnailView" class="thumbnail-container">
-                <img id="thumbnailImg" class="thumbnail" alt="PDF Preview">
-                <canvas id="thumbnailAnnotation" class="annotation-canvas"></canvas>
+            <!-- Fullscreen Exit Button -->
+            <div class="fullscreen-exit" onclick="exitFullscreen()" style="display: none;" id="exitBtn">
+                <md-icon>fullscreen_exit</md-icon>
             </div>
+        </div>
+
+        <!-- Thumbnail Container -->
+        <div class="thumbnail-container" id="thumbnailContainer">
+            <img class="thumbnail" id="thumbnail" alt="PDF Thumbnail" />
         </div>
     </div>
 
+    <input type="file" id="fileInput" accept=".pdf" style="display: none;" onchange="handleFileSelect(event)">
+    
     <script>
-        const { useState, useEffect, useRef } = React;
-        
-        // Initialize Material Components
-        mdCore.initialize();
-        
         // Global variables
         let pdfDoc = null;
-        let pageNum = 1;
-        let pageRendering = false;
-        let pageNumPending = null;
-        let scale = 1.5;
+        let currentPage = 1;
         let canvas = document.getElementById('pdfCanvas');
         let ctx = canvas.getContext('2d');
-        let annotationCtx = document.getElementById('annotationCanvas').getContext('2d');
-        let thumbnailCtx = document.getElementById('thumbnailAnnotation').getContext('2d');
-        let isFullscreen = false;
-        let annotations = {};
-        let currentStroke = [];
+        let annotCtx = document.getElementById('annotationCanvas').getContext('2d');
         let isDrawing = false;
-        
-        // Load PDF Button Handler
-        document.getElementById('loadBtn').addEventListener('click', () => {
+        let strokes = [];
+        let currentStroke = [];
+
+        // Initialize PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        // Load PDF function
+        function loadPdf() {
             document.getElementById('fileInput').click();
-        });
-        
-        document.getElementById('fileInput').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file && file.type === 'application/pdf') {
-                loadPDF(file);
+        }
+
+        // Handle file selection
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file && file.type === "application/pdf") {
+                const fileReader = new FileReader();
+                fileReader.onload = function(e) {
+                    loadPdfFromData(e.target.result);
+                };
+                fileReader.readAsArrayBuffer(file);
             }
-        });
-        
-        // Load PDF Function
-        async function loadPDF(file) {
+        }
+
+        // Load PDF from data
+        async function loadPdfFromData(data) {
             try {
-                const arrayBuffer = await file.arrayBuffer();
-                pdfDoc = await pdfjsLib.getDocument(arrayBuffer).promise;
+                pdfDoc = await pdfjsLib.getDocument({data}).promise;
+                currentPage = 1;
                 
                 // Enter fullscreen
-                await enterFullscreen();
+                requestFullscreen(document.documentElement);
                 
                 // Render first page
-                renderPage(pageNum);
+                renderPage(currentPage);
                 
-                // Generate thumbnail
-                generateThumbnail();
-                
-                // Save to local storage
-                saveSessionState(file.name);
+                // Setup annotation canvas
+                setupAnnotationCanvas();
             } catch (error) {
-                console.error('Error loading PDF:', error);
-                alert('Failed to load PDF. Please try another file.');
+                console.error("Error loading PDF:", error);
+                alert("Failed to load PDF");
             }
         }
-        
-        // Render PDF Page
-        function renderPage(num) {
-            pageRendering = true;
-            pdfDoc.getPage(num).then(function(page) {
-                const viewport = page.getViewport({ scale: scale });
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
-                
-                const renderContext = {
-                    canvasContext: ctx,
-                    viewport: viewport
-                };
-                
-                const renderTask = page.render(renderContext);
-                renderTask.promise.then(() => {
-                    pageRendering = false;
-                    
-                    if (pageNumPending !== null) {
-                        renderPage(pageNumPending);
-                        pageNumPending = null;
-                    }
-                    
-                    // Draw existing annotations
-                    drawAnnotations(num);
+
+        // Request fullscreen
+        function requestFullscreen(element) {
+            if (element.requestFullscreen) {
+                element.requestFullscreen().then(() => {
+                    document.getElementById('exitBtn').style.display = 'flex';
                 });
-            });
-            
-            document.getElementById('page_num').textContent = num;
-        }
-        
-        // Queue rendering if already rendering
-        function queueRenderPage(num) {
-            if (pageRendering) {
-                pageNumPending = num;
-            } else {
-                renderPage(num);
+            } else if (element.webkitRequestFullscreen) {
+                element.webkitRequestFullscreen().then(() => {
+                    document.getElementById('exitBtn').style.display = 'flex';
+                });
+            } else if (element.msRequestFullscreen) {
+                element.msRequestFullscreen().then(() => {
+                    document.getElementById('exitBtn').style.display = 'flex';
+                });
             }
         }
-        
-        // Generate thumbnail of first page
+
+        // Exit fullscreen
+        function exitFullscreen() {
+            if (document.exitFullscreen) {
+                document.exitFullscreen().then(() => {
+                    showThumbnail();
+                });
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen().then(() => {
+                    showThumbnail();
+                });
+            } else if (document.msExitFullscreen) {
+                document.msExitFullscreen().then(() => {
+                    showThumbnail();
+                });
+            }
+        }
+
+        // Show thumbnail
+        function showThumbnail() {
+            document.getElementById('exitBtn').style.display = 'none';
+            document.getElementById('thumbnailContainer').classList.add('active');
+            
+            // Generate thumbnail
+            generateThumbnail();
+        }
+
+        // Generate thumbnail
         async function generateThumbnail() {
+            if (!pdfDoc) return;
+            
             const page = await pdfDoc.getPage(1);
-            const viewport = page.getViewport({ scale: 0.3 });
+            const viewport = page.getViewport({scale: 0.25});
             
             const tempCanvas = document.createElement('canvas');
             const tempCtx = tempCanvas.getContext('2d');
-            tempCanvas.height = viewport.height;
             tempCanvas.width = viewport.width;
+            tempCanvas.height = viewport.height;
             
             await page.render({
                 canvasContext: tempCtx,
                 viewport: viewport
             }).promise;
             
-            document.getElementById('thumbnailImg').src = tempCanvas.toDataURL();
+            document.getElementById('thumbnail').src = tempCanvas.toDataURL();
         }
-        
-        // Drawing functionality
-        function setupDrawing() {
-            const annotationCanvas = document.getElementById('annotationCanvas');
+
+        // Resume from thumbnail
+        document.getElementById('thumbnail').addEventListener('pointerdown', function(e) {
+            if (e.pointerType === 'pen') {
+                e.preventDefault();
+                requestFullscreen(document.documentElement);
+                document.getElementById('thumbnailContainer').classList.remove('active');
+                redrawAnnotations();
+            }
+        });
+
+        // Render PDF page
+        async function renderPage(num) {
+            if (!pdfDoc) return;
             
-            annotationCanvas.addEventListener('pointerdown', startDrawing);
-            annotationCanvas.addEventListener('pointermove', draw);
-            annotationCanvas.addEventListener('pointerup', stopDrawing);
-            annotationCanvas.addEventListener('pointerleave', stopDrawing);
+            const page = await pdfDoc.getPage(num);
+            const viewport = page.getViewport({scale: window.devicePixelRatio || 1});
             
-            // Prevent context menu on right click
-            annotationCanvas.addEventListener('contextmenu', e => e.preventDefault());
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            
+            document.getElementById('annotationCanvas').height = viewport.height;
+            document.getElementById('annotationCanvas').width = viewport.width;
+            
+            const renderContext = {
+                canvasContext: ctx,
+                viewport: viewport
+            };
+            
+            await page.render(renderContext).promise;
+            redrawAnnotations();
         }
-        
+
+        // Setup annotation canvas
+        function setupAnnotationCanvas() {
+            const annotCanvas = document.getElementById('annotationCanvas');
+            
+            // Pointer events for stylus
+            annotCanvas.addEventListener('pointerdown', startDrawing);
+            annotCanvas.addEventListener('pointermove', draw);
+            annotCanvas.addEventListener('pointerup', stopDrawing);
+            annotCanvas.addEventListener('pointercancel', stopDrawing);
+            
+            // Prevent context menu on right-click
+            annotCanvas.addEventListener('contextmenu', e => e.preventDefault());
+        }
+
+        // Drawing functions
         function startDrawing(e) {
-            if (!isFullscreen) return;
+            if (e.pointerType !== 'pen') return;
             
             isDrawing = true;
-            currentStroke = [];
-            
-            const rect = annotationCanvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            
-            currentStroke.push({
-                x, y,
-                pressure: e.pressure || 0.5,
-                time: Date.now()
-            });
-            
-            annotationCtx.beginPath();
-            annotationCtx.moveTo(x, y);
+            currentStroke = [{
+                x: e.offsetX * (window.devicePixelRatio || 1),
+                y: e.offsetY * (window.devicePixelRatio || 1),
+                pressure: e.pressure || 0.5
+            }];
         }
-        
+
         function draw(e) {
-            if (!isDrawing || !isFullscreen) return;
-            
-            const rect = annotationCanvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            if (!isDrawing || e.pointerType !== 'pen') return;
             
             currentStroke.push({
-                x, y,
-                pressure: e.pressure || 0.5,
-                time: Date.now()
+                x: e.offsetX * (window.devicePixelRatio || 1),
+                y: e.offsetY * (window.devicePixelRatio || 1),
+                pressure: e.pressure || 0.5
             });
             
-            const lastPoint = currentStroke[currentStroke.length - 2];
-            const currentPoint = currentStroke[currentStroke.length - 1];
-            
-            annotationCtx.lineWidth = Math.max(currentPoint.pressure * 5, 1);
-            annotationCtx.lineCap = 'round';
-            annotationCtx.strokeStyle = '#FF0000'; // Red color for annotations
-            
-            annotationCtx.lineTo(x, y);
-            annotationCtx.stroke();
+            redrawAnnotations();
         }
-        
+
         function stopDrawing() {
             if (!isDrawing) return;
             
             isDrawing = false;
-            
-            if (currentStroke.length > 1) {
-                if (!annotations[pageNum]) {
-                    annotations[pageNum] = [];
-                }
-                annotations[pageNum].push([...currentStroke]);
-            }
-            
+            strokes.push([...currentStroke]);
             currentStroke = [];
         }
-        
-        function drawAnnotations(pageNumber) {
-            if (!annotations[pageNumber]) return;
+
+        // Redraw annotations
+        function redrawAnnotations() {
+            annotCtx.clearRect(0, 0, annotCtx.canvas.width, annotCtx.canvas.height);
             
-            annotationCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
-            
-            annotations[pageNumber].forEach(stroke => {
-                if (stroke.length < 2) return;
-                
-                annotationCtx.beginPath();
-                annotationCtx.moveTo(stroke[0].x, stroke[0].y);
-                
-                for (let i = 1; i < stroke.length; i++) {
-                    const point = stroke[i];
-                    annotationCtx.lineWidth = Math.max(point.pressure * 5, 1);
-                    annotationCtx.lineCap = 'round';
-                    annotationCtx.strokeStyle = '#FF0000';
-                    annotationCtx.lineTo(point.x, point.y);
-                    annotationCtx.stroke();
-                }
-            });
-        }
-        
-        // Fullscreen management
-        async function enterFullscreen() {
-            try {
-                await document.documentElement.requestFullscreen();
-                isFullscreen = true;
-                document.getElementById('viewer').style.display = 'block';
-                document.getElementById('thumbnailView').style.display = 'none';
-                setupDrawing();
-            } catch (err) {
-                console.error('Could not enter fullscreen:', err);
-            }
-        }
-        
-        function exitFullscreen() {
-            if (document.fullscreenElement) {
-                document.exitFullscreen();
-            }
-        }
-        
-        document.addEventListener('fullscreenchange', () => {
-            if (!document.fullscreenElement) {
-                isFullscreen = false;
-                document.getElementById('viewer').style.display = 'none';
-                document.getElementById('thumbnailView').style.display = 'flex';
-                saveSessionState();
-            }
-        });
-        
-        // Thumbnail interaction
-        document.getElementById('thumbnailImg').addEventListener('pointerdown', async (e) => {
-            if (e.pointerType === 'pen' || e.pointerType === 'touch') {
-                await enterFullscreen();
-                renderPage(pageNum);
-                drawAnnotations(pageNum);
-            }
-        });
-        
-        // Save/Load session state
-        function saveSessionState(pdfName = '') {
-            const sessionData = {
-                pdfName,
-                currentPage: pageNum,
-                annotations: annotations,
-                timestamp: new Date().toISOString()
-            };
-            
-            localStorage.setItem('pdfSession', JSON.stringify(sessionData));
-        }
-        
-        function loadSessionState() {
-            const saved = localStorage.getItem('pdfSession');
-            if (saved) {
-                const sessionData = JSON.parse(saved);
-                annotations = sessionData.annotations || {};
-                pageNum = sessionData.currentPage || 1;
-                
-                if (sessionData.pdfName) {
-                    // Here you would typically re-load the PDF
-                    // For demo purposes, we'll just restore annotations
-                    if (isFullscreen) {
-                        renderPage(pageNum);
-                        drawAnnotations(pageNum);
+            // Draw saved strokes
+            strokes.forEach(stroke => {
+                if (stroke.length > 1) {
+                    annotCtx.beginPath();
+                    annotCtx.moveTo(stroke[0].x, stroke[0].y);
+                    
+                    for (let i = 1; i < stroke.length; i++) {
+                        const point = stroke[i];
+                        const prevPoint = stroke[i-1];
+                        
+                        // Calculate line thickness based on pressure
+                        const lineWidth = Math.max(1, point.pressure * 5);
+                        annotCtx.lineWidth = lineWidth;
+                        annotCtx.lineCap = 'round';
+                        annotCtx.strokeStyle = '#000000';
+                        
+                        annotCtx.lineTo(point.x, point.y);
+                        annotCtx.stroke();
+                        annotCtx.beginPath();
+                        annotCtx.moveTo(point.x, point.y);
                     }
                 }
+            });
+            
+            // Draw current stroke
+            if (currentStroke.length > 1) {
+                annotCtx.beginPath();
+                annotCtx.moveTo(currentStroke[0].x, currentStroke[0].y);
+                
+                for (let i = 1; i < currentStroke.length; i++) {
+                    const point = currentStroke[i];
+                    const prevPoint = currentStroke[i-1];
+                    
+                    const lineWidth = Math.max(1, point.pressure * 5);
+                    annotCtx.lineWidth = lineWidth;
+                    annotCtx.lineCap = 'round';
+                    annotCtx.strokeStyle = '#000000';
+                    
+                    annotCtx.lineTo(point.x, point.y);
+                    annotCtx.stroke();
+                    annotCtx.beginPath();
+                    annotCtx.moveTo(point.x, point.y);
+                }
             }
         }
-        
-        // Initialize
-        window.onload = function() {
-            loadSessionState();
-            
-            // Setup fullscreen button
-            document.getElementById('fullscreenBtn').addEventListener('click', () => {
-                if (isFullscreen) {
-                    exitFullscreen();
-                } else {
-                    enterFullscreen();
-                }
-            });
-        };
-        
-        // Cleanup on unload
-        window.onbeforeunload = function() {
-            saveSessionState();
-        };
-    </script>
-    
-    <!-- PDF.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script>
-        // Configure PDF.js worker
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        // Handle fullscreen change
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                showThumbnail();
+            }
+        });
+
+        document.addEventListener('webkitfullscreenchange', () => {
+            if (!document.webkitFullscreenElement) {
+                showThumbnail();
+            }
+        });
+
+        document.addEventListener('msfullscreenchange', () => {
+            if (!document.msFullscreenElement) {
+                showThumbnail();
+            }
+        });
+
+        // Initial setup
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set default canvas size
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            document.getElementById('annotationCanvas').width = window.innerWidth;
+            document.getElementById('annotationCanvas').height = window.innerHeight;
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (pdfDoc && document.fullscreenElement) {
+                renderPage(currentPage);
+            }
+        });
     </script>
 </body>
 </html>
