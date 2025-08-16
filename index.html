@@ -84,17 +84,22 @@
             const [selectedColor, setSelectedColor] = useState('#800080');
             const [penSize, setPenSize] = useState(3);
             const [selectedTool, setSelectedTool] = useState('pen');
-            const [toolbarPosition, setToolbarPosition] = useState({ x: (window.innerWidth - 600) / 2, y: window.innerHeight - 100 });
             const [eraserPosition, setEraserPosition] = useState({ x: 0, y: 0 });
             const [showEraserCircle, setShowEraserCircle] = useState(false);
-            const [isDraggingToolbar, setIsDraggingToolbar] = useState(false);
-            const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+            const [showColorPicker, setShowColorPicker] = useState(false);
             const [pressureSensitivity, setPressureSensitivity] = useState(1.0);
             const [toolbarMinimized, setToolbarMinimized] = useState(false);
-            const [currentEraserSize, setCurrentEraserSize] = useState(penSize * 3);
+            const [currentEraserSize, setCurrentEraserSize] = useState(15);
             const [smoothedSpeed, setSmoothedSpeed] = useState(0);
+            const [eraserMinSize, setEraserMinSize] = useState(1); // Min eraser size in pixels
+            const [eraserMaxSize, setEraserMaxSize] = useState(60); // Max eraser size in pixels
+            const [speedSensitivity, setSpeedSensitivity] = useState(1.9); // Speed sensitivity factor
+            const [speedThreshold, setSpeedThreshold] = useState(50); // Speed threshold in pixels/second to start growing
             const lastMoveTimeRef = useRef(0);
             const lastPositionRef = useRef({ x: 0, y: 0 });
+            const lastEraserPositionRef = useRef({ x: 0, y: 0 });
+            const speedHistoryRef = useRef([]); // Rolling average for ultra-smooth speed
+            const sizeHistoryRef = useRef([]); // Rolling average for ultra-smooth size
             
             const fileInputRef = useRef(null);
             const canvasRef = useRef(null);
@@ -301,19 +306,49 @@
                 lastPointRef.current = null;
             };
 
-            // Speed-responsive pixel eraser
+            // Smooth continuous pixel eraser - interpolates between points for seamless erasing
             const eraseAtPoint = (ctx, x, y) => {
-                // Use dynamic size that matches the visual circle
                 const eraserSize = currentEraserSize;
                 
                 // Set composite operation to erase pixels
                 ctx.globalCompositeOperation = 'destination-out';
                 ctx.globalAlpha = 1.0;
                 
-                // Draw a circle to erase pixels in that area
-                ctx.beginPath();
-                ctx.arc(x, y, eraserSize, 0, Math.PI * 2);
-                ctx.fill();
+                // If we have a previous eraser position and we're actively drawing
+                if (isDrawing && lastEraserPositionRef.current.x !== 0 && lastEraserPositionRef.current.y !== 0) {
+                    const lastX = lastEraserPositionRef.current.x;
+                    const lastY = lastEraserPositionRef.current.y;
+                    
+                    // Calculate distance between points
+                    const dx = x - lastX;
+                    const dy = y - lastY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    // Only interpolate if points are far apart (high speed movement)
+                    if (distance > eraserSize * 0.5) {
+                        // Use stroke approach for smooth line erasing
+                        ctx.lineWidth = eraserSize * 2;
+                        ctx.lineCap = 'round';
+                        ctx.lineJoin = 'round';
+                        ctx.beginPath();
+                        ctx.moveTo(lastX, lastY);
+                        ctx.lineTo(x, y);
+                        ctx.stroke();
+                    } else {
+                        // Points are close, just draw circle at current position
+                        ctx.beginPath();
+                        ctx.arc(x, y, eraserSize, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                } else {
+                    // First point or not drawing, just draw circle
+                    ctx.beginPath();
+                    ctx.arc(x, y, eraserSize, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Update last eraser position for next interpolation
+                lastEraserPositionRef.current = { x, y };
                 
                 // Reset composite operation
                 ctx.globalCompositeOperation = 'source-over';
@@ -352,23 +387,12 @@
                         } else if (e.key === 'ArrowRight') {
                             e.preventDefault();
                             nextPage();
+                        } else if (e.key === 'Escape') {
+                            // Prevent escape key from exiting fullscreen
+                            e.preventDefault();
+                            e.stopPropagation();
+                            return false;
                         }
-                    }
-                };
-
-                // Global toolbar drag handling
-                const handleGlobalPointerMove = (e) => {
-                    if (isDraggingToolbar) {
-                        setToolbarPosition({
-                            x: e.clientX - dragOffset.x,
-                            y: e.clientY - dragOffset.y
-                        });
-                    }
-                };
-
-                const handleGlobalPointerUp = () => {
-                    if (isDraggingToolbar) {
-                        setIsDraggingToolbar(false);
                     }
                 };
 
@@ -376,18 +400,14 @@
                 document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
                 document.addEventListener('msfullscreenchange', handleFullscreenChange);
                 document.addEventListener('keydown', handleKeyDown);
-                document.addEventListener('pointermove', handleGlobalPointerMove);
-                document.addEventListener('pointerup', handleGlobalPointerUp);
 
                 return () => {
                     document.removeEventListener('fullscreenchange', handleFullscreenChange);
                     document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
                     document.removeEventListener('msfullscreenchange', handleFullscreenChange);
                     document.removeEventListener('keydown', handleKeyDown);
-                    document.removeEventListener('pointermove', handleGlobalPointerMove);
-                    document.removeEventListener('pointerup', handleGlobalPointerUp);
                 };
-            }, [isFullscreen, pdfDoc, currentPage, totalPages, isDraggingToolbar, dragOffset]);
+            }, [isFullscreen, pdfDoc, currentPage, totalPages]);
 
             // Effect to handle fullscreen trigger
             useEffect(() => {
@@ -414,11 +434,37 @@
                 }
             }, [currentPage, pdfDoc, isFullscreen]);
 
+            // Effect to reset eraser size when switching to eraser tool
+            useEffect(() => {
+                if (selectedTool === 'eraser') {
+                    // Reset to minimum size when switching to eraser
+                    setCurrentEraserSize(eraserMinSize);
+                    setSmoothedSpeed(0);
+                    // Reset position tracking
+                    lastMoveTimeRef.current = 0;
+                    lastPositionRef.current = { x: 0, y: 0 };
+                    lastEraserPositionRef.current = { x: 0, y: 0 };
+                }
+            }, [selectedTool, eraserMinSize]);
+
             return (
                 <div className="min-h-screen bg-md-surface dark:bg-gray-900">
                     {!pdfDoc ? (
                         // Load screen
-                        <div className="flex flex-col items-center justify-center min-h-screen p-6">
+                        <div className="flex flex-col items-center justify-center min-h-screen p-6 relative">
+                            {/* Dark Mode Toggle - Top Right Corner */}
+                            <button
+                                onClick={() => {
+                                    document.documentElement.classList.toggle('dark');
+                                }}
+                                className="absolute top-6 right-6 w-12 h-12 bg-md-surface-container dark:bg-gray-700 rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-all md-elevation-1"
+                                title="Toggle dark mode"
+                            >
+                                <span className="text-2xl">
+                                    {document.documentElement.classList.contains('dark') ? '☀️' : '🌙'}
+                                </span>
+                            </button>
+
                             <div className="bg-md-surface-container dark:bg-gray-800 rounded-3xl p-8 md-elevation-3 max-w-md w-full">
                                 <div className="text-center mb-8">
                                     <div className="w-16 h-16 bg-md-primary-container dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -466,9 +512,32 @@
                                     className="absolute top-0 left-0 block"
                                     style={{ 
                                         touchAction: 'none',
-                                        cursor: selectedTool === 'eraser' ? 'none' : 'crosshair'
+                                        cursor: selectedTool === 'eraser' ? 'none' : 'crosshair',
+                                        userSelect: 'none',
+                                        webkitUserSelect: 'none',
+                                        webkitTouchCallout: 'none',
+                                        msUserSelect: 'none',
+                                        mozUserSelect: 'none',
+                                        webkitTapHighlightColor: 'transparent',
+                                        msContentZooming: 'none',
+                                        msTouchAction: 'none',
+                                        msScrollChaining: 'none',
+                                        msTouchSelect: 'none'
                                     }}
                                     onPointerDown={startDrawing}
+                                    onContextMenu={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        return false;
+                                    }}
+                                    onSelectStart={(e) => {
+                                        e.preventDefault();
+                                        return false;
+                                    }}
+                                    onDragStart={(e) => {
+                                        e.preventDefault();
+                                        return false;
+                                    }}
                                     onPointerMove={(e) => {
                                         // Always update eraser position when eraser is selected
                                         if (selectedTool === 'eraser' && drawingCanvasRef.current) {
@@ -477,30 +546,95 @@
                                             const newY = e.clientY - rect.top;
                                             const currentTime = performance.now();
                                             
-                                            // Smooth speed calculation
-                                            if (lastMoveTimeRef.current > 0 && lastPositionRef.current.x !== 0) {
-                                                const deltaTime = currentTime - lastMoveTimeRef.current;
-                                                const deltaX = newX - lastPositionRef.current.x;
-                                                const deltaY = newY - lastPositionRef.current.y;
-                                                const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-                                                
-                                                if (deltaTime > 0 && deltaTime < 100) { // Only use recent movements
-                                                    const currentSpeed = distance / deltaTime; // pixels per ms
-                                                    // Exponential smoothing for responsive but smooth changes
-                                                    const newSmoothedSpeed = smoothedSpeed * 0.7 + currentSpeed * 0.3;
-                                                    setSmoothedSpeed(newSmoothedSpeed);
-                                                    
-                                                    const speedMultiplier = Math.min(1 + (newSmoothedSpeed * 1.5), 2.5); // Max 2.5x size
-                                                    const dynamicSize = (penSize * 3) * speedMultiplier;
-                                                    setCurrentEraserSize(dynamicSize);
-                                                }
-                                            }
-                                            
-                                            // Update position immediately for smooth circle following
+                                            // Always show eraser circle at correct position
                                             setEraserPosition({ x: newX, y: newY });
-                                            lastPositionRef.current = { x: newX, y: newY };
-                                            lastMoveTimeRef.current = currentTime;
                                             setShowEraserCircle(true);
+                                            
+                                            // ONLY calculate speed and size when actively drawing (stylus touching screen)
+                                            if (isDrawing) {
+                                                // Speed-based eraser sizing with configurable threshold
+                                                if (lastMoveTimeRef.current > 0 && 
+                                                    lastPositionRef.current.x !== 0 && 
+                                                    lastPositionRef.current.y !== 0) {
+                                                    
+                                                    const deltaTime = currentTime - lastMoveTimeRef.current;
+                                                    const deltaX = newX - lastPositionRef.current.x;
+                                                    const deltaY = newY - lastPositionRef.current.y;
+                                                    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                                                    
+                                                    // Calculate speed in pixels per second (more intuitive unit)
+                                                    if (deltaTime > 0 && deltaTime < 50 && distance > 0.5) {
+                                                        const currentSpeed = (distance / deltaTime) * 1000; // Convert to pixels/second
+                                                        
+                                                        // Multi-layer smoothing for ultra-smooth response
+                                                        speedHistoryRef.current.push(currentSpeed);
+                                                        if (speedHistoryRef.current.length > 6) {
+                                                            speedHistoryRef.current.shift();
+                                                        }
+                                                        
+                                                        // Calculate weighted average (recent samples have more weight)
+                                                        let weightedSum = 0;
+                                                        let totalWeight = 0;
+                                                        speedHistoryRef.current.forEach((speed, index) => {
+                                                            const weight = (index + 1) / speedHistoryRef.current.length;
+                                                            weightedSum += speed * weight;
+                                                            totalWeight += weight;
+                                                        });
+                                                        const avgSpeed = weightedSum / totalWeight;
+                                                        
+                                                        // Ultra-smooth temporal filtering
+                                                        const alpha = Math.min(deltaTime / 20, 0.2);
+                                                        const newSmoothedSpeed = smoothedSpeed * (1 - alpha) + avgSpeed * alpha;
+                                                        setSmoothedSpeed(newSmoothedSpeed);
+                                                        
+                                                        // Apply speed threshold - no change below threshold
+                                                        if (newSmoothedSpeed > speedThreshold) {
+                                                            // Calculate size based on speed above threshold
+                                                            const excessSpeed = newSmoothedSpeed - speedThreshold;
+                                                            const maxExcessSpeed = 400; // Max speed range above threshold
+                                                            const speedRatio = Math.min(excessSpeed / maxExcessSpeed, 1);
+                                                            
+                                                            // Smooth easing curve for natural feel
+                                                            const easedRatio = speedRatio * speedRatio * (3 - 2 * speedRatio); // Smoothstep
+                                                            const scaledRatio = easedRatio * speedSensitivity * 0.6;
+                                                            
+                                                            const targetSize = eraserMinSize + (eraserMaxSize - eraserMinSize) * scaledRatio;
+                                                            
+                                                            // Smooth interpolation to target size
+                                                            const currentSize = currentEraserSize;
+                                                            const interpolationSpeed = 0.12;
+                                                            const newSize = currentSize * (1 - interpolationSpeed) + targetSize * interpolationSpeed;
+                                                            
+                                                            setCurrentEraserSize(Math.round(newSize * 10) / 10);
+                                                        } else {
+                                                            // Below threshold - gentle return to minimum size
+                                                            const currentSize = currentEraserSize;
+                                                            const returnSize = currentSize * 0.92 + eraserMinSize * 0.08;
+                                                            setCurrentEraserSize(Math.max(returnSize, eraserMinSize));
+                                                        }
+                                                    } else {
+                                                        // No meaningful movement - gentle decay toward min
+                                                        const currentSize = currentEraserSize;
+                                                        const decaySize = currentSize * 0.98 + eraserMinSize * 0.02;
+                                                        setCurrentEraserSize(Math.max(decaySize, eraserMinSize));
+                                                    }
+                                                    
+                                                    // Update tracking data
+                                                    lastPositionRef.current = { x: newX, y: newY };
+                                                    lastMoveTimeRef.current = currentTime;
+                                                } else {
+                                                    // First touch - start at min size with clean tracking
+                                                    setCurrentEraserSize(eraserMinSize);
+                                                    setSmoothedSpeed(0);
+                                                    speedHistoryRef.current = [];
+                                                    lastPositionRef.current = { x: newX, y: newY };
+                                                    lastMoveTimeRef.current = currentTime;
+                                                }
+                                            } else {
+                                                // Just hovering - always use min size, no speed calculation
+                                                setCurrentEraserSize(eraserMinSize);
+                                                // Don't update tracking data when hovering
+                                            }
                                         } else {
                                             setShowEraserCircle(false);
                                         }
@@ -518,6 +652,13 @@
                                                 x: e.clientX - rect.left,
                                                 y: e.clientY - rect.top
                                             });
+                                            // Force eraser to correct min size on enter
+                                            setCurrentEraserSize(eraserMinSize);
+                                            setSmoothedSpeed(0);
+                                            // Reset tracking completely
+                                            lastMoveTimeRef.current = 0;
+                                            lastPositionRef.current = { x: 0, y: 0 };
+                                            lastEraserPositionRef.current = { x: 0, y: 0 };
                                             setShowEraserCircle(true);
                                         }
                                     }}
@@ -543,53 +684,112 @@
                                 )}
                             </div>
                             
-                            {/* Horizontal Pill Toolbar - Bottom Positioned */}
+                            {/* Centered Fixed Toolbar */}
                             <div
-                                className="absolute bg-gray-900 rounded-full shadow-2xl border border-gray-700 cursor-move"
+                                className="fixed bottom-5 left-1/2 transform -translate-x-1/2 bg-gray-900 rounded-full shadow-2xl border border-gray-700"
                                 style={{
-                                    left: `${toolbarPosition.x}px`,
-                                    bottom: '20px',
                                     zIndex: 1000,
                                     userSelect: 'none',
-                                    minWidth: '600px',
-                                    height: '60px',
-                                    touchAction: 'none'
-                                }}
-                                onPointerDown={(e) => {
-                                    // Only start drag if clicking on empty space, not buttons
-                                    if (e.target.closest('button, input')) {
-                                        return;
-                                    }
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    const rect = e.currentTarget.getBoundingClientRect();
-                                    setDragOffset({
-                                        x: e.clientX - rect.left,
-                                        y: e.clientY - rect.top
-                                    });
-                                    setIsDraggingToolbar(true);
+                                    minWidth: '650px',
+                                    height: '60px'
                                 }}
                             >
                                 <div className="flex items-center justify-between h-full px-6 py-2">
-                                    {/* Left: Colors */}
-                                    <div className="flex items-center gap-3">
+                                    {/* Left: Simplified Color Picker */}
+                                    <div className="flex items-center gap-3 relative">
                                         <span className="text-white text-xs font-bold">🎨</span>
-                                        <div className="flex gap-1">
-                                            {['#000000', '#FF0000', '#0000FF', '#800080', '#FFA500'].map((color) => (
-                                                <button
-                                                    key={color}
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        setSelectedColor(color);
-                                                    }}
-                                                    className={`w-8 h-8 rounded-full border-2 transition-all hover:scale-110 ${
-                                                        selectedColor === color ? 'border-white shadow-lg' : 'border-gray-400'
-                                                    }`}
-                                                    style={{ backgroundColor: color }}
-                                                />
-                                            ))}
-                                        </div>
+                                        <button
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setShowColorPicker(!showColorPicker);
+                                            }}
+                                            className="w-10 h-10 rounded-full border-2 border-white shadow-lg transition-all hover:scale-110"
+                                            style={{ backgroundColor: selectedColor }}
+                                        />
+                                        
+                                        {/* Enhanced Color Picker Popup */}
+                                        {showColorPicker && (
+                                            <div className="absolute bottom-16 left-0 bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-4 shadow-2xl border border-gray-600 backdrop-blur-sm">
+                                                {/* Header */}
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <span className="text-white text-sm font-medium">Pick Color</span>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            setShowColorPicker(false);
+                                                        }}
+                                                        className="text-gray-400 hover:text-white text-lg leading-none"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </div>
+                                                
+                                                {/* Popular Colors */}
+                                                <div className="mb-4">
+                                                    <p className="text-gray-300 text-xs mb-2">Popular</p>
+                                                    <div className="grid grid-cols-5 gap-2">
+                                                        {['#000000', '#FF0000', '#0000FF', '#800080', '#FFA500'].map((color) => (
+                                                            <button
+                                                                key={color}
+                                                                onClick={(e) => {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    setSelectedColor(color);
+                                                                    setShowColorPicker(false);
+                                                                }}
+                                                                className={`w-10 h-10 rounded-lg border-2 transition-all hover:scale-110 shadow-lg ${
+                                                                    selectedColor === color ? 'border-white ring-2 ring-blue-400' : 'border-gray-500 hover:border-gray-300'
+                                                                }`}
+                                                                style={{ backgroundColor: color }}
+                                                                title={color}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                
+                                                {/* More Colors */}
+                                                <div className="mb-4">
+                                                    <p className="text-gray-300 text-xs mb-2">More Colors</p>
+                                                    <div className="grid grid-cols-5 gap-2">
+                                                        {['#00FF00', '#FFFF00', '#FF00FF', '#00FFFF', '#FFFFFF'].map((color) => (
+                                                            <button
+                                                                key={color}
+                                                                onClick={(e) => {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    setSelectedColor(color);
+                                                                    setShowColorPicker(false);
+                                                                }}
+                                                                className={`w-10 h-10 rounded-lg border-2 transition-all hover:scale-110 shadow-lg ${
+                                                                    selectedColor === color ? 'border-white ring-2 ring-blue-400' : 'border-gray-500 hover:border-gray-300'
+                                                                }`}
+                                                                style={{ backgroundColor: color }}
+                                                                title={color}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                
+                                                {/* Custom Color Picker */}
+                                                <div>
+                                                    <p className="text-gray-300 text-xs mb-2">Custom</p>
+                                                    <div className="relative">
+                                                        <input
+                                                            type="color"
+                                                            value={selectedColor}
+                                                            onChange={(e) => {
+                                                                setSelectedColor(e.target.value);
+                                                                setShowColorPicker(false);
+                                                            }}
+                                                            className="w-full h-12 rounded-lg cursor-pointer border-2 border-gray-500 hover:border-gray-300 transition-colors"
+                                                            title="Custom color picker"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                     
                                     {/* Center: Tools & Size */}
@@ -618,21 +818,97 @@
                                             ))}
                                         </div>
                                         
-                                        <div className="text-white text-xs">
-                                            Size: {penSize}px
-                                            <input
-                                                type="range"
-                                                min="1"
-                                                max="30"
-                                                value={penSize}
-                                                onChange={(e) => {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    setPenSize(parseInt(e.target.value));
-                                                }}
-                                                className="ml-2 w-20 h-1 bg-gray-600 rounded appearance-none"
-                                            />
-                                        </div>
+                                        {selectedTool === 'eraser' ? (
+                                            // Eraser specific controls - compact layout
+                                            <div className="flex items-center gap-2 text-white text-xs">
+                                                <div className="flex flex-col items-center">
+                                                    <span>Min</span>
+                                                    <span>{eraserMinSize}px</span>
+                                                    <input
+                                                        type="range"
+                                                        min="1"
+                                                        max="20"
+                                                        step="1"
+                                                        value={eraserMinSize}
+                                                        onChange={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            setEraserMinSize(parseInt(e.target.value));
+                                                        }}
+                                                        className="w-10 h-1 bg-gray-600 rounded appearance-none"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col items-center">
+                                                    <span>Max</span>
+                                                    <span>{eraserMaxSize}px</span>
+                                                    <input
+                                                        type="range"
+                                                        min="1"
+                                                        max="120"
+                                                        step="1"
+                                                        value={eraserMaxSize}
+                                                        onChange={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            setEraserMaxSize(parseInt(e.target.value));
+                                                        }}
+                                                        className="w-10 h-1 bg-gray-600 rounded appearance-none"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col items-center">
+                                                    <span>Speed</span>
+                                                    <span>{speedSensitivity.toFixed(1)}</span>
+                                                    <input
+                                                        type="range"
+                                                        min="0.5"
+                                                        max="3"
+                                                        step="0.1"
+                                                        value={speedSensitivity}
+                                                        onChange={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            setSpeedSensitivity(parseFloat(e.target.value));
+                                                        }}
+                                                        className="w-10 h-1 bg-gray-600 rounded appearance-none"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col items-center">
+                                                    <span>Threshold</span>
+                                                    <span>{speedThreshold}px/s</span>
+                                                    <input
+                                                        type="range"
+                                                        min="10"
+                                                        max="300"
+                                                        step="10"
+                                                        value={speedThreshold}
+                                                        onChange={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            setSpeedThreshold(parseInt(e.target.value));
+                                                        }}
+                                                        className="w-10 h-1 bg-gray-600 rounded appearance-none"
+                                                    />
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            // Standard size control for pen/highlighter - more compact
+                                            <div className="flex flex-col items-center text-white text-xs">
+                                                <span>Size</span>
+                                                <span>{penSize}px</span>
+                                                <input
+                                                    type="range"
+                                                    min="1"
+                                                    max="80"
+                                                    value={penSize}
+                                                    onChange={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        setPenSize(parseInt(e.target.value));
+                                                    }}
+                                                    className="w-16 h-1 bg-gray-600 rounded appearance-none"
+                                                />
+                                            </div>
+                                        )}
                                     </div>
                                     
                                     {/* Right: Actions & Status */}
