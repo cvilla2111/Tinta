@@ -87,14 +87,15 @@
             const [eraserPosition, setEraserPosition] = useState({ x: 0, y: 0 });
             const [showEraserCircle, setShowEraserCircle] = useState(false);
             const [showColorPicker, setShowColorPicker] = useState(false);
+            const [showEraserControls, setShowEraserControls] = useState(false);
             const [pressureSensitivity, setPressureSensitivity] = useState(1.0);
             const [toolbarMinimized, setToolbarMinimized] = useState(false);
             const [currentEraserSize, setCurrentEraserSize] = useState(15);
             const [smoothedSpeed, setSmoothedSpeed] = useState(0);
             const [eraserMinSize, setEraserMinSize] = useState(1); // Min eraser size in pixels
-            const [eraserMaxSize, setEraserMaxSize] = useState(60); // Max eraser size in pixels
-            const [speedSensitivity, setSpeedSensitivity] = useState(1.9); // Speed sensitivity factor
-            const [speedThreshold, setSpeedThreshold] = useState(50); // Speed threshold in pixels/second to start growing
+            const [eraserMaxSize, setEraserMaxSize] = useState(70); // Max eraser size in pixels
+            const [speedSensitivity, setSpeedSensitivity] = useState(1.5); // Speed sensitivity factor
+            const [speedThreshold, setSpeedThreshold] = useState(180); // Speed threshold in pixels/second to start growing
             const lastMoveTimeRef = useRef(0);
             const lastPositionRef = useRef({ x: 0, y: 0 });
             const lastEraserPositionRef = useRef({ x: 0, y: 0 });
@@ -396,16 +397,79 @@
                     }
                 };
 
+                // Selective touch and hold prevention - only on drawing canvas, not toolbar
+                const preventTouchDefaults = (e) => {
+                    if (isFullscreen) {
+                        // Allow toolbar interactions - check if target is within toolbar
+                        const toolbar = e.target.closest('[data-toolbar]');
+                        if (toolbar) {
+                            return; // Allow toolbar interactions
+                        }
+                        
+                        // Prevent touch events on drawing areas
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return false;
+                    }
+                };
+
+                const preventContextMenu = (e) => {
+                    if (isFullscreen) {
+                        // Allow toolbar interactions
+                        const toolbar = e.target.closest('[data-toolbar]');
+                        if (toolbar) {
+                            return; // Allow toolbar interactions
+                        }
+                        
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return false;
+                    }
+                };
+
+                const preventSelection = (e) => {
+                    if (isFullscreen) {
+                        // Allow toolbar interactions
+                        const toolbar = e.target.closest('[data-toolbar]');
+                        if (toolbar) {
+                            return; // Allow toolbar interactions
+                        }
+                        
+                        e.preventDefault();
+                        return false;
+                    }
+                };
+
                 document.addEventListener('fullscreenchange', handleFullscreenChange);
                 document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
                 document.addEventListener('msfullscreenchange', handleFullscreenChange);
                 document.addEventListener('keydown', handleKeyDown);
+
+                // Add selective touch prevention when in fullscreen
+                if (isFullscreen) {
+                    document.addEventListener('touchstart', preventTouchDefaults, { passive: false, capture: true });
+                    document.addEventListener('touchend', preventTouchDefaults, { passive: false, capture: true });
+                    document.addEventListener('touchmove', preventTouchDefaults, { passive: false, capture: true });
+                    document.addEventListener('touchcancel', preventTouchDefaults, { passive: false, capture: true });
+                    document.addEventListener('contextmenu', preventContextMenu, { passive: false, capture: true });
+                    document.addEventListener('selectstart', preventSelection, { passive: false, capture: true });
+                    document.addEventListener('dragstart', preventSelection, { passive: false, capture: true });
+                }
 
                 return () => {
                     document.removeEventListener('fullscreenchange', handleFullscreenChange);
                     document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
                     document.removeEventListener('msfullscreenchange', handleFullscreenChange);
                     document.removeEventListener('keydown', handleKeyDown);
+                    
+                    // Remove selective touch prevention
+                    document.removeEventListener('touchstart', preventTouchDefaults, { capture: true });
+                    document.removeEventListener('touchend', preventTouchDefaults, { capture: true });
+                    document.removeEventListener('touchmove', preventTouchDefaults, { capture: true });
+                    document.removeEventListener('touchcancel', preventTouchDefaults, { capture: true });
+                    document.removeEventListener('contextmenu', preventContextMenu, { capture: true });
+                    document.removeEventListener('selectstart', preventSelection, { capture: true });
+                    document.removeEventListener('dragstart', preventSelection, { capture: true });
                 };
             }, [isFullscreen, pdfDoc, currentPage, totalPages]);
 
@@ -522,7 +586,16 @@
                                         msContentZooming: 'none',
                                         msTouchAction: 'none',
                                         msScrollChaining: 'none',
-                                        msTouchSelect: 'none'
+                                        msTouchSelect: 'none',
+                                        WebkitTouchCallout: 'none',
+                                        WebkitUserSelect: 'none',
+                                        KhtmlUserSelect: 'none',
+                                        MozUserSelect: 'none',
+                                        msUserSelect: 'none',
+                                        OUserSelect: 'none',
+                                        WebkitTapHighlightColor: 'rgba(0,0,0,0)',
+                                        WebkitAppearance: 'none',
+                                        outline: 'none'
                                     }}
                                     onPointerDown={startDrawing}
                                     onContextMenu={(e) => {
@@ -537,6 +610,34 @@
                                     onDragStart={(e) => {
                                         e.preventDefault();
                                         return false;
+                                    }}
+                                    onTouchStart={(e) => {
+                                        e.preventDefault();
+                                        return false;
+                                    }}
+                                    onTouchEnd={(e) => {
+                                        e.preventDefault();
+                                        return false;
+                                    }}
+                                    onTouchMove={(e) => {
+                                        e.preventDefault();
+                                        return false;
+                                    }}
+                                    onTouchCancel={(e) => {
+                                        e.preventDefault();
+                                        return false;
+                                    }}
+                                    onMouseDown={(e) => {
+                                        if (e.button === 2) { // Right click
+                                            e.preventDefault();
+                                            return false;
+                                        }
+                                    }}
+                                    onMouseUp={(e) => {
+                                        if (e.button === 2) { // Right click
+                                            e.preventDefault();
+                                            return false;
+                                        }
                                     }}
                                     onPointerMove={(e) => {
                                         // Always update eraser position when eraser is selected
@@ -684,121 +785,54 @@
                                 )}
                             </div>
                             
-                            {/* Centered Fixed Toolbar */}
+                            {/* Centered Fixed Toolbar - Minimalist */}
                             <div
-                                className="fixed bottom-5 left-1/2 transform -translate-x-1/2 bg-gray-900 rounded-full shadow-2xl border border-gray-700"
+                                data-toolbar="true"
+                                className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800"
                                 style={{
                                     zIndex: 1000,
                                     userSelect: 'none',
-                                    minWidth: '650px',
-                                    height: '60px'
+                                    minWidth: '400px',
+                                    height: '48px'
                                 }}
                             >
-                                <div className="flex items-center justify-between h-full px-6 py-2">
-                                    {/* Left: Simplified Color Picker */}
-                                    <div className="flex items-center gap-3 relative">
-                                        <span className="text-white text-xs font-bold">🎨</span>
-                                        <button
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                setShowColorPicker(!showColorPicker);
+                                <div className="flex items-center justify-between h-full px-4">
+                                    {/* Left: Color Picker */}
+                                    <div className="flex items-center gap-2 relative">
+                                        <input
+                                            type="color"
+                                            value={selectedColor}
+                                            onChange={(e) => {
+                                                setSelectedColor(e.target.value);
                                             }}
-                                            className="w-10 h-10 rounded-full border-2 border-white shadow-lg transition-all hover:scale-110"
+                                            className="w-8 h-8 rounded-full border-2 border-gray-300 dark:border-gray-600 shadow-sm transition-all hover:scale-110 cursor-pointer"
                                             style={{ backgroundColor: selectedColor }}
                                         />
-                                        
-                                        {/* Enhanced Color Picker Popup */}
-                                        {showColorPicker && (
-                                            <div className="absolute bottom-16 left-0 bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-4 shadow-2xl border border-gray-600 backdrop-blur-sm">
-                                                {/* Header */}
-                                                <div className="flex items-center justify-between mb-3">
-                                                    <span className="text-white text-sm font-medium">Pick Color</span>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                            setShowColorPicker(false);
-                                                        }}
-                                                        className="text-gray-400 hover:text-white text-lg leading-none"
-                                                    >
-                                                        ×
-                                                    </button>
-                                                </div>
-                                                
-                                                {/* Popular Colors */}
-                                                <div className="mb-4">
-                                                    <p className="text-gray-300 text-xs mb-2">Popular</p>
-                                                    <div className="grid grid-cols-5 gap-2">
-                                                        {['#000000', '#FF0000', '#0000FF', '#800080', '#FFA500'].map((color) => (
-                                                            <button
-                                                                key={color}
-                                                                onClick={(e) => {
-                                                                    e.preventDefault();
-                                                                    e.stopPropagation();
-                                                                    setSelectedColor(color);
-                                                                    setShowColorPicker(false);
-                                                                }}
-                                                                className={`w-10 h-10 rounded-lg border-2 transition-all hover:scale-110 shadow-lg ${
-                                                                    selectedColor === color ? 'border-white ring-2 ring-blue-400' : 'border-gray-500 hover:border-gray-300'
-                                                                }`}
-                                                                style={{ backgroundColor: color }}
-                                                                title={color}
-                                                            />
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                                
-                                                {/* More Colors */}
-                                                <div className="mb-4">
-                                                    <p className="text-gray-300 text-xs mb-2">More Colors</p>
-                                                    <div className="grid grid-cols-5 gap-2">
-                                                        {['#00FF00', '#FFFF00', '#FF00FF', '#00FFFF', '#FFFFFF'].map((color) => (
-                                                            <button
-                                                                key={color}
-                                                                onClick={(e) => {
-                                                                    e.preventDefault();
-                                                                    e.stopPropagation();
-                                                                    setSelectedColor(color);
-                                                                    setShowColorPicker(false);
-                                                                }}
-                                                                className={`w-10 h-10 rounded-lg border-2 transition-all hover:scale-110 shadow-lg ${
-                                                                    selectedColor === color ? 'border-white ring-2 ring-blue-400' : 'border-gray-500 hover:border-gray-300'
-                                                                }`}
-                                                                style={{ backgroundColor: color }}
-                                                                title={color}
-                                                            />
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                                
-                                                {/* Custom Color Picker */}
-                                                <div>
-                                                    <p className="text-gray-300 text-xs mb-2">Custom</p>
-                                                    <div className="relative">
-                                                        <input
-                                                            type="color"
-                                                            value={selectedColor}
-                                                            onChange={(e) => {
-                                                                setSelectedColor(e.target.value);
-                                                                setShowColorPicker(false);
-                                                            }}
-                                                            className="w-full h-12 rounded-lg cursor-pointer border-2 border-gray-500 hover:border-gray-300 transition-colors"
-                                                            title="Custom color picker"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
                                     </div>
                                     
                                     {/* Center: Tools & Size */}
-                                    <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-3">
+                                        {/* Tool Selection */}
                                         <div className="flex gap-1">
                                             {[
-                                                { tool: 'pen', icon: '✏️' },
-                                                { tool: 'highlighter', icon: '🖍️' },
-                                                { tool: 'eraser', icon: '🧽' }
+                                                { 
+                                                    tool: 'pen', 
+                                                    icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                    </svg>
+                                                },
+                                                { 
+                                                    tool: 'highlighter', 
+                                                    icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10l-2-2H9l-2 2zM12 17h.01M12 3v14" />
+                                                    </svg>
+                                                },
+                                                { 
+                                                    tool: 'eraser', 
+                                                    icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 2L8 10L2 16L8 22L16 14L22 8L16 2Z" />
+                                                    </svg>
+                                                }
                                             ].map((toolOption) => (
                                                 <button
                                                     key={toolOption.tool}
@@ -807,10 +841,10 @@
                                                         e.stopPropagation();
                                                         setSelectedTool(toolOption.tool);
                                                     }}
-                                                    className={`px-3 py-2 text-sm rounded-full transition-all hover:scale-105 ${
+                                                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
                                                         selectedTool === toolOption.tool
-                                                            ? 'bg-blue-500 text-white'
-                                                            : 'bg-gray-700 text-gray-300'
+                                                            ? 'bg-md-primary text-white'
+                                                            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                                                     }`}
                                                 >
                                                     {toolOption.icon}
@@ -818,83 +852,26 @@
                                             ))}
                                         </div>
                                         
-                                        {selectedTool === 'eraser' ? (
-                                            // Eraser specific controls - compact layout
-                                            <div className="flex items-center gap-2 text-white text-xs">
-                                                <div className="flex flex-col items-center">
-                                                    <span>Min</span>
-                                                    <span>{eraserMinSize}px</span>
-                                                    <input
-                                                        type="range"
-                                                        min="1"
-                                                        max="20"
-                                                        step="1"
-                                                        value={eraserMinSize}
-                                                        onChange={(e) => {
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                            setEraserMinSize(parseInt(e.target.value));
-                                                        }}
-                                                        className="w-10 h-1 bg-gray-600 rounded appearance-none"
-                                                    />
-                                                </div>
-                                                <div className="flex flex-col items-center">
-                                                    <span>Max</span>
-                                                    <span>{eraserMaxSize}px</span>
-                                                    <input
-                                                        type="range"
-                                                        min="1"
-                                                        max="120"
-                                                        step="1"
-                                                        value={eraserMaxSize}
-                                                        onChange={(e) => {
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                            setEraserMaxSize(parseInt(e.target.value));
-                                                        }}
-                                                        className="w-10 h-1 bg-gray-600 rounded appearance-none"
-                                                    />
-                                                </div>
-                                                <div className="flex flex-col items-center">
-                                                    <span>Speed</span>
-                                                    <span>{speedSensitivity.toFixed(1)}</span>
-                                                    <input
-                                                        type="range"
-                                                        min="0.5"
-                                                        max="3"
-                                                        step="0.1"
-                                                        value={speedSensitivity}
-                                                        onChange={(e) => {
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                            setSpeedSensitivity(parseFloat(e.target.value));
-                                                        }}
-                                                        className="w-10 h-1 bg-gray-600 rounded appearance-none"
-                                                    />
-                                                </div>
-                                                <div className="flex flex-col items-center">
-                                                    <span>Threshold</span>
-                                                    <span>{speedThreshold}px/s</span>
-                                                    <input
-                                                        type="range"
-                                                        min="10"
-                                                        max="300"
-                                                        step="10"
-                                                        value={speedThreshold}
-                                                        onChange={(e) => {
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                            setSpeedThreshold(parseInt(e.target.value));
-                                                        }}
-                                                        className="w-10 h-1 bg-gray-600 rounded appearance-none"
-                                                    />
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            // Standard size control for pen/highlighter - more compact
-                                            <div className="flex flex-col items-center text-white text-xs">
-                                                <span>Size</span>
-                                                <span>{penSize}px</span>
+                                        {/* Size Control */}
+                                        <div className="flex items-center gap-2 relative">
+                                            {selectedTool === 'eraser' ? (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        setShowEraserControls(!showEraserControls);
+                                                    }}
+                                                    className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                                >
+                                                    {Math.round(currentEraserSize)}px
+                                                </button>
+                                            ) : (
+                                                <span className="text-xs text-gray-600 dark:text-gray-400">
+                                                    {penSize}px
+                                                </span>
+                                            )}
+                                            
+                                            {selectedTool !== 'eraser' && (
                                                 <input
                                                     type="range"
                                                     min="1"
@@ -905,14 +882,117 @@
                                                         e.stopPropagation();
                                                         setPenSize(parseInt(e.target.value));
                                                     }}
-                                                    className="w-16 h-1 bg-gray-600 rounded appearance-none"
+                                                    className="w-16 h-1 bg-gray-300 dark:bg-gray-600 rounded appearance-none"
                                                 />
-                                            </div>
-                                        )}
+                                            )}
+                                            
+                                            {/* Eraser Controls Popup */}
+                                            {showEraserControls && selectedTool === 'eraser' && (
+                                                <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2 bg-white dark:bg-gray-800 rounded-xl p-4 shadow-xl border border-gray-200 dark:border-gray-700 min-w-80">
+                                                    <div className="flex items-center justify-between mb-3">
+                                                        <span className="text-sm font-medium text-gray-800 dark:text-white">Eraser Settings</span>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                setShowEraserControls(false);
+                                                            }}
+                                                            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                    
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div className="space-y-2">
+                                                            <label className="text-xs text-gray-600 dark:text-gray-400">Min Size</label>
+                                                            <div className="flex items-center gap-2">
+                                                                <input
+                                                                    type="range"
+                                                                    min="1"
+                                                                    max="20"
+                                                                    step="1"
+                                                                    value={eraserMinSize}
+                                                                    onChange={(e) => {
+                                                                        e.preventDefault();
+                                                                        e.stopPropagation();
+                                                                        setEraserMinSize(parseInt(e.target.value));
+                                                                    }}
+                                                                    className="flex-1 h-1 bg-gray-300 dark:bg-gray-600 rounded appearance-none"
+                                                                />
+                                                                <span className="text-xs text-gray-600 dark:text-gray-400 w-8 text-right">{eraserMinSize}</span>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <div className="space-y-2">
+                                                            <label className="text-xs text-gray-600 dark:text-gray-400">Max Size</label>
+                                                            <div className="flex items-center gap-2">
+                                                                <input
+                                                                    type="range"
+                                                                    min="1"
+                                                                    max="120"
+                                                                    step="1"
+                                                                    value={eraserMaxSize}
+                                                                    onChange={(e) => {
+                                                                        e.preventDefault();
+                                                                        e.stopPropagation();
+                                                                        setEraserMaxSize(parseInt(e.target.value));
+                                                                    }}
+                                                                    className="flex-1 h-1 bg-gray-300 dark:bg-gray-600 rounded appearance-none"
+                                                                />
+                                                                <span className="text-xs text-gray-600 dark:text-gray-400 w-8 text-right">{eraserMaxSize}</span>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <div className="space-y-2">
+                                                            <label className="text-xs text-gray-600 dark:text-gray-400">Speed Sensitivity</label>
+                                                            <div className="flex items-center gap-2">
+                                                                <input
+                                                                    type="range"
+                                                                    min="0.5"
+                                                                    max="3"
+                                                                    step="0.1"
+                                                                    value={speedSensitivity}
+                                                                    onChange={(e) => {
+                                                                        e.preventDefault();
+                                                                        e.stopPropagation();
+                                                                        setSpeedSensitivity(parseFloat(e.target.value));
+                                                                    }}
+                                                                    className="flex-1 h-1 bg-gray-300 dark:bg-gray-600 rounded appearance-none"
+                                                                />
+                                                                <span className="text-xs text-gray-600 dark:text-gray-400 w-8 text-right">{speedSensitivity.toFixed(1)}</span>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <div className="space-y-2">
+                                                            <label className="text-xs text-gray-600 dark:text-gray-400">Speed Threshold</label>
+                                                            <div className="flex items-center gap-2">
+                                                                <input
+                                                                    type="range"
+                                                                    min="10"
+                                                                    max="300"
+                                                                    step="10"
+                                                                    value={speedThreshold}
+                                                                    onChange={(e) => {
+                                                                        e.preventDefault();
+                                                                        e.stopPropagation();
+                                                                        setSpeedThreshold(parseInt(e.target.value));
+                                                                    }}
+                                                                    className="flex-1 h-1 bg-gray-300 dark:bg-gray-600 rounded appearance-none"
+                                                                />
+                                                                <span className="text-xs text-gray-600 dark:text-gray-400 w-8 text-right">{speedThreshold}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                     
-                                    {/* Right: Actions & Status */}
-                                    <div className="flex items-center gap-3">
+                                    {/* Right: Actions */}
+                                    <div className="flex items-center gap-2">
                                         <button
                                             onClick={(e) => {
                                                 e.preventDefault();
@@ -929,14 +1009,16 @@
                                                     ctx.clearRect(0, 0, drawingCanvasRef.current.width, drawingCanvasRef.current.height);
                                                 }
                                             }}
-                                            className="px-3 py-1 bg-red-600 text-white text-xs rounded-full hover:bg-red-700"
+                                            className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-600 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                                         >
-                                            Clear
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
                                         </button>
                                         
-                                        <div className="text-white text-xs">
-                                            Page {currentPage}/{totalPages}
-                                        </div>
+                                        <span className="text-xs text-gray-600 dark:text-gray-400 min-w-12 text-center">
+                                            {currentPage}/{totalPages}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
