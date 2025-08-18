@@ -1,11 +1,10 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minimal Draw Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"></link>
     <link rel="manifest" href="manifest.json">
     <style>
         body {
@@ -18,6 +17,14 @@
         #canvas {
             touch-action: none;
             cursor: crosshair;
+        }
+        
+        #previewCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 10;
         }
         
         .tool-button {
@@ -33,7 +40,6 @@
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
         }
         
-        /* Pressure indicator */
         .pressure-indicator {
             position: absolute;
             right: 20px;
@@ -69,7 +75,6 @@
             text-align: center;
         }
         
-        /* Settings Panel */
         .settings-panel {
             position: fixed;
             top: 0;
@@ -126,6 +131,52 @@
             cursor: pointer;
             border: none;
         }
+        
+        /* Toggle Switch Styles */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .toggle-slider {
+            background-color: #3b82f6;
+        }
+        
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -135,9 +186,11 @@
             Start Drawing
         </button>
     </div>
+    
     <!-- Canvas Screen -->
     <div id="canvasScreen" class="hidden h-screen w-full bg-white relative">
         <canvas id="canvas" class="w-full h-full absolute top-0 left-0"></canvas>
+        <canvas id="previewCanvas" class="w-full h-full absolute top-0 left-0"></canvas>
         
         <!-- Pressure Level Indicator -->
         <div class="pressure-indicator" id="pressureIndicator">
@@ -167,6 +220,7 @@
             </button>
         </div>
     </div>
+    
     <!-- Settings Panel -->
     <div class="settings-panel" id="settingsPanel">
         <div class="flex justify-between items-center mb-6">
@@ -181,7 +235,7 @@
                 <span>Min Line Thickness</span>
                 <span id="minThicknessValue">1px</span>
             </div>
-            <input type="range" min="1" max="10" value="1" class="slider" id="minThicknessSlider">
+            <input type="range" min="1" max="80" value="1" class="slider" id="minThicknessSlider">
         </div>
         
         <div class="slider-container">
@@ -189,7 +243,7 @@
                 <span>Max Line Thickness</span>
                 <span id="maxThicknessValue">18px</span>
             </div>
-            <input type="range" min="5" max="50" value="18" class="slider" id="maxThicknessSlider">
+            <input type="range" min="5" max="80" value="18" class="slider" id="maxThicknessSlider">
         </div>
         
         <div class="slider-container">
@@ -198,6 +252,16 @@
                 <span id="sensitivityValue">40%</span>
             </div>
             <input type="range" min="10" max="100" value="40" class="slider" id="sensitivitySlider">
+        </div>
+        
+        <div class="slider-container">
+            <div class="slider-label">
+                <span>Enable Pressure Sensitivity</span>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" id="pressureToggle" checked>
+                <span class="toggle-slider"></span>
+            </label>
         </div>
         
         <div class="mt-8 pt-6 border-t border-gray-200">
@@ -214,24 +278,24 @@
             </div>
         </div>
     </div>
+    
     <script>
-        // Wait for DOM to be fully loaded before initializing
+        // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize variables
-            let canvas, ctx;
-            let isDrawing = false;
-            let currentTool = 'pen';
-            let currentColor = '#000000';
-            let baseSize = 5;
-            let currentSize = baseSize;
-            let pressureEnabled = true;
-            let lastPoint = null;
-            let strokePoints = [];
-            
-            // Settings variables
-            let minThickness = 1;
-            let maxThickness = 18;
-            let sensitivity = 0.4;
+            // App state
+            const appState = {
+                isDrawing: false,
+                currentTool: 'pen',
+                currentColor: '#000000',
+                baseSize: 5,
+                currentSize: 5,
+                pressureEnabled: true,
+                minThickness: 1,
+                maxThickness: 18,
+                sensitivity: 0.4,
+                strokePoints: [],
+                lastPoint: null
+            };
             
             // DOM elements
             const homeScreen = document.getElementById('homeScreen');
@@ -242,17 +306,48 @@
             const pressureLevel = document.querySelector('.pressure-level');
             const settingsPanel = document.getElementById('settingsPanel');
             const closeSettings = document.getElementById('closeSettings');
+            const pressureToggle = document.getElementById('pressureToggle');
             
-            // Initialize canvas when starting
-            function initCanvas() {
-                canvas = document.getElementById('canvas');
-                ctx = canvas.getContext('2d');
-                
-                // Set canvas size with high DPI support
-                resizeCanvas();
-                window.addEventListener('resize', resizeCanvas);
-                // Setup drawing events with pointer events for pressure support
+            // Canvas elements
+            let canvas, ctx, previewCanvas, previewCtx;
+            
+            // Event listeners
+            startButton.addEventListener('click', initializeApp);
+            closeSettings.addEventListener('click', () => settingsPanel.classList.remove('open'));
+            pressureToggle.addEventListener('change', () => {
+                appState.pressureEnabled = pressureToggle.checked;
+            });
+            
+            // Tool buttons
+            document.querySelectorAll('.tool-button').forEach(button => {
+                button.addEventListener('click', () => handleToolSelection(button));
+            });
+            
+            // Settings sliders
+            document.getElementById('minThicknessSlider').addEventListener('input', updateSetting);
+            document.getElementById('maxThicknessSlider').addEventListener('input', updateSetting);
+            document.getElementById('sensitivitySlider').addEventListener('input', updateSetting);
+            
+            function initializeApp() {
+                homeScreen.style.display = 'none';
+                canvasScreen.style.display = 'block';
+                initCanvases();
                 setupDrawingEvents();
+            }
+            
+            function initCanvases() {
+                canvas = document.getElementById('canvas');
+                previewCanvas = document.getElementById('previewCanvas');
+                ctx = canvas.getContext('2d');
+                previewCtx = previewCanvas.getContext('2d');
+                
+                resizeCanvas();
+                resizePreviewCanvas();
+                
+                window.addEventListener('resize', () => {
+                    resizeCanvas();
+                    resizePreviewCanvas();
+                });
             }
             
             function resizeCanvas() {
@@ -269,85 +364,78 @@
                 ctx.lineJoin = 'round';
             }
             
+            function resizePreviewCanvas() {
+                const dpr = window.devicePixelRatio || 1;
+                const rect = previewCanvas.getBoundingClientRect();
+                
+                previewCanvas.width = rect.width * dpr;
+                previewCanvas.height = rect.height * dpr;
+                previewCanvas.style.width = rect.width + 'px';
+                previewCanvas.style.height = rect.height + 'px';
+                
+                previewCtx.scale(dpr, dpr);
+                previewCtx.lineCap = 'round';
+                previewCtx.lineJoin = 'round';
+            }
+            
             function setupDrawingEvents() {
-                // Pointer events for pressure support
                 canvas.addEventListener('pointerdown', startDrawing);
                 canvas.addEventListener('pointermove', draw);
                 canvas.addEventListener('pointerup', stopDrawing);
                 canvas.addEventListener('pointercancel', stopDrawing);
                 canvas.addEventListener('pointerleave', stopDrawing);
                 
-                // Show/hide pressure indicator
                 canvas.addEventListener('pointerdown', showPressureIndicator);
                 canvas.addEventListener('pointerup', hidePressureIndicator);
                 canvas.addEventListener('pointermove', updatePressureIndicator);
-            }
-            
-            function showPressureIndicator() {
-                pressureIndicator.classList.add('show');
-            }
-            
-            function hidePressureIndicator() {
-                pressureIndicator.classList.remove('show');
-            }
-            
-            function updatePressureIndicator(e) {
-                if (pressureEnabled) {
-                    const pressure = Math.min(e.pressure || 0.5, 1);
-                    const size = minThickness + (pressure * (maxThickness - minThickness) * sensitivity);
-                    pressureDot.style.width = size + 'px';
-                    pressureDot.style.height = size + 'px';
-                    pressureDot.style.opacity = pressure;
-                    
-                    // Update pressure level text
-                    pressureLevel.textContent = `Pressure: ${Math.round(pressure * 100)}%`;
-                }
+                
+                canvas.addEventListener('pointermove', updateEraserPreview);
+                canvas.addEventListener('pointerleave', clearEraserPreview);
             }
             
             function startDrawing(e) {
-                if (currentTool === 'clear') return;
+                if (appState.currentTool === 'clear') return;
                 
-                isDrawing = true;
+                appState.isDrawing = true;
                 const pos = getEventPos(e);
                 
-                // Reset stroke points
-                strokePoints = [pos];
-                lastPoint = pos;
+                appState.strokePoints = [pos];
+                appState.lastPoint = pos;
                 
                 ctx.beginPath();
                 ctx.moveTo(pos.x, pos.y);
             }
             
             function draw(e) {
-                if (!isDrawing || currentTool === 'clear') return;
+                if (!appState.isDrawing || appState.currentTool === 'clear') return;
                 
                 const pos = getEventPos(e);
                 const pressure = Math.min(e.pressure || 0.5, 1);
                 
-                // Calculate dynamic size based on pressure and settings
-                currentSize = pressureEnabled ? 
-                    minThickness + (pressure * (maxThickness - minThickness) * sensitivity) : 
-                    baseSize;
+                // Calculate dynamic size
+                appState.currentSize = appState.pressureEnabled 
+                    ? appState.minThickness + (pressure * (appState.maxThickness - appState.minThickness) * appState.sensitivity)
+                    : appState.minThickness;
                 
                 // Store point for smoothing
-                strokePoints.push(pos);
+                appState.strokePoints.push(pos);
                 
-                // Keep only recent points for smoothing
-                if (strokePoints.length > 5) {
-                    strokePoints.shift();
+                // Keep only recent points
+                if (appState.strokePoints.length > 5) {
+                    appState.strokePoints.shift();
                 }
                 
                 // Draw smoothed line
-                if (strokePoints.length >= 2) {
-                    const prevPoint = strokePoints[strokePoints.length - 2];
-                    const currPoint = strokePoints[strokePoints.length - 1];
+                if (appState.strokePoints.length >= 2) {
+                    const prevPoint = appState.strokePoints[appState.strokePoints.length - 2];
+                    const currPoint = appState.strokePoints[appState.strokePoints.length - 1];
                     
-                    // Calculate control point for smooth curve
+                    // Control point for smooth curve
                     const cpX = (prevPoint.x + currPoint.x) / 2;
                     const cpY = (prevPoint.y + currPoint.y) / 2;
                     
-                    ctx.lineWidth = currentSize;
-                    ctx.strokeStyle = currentTool === 'eraser' ? '#FFFFFF' : currentColor;
+                    ctx.lineWidth = appState.currentSize;
+                    ctx.strokeStyle = appState.currentTool === 'eraser' ? '#FFFFFF' : appState.currentColor;
                     
                     // Draw curved segment
                     ctx.quadraticCurveTo(prevPoint.x, prevPoint.y, cpX, cpY);
@@ -358,12 +446,12 @@
                     ctx.moveTo(cpX, cpY);
                 }
                 
-                lastPoint = pos;
+                appState.lastPoint = pos;
             }
             
             function stopDrawing() {
-                if (isDrawing) {
-                    isDrawing = false;
+                if (appState.isDrawing) {
+                    appState.isDrawing = false;
                     ctx.closePath();
                 }
             }
@@ -376,76 +464,111 @@
                 };
             }
             
-            // Tool selection
-            document.querySelectorAll('.tool-button').forEach(button => {
-                button.addEventListener('click', () => {
-                    const tool = button.dataset.tool;
-                    
-                    if (tool === 'clear') {
-                        ctx.clearRect(0, 0, canvas.width, canvas.height);
-                        return;
-                    }
-                    
-                    if (tool === 'pressure') {
-                        settingsPanel.classList.toggle('open');
-                        return;
-                    }
-                    
-                    // Update active state
-                    document.querySelectorAll('.tool-button').forEach(b => b.classList.remove('active'));
-                    button.classList.add('active');
-                    currentTool = tool;
-                });
-            });
+            function showPressureIndicator() {
+                pressureIndicator.classList.add('show');
+            }
             
-            // Settings panel controls
-            document.getElementById('minThicknessSlider').addEventListener('input', (e) => {
-                minThickness = parseInt(e.target.value);
-                document.getElementById('minThicknessValue').textContent = minThickness + 'px';
-            });
+            function hidePressureIndicator() {
+                pressureIndicator.classList.remove('show');
+            }
             
-            document.getElementById('maxThicknessSlider').addEventListener('input', (e) => {
-                maxThickness = parseInt(e.target.value);
-                document.getElementById('maxThicknessValue').textContent = maxThickness + 'px';
-            });
+            function updatePressureIndicator(e) {
+                if (!appState.isDrawing) return;
+                
+                const pressure = Math.round((e.pressure || 0.5) * 100);
+                pressureDot.style.transform = `scale(${e.pressure || 0.5})`;
+                pressureLevel.textContent = `Pressure: ${pressure}%`;
+            }
             
-            document.getElementById('sensitivitySlider').addEventListener('input', (e) => {
-                const value = parseInt(e.target.value);
-                sensitivity = value / 100; // Convert percentage to decimal
-                document.getElementById('sensitivityValue').textContent = value + '%';
-            });
+            function updateEraserPreview(e) {
+                if (appState.currentTool !== 'eraser') return;
+                
+                const pos = getEventPos(e);
+                const pressure = Math.min(e.pressure || 0.5, 1);
+                appState.currentSize = appState.pressureEnabled 
+                    ? appState.minThickness + (pressure * (appState.maxThickness - appState.minThickness) * appState.sensitivity)
+                    : appState.minThickness;
+                
+                // Clear previous preview
+                previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+                
+                // Draw dotted circle
+                previewCtx.save();
+                previewCtx.setLineDash([3, 3]);
+                previewCtx.strokeStyle = '#666';
+                previewCtx.lineWidth = 1;
+                previewCtx.beginPath();
+                previewCtx.arc(pos.x, pos.y, appState.currentSize / 2, 0, Math.PI * 2);
+                previewCtx.stroke();
+                previewCtx.restore();
+            }
             
-            closeSettings.addEventListener('click', () => {
-                settingsPanel.classList.remove('open');
-            });
+            function clearEraserPreview() {
+                previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+            }
             
-            // Color picker
-            document.querySelector('[data-tool="color"]').addEventListener('click', () => {
-                const color = prompt('Enter color (hex):', currentColor);
-                if (color && /^#[0-9A-F]{6}$/i.test(color)) {
-                    currentColor = color;
-                    document.querySelector('[data-tool="color"] div').style.backgroundColor = color;
+            function handleToolSelection(button) {
+                const tool = button.dataset.tool;
+                
+                if (tool === 'clear') {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+                    return;
                 }
-            });
-            
-            // Size picker
-            document.querySelector('[data-tool="size"]').addEventListener('click', () => {
-                const size = parseInt(prompt('Enter brush size (1-20):', baseSize));
-                if (size >= 1 && size <= 20) {
-                    baseSize = size;
-                    document.querySelector('[data-tool="size"] div').style.width = `${size}px`;
-                    document.querySelector('[data-tool="size"] div').style.height = `${size}px`;
+                
+                if (tool === 'pressure') {
+                    settingsPanel.classList.toggle('open');
+                    return;
                 }
-            });
+                
+                // Update active state
+                document.querySelectorAll('.tool-button').forEach(b => b.classList.remove('active'));
+                button.classList.add('active');
+                appState.currentTool = tool;
+                
+                // Clear preview
+                previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+                
+                // Handle special tools
+                if (tool === 'color') {
+                    const newColor = prompt('Enter color (hex):', appState.currentColor);
+                    if (newColor && /^#[0-9A-F]{6}$/i.test(newColor)) {
+                        appState.currentColor = newColor;
+                        button.querySelector('div').style.backgroundColor = newColor;
+                    }
+                }
+                
+                if (tool === 'size') {
+                    const newSize = parseInt(prompt('Enter brush size (1-20):', appState.baseSize));
+                    if (newSize >= 1 && newSize <= 20) {
+                        appState.baseSize = newSize;
+                        button.querySelector('div').style.width = `${newSize}px`;
+                        button.querySelector('div').style.height = `${newSize}px`;
+                    }
+                }
+            }
             
-            // Navigation
-            startButton.addEventListener('click', () => {
-                homeScreen.style.display = 'none';
-                canvasScreen.style.display = 'block';
-                initCanvas();
-            });
+            function updateSetting() {
+                const sliderId = event.target.id;
+                const value = parseInt(event.target.value);
+                
+                switch (sliderId) {
+                    case 'minThicknessSlider':
+                        appState.minThickness = value;
+                        document.getElementById('minThicknessValue').textContent = `${value}px`;
+                        break;
+                    case 'maxThicknessSlider':
+                        appState.maxThickness = value;
+                        document.getElementById('maxThicknessValue').textContent = `${value}px`;
+                        break;
+                    case 'sensitivitySlider':
+                        appState.sensitivity = value / 100;
+                        document.getElementById('sensitivityValue').textContent = `${value}%`;
+                        break;
+                }
+            }
             
-            // Register Service Worker
+            // Register service worker
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('sw.js')
                     .then(reg => console.log('Service Worker registered'))
