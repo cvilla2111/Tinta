@@ -1,1070 +1,457 @@
-<!DOCTYPE html><html lang="en"><head><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
+<!DOCTYPE html>
+<html lang="en">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Annotation App</title>
+    <title>Minimal Draw Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'md-primary': '#6750A4',
-                        'md-on-primary': '#FFFFFF',
-                        'md-primary-container': '#EADDFF',
-                        'md-on-primary-container': '#21005D',
-                        'md-surface': '#FEF7FF',
-                        'md-on-surface': '#1D1B20',
-                        'md-surface-variant': '#E7E0EC',
-                        'md-on-surface-variant': '#49454F',
-                        'md-outline': '#79747E',
-                        'md-surface-container': '#F3EDF7',
-                        'md-surface-container-high': '#ECE6F0',
-                    }
-                }
-            },
-            darkMode: 'class'
-        }
-
-        // Dark mode detection
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            document.documentElement.classList.add('dark');
-        }
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
-            if (event.matches) {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
-        });
-
-        // Configure PDF.js worker
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link rel="manifest" href="manifest.json">
     <style>
-        .md-elevation-3 {
-            box-shadow: 0px 1px 3px 0px rgba(0, 0, 0, 0.30), 0px 4px 8px 3px rgba(0, 0, 0, 0.15);
-        }
-        .md-elevation-1 {
-            box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.30), 0px 1px 3px 1px rgba(0, 0, 0, 0.15);
-        }
-        .annotation-canvas {
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
             touch-action: none;
         }
-        .fullscreen-container {
-            background: #000;
+        
+        #canvas {
+            touch-action: none;
+            cursor: crosshair;
         }
-        .thumbnail-container {
-            background: linear-gradient(135deg, #f3edf7 0%, #e7e0ec 100%);
+        
+        .tool-button {
+            transition: all 0.2s ease;
         }
-        .dark .thumbnail-container {
-            background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+        
+        .tool-button:hover {
+            transform: scale(1.05);
+        }
+        
+        .tool-button.active {
+            background-color: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        }
+        
+        /* Pressure indicator */
+        .pressure-indicator {
+            position: absolute;
+            right: 20px;
+            bottom: 80px;
+            width: 120px;
+            background: rgba(59, 130, 246, 0.1);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        
+        .pressure-indicator.show {
+            opacity: 1;
+        }
+        
+        .pressure-dot {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #3b82f6;
+            transition: all 0.1s ease;
+            margin-bottom: 8px;
+        }
+        
+        .pressure-level {
+            font-size: 12px;
+            font-weight: 500;
+            color: #374151;
+            text-align: center;
+        }
+        
+        /* Settings Panel */
+        .settings-panel {
+            position: fixed;
+            top: 0;
+            right: -320px;
+            width: 320px;
+            height: 100vh;
+            background: white;
+            box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
+            transition: right 0.3s ease;
+            z-index: 1000;
+            padding: 24px;
+            overflow-y: auto;
+        }
+        
+        .settings-panel.open {
+            right: 0;
+        }
+        
+        .slider-container {
+            margin-bottom: 24px;
+        }
+        
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #374151;
+        }
+        
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #e5e7eb;
+            outline: none;
+            appearance: none;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+        }
+        
+        .slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            border: none;
         }
     </style>
 </head>
-<body class="bg-md-surface dark:bg-gray-900 text-md-on-surface dark:text-gray-100 min-h-screen">
-    <div id="root"></div>
-
-    <script type="text/babel">
-        const { useState, useRef, useEffect, useCallback } = React;
-
-        const PDFAnnotationApp = () => {
-            const [pdfDoc, setPdfDoc] = useState(null);
-            const [currentPage, setCurrentPage] = useState(1);
-            const [totalPages, setTotalPages] = useState(0);
-            const [isFullscreen, setIsFullscreen] = useState(false);
-            const [shouldEnterFullscreen, setShouldEnterFullscreen] = useState(false);
-            const [isDrawing, setIsDrawing] = useState(false);
-            const [thumbnailSrc, setThumbnailSrc] = useState(null);
-            const [annotations, setAnnotations] = useState(new Map());
-            const [fileName, setFileName] = useState('');
-            const [selectedColor, setSelectedColor] = useState('#800080');
-            const [penSize, setPenSize] = useState(3);
-            const [selectedTool, setSelectedTool] = useState('pen');
-            const [eraserPosition, setEraserPosition] = useState({ x: 0, y: 0 });
-            const [showEraserCircle, setShowEraserCircle] = useState(false);
-            const [showColorPicker, setShowColorPicker] = useState(false);
-            const [showEraserControls, setShowEraserControls] = useState(false);
-            const [pressureSensitivity, setPressureSensitivity] = useState(1.0);
-            const [toolbarMinimized, setToolbarMinimized] = useState(false);
-            const [currentEraserSize, setCurrentEraserSize] = useState(15);
-            const [smoothedSpeed, setSmoothedSpeed] = useState(0);
-            const [eraserMinSize, setEraserMinSize] = useState(1); // Min eraser size in pixels
-            const [eraserMaxSize, setEraserMaxSize] = useState(70); // Max eraser size in pixels
-            const [speedSensitivity, setSpeedSensitivity] = useState(1.5); // Speed sensitivity factor
-            const [speedThreshold, setSpeedThreshold] = useState(180); // Speed threshold in pixels/second to start growing
-            const lastMoveTimeRef = useRef(0);
-            const lastPositionRef = useRef({ x: 0, y: 0 });
-            const lastEraserPositionRef = useRef({ x: 0, y: 0 });
-            const speedHistoryRef = useRef([]); // Rolling average for ultra-smooth speed
-            const sizeHistoryRef = useRef([]); // Rolling average for ultra-smooth size
-            
-            const fileInputRef = useRef(null);
-            const canvasRef = useRef(null);
-            const drawingCanvasRef = useRef(null);
-            const containerRef = useRef(null);
-            const thumbnailRef = useRef(null);
-            const lastPointRef = useRef(null);
-            const isDrawingRef = useRef(false);
-
-            // Load PDF file
-            const loadPDF = async (file) => {
-                try {
-                    const arrayBuffer = await file.arrayBuffer();
-                    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-                    setPdfDoc(pdf);
-                    setTotalPages(pdf.numPages);
-                    setCurrentPage(1);
-                    
-                    // Generate thumbnail from first page
-                    const page = await pdf.getPage(1);
-                    const viewport = page.getViewport({ scale: 0.3 });
-                    const thumbnailCanvas = document.createElement('canvas');
-                    const thumbnailCtx = thumbnailCanvas.getContext('2d');
-                    thumbnailCanvas.width = viewport.width;
-                    thumbnailCanvas.height = viewport.height;
-                    
-                    await page.render({
-                        canvasContext: thumbnailCtx,
-                        viewport: viewport
-                    }).promise;
-                    
-                    setThumbnailSrc(thumbnailCanvas.toDataURL());
-                    
-                    // Enter fullscreen immediately (using the file input user gesture)
-                    requestFullscreen();
-                } catch (error) {
-                    console.error('Error loading PDF:', error);
-                }
-            };
-
-            // Direct fullscreen request
-            const requestFullscreen = () => {
-                const element = document.documentElement;
-                if (element.requestFullscreen) {
-                    element.requestFullscreen().then(() => {
-                        setIsFullscreen(true);
-                    }).catch(err => {
-                        console.log('Fullscreen request failed:', err);
-                    });
-                } else if (element.webkitRequestFullscreen) {
-                    element.webkitRequestFullscreen();
-                    setIsFullscreen(true);
-                } else if (element.msRequestFullscreen) {
-                    element.msRequestFullscreen();
-                    setIsFullscreen(true);
-                }
-            };
-
-            // Render PDF page with Canvas overlay for raster drawing
-            const renderPage = async (pageNum) => {
-                if (!pdfDoc || !canvasRef.current) return;
-
-                const page = await pdfDoc.getPage(pageNum);
-                const canvas = canvasRef.current;
-                const ctx = canvas.getContext('2d');
-                
-                // Calculate scale to fit full screen width
-                const pageViewport = page.getViewport({ scale: 1.0 });
-                const scale = window.innerWidth / pageViewport.width;
-                const viewport = page.getViewport({ scale });
-                
-                canvas.width = viewport.width;
-                canvas.height = viewport.height;
-                
-                // Clear and render page
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                await page.render({
-                    canvasContext: ctx,
-                    viewport: viewport
-                }).promise;
-
-                // Setup drawing canvas overlay
-                const drawingCanvas = drawingCanvasRef.current;
-                if (drawingCanvas) {
-                    drawingCanvas.width = viewport.width;
-                    drawingCanvas.height = viewport.height;
-                    drawingCanvas.style.width = viewport.width + 'px';
-                    drawingCanvas.style.height = viewport.height + 'px';
-                    
-                    const drawingCtx = drawingCanvas.getContext('2d');
-                    drawingCtx.clearRect(0, 0, viewport.width, viewport.height);
-                    
-                    // Restore annotations for this page from saved image data
-                    const pageAnnotations = annotations.get(pageNum);
-                    if (pageAnnotations && pageAnnotations.imageData) {
-                        const img = new Image();
-                        img.onload = () => {
-                            drawingCtx.drawImage(img, 0, 0);
-                        };
-                        img.src = pageAnnotations.imageData;
-                    }
-                }
-            };
-
-            // Fullscreen management
-            const enterFullscreen = () => {
-                if (containerRef.current) {
-                    if (containerRef.current.requestFullscreen) {
-                        containerRef.current.requestFullscreen();
-                    } else if (containerRef.current.webkitRequestFullscreen) {
-                        containerRef.current.webkitRequestFullscreen();
-                    } else if (containerRef.current.msRequestFullscreen) {
-                        containerRef.current.msRequestFullscreen();
-                    }
-                }
-            };
-
-            const exitFullscreen = () => {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                } else if (document.webkitExitFullscreen) {
-                    document.webkitExitFullscreen();
-                } else if (document.msExitFullscreen) {
-                    document.msExitFullscreen();
-                }
-            };
-
-            // Canvas-based drawing functions with perfect pixel erasing
-            const startDrawing = (e) => {
-                if (!isFullscreen || !drawingCanvasRef.current) return;
-                
-                // Only allow stylus input
-                if (e.pointerType !== 'pen') return;
-                
-                setIsDrawing(true);
-                
-                const rect = drawingCanvasRef.current.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                
-                const ctx = drawingCanvasRef.current.getContext('2d');
-                
-                if (selectedTool === 'eraser') {
-                    // Eraser mode: erase pixels in circular area
-                    eraseAtPoint(ctx, x, y);
-                } else {
-                    // Drawing mode: start new stroke
-                    ctx.globalCompositeOperation = 'source-over';
-                    ctx.strokeStyle = selectedColor;
-                    ctx.lineWidth = penSize;
-                    ctx.lineCap = 'round';
-                    ctx.lineJoin = 'round';
-                    
-                    // Apply tool-specific styles
-                    if (selectedTool === 'highlighter') {
-                        ctx.globalAlpha = 0.5;
-                        ctx.lineWidth = Math.max(penSize, 8);
-                    } else {
-                        ctx.globalAlpha = 1.0;
-                    }
-                    
-                    ctx.beginPath();
-                    ctx.moveTo(x, y);
-                    lastPointRef.current = { x, y };
-                }
-            };
-
-            const draw = (e) => {
-                if (!isDrawing || !isFullscreen || e.pointerType !== 'pen') return;
-                
-                const rect = drawingCanvasRef.current.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                
-                const ctx = drawingCanvasRef.current.getContext('2d');
-                
-                if (selectedTool === 'eraser') {
-                    // Continue erasing pixels
-                    eraseAtPoint(ctx, x, y);
-                } else {
-                    // Continue drawing stroke
-                    ctx.lineTo(x, y);
-                    ctx.stroke();
-                    ctx.beginPath();
-                    ctx.moveTo(x, y);
-                }
-            };
-
-            const stopDrawing = () => {
-                if (!isDrawing) return;
-                
-                setIsDrawing(false);
-                
-                // Save the canvas state as image data for this page
-                if (drawingCanvasRef.current) {
-                    const imageData = drawingCanvasRef.current.toDataURL();
-                    setAnnotations(prev => {
-                        const newMap = new Map(prev);
-                        newMap.set(currentPage, { imageData });
-                        return newMap;
-                    });
-                }
-                
-                lastPointRef.current = null;
-            };
-
-            // Smooth continuous pixel eraser - interpolates between points for seamless erasing
-            const eraseAtPoint = (ctx, x, y) => {
-                const eraserSize = currentEraserSize;
-                
-                // Set composite operation to erase pixels
-                ctx.globalCompositeOperation = 'destination-out';
-                ctx.globalAlpha = 1.0;
-                
-                // If we have a previous eraser position and we're actively drawing
-                if (isDrawing && lastEraserPositionRef.current.x !== 0 && lastEraserPositionRef.current.y !== 0) {
-                    const lastX = lastEraserPositionRef.current.x;
-                    const lastY = lastEraserPositionRef.current.y;
-                    
-                    // Calculate distance between points
-                    const dx = x - lastX;
-                    const dy = y - lastY;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    
-                    // Only interpolate if points are far apart (high speed movement)
-                    if (distance > eraserSize * 0.5) {
-                        // Use stroke approach for smooth line erasing
-                        ctx.lineWidth = eraserSize * 2;
-                        ctx.lineCap = 'round';
-                        ctx.lineJoin = 'round';
-                        ctx.beginPath();
-                        ctx.moveTo(lastX, lastY);
-                        ctx.lineTo(x, y);
-                        ctx.stroke();
-                    } else {
-                        // Points are close, just draw circle at current position
-                        ctx.beginPath();
-                        ctx.arc(x, y, eraserSize, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                } else {
-                    // First point or not drawing, just draw circle
-                    ctx.beginPath();
-                    ctx.arc(x, y, eraserSize, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                
-                // Update last eraser position for next interpolation
-                lastEraserPositionRef.current = { x, y };
-                
-                // Reset composite operation
-                ctx.globalCompositeOperation = 'source-over';
-            };
-
-            // Handle thumbnail click (any touch/click)
-            const handleThumbnailClick = (e) => {
-                e.preventDefault();
-                requestFullscreen();
-            };
-
-            // Navigation
-            const nextPage = () => {
-                if (currentPage < totalPages) {
-                    setCurrentPage(currentPage + 1);
-                }
-            };
-
-            const prevPage = () => {
-                if (currentPage > 1) {
-                    setCurrentPage(currentPage - 1);
-                }
-            };
-
-            // Effects
-            useEffect(() => {
-                const handleFullscreenChange = () => {
-                    setIsFullscreen(!!document.fullscreenElement);
-                };
-
-                const handleKeyDown = (e) => {
-                    if (isFullscreen && pdfDoc) {
-                        if (e.key === 'ArrowLeft') {
-                            e.preventDefault();
-                            prevPage();
-                        } else if (e.key === 'ArrowRight') {
-                            e.preventDefault();
-                            nextPage();
-                        } else if (e.key === 'Escape') {
-                            // Prevent escape key from exiting fullscreen
-                            e.preventDefault();
-                            e.stopPropagation();
-                            return false;
-                        }
-                    }
-                };
-
-                // Selective touch and hold prevention - only on drawing canvas, not toolbar
-                const preventTouchDefaults = (e) => {
-                    if (isFullscreen) {
-                        // Allow toolbar interactions - check if target is within toolbar
-                        const toolbar = e.target.closest('[data-toolbar]');
-                        if (toolbar) {
-                            return; // Allow toolbar interactions
-                        }
-                        
-                        // Prevent touch events on drawing areas
-                        e.preventDefault();
-                        e.stopPropagation();
-                        return false;
-                    }
-                };
-
-                const preventContextMenu = (e) => {
-                    if (isFullscreen) {
-                        // Allow toolbar interactions
-                        const toolbar = e.target.closest('[data-toolbar]');
-                        if (toolbar) {
-                            return; // Allow toolbar interactions
-                        }
-                        
-                        e.preventDefault();
-                        e.stopPropagation();
-                        return false;
-                    }
-                };
-
-                const preventSelection = (e) => {
-                    if (isFullscreen) {
-                        // Allow toolbar interactions
-                        const toolbar = e.target.closest('[data-toolbar]');
-                        if (toolbar) {
-                            return; // Allow toolbar interactions
-                        }
-                        
-                        e.preventDefault();
-                        return false;
-                    }
-                };
-
-                document.addEventListener('fullscreenchange', handleFullscreenChange);
-                document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-                document.addEventListener('msfullscreenchange', handleFullscreenChange);
-                document.addEventListener('keydown', handleKeyDown);
-
-                // Add selective touch prevention when in fullscreen
-                if (isFullscreen) {
-                    document.addEventListener('touchstart', preventTouchDefaults, { passive: false, capture: true });
-                    document.addEventListener('touchend', preventTouchDefaults, { passive: false, capture: true });
-                    document.addEventListener('touchmove', preventTouchDefaults, { passive: false, capture: true });
-                    document.addEventListener('touchcancel', preventTouchDefaults, { passive: false, capture: true });
-                    document.addEventListener('contextmenu', preventContextMenu, { passive: false, capture: true });
-                    document.addEventListener('selectstart', preventSelection, { passive: false, capture: true });
-                    document.addEventListener('dragstart', preventSelection, { passive: false, capture: true });
-                }
-
-                return () => {
-                    document.removeEventListener('fullscreenchange', handleFullscreenChange);
-                    document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-                    document.removeEventListener('msfullscreenchange', handleFullscreenChange);
-                    document.removeEventListener('keydown', handleKeyDown);
-                    
-                    // Remove selective touch prevention
-                    document.removeEventListener('touchstart', preventTouchDefaults, { capture: true });
-                    document.removeEventListener('touchend', preventTouchDefaults, { capture: true });
-                    document.removeEventListener('touchmove', preventTouchDefaults, { capture: true });
-                    document.removeEventListener('touchcancel', preventTouchDefaults, { capture: true });
-                    document.removeEventListener('contextmenu', preventContextMenu, { capture: true });
-                    document.removeEventListener('selectstart', preventSelection, { capture: true });
-                    document.removeEventListener('dragstart', preventSelection, { capture: true });
-                };
-            }, [isFullscreen, pdfDoc, currentPage, totalPages]);
-
-            // Effect to handle fullscreen trigger
-            useEffect(() => {
-                if (shouldEnterFullscreen && pdfDoc && containerRef.current) {
-                    // Reset the trigger
-                    setShouldEnterFullscreen(false);
-                    
-                    // Enter fullscreen after a brief delay to ensure DOM is ready
-                    const timer = setTimeout(() => {
-                        enterFullscreen();
-                    }, 50);
-                    
-                    return () => clearTimeout(timer);
-                }
-            }, [shouldEnterFullscreen, pdfDoc]);
-
-            // Single effect to handle PDF rendering
-            useEffect(() => {
-                if (pdfDoc && isFullscreen) {
-                    const timer = setTimeout(() => {
-                        renderPage(currentPage);
-                    }, 150);
-                    return () => clearTimeout(timer);
-                }
-            }, [currentPage, pdfDoc, isFullscreen]);
-
-            // Effect to reset eraser size when switching to eraser tool
-            useEffect(() => {
-                if (selectedTool === 'eraser') {
-                    // Reset to minimum size when switching to eraser
-                    setCurrentEraserSize(eraserMinSize);
-                    setSmoothedSpeed(0);
-                    // Reset position tracking
-                    lastMoveTimeRef.current = 0;
-                    lastPositionRef.current = { x: 0, y: 0 };
-                    lastEraserPositionRef.current = { x: 0, y: 0 };
-                }
-            }, [selectedTool, eraserMinSize]);
-
-            return (
-                <div className="min-h-screen bg-md-surface dark:bg-gray-900">
-                    {!pdfDoc ? (
-                        // Load screen
-                        <div className="flex flex-col items-center justify-center min-h-screen p-6 relative">
-                            {/* Dark Mode Toggle - Top Right Corner */}
-                            <button
-                                onClick={() => {
-                                    document.documentElement.classList.toggle('dark');
-                                }}
-                                className="absolute top-6 right-6 w-12 h-12 bg-md-surface-container dark:bg-gray-700 rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-all md-elevation-1"
-                                title="Toggle dark mode"
-                            >
-                                <span className="text-2xl">
-                                    {document.documentElement.classList.contains('dark') ? '☀️' : '🌙'}
-                                </span>
-                            </button>
-
-                            <div className="bg-md-surface-container dark:bg-gray-800 rounded-3xl p-8 md-elevation-3 max-w-md w-full">
-                                <div className="text-center mb-8">
-                                    <div className="w-16 h-16 bg-md-primary-container dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                                        <svg className="w-8 h-8 text-md-on-primary-container dark:text-gray-300" fill="currentColor" viewBox="0 0 24 24">
-                                            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-                                        </svg>
-                                    </div>
-                                    <h1 className="text-2xl font-bold text-md-on-surface dark:text-gray-100 mb-2">
-                                        PDF Annotation
-                                    </h1>
-                                    <p className="text-md-on-surface-variant dark:text-gray-400">
-                                        Load a PDF to start annotating with your stylus
-                                    </p>
-                                </div>
-                                
-                                <button
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="w-full bg-md-primary hover:bg-md-primary/90 text-md-on-primary py-4 px-6 rounded-xl font-medium transition-colors md-elevation-1"
-                                >
-                                    Load PDF
-                                </button>
-                                
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept=".pdf"
-                                    onChange={(e) => {
-                                        const file = e.target.files[0];
-                                        if (file) {
-                                            setFileName(file.name);
-                                            loadPDF(file);
-                                        }
-                                    }}
-                                    className="hidden"
-                                />
-                            </div>
-                        </div>
-                    ) : isFullscreen ? (
-                        // Fullscreen PDF viewer with pill toolbar
-                        <div ref={containerRef} className="fullscreen-container relative w-full h-screen flex items-start justify-start overflow-hidden">
-                            <div className="relative">
-                                <canvas ref={canvasRef} className="block" />
-                                <canvas
-                                    ref={drawingCanvasRef}
-                                    className="absolute top-0 left-0 block"
-                                    style={{ 
-                                        touchAction: 'none',
-                                        cursor: selectedTool === 'eraser' ? 'none' : 'crosshair',
-                                        userSelect: 'none',
-                                        webkitUserSelect: 'none',
-                                        webkitTouchCallout: 'none',
-                                        msUserSelect: 'none',
-                                        mozUserSelect: 'none',
-                                        webkitTapHighlightColor: 'transparent',
-                                        msContentZooming: 'none',
-                                        msTouchAction: 'none',
-                                        msScrollChaining: 'none',
-                                        msTouchSelect: 'none',
-                                        WebkitTouchCallout: 'none',
-                                        WebkitUserSelect: 'none',
-                                        KhtmlUserSelect: 'none',
-                                        MozUserSelect: 'none',
-                                        msUserSelect: 'none',
-                                        OUserSelect: 'none',
-                                        WebkitTapHighlightColor: 'rgba(0,0,0,0)',
-                                        WebkitAppearance: 'none',
-                                        outline: 'none'
-                                    }}
-                                    onPointerDown={startDrawing}
-                                    onContextMenu={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        return false;
-                                    }}
-                                    onSelectStart={(e) => {
-                                        e.preventDefault();
-                                        return false;
-                                    }}
-                                    onDragStart={(e) => {
-                                        e.preventDefault();
-                                        return false;
-                                    }}
-                                    onTouchStart={(e) => {
-                                        e.preventDefault();
-                                        return false;
-                                    }}
-                                    onTouchEnd={(e) => {
-                                        e.preventDefault();
-                                        return false;
-                                    }}
-                                    onTouchMove={(e) => {
-                                        e.preventDefault();
-                                        return false;
-                                    }}
-                                    onTouchCancel={(e) => {
-                                        e.preventDefault();
-                                        return false;
-                                    }}
-                                    onMouseDown={(e) => {
-                                        if (e.button === 2) { // Right click
-                                            e.preventDefault();
-                                            return false;
-                                        }
-                                    }}
-                                    onMouseUp={(e) => {
-                                        if (e.button === 2) { // Right click
-                                            e.preventDefault();
-                                            return false;
-                                        }
-                                    }}
-                                    onPointerMove={(e) => {
-                                        // Always update eraser position when eraser is selected
-                                        if (selectedTool === 'eraser' && drawingCanvasRef.current) {
-                                            const rect = drawingCanvasRef.current.getBoundingClientRect();
-                                            const newX = e.clientX - rect.left;
-                                            const newY = e.clientY - rect.top;
-                                            const currentTime = performance.now();
-                                            
-                                            // Always show eraser circle at correct position
-                                            setEraserPosition({ x: newX, y: newY });
-                                            setShowEraserCircle(true);
-                                            
-                                            // ONLY calculate speed and size when actively drawing (stylus touching screen)
-                                            if (isDrawing) {
-                                                // Speed-based eraser sizing with configurable threshold
-                                                if (lastMoveTimeRef.current > 0 && 
-                                                    lastPositionRef.current.x !== 0 && 
-                                                    lastPositionRef.current.y !== 0) {
-                                                    
-                                                    const deltaTime = currentTime - lastMoveTimeRef.current;
-                                                    const deltaX = newX - lastPositionRef.current.x;
-                                                    const deltaY = newY - lastPositionRef.current.y;
-                                                    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-                                                    
-                                                    // Calculate speed in pixels per second (more intuitive unit)
-                                                    if (deltaTime > 0 && deltaTime < 50 && distance > 0.5) {
-                                                        const currentSpeed = (distance / deltaTime) * 1000; // Convert to pixels/second
-                                                        
-                                                        // Multi-layer smoothing for ultra-smooth response
-                                                        speedHistoryRef.current.push(currentSpeed);
-                                                        if (speedHistoryRef.current.length > 6) {
-                                                            speedHistoryRef.current.shift();
-                                                        }
-                                                        
-                                                        // Calculate weighted average (recent samples have more weight)
-                                                        let weightedSum = 0;
-                                                        let totalWeight = 0;
-                                                        speedHistoryRef.current.forEach((speed, index) => {
-                                                            const weight = (index + 1) / speedHistoryRef.current.length;
-                                                            weightedSum += speed * weight;
-                                                            totalWeight += weight;
-                                                        });
-                                                        const avgSpeed = weightedSum / totalWeight;
-                                                        
-                                                        // Ultra-smooth temporal filtering
-                                                        const alpha = Math.min(deltaTime / 20, 0.2);
-                                                        const newSmoothedSpeed = smoothedSpeed * (1 - alpha) + avgSpeed * alpha;
-                                                        setSmoothedSpeed(newSmoothedSpeed);
-                                                        
-                                                        // Apply speed threshold - no change below threshold
-                                                        if (newSmoothedSpeed > speedThreshold) {
-                                                            // Calculate size based on speed above threshold
-                                                            const excessSpeed = newSmoothedSpeed - speedThreshold;
-                                                            const maxExcessSpeed = 400; // Max speed range above threshold
-                                                            const speedRatio = Math.min(excessSpeed / maxExcessSpeed, 1);
-                                                            
-                                                            // Smooth easing curve for natural feel
-                                                            const easedRatio = speedRatio * speedRatio * (3 - 2 * speedRatio); // Smoothstep
-                                                            const scaledRatio = easedRatio * speedSensitivity * 0.6;
-                                                            
-                                                            const targetSize = eraserMinSize + (eraserMaxSize - eraserMinSize) * scaledRatio;
-                                                            
-                                                            // Smooth interpolation to target size
-                                                            const currentSize = currentEraserSize;
-                                                            const interpolationSpeed = 0.12;
-                                                            const newSize = currentSize * (1 - interpolationSpeed) + targetSize * interpolationSpeed;
-                                                            
-                                                            setCurrentEraserSize(Math.round(newSize * 10) / 10);
-                                                        } else {
-                                                            // Below threshold - gentle return to minimum size
-                                                            const currentSize = currentEraserSize;
-                                                            const returnSize = currentSize * 0.92 + eraserMinSize * 0.08;
-                                                            setCurrentEraserSize(Math.max(returnSize, eraserMinSize));
-                                                        }
-                                                    } else {
-                                                        // No meaningful movement - gentle decay toward min
-                                                        const currentSize = currentEraserSize;
-                                                        const decaySize = currentSize * 0.98 + eraserMinSize * 0.02;
-                                                        setCurrentEraserSize(Math.max(decaySize, eraserMinSize));
-                                                    }
-                                                    
-                                                    // Update tracking data
-                                                    lastPositionRef.current = { x: newX, y: newY };
-                                                    lastMoveTimeRef.current = currentTime;
-                                                } else {
-                                                    // First touch - start at min size with clean tracking
-                                                    setCurrentEraserSize(eraserMinSize);
-                                                    setSmoothedSpeed(0);
-                                                    speedHistoryRef.current = [];
-                                                    lastPositionRef.current = { x: newX, y: newY };
-                                                    lastMoveTimeRef.current = currentTime;
-                                                }
-                                            } else {
-                                                // Just hovering - always use min size, no speed calculation
-                                                setCurrentEraserSize(eraserMinSize);
-                                                // Don't update tracking data when hovering
-                                            }
-                                        } else {
-                                            setShowEraserCircle(false);
-                                        }
-                                        draw(e);
-                                    }}
-                                    onPointerUp={stopDrawing}
-                                    onPointerLeave={() => {
-                                        setShowEraserCircle(false);
-                                        stopDrawing();
-                                    }}
-                                    onPointerEnter={(e) => {
-                                        if (selectedTool === 'eraser' && drawingCanvasRef.current) {
-                                            const rect = drawingCanvasRef.current.getBoundingClientRect();
-                                            setEraserPosition({
-                                                x: e.clientX - rect.left,
-                                                y: e.clientY - rect.top
-                                            });
-                                            // Force eraser to correct min size on enter
-                                            setCurrentEraserSize(eraserMinSize);
-                                            setSmoothedSpeed(0);
-                                            // Reset tracking completely
-                                            lastMoveTimeRef.current = 0;
-                                            lastPositionRef.current = { x: 0, y: 0 };
-                                            lastEraserPositionRef.current = { x: 0, y: 0 };
-                                            setShowEraserCircle(true);
-                                        }
-                                    }}
-                                />
-                                
-                                {/* Dynamic Eraser Circle - Size increases with speed, no transitions for smoothness */}
-                                {showEraserCircle && selectedTool === 'eraser' && (
-                                    <div
-                                        className="absolute pointer-events-none"
-                                        style={{
-                                            left: `${eraserPosition.x - currentEraserSize}px`,
-                                            top: `${eraserPosition.y - currentEraserSize}px`,
-                                            width: `${currentEraserSize * 2}px`,
-                                            height: `${currentEraserSize * 2}px`,
-                                            border: '2px dashed #808080',
-                                            borderRadius: '50%',
-                                            zIndex: 999,
-                                            background: 'rgba(128, 128, 128, 0.1)',
-                                            transform: 'translateZ(0)', // Hardware acceleration
-                                            willChange: 'transform, width, height' // Optimize for changes
-                                        }}
-                                    />
-                                )}
-                            </div>
-                            
-                            {/* Centered Fixed Toolbar - Minimalist */}
-                            <div
-                                data-toolbar="true"
-                                className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800"
-                                style={{
-                                    zIndex: 1000,
-                                    userSelect: 'none',
-                                    minWidth: '400px',
-                                    height: '48px'
-                                }}
-                            >
-                                <div className="flex items-center justify-between h-full px-4">
-                                    {/* Left: Color Picker */}
-                                    <div className="flex items-center gap-2 relative">
-                                        <input
-                                            type="color"
-                                            value={selectedColor}
-                                            onChange={(e) => {
-                                                setSelectedColor(e.target.value);
-                                            }}
-                                            className="w-8 h-8 rounded-full border-2 border-gray-300 dark:border-gray-600 shadow-sm transition-all hover:scale-110 cursor-pointer"
-                                            style={{ backgroundColor: selectedColor }}
-                                        />
-                                    </div>
-                                    
-                                    {/* Center: Tools & Size */}
-                                    <div className="flex items-center gap-3">
-                                        {/* Tool Selection */}
-                                        <div className="flex gap-1">
-                                            {[
-                                                { 
-                                                    tool: 'pen', 
-                                                    icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                                    </svg>
-                                                },
-                                                { 
-                                                    tool: 'highlighter', 
-                                                    icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10l-2-2H9l-2 2zM12 17h.01M12 3v14" />
-                                                    </svg>
-                                                },
-                                                { 
-                                                    tool: 'eraser', 
-                                                    icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 2L8 10L2 16L8 22L16 14L22 8L16 2Z" />
-                                                    </svg>
-                                                }
-                                            ].map((toolOption) => (
-                                                <button
-                                                    key={toolOption.tool}
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        setSelectedTool(toolOption.tool);
-                                                    }}
-                                                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-                                                        selectedTool === toolOption.tool
-                                                            ? 'bg-md-primary text-white'
-                                                            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                                                    }`}
-                                                >
-                                                    {toolOption.icon}
-                                                </button>
-                                            ))}
-                                        </div>
-                                        
-                                        {/* Size Control */}
-                                        <div className="flex items-center gap-2 relative">
-                                            {selectedTool === 'eraser' ? (
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        setShowEraserControls(!showEraserControls);
-                                                    }}
-                                                    className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                                                >
-                                                    {Math.round(currentEraserSize)}px
-                                                </button>
-                                            ) : (
-                                                <span className="text-xs text-gray-600 dark:text-gray-400">
-                                                    {penSize}px
-                                                </span>
-                                            )}
-                                            
-                                            {selectedTool !== 'eraser' && (
-                                                <input
-                                                    type="range"
-                                                    min="1"
-                                                    max="80"
-                                                    value={penSize}
-                                                    onChange={(e) => {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        setPenSize(parseInt(e.target.value));
-                                                    }}
-                                                    className="w-16 h-1 bg-gray-300 dark:bg-gray-600 rounded appearance-none"
-                                                />
-                                            )}
-                                            
-                                            {/* Eraser Controls Popup */}
-                                            {showEraserControls && selectedTool === 'eraser' && (
-                                                <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2 bg-white dark:bg-gray-800 rounded-xl p-4 shadow-xl border border-gray-200 dark:border-gray-700 min-w-80">
-                                                    <div className="flex items-center justify-between mb-3">
-                                                        <span className="text-sm font-medium text-gray-800 dark:text-white">Eraser Settings</span>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.preventDefault();
-                                                                e.stopPropagation();
-                                                                setShowEraserControls(false);
-                                                            }}
-                                                            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                                                        >
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                            </svg>
-                                                        </button>
-                                                    </div>
-                                                    
-                                                    <div className="grid grid-cols-2 gap-4">
-                                                        <div className="space-y-2">
-                                                            <label className="text-xs text-gray-600 dark:text-gray-400">Min Size</label>
-                                                            <div className="flex items-center gap-2">
-                                                                <input
-                                                                    type="range"
-                                                                    min="1"
-                                                                    max="20"
-                                                                    step="1"
-                                                                    value={eraserMinSize}
-                                                                    onChange={(e) => {
-                                                                        e.preventDefault();
-                                                                        e.stopPropagation();
-                                                                        setEraserMinSize(parseInt(e.target.value));
-                                                                    }}
-                                                                    className="flex-1 h-1 bg-gray-300 dark:bg-gray-600 rounded appearance-none"
-                                                                />
-                                                                <span className="text-xs text-gray-600 dark:text-gray-400 w-8 text-right">{eraserMinSize}</span>
-                                                            </div>
-                                                        </div>
-                                                        
-                                                        <div className="space-y-2">
-                                                            <label className="text-xs text-gray-600 dark:text-gray-400">Max Size</label>
-                                                            <div className="flex items-center gap-2">
-                                                                <input
-                                                                    type="range"
-                                                                    min="1"
-                                                                    max="120"
-                                                                    step="1"
-                                                                    value={eraserMaxSize}
-                                                                    onChange={(e) => {
-                                                                        e.preventDefault();
-                                                                        e.stopPropagation();
-                                                                        setEraserMaxSize(parseInt(e.target.value));
-                                                                    }}
-                                                                    className="flex-1 h-1 bg-gray-300 dark:bg-gray-600 rounded appearance-none"
-                                                                />
-                                                                <span className="text-xs text-gray-600 dark:text-gray-400 w-8 text-right">{eraserMaxSize}</span>
-                                                            </div>
-                                                        </div>
-                                                        
-                                                        <div className="space-y-2">
-                                                            <label className="text-xs text-gray-600 dark:text-gray-400">Speed Sensitivity</label>
-                                                            <div className="flex items-center gap-2">
-                                                                <input
-                                                                    type="range"
-                                                                    min="0.5"
-                                                                    max="3"
-                                                                    step="0.1"
-                                                                    value={speedSensitivity}
-                                                                    onChange={(e) => {
-                                                                        e.preventDefault();
-                                                                        e.stopPropagation();
-                                                                        setSpeedSensitivity(parseFloat(e.target.value));
-                                                                    }}
-                                                                    className="flex-1 h-1 bg-gray-300 dark:bg-gray-600 rounded appearance-none"
-                                                                />
-                                                                <span className="text-xs text-gray-600 dark:text-gray-400 w-8 text-right">{speedSensitivity.toFixed(1)}</span>
-                                                            </div>
-                                                        </div>
-                                                        
-                                                        <div className="space-y-2">
-                                                            <label className="text-xs text-gray-600 dark:text-gray-400">Speed Threshold</label>
-                                                            <div className="flex items-center gap-2">
-                                                                <input
-                                                                    type="range"
-                                                                    min="10"
-                                                                    max="300"
-                                                                    step="10"
-                                                                    value={speedThreshold}
-                                                                    onChange={(e) => {
-                                                                        e.preventDefault();
-                                                                        e.stopPropagation();
-                                                                        setSpeedThreshold(parseInt(e.target.value));
-                                                                    }}
-                                                                    className="flex-1 h-1 bg-gray-300 dark:bg-gray-600 rounded appearance-none"
-                                                                />
-                                                                <span className="text-xs text-gray-600 dark:text-gray-400 w-8 text-right">{speedThreshold}</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                    
-                                    {/* Right: Actions */}
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                // Clear current page annotations
-                                                setAnnotations(prev => {
-                                                    const newMap = new Map(prev);
-                                                    newMap.delete(currentPage);
-                                                    return newMap;
-                                                });
-                                                // Clear drawing canvas
-                                                if (drawingCanvasRef.current) {
-                                                    const ctx = drawingCanvasRef.current.getContext('2d');
-                                                    ctx.clearRect(0, 0, drawingCanvasRef.current.width, drawingCanvasRef.current.height);
-                                                }
-                                            }}
-                                            className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-600 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg>
-                                        </button>
-                                        
-                                        <span className="text-xs text-gray-600 dark:text-gray-400 min-w-12 text-center">
-                                            {currentPage}/{totalPages}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        // Clean thumbnail view at (400, 200)
-                        <div className="min-h-screen relative">
-                            {/* PDF Thumbnail positioned at x:400 y:200 with 200px width */}
-                            {thumbnailSrc && (
-                                <>
-                                    <div
-                                        className="absolute cursor-pointer rounded-xl overflow-hidden md-elevation-1 hover:md-elevation-3 transition-shadow"
-                                        style={{
-                                            left: '400px',
-                                            top: '200px',
-                                            width: '200px'
-                                        }}
-                                        onPointerDown={handleThumbnailClick}
-                                    >
-                                        <img
-                                            ref={thumbnailRef}
-                                            src={thumbnailSrc}
-                                            alt="PDF Thumbnail"
-                                            style={{
-                                                width: '200px',
-                                                height: 'auto'
-                                            }}
-                                        />
-                                    </div>
-                                    
-                                    {/* Filename positioned closer and centered below thumbnail */}
-                                    <div className="absolute" style={{ left: '400px', top: '328px', width: '200px' }}>
-                                        <p className="text-sm text-md-on-surface dark:text-gray-100 font-medium text-center truncate">
-                                            {fileName}
-                                        </p>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    )}
+<body class="bg-gray-50">
+    <!-- Home Screen -->
+    <div id="homeScreen" class="h-screen w-full flex items-center justify-center bg-white">
+        <button id="startButton" class="px-8 py-4 bg-blue-500 text-white rounded-full font-medium hover:bg-blue-600 transition-colors shadow-lg">
+            Start Drawing
+        </button>
+    </div>
+    <!-- Canvas Screen -->
+    <div id="canvasScreen" class="hidden h-screen w-full bg-white relative">
+        <canvas id="canvas" class="w-full h-full absolute top-0 left-0"></canvas>
+        
+        <!-- Pressure Level Indicator -->
+        <div class="pressure-indicator" id="pressureIndicator">
+            <div class="pressure-dot" id="pressureDot"></div>
+            <div class="pressure-level">Pressure: 0%</div>
+        </div>
+        
+        <!-- Toolbar -->
+        <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-3 px-4">
+            <button class="tool-button active bg-white rounded-full p-4 shadow-md" data-tool="pen" title="Pen">
+                <i class="fas fa-pen text-xl text-gray-700"></i>
+            </button>
+            <button class="tool-button bg-white rounded-full p-4 shadow-md" data-tool="eraser" title="Eraser">
+                <i class="fas fa-eraser text-xl text-gray-700"></i>
+            </button>
+            <button class="tool-button bg-white rounded-full p-4 shadow-md" data-tool="clear" title="Clear">
+                <i class="fas fa-trash-alt text-xl text-gray-700"></i>
+            </button>
+            <button class="tool-button bg-white rounded-full p-4 shadow-md" data-tool="color" title="Color">
+                <div class="w-6 h-6 bg-black rounded-full border-2 border-gray-300"></div>
+            </button>
+            <button class="tool-button bg-white rounded-full p-4 shadow-md" data-tool="size" title="Size">
+                <div class="w-6 h-6 bg-gray-200 rounded-full border-2 border-gray-400"></div>
+            </button>
+            <button class="tool-button bg-white rounded-full p-4 shadow-md" data-tool="pressure" title="Pressure Settings">
+                <i class="fas fa-sliders-h text-xl text-gray-700"></i>
+            </button>
+        </div>
+    </div>
+    <!-- Settings Panel -->
+    <div class="settings-panel" id="settingsPanel">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-lg font-semibold text-gray-800">Pressure Settings</h2>
+            <button id="closeSettings" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        
+        <div class="slider-container">
+            <div class="slider-label">
+                <span>Min Line Thickness</span>
+                <span id="minThicknessValue">1px</span>
+            </div>
+            <input type="range" min="1" max="10" value="1" class="slider" id="minThicknessSlider">
+        </div>
+        
+        <div class="slider-container">
+            <div class="slider-label">
+                <span>Max Line Thickness</span>
+                <span id="maxThicknessValue">18px</span>
+            </div>
+            <input type="range" min="5" max="50" value="18" class="slider" id="maxThicknessSlider">
+        </div>
+        
+        <div class="slider-container">
+            <div class="slider-label">
+                <span>Pressure Sensitivity</span>
+                <span id="sensitivityValue">40%</span>
+            </div>
+            <input type="range" min="10" max="100" value="40" class="slider" id="sensitivitySlider">
+        </div>
+        
+        <div class="mt-8 pt-6 border-t border-gray-200">
+            <h3 class="font-medium text-gray-700 mb-4">Preview</h3>
+            <div class="flex justify-center items-center h-32 bg-gray-50 rounded-lg">
+                <div class="text-center">
+                    <div class="mb-2 text-sm text-gray-500">Light Pressure</div>
+                    <div class="w-8 h-8 bg-gray-300 rounded-full mx-auto mb-4"></div>
+                    <div class="mb-2 text-sm text-gray-500">Medium Pressure</div>
+                    <div class="w-12 h-12 bg-gray-400 rounded-full mx-auto mb-4"></div>
+                    <div class="mb-2 text-sm text-gray-500">Heavy Pressure</div>
+                    <div class="w-16 h-16 bg-gray-500 rounded-full mx-auto"></div>
                 </div>
-            );
-        };
-
-        ReactDOM.render(<PDFAnnotationApp />, document.getElementById('root'));
+            </div>
+        </div>
+    </div>
+    <script>
+        // Wait for DOM to be fully loaded before initializing
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize variables
+            let canvas, ctx;
+            let isDrawing = false;
+            let currentTool = 'pen';
+            let currentColor = '#000000';
+            let baseSize = 5;
+            let currentSize = baseSize;
+            let pressureEnabled = true;
+            let lastPoint = null;
+            let strokePoints = [];
+            
+            // Settings variables
+            let minThickness = 1;
+            let maxThickness = 18;
+            let sensitivity = 0.4;
+            
+            // DOM elements
+            const homeScreen = document.getElementById('homeScreen');
+            const canvasScreen = document.getElementById('canvasScreen');
+            const startButton = document.getElementById('startButton');
+            const pressureIndicator = document.getElementById('pressureIndicator');
+            const pressureDot = document.getElementById('pressureDot');
+            const pressureLevel = document.querySelector('.pressure-level');
+            const settingsPanel = document.getElementById('settingsPanel');
+            const closeSettings = document.getElementById('closeSettings');
+            
+            // Initialize canvas when starting
+            function initCanvas() {
+                canvas = document.getElementById('canvas');
+                ctx = canvas.getContext('2d');
+                
+                // Set canvas size with high DPI support
+                resizeCanvas();
+                window.addEventListener('resize', resizeCanvas);
+                // Setup drawing events with pointer events for pressure support
+                setupDrawingEvents();
+            }
+            
+            function resizeCanvas() {
+                const dpr = window.devicePixelRatio || 1;
+                const rect = canvas.getBoundingClientRect();
+                
+                canvas.width = rect.width * dpr;
+                canvas.height = rect.height * dpr;
+                canvas.style.width = rect.width + 'px';
+                canvas.style.height = rect.height + 'px';
+                
+                ctx.scale(dpr, dpr);
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+            }
+            
+            function setupDrawingEvents() {
+                // Pointer events for pressure support
+                canvas.addEventListener('pointerdown', startDrawing);
+                canvas.addEventListener('pointermove', draw);
+                canvas.addEventListener('pointerup', stopDrawing);
+                canvas.addEventListener('pointercancel', stopDrawing);
+                canvas.addEventListener('pointerleave', stopDrawing);
+                
+                // Show/hide pressure indicator
+                canvas.addEventListener('pointerdown', showPressureIndicator);
+                canvas.addEventListener('pointerup', hidePressureIndicator);
+                canvas.addEventListener('pointermove', updatePressureIndicator);
+            }
+            
+            function showPressureIndicator() {
+                pressureIndicator.classList.add('show');
+            }
+            
+            function hidePressureIndicator() {
+                pressureIndicator.classList.remove('show');
+            }
+            
+            function updatePressureIndicator(e) {
+                if (pressureEnabled) {
+                    const pressure = Math.min(e.pressure || 0.5, 1);
+                    const size = minThickness + (pressure * (maxThickness - minThickness) * sensitivity);
+                    pressureDot.style.width = size + 'px';
+                    pressureDot.style.height = size + 'px';
+                    pressureDot.style.opacity = pressure;
+                    
+                    // Update pressure level text
+                    pressureLevel.textContent = `Pressure: ${Math.round(pressure * 100)}%`;
+                }
+            }
+            
+            function startDrawing(e) {
+                if (currentTool === 'clear') return;
+                
+                isDrawing = true;
+                const pos = getEventPos(e);
+                
+                // Reset stroke points
+                strokePoints = [pos];
+                lastPoint = pos;
+                
+                ctx.beginPath();
+                ctx.moveTo(pos.x, pos.y);
+            }
+            
+            function draw(e) {
+                if (!isDrawing || currentTool === 'clear') return;
+                
+                const pos = getEventPos(e);
+                const pressure = Math.min(e.pressure || 0.5, 1);
+                
+                // Calculate dynamic size based on pressure and settings
+                currentSize = pressureEnabled ? 
+                    minThickness + (pressure * (maxThickness - minThickness) * sensitivity) : 
+                    baseSize;
+                
+                // Store point for smoothing
+                strokePoints.push(pos);
+                
+                // Keep only recent points for smoothing
+                if (strokePoints.length > 5) {
+                    strokePoints.shift();
+                }
+                
+                // Draw smoothed line
+                if (strokePoints.length >= 2) {
+                    const prevPoint = strokePoints[strokePoints.length - 2];
+                    const currPoint = strokePoints[strokePoints.length - 1];
+                    
+                    // Calculate control point for smooth curve
+                    const cpX = (prevPoint.x + currPoint.x) / 2;
+                    const cpY = (prevPoint.y + currPoint.y) / 2;
+                    
+                    ctx.lineWidth = currentSize;
+                    ctx.strokeStyle = currentTool === 'eraser' ? '#FFFFFF' : currentColor;
+                    
+                    // Draw curved segment
+                    ctx.quadraticCurveTo(prevPoint.x, prevPoint.y, cpX, cpY);
+                    ctx.stroke();
+                    
+                    // Move to next point
+                    ctx.beginPath();
+                    ctx.moveTo(cpX, cpY);
+                }
+                
+                lastPoint = pos;
+            }
+            
+            function stopDrawing() {
+                if (isDrawing) {
+                    isDrawing = false;
+                    ctx.closePath();
+                }
+            }
+            
+            function getEventPos(e) {
+                const rect = canvas.getBoundingClientRect();
+                return {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top
+                };
+            }
+            
+            // Tool selection
+            document.querySelectorAll('.tool-button').forEach(button => {
+                button.addEventListener('click', () => {
+                    const tool = button.dataset.tool;
+                    
+                    if (tool === 'clear') {
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        return;
+                    }
+                    
+                    if (tool === 'pressure') {
+                        settingsPanel.classList.toggle('open');
+                        return;
+                    }
+                    
+                    // Update active state
+                    document.querySelectorAll('.tool-button').forEach(b => b.classList.remove('active'));
+                    button.classList.add('active');
+                    currentTool = tool;
+                });
+            });
+            
+            // Settings panel controls
+            document.getElementById('minThicknessSlider').addEventListener('input', (e) => {
+                minThickness = parseInt(e.target.value);
+                document.getElementById('minThicknessValue').textContent = minThickness + 'px';
+            });
+            
+            document.getElementById('maxThicknessSlider').addEventListener('input', (e) => {
+                maxThickness = parseInt(e.target.value);
+                document.getElementById('maxThicknessValue').textContent = maxThickness + 'px';
+            });
+            
+            document.getElementById('sensitivitySlider').addEventListener('input', (e) => {
+                const value = parseInt(e.target.value);
+                sensitivity = value / 100; // Convert percentage to decimal
+                document.getElementById('sensitivityValue').textContent = value + '%';
+            });
+            
+            closeSettings.addEventListener('click', () => {
+                settingsPanel.classList.remove('open');
+            });
+            
+            // Color picker
+            document.querySelector('[data-tool="color"]').addEventListener('click', () => {
+                const color = prompt('Enter color (hex):', currentColor);
+                if (color && /^#[0-9A-F]{6}$/i.test(color)) {
+                    currentColor = color;
+                    document.querySelector('[data-tool="color"] div').style.backgroundColor = color;
+                }
+            });
+            
+            // Size picker
+            document.querySelector('[data-tool="size"]').addEventListener('click', () => {
+                const size = parseInt(prompt('Enter brush size (1-20):', baseSize));
+                if (size >= 1 && size <= 20) {
+                    baseSize = size;
+                    document.querySelector('[data-tool="size"] div').style.width = `${size}px`;
+                    document.querySelector('[data-tool="size"] div').style.height = `${size}px`;
+                }
+            });
+            
+            // Navigation
+            startButton.addEventListener('click', () => {
+                homeScreen.style.display = 'none';
+                canvasScreen.style.display = 'block';
+                initCanvas();
+            });
+            
+            // Register Service Worker
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.error('Service Worker registration failed:', err));
+            }
+        });
     </script>
-
-
-</body></html>
+</body>
+</html>
