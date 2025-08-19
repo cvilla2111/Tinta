@@ -249,6 +249,9 @@
         
         // Handle drawing with stylus pressure support
         function startDrawing(e) {
+            // Only proceed if pointer type is pen/stylus
+            if (e.pointerType !== 'pen') return;
+            
             isDrawing = true;
             const pos = getPointerPosition(e);
             lastX = pos.x;
@@ -256,6 +259,9 @@
         }
         
         function draw(e) {
+            // Only proceed if pointer type is pen/stylus
+            if (e.pointerType !== 'pen') return;
+            
             if (!isDrawing) return;
             
             const pos = getPointerPosition(e);
@@ -275,11 +281,14 @@
             lastY = currentY;
         }
         
-        function stopDrawing() {
+        function stopDrawing(e) {
+            // Only proceed if pointer type is pen/stylus
+            if (e.pointerType !== 'pen') return;
+            
             isDrawing = false;
         }
         
-        // Event listeners for drawing
+        // Event listeners for drawing - ONLY FOR PEN INPUT
         canvas.addEventListener('pointerdown', startDrawing);
         canvas.addEventListener('pointermove', draw);
         canvas.addEventListener('pointerup', stopDrawing);
@@ -292,7 +301,7 @@
         
         // Clear canvas
         clearBtn.addEventListener('click', () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height); // Fixed the syntax error here!
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
         });
         
         // Handle window resize
