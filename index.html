@@ -1,580 +1,337 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minimal Draw Pro</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"></link>
-    <link rel="manifest" href="manifest.json">
+    <title>PenCanvas - Offline Drawing</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjogIlBlbkNhbnNvbiIsICJmZWF0dXJlIjogIkdpdGh1YiBFeHRyYSBDb21wcmVoZW5zaXZlIEFwcCIsICJpbWFnZV9pZCI6ICJtZWRpYS9waWNzL2VuL3Byb2R1Y3RpdmUvcGVuY2FzaXMuanMiLCAic2NyaXB0X2ltYWdlIjogIm1lZGlhL3BpY3MvZW4vcHJvZHVjdGl2ZS9wZW5jYXNoaXMuZ2lmIiwgInNjcmlwdHlwZSI6ICJzdHJlYW1pbmcifQ==">
+    
+    <!-- Icons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNmZmYiLz48L3N2Zz4=">
+    <link rel="icon" type="image/png" sizes="32x32" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMCIgaGVpZ2h0PSIzMCIgdmlld0JveD0iMCAwIDMwIDMwIiBmaWxsPSJub25lIiBzdHJva2U9IiM2NjY2NiIgZmlsbD0ibm9uZSI+PHBhdGggZD0iTTEwIDEydjdhMiAyIDAgMCAxLTEgMnYxNGEyIDIgMCAwIDEtMS0yLTJ2LTRoMWMwIDEgMSAxIDIgMWgyYTIgMiAwIDAtMS0yLTJ2LTRoLTJoLTJ6bTAtMTBoMnoiLz48L3N2Zz4=">
+    <link rel="icon" type="image/png" sizes="16x16" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDE2IDE2IiBmaWxsPSJub25lIiBzdHJva2U9IiM2NjY2NiIgZmlsbD0ibm9uZSI+PHBhdGggZD0iTTEwIDEydjdhMiAyIDAgMCAxLTEgMnYxNGEyIDIgMCAwIDEtMS0yLTJ2LTRoLTJoLTJ6bTAtMTBoMnoiLz48L3N2Zz4=">
+    
     <style>
-        body {
+        * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #ffffff;
             overflow: hidden;
-            touch-action: none;
+            height: 100vh;
+            width: 100vw;
+            color: #000000;
         }
         
-        #canvas {
-            touch-action: none;
-            cursor: crosshair;
+        .home-screen {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+            background-color: #ffffff;
         }
         
-        #previewCanvas {
+        .start-button {
+            background-color: #ffffff;
+            color: #000000;
+            border: 2px solid #000000;
+            padding: 20px 40px;
+            font-size: 24px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            outline: none;
+        }
+        
+        .start-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        .start-button:active {
+            transform: translateY(0);
+        }
+        
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            background-color: #ffffff;
+            display: none;
+        }
+        
+        .drawing-canvas {
             position: absolute;
-            top: 0;
-            left: 0;
-            pointer-events: none;
+            background-color: #ffffff;
+            border: 2px solid #000000;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            touch-action: none;
+        }
+        
+        .toolbar {
+            position: fixed;
+            top: 20px;
+            right: 20px;
             z-index: 10;
+            display: flex;
+            gap: 10px;
         }
         
-        .tool-button {
+        .tool-btn {
+            background-color: #ffffff;
+            border: 2px solid #000000;
+            padding: 12px;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
-        .tool-button:hover {
+        .tool-btn:hover {
+            background-color: #f8f8f8;
             transform: scale(1.05);
         }
         
-        .tool-button.active {
-            background-color: rgba(255, 255, 255, 0.95);
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-        }
-        
-        .pressure-indicator {
-            position: absolute;
-            right: 20px;
-            bottom: 80px;
-            width: 120px;
-            background: rgba(59, 130, 246, 0.1);
-            border-radius: 12px;
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            opacity: 0;
-            transition: opacity 0.2s ease;
-        }
-        
-        .pressure-indicator.show {
-            opacity: 1;
-        }
-        
-        .pressure-dot {
+        .color-picker {
             width: 40px;
             height: 40px;
+            border: 2px solid #000000;
             border-radius: 50%;
-            background: #3b82f6;
-            transition: all 0.1s ease;
-            margin-bottom: 8px;
+            cursor: pointer;
+            overflow: hidden;
         }
         
-        .pressure-level {
-            font-size: 12px;
-            font-weight: 500;
-            color: #374151;
-            text-align: center;
-        }
-        
-        .settings-panel {
+        .back-btn {
             position: fixed;
-            top: 0;
-            right: -320px;
-            width: 320px;
-            height: 100vh;
-            background: white;
-            box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
-            transition: right 0.3s ease;
-            z-index: 1000;
-            padding: 24px;
-            overflow-y: auto;
-        }
-        
-        .settings-panel.open {
-            right: 0;
-        }
-        
-        .slider-container {
-            margin-bottom: 24px;
-        }
-        
-        .slider-label {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-            font-size: 14px;
-            color: #374151;
-        }
-        
-        .slider {
-            width: 100%;
-            height: 6px;
-            border-radius: 3px;
-            background: #e5e7eb;
-            outline: none;
-            appearance: none;
-        }
-        
-        .slider::-webkit-slider-thumb {
-            appearance: none;
-            width: 18px;
-            height: 18px;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            background-color: #ffffff;
+            border: 2px solid #000000;
+            padding: 12px;
             border-radius: 50%;
-            background: #3b82f6;
             cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
         }
         
-        .slider::-moz-range-thumb {
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: #3b82f6;
-            cursor: pointer;
-            border: none;
-        }
-        
-        /* Toggle Switch Styles */
-        .toggle-switch {
-            position: relative;
-            display: inline-block;
-            width: 60px;
-            height: 34px;
-        }
-        
-        .toggle-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-        
-        .toggle-slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #ccc;
-            transition: .4s;
-            border-radius: 34px;
-        }
-        
-        .toggle-slider:before {
-            position: absolute;
-            content: "";
-            height: 26px;
-            width: 26px;
-            left: 4px;
-            bottom: 4px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-        
-        input:checked + .toggle-slider {
-            background-color: #3b82f6;
-        }
-        
-        input:checked + .toggle-slider:before {
-            transform: translateX(26px);
+        .back-btn:hover {
+            background-color: #f8f8f8;
+            transform: scale(1.05);
         }
     </style>
 </head>
-<body class="bg-gray-50">
-    <!-- Home Screen -->
-    <div id="homeScreen" class="h-screen w-full flex items-center justify-center bg-white">
-        <button id="startButton" class="px-8 py-4 bg-blue-500 text-white rounded-full font-medium hover:bg-blue-600 transition-colors shadow-lg">
-            Start Drawing
+<body>
+    <div class="home-screen">
+        <button class="start-button">Start</button>
+    </div>
+    
+    <div class="canvas-container">
+        <button class="back-btn" onclick="goHome()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+            </svg>
         </button>
+        
+        <div class="toolbar">
+            <input type="color" class="color-picker" id="colorPicker" value="#000000">
+            <button class="tool-btn" id="clearBtn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 6h18"></path>
+                    <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <canvas class="drawing-canvas" id="drawingCanvas"></canvas>
     </div>
-    
-    <!-- Canvas Screen -->
-    <div id="canvasScreen" class="hidden h-screen w-full bg-white relative">
-        <canvas id="canvas" class="w-full h-full absolute top-0 left-0"></canvas>
-        <canvas id="previewCanvas" class="w-full h-full absolute top-0 left-0"></canvas>
-        
-        <!-- Pressure Level Indicator -->
-        <div class="pressure-indicator" id="pressureIndicator">
-            <div class="pressure-dot" id="pressureDot"></div>
-            <div class="pressure-level">Pressure: 0%</div>
-        </div>
-        
-        <!-- Toolbar -->
-        <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-3 px-4">
-            <button class="tool-button active bg-white rounded-full p-4 shadow-md" data-tool="pen" title="Pen">
-                <i class="fas fa-pen text-xl text-gray-700"></i>
-            </button>
-            <button class="tool-button bg-white rounded-full p-4 shadow-md" data-tool="eraser" title="Eraser">
-                <i class="fas fa-eraser text-xl text-gray-700"></i>
-            </button>
-            <button class="tool-button bg-white rounded-full p-4 shadow-md" data-tool="clear" title="Clear">
-                <i class="fas fa-trash-alt text-xl text-gray-700"></i>
-            </button>
-            <button class="tool-button bg-white rounded-full p-4 shadow-md" data-tool="color" title="Color">
-                <div class="w-6 h-6 bg-black rounded-full border-2 border-gray-300"></div>
-            </button>
-            <button class="tool-button bg-white rounded-full p-4 shadow-md" data-tool="size" title="Size">
-                <div class="w-6 h-6 bg-gray-200 rounded-full border-2 border-gray-400"></div>
-            </button>
-            <button class="tool-button bg-white rounded-full p-4 shadow-md" data-tool="pressure" title="Pressure Settings">
-                <i class="fas fa-sliders-h text-xl text-gray-700"></i>
-            </button>
-        </div>
-    </div>
-    
-    <!-- Settings Panel -->
-    <div class="settings-panel" id="settingsPanel">
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="text-lg font-semibold text-gray-800">Pressure Settings</h2>
-            <button id="closeSettings" class="text-gray-500 hover:text-gray-700">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-        </div>
-        
-        <div class="slider-container">
-            <div class="slider-label">
-                <span>Min Line Thickness</span>
-                <span id="minThicknessValue">1px</span>
-            </div>
-            <input type="range" min="1" max="80" value="1" class="slider" id="minThicknessSlider">
-        </div>
-        
-        <div class="slider-container">
-            <div class="slider-label">
-                <span>Max Line Thickness</span>
-                <span id="maxThicknessValue">18px</span>
-            </div>
-            <input type="range" min="5" max="80" value="18" class="slider" id="maxThicknessSlider">
-        </div>
-        
-        <div class="slider-container">
-            <div class="slider-label">
-                <span>Pressure Sensitivity</span>
-                <span id="sensitivityValue">40%</span>
-            </div>
-            <input type="range" min="10" max="100" value="40" class="slider" id="sensitivitySlider">
-        </div>
-        
-        <div class="slider-container">
-            <div class="slider-label">
-                <span>Enable Pressure Sensitivity</span>
-            </div>
-            <label class="toggle-switch">
-                <input type="checkbox" id="pressureToggle" checked>
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
-        
-        <div class="mt-8 pt-6 border-t border-gray-200">
-            <h3 class="font-medium text-gray-700 mb-4">Preview</h3>
-            <div class="flex justify-center items-center h-32 bg-gray-50 rounded-lg">
-                <div class="text-center">
-                    <div class="mb-2 text-sm text-gray-500">Light Pressure</div>
-                    <div class="w-8 h-8 bg-gray-300 rounded-full mx-auto mb-4"></div>
-                    <div class="mb-2 text-sm text-gray-500">Medium Pressure</div>
-                    <div class="w-12 h-12 bg-gray-400 rounded-full mx-auto mb-4"></div>
-                    <div class="mb-2 text-sm text-gray-500">Heavy Pressure</div>
-                    <div class="w-16 h-16 bg-gray-500 rounded-full mx-auto"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
     <script>
-        // Initialize app
-        document.addEventListener('DOMContentLoaded', function() {
-            // App state
-            const appState = {
-                isDrawing: false,
-                currentTool: 'pen',
-                currentColor: '#000000',
-                baseSize: 5,
-                currentSize: 5,
-                pressureEnabled: true,
-                minThickness: 1,
-                maxThickness: 18,
-                sensitivity: 0.4,
-                strokePoints: [],
-                lastPoint: null
-            };
-            
-            // DOM elements
-            const homeScreen = document.getElementById('homeScreen');
-            const canvasScreen = document.getElementById('canvasScreen');
-            const startButton = document.getElementById('startButton');
-            const pressureIndicator = document.getElementById('pressureIndicator');
-            const pressureDot = document.getElementById('pressureDot');
-            const pressureLevel = document.querySelector('.pressure-level');
-            const settingsPanel = document.getElementById('settingsPanel');
-            const closeSettings = document.getElementById('closeSettings');
-            const pressureToggle = document.getElementById('pressureToggle');
-            
-            // Canvas elements
-            let canvas, ctx, previewCanvas, previewCtx;
-            
-            // Event listeners
-            startButton.addEventListener('click', initializeApp);
-            closeSettings.addEventListener('click', () => settingsPanel.classList.remove('open'));
-            pressureToggle.addEventListener('change', () => {
-                appState.pressureEnabled = pressureToggle.checked;
-            });
-            
-            // Tool buttons
-            document.querySelectorAll('.tool-button').forEach(button => {
-                button.addEventListener('click', () => handleToolSelection(button));
-            });
-            
-            // Settings sliders
-            document.getElementById('minThicknessSlider').addEventListener('input', updateSetting);
-            document.getElementById('maxThicknessSlider').addEventListener('input', updateSetting);
-            document.getElementById('sensitivitySlider').addEventListener('input', updateSetting);
-            
-            function initializeApp() {
-                homeScreen.style.display = 'none';
-                canvasScreen.style.display = 'block';
-                initCanvases();
-                setupDrawingEvents();
-            }
-            
-            function initCanvases() {
-                canvas = document.getElementById('canvas');
-                previewCanvas = document.getElementById('previewCanvas');
-                ctx = canvas.getContext('2d');
-                previewCtx = previewCanvas.getContext('2d');
-                
-                resizeCanvas();
-                resizePreviewCanvas();
-                
-                window.addEventListener('resize', () => {
-                    resizeCanvas();
-                    resizePreviewCanvas();
-                });
-            }
-            
-            function resizeCanvas() {
-                const dpr = window.devicePixelRatio || 1;
-                const rect = canvas.getBoundingClientRect();
-                
-                canvas.width = rect.width * dpr;
-                canvas.height = rect.height * dpr;
-                canvas.style.width = rect.width + 'px';
-                canvas.style.height = rect.height + 'px';
-                
-                ctx.scale(dpr, dpr);
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-            }
-            
-            function resizePreviewCanvas() {
-                const dpr = window.devicePixelRatio || 1;
-                const rect = previewCanvas.getBoundingClientRect();
-                
-                previewCanvas.width = rect.width * dpr;
-                previewCanvas.height = rect.height * dpr;
-                previewCanvas.style.width = rect.width + 'px';
-                previewCanvas.style.height = rect.height + 'px';
-                
-                previewCtx.scale(dpr, dpr);
-                previewCtx.lineCap = 'round';
-                previewCtx.lineJoin = 'round';
-            }
-            
-            function setupDrawingEvents() {
-                canvas.addEventListener('pointerdown', startDrawing);
-                canvas.addEventListener('pointermove', draw);
-                canvas.addEventListener('pointerup', stopDrawing);
-                canvas.addEventListener('pointercancel', stopDrawing);
-                canvas.addEventListener('pointerleave', stopDrawing);
-                
-                canvas.addEventListener('pointerdown', showPressureIndicator);
-                canvas.addEventListener('pointerup', hidePressureIndicator);
-                canvas.addEventListener('pointermove', updatePressureIndicator);
-                
-                canvas.addEventListener('pointermove', updateEraserPreview);
-                canvas.addEventListener('pointerleave', clearEraserPreview);
-            }
-            
-            function startDrawing(e) {
-                if (appState.currentTool === 'clear') return;
-                
-                appState.isDrawing = true;
-                const pos = getEventPos(e);
-                
-                appState.strokePoints = [pos];
-                appState.lastPoint = pos;
-                
-                ctx.beginPath();
-                ctx.moveTo(pos.x, pos.y);
-            }
-            
-            function draw(e) {
-                if (!appState.isDrawing || appState.currentTool === 'clear') return;
-                
-                const pos = getEventPos(e);
-                const pressure = Math.min(e.pressure || 0.5, 1);
-                
-                // Calculate dynamic size
-                appState.currentSize = appState.pressureEnabled 
-                    ? appState.minThickness + (pressure * (appState.maxThickness - appState.minThickness) * appState.sensitivity)
-                    : appState.minThickness;
-                
-                // Store point for smoothing
-                appState.strokePoints.push(pos);
-                
-                // Keep only recent points
-                if (appState.strokePoints.length > 5) {
-                    appState.strokePoints.shift();
-                }
-                
-                // Draw smoothed line
-                if (appState.strokePoints.length >= 2) {
-                    const prevPoint = appState.strokePoints[appState.strokePoints.length - 2];
-                    const currPoint = appState.strokePoints[appState.strokePoints.length - 1];
-                    
-                    // Control point for smooth curve
-                    const cpX = (prevPoint.x + currPoint.x) / 2;
-                    const cpY = (prevPoint.y + currPoint.y) / 2;
-                    
-                    ctx.lineWidth = appState.currentSize;
-                    ctx.strokeStyle = appState.currentTool === 'eraser' ? '#FFFFFF' : appState.currentColor;
-                    
-                    // Draw curved segment
-                    ctx.quadraticCurveTo(prevPoint.x, prevPoint.y, cpX, cpY);
-                    ctx.stroke();
-                    
-                    // Move to next point
-                    ctx.beginPath();
-                    ctx.moveTo(cpX, cpY);
-                }
-                
-                appState.lastPoint = pos;
-            }
-            
-            function stopDrawing() {
-                if (appState.isDrawing) {
-                    appState.isDrawing = false;
-                    ctx.closePath();
-                }
-            }
-            
-            function getEventPos(e) {
-                const rect = canvas.getBoundingClientRect();
-                return {
-                    x: e.clientX - rect.left,
-                    y: e.clientY - rect.top
-                };
-            }
-            
-            function showPressureIndicator() {
-                pressureIndicator.classList.add('show');
-            }
-            
-            function hidePressureIndicator() {
-                pressureIndicator.classList.remove('show');
-            }
-            
-            function updatePressureIndicator(e) {
-                if (!appState.isDrawing) return;
-                
-                const pressure = Math.round((e.pressure || 0.5) * 100);
-                pressureDot.style.transform = `scale(${e.pressure || 0.5})`;
-                pressureLevel.textContent = `Pressure: ${pressure}%`;
-            }
-            
-            function updateEraserPreview(e) {
-                if (appState.currentTool !== 'eraser') return;
-                
-                const pos = getEventPos(e);
-                const pressure = Math.min(e.pressure || 0.5, 1);
-                appState.currentSize = appState.pressureEnabled 
-                    ? appState.minThickness + (pressure * (appState.maxThickness - appState.minThickness) * appState.sensitivity)
-                    : appState.minThickness;
-                
-                // Clear previous preview
-                previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
-                
-                // Draw dotted circle
-                previewCtx.save();
-                previewCtx.setLineDash([3, 3]);
-                previewCtx.strokeStyle = '#666';
-                previewCtx.lineWidth = 1;
-                previewCtx.beginPath();
-                previewCtx.arc(pos.x, pos.y, appState.currentSize / 2, 0, Math.PI * 2);
-                previewCtx.stroke();
-                previewCtx.restore();
-            }
-            
-            function clearEraserPreview() {
-                previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
-            }
-            
-            function handleToolSelection(button) {
-                const tool = button.dataset.tool;
-                
-                if (tool === 'clear') {
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
-                    return;
-                }
-                
-                if (tool === 'pressure') {
-                    settingsPanel.classList.toggle('open');
-                    return;
-                }
-                
-                // Update active state
-                document.querySelectorAll('.tool-button').forEach(b => b.classList.remove('active'));
-                button.classList.add('active');
-                appState.currentTool = tool;
-                
-                // Clear preview
-                previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
-                
-                // Handle special tools
-                if (tool === 'color') {
-                    const newColor = prompt('Enter color (hex):', appState.currentColor);
-                    if (newColor && /^#[0-9A-F]{6}$/i.test(newColor)) {
-                        appState.currentColor = newColor;
-                        button.querySelector('div').style.backgroundColor = newColor;
-                    }
-                }
-                
-                if (tool === 'size') {
-                    const newSize = parseInt(prompt('Enter brush size (1-20):', appState.baseSize));
-                    if (newSize >= 1 && newSize <= 20) {
-                        appState.baseSize = newSize;
-                        button.querySelector('div').style.width = `${newSize}px`;
-                        button.querySelector('div').style.height = `${newSize}px`;
-                    }
-                }
-            }
-            
-            function updateSetting() {
-                const sliderId = event.target.id;
-                const value = parseInt(event.target.value);
-                
-                switch (sliderId) {
-                    case 'minThicknessSlider':
-                        appState.minThickness = value;
-                        document.getElementById('minThicknessValue').textContent = `${value}px`;
-                        break;
-                    case 'maxThicknessSlider':
-                        appState.maxThickness = value;
-                        document.getElementById('maxThicknessValue').textContent = `${value}px`;
-                        break;
-                    case 'sensitivitySlider':
-                        appState.sensitivity = value / 100;
-                        document.getElementById('sensitivityValue').textContent = `${value}%`;
-                        break;
-                }
-            }
-            
-            // Register service worker
-            if ('serviceWorker' in navigator) {
+        // Register service worker for offline capabilities
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js')
-                    .then(reg => console.log('Service Worker registered'))
-                    .catch(err => console.error('Service Worker registration failed:', err));
+                    .then(registration => console.log('Service Worker registered'))
+                    .catch(error => console.error('Service Worker registration failed:', error));
+            });
+        }
+        
+        // Main application logic
+        const startButton = document.querySelector('.start-button');
+        const homeScreen = document.querySelector('.home-screen');
+        const canvasContainer = document.querySelector('.canvas-container');
+        const canvas = document.getElementById('drawingCanvas');
+        const ctx = canvas.getContext('2d');
+        const colorPicker = document.getElementById('colorPicker');
+        const clearBtn = document.getElementById('clearBtn');
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+        
+        // Set up canvas size to cover entire width with 16:9 ratio
+        function resizeCanvas() {
+            const containerWidth = window.innerWidth;
+            const containerHeight = window.innerHeight;
+            
+            // Calculate desired canvas dimensions (full width, 16:9 ratio)
+            const desiredWidth = containerWidth;
+            const desiredHeight = (desiredWidth * 9) / 16;
+            
+            // Check if desired height exceeds available space (leaving room for toolbar)
+            const availableHeight = containerHeight * 0.9; // 10% space for toolbar
+            
+            let canvasWidth, canvasHeight;
+            
+            if (desiredHeight <= availableHeight) {
+                // Fit within available height
+                canvasWidth = desiredWidth;
+                canvasHeight = desiredHeight;
+            } else {
+                // Constrain height to available space, adjust width to maintain ratio
+                canvasHeight = availableHeight;
+                canvasWidth = (canvasHeight * 16) / 9;
+            }
+            
+            // Set canvas dimensions
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+            
+            // Position canvas: full width, centered vertically
+            canvas.style.left = '0px';
+            canvas.style.top = `${(containerHeight - canvasHeight) / 2}px`;
+            
+            // Set line properties
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = colorPicker.value;
+        }
+        
+        // Get pointer position with pressure info
+        function getPointerPosition(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX) || 
+                           (e.pointerType === 'pen' ? e.clientX : 0);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY) || 
+                           (e.pointerType === 'pen' ? e.clientY : 0);
+            
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top,
+                pressure: e.pressure || 0.5 // Default to medium pressure if unsupported
+            };
+        }
+        
+        // Start drawing when clicking the Start button
+        startButton.addEventListener('click', () => {
+            homeScreen.style.display = 'none';
+            canvasContainer.style.display = 'block';
+            requestFullscreen();
+            resizeCanvas();
+        });
+        
+        // Go back to home screen
+        function goHome() {
+            exitFullscreen();
+            canvasContainer.style.display = 'none';
+            homeScreen.style.display = 'flex';
+        }
+        
+        // Handle drawing with stylus pressure support
+        function startDrawing(e) {
+            isDrawing = true;
+            const pos = getPointerPosition(e);
+            lastX = pos.x;
+            lastY = pos.y;
+        }
+        
+        function draw(e) {
+            if (!isDrawing) return;
+            
+            const pos = getPointerPosition(e);
+            const currentX = pos.x;
+            const currentY = pos.y;
+            const pressure = pos.pressure;
+            
+            // Map pressure to line width (1px to 15px)
+            ctx.lineWidth = Math.max(1, Math.min(15, pressure * 14 + 1));
+            
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(currentX, currentY);
+            ctx.stroke();
+            
+            lastX = currentX;
+            lastY = currentY;
+        }
+        
+        function stopDrawing() {
+            isDrawing = false;
+        }
+        
+        // Event listeners for drawing
+        canvas.addEventListener('pointerdown', startDrawing);
+        canvas.addEventListener('pointermove', draw);
+        canvas.addEventListener('pointerup', stopDrawing);
+        canvas.addEventListener('pointerout', stopDrawing);
+        
+        // Color picker change
+        colorPicker.addEventListener('change', (e) => {
+            ctx.strokeStyle = e.target.value;
+        });
+        
+        // Clear canvas
+        clearBtn.addEventListener('click', () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Fixed the syntax error here!
+        });
+        
+        // Handle window resize
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Fullscreen functions
+        function requestFullscreen() {
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen();
+            } else if (document.documentElement.mozRequestFullScreen) { // Firefox
+                document.documentElement.mozRequestFullScreen();
+            } else if (document.documentElement.webkitRequestFullscreen) { // Chrome, Safari and Opera
+                document.documentElement.webkitRequestFullscreen();
+            } else if (document.documentElement.msRequestFullscreen) { // IE/Edge
+                document.documentElement.msRequestFullscreen();
+            }
+        }
+        
+        function exitFullscreen() {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.mozCancelFullScreen) { /* Firefox */
+                document.mozCancelFullScreen();
+            } else if (document.webkitExitFullscreen) { /* Chrome, Safari and Opera */
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) { /* IE/Edge */
+                document.msExitFullscreen();
+            }
+        }
+        
+        // Handle fullscreen change
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                goHome();
             }
         });
+        
+        // Initialize canvas
+        resizeCanvas();
     </script>
 </body>
 </html>
