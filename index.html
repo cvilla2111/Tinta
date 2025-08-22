@@ -3,344 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PenCanvas - Offline Drawing</title>
+    <title>Hello PWA</title>
     
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjogIlBlbkNhbnNvbiIsICJmZWF0dXJlIjogIkdpdGh1YiBFeHRyYSBDb21wcmVoZW5zaXZlIEFwcCIsICJpbWFnZV9pZCI6ICJtZWRpYS9waWNzL2VuL3Byb2R1Y3RpdmUvcGVuY2FzaXMuanMiLCAic2NyaXB0X2ltYWdlIjogIm1lZGlhL3BpY3MvZW4vcHJvZHVjdGl2ZS9wZW5jYXNoaXMuZ2lmIiwgInNjcmlwdHlwZSI6ICJzdHJlYW1pbmcifQ==">
+    <!-- Manifest (inline as data URI) -->
+    <link rel="manifest" href="data:application/json;base64,eyJmb250XzIiOiJDb3B5IiwidGV4dF9saW5lcyI6WyIxOTJ4MTkyIiwibGluZV8xNTJ4NTEyIl0sIm5hbWUiOiJIYWxsbyBQV0EiLCJzaGFydF9uYW1lIjoiSGVsbG8gUFdhIiwiYmFja2dyb3VuZF9jb2xvciI6IiM0Mjg1ZjQiLCJ0aGVtZV9jb2xvciI6IiM0Mjg1ZjQiLCJzdGFydF91cmwiOiIvIiwiZHJpdmVyXzIiOnRydWUsImRpc3BsYXlfMiI6eyJkaWFncmFtLWNvbG9yIjoiIzMzMyIsInJpZ2h0LWNvbG9yIjoiIzMzMyIsIndpZHRoIjo5MDAsImhlaWdodCI6ODAwLCJmaWxsIjpmYWxzZX0sImRpZmZlcl8yIjp7ImRpZmZlLXdpZHRoIjoyMDAsImRpZmZlLXRvcCI6MCwibGluZSI6MCwib3BhY2l0eSI6MCwidHlwZSI6ImZvbnQiLCJpbWFnZV9pZCI6ImRpZmZlXzIuanBnIn19LCJkb25hdGlvbl90eXBlIjoidGV4dCIsImNsdXN0ZXJfdHlwZSI6InRleHQifQ==">
     
-    <!-- Icons -->
-    <link rel="apple-touch-icon" sizes="180x180" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNmZmYiLz48L3N2Zz4=">
-    <link rel="icon" type="image/png" sizes="32x32" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMCIgaGVpZ2h0PSIzMCIgdmlld0JveD0iMCAwIDMwIDMwIiBmaWxsPSJub25lIiBzdHJva2U9IiM2NjY2NiIgZmlsbD0ibm9uZSI+PHBhdGggZD0iTTEwIDEydjdhMiAyIDAgMCAxLTEgMnYxNGEyIDIgMCAwIDEtMS0yLTJ2LTRoMWMwIDEgMSAxIDIgMWgyYTIgMiAwIDAtMS0yLTJ2LTRoLTJoLTJ6bTAtMTBoMnoiLz48L3N2Zz4=">
-    <link rel="icon" type="image/png" sizes="16x16" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDE2IDE2IiBmaWxsPSJub25lIiBzdHJva2U9IiM2NjY2NiIgZmlsbD0ibm9uZSI+PHBhdGggZD0iTTEwIDEydjdhMiAyIDAgMCAxLTEgMnYxNGEyIDIgMCAwIDEtMS0yLTJ2LTRoLTJoLTJ6bTAtMTBoMnoiLz48L3N2Zz4=">
+    <!-- Theme colors for mobile -->
+    <meta name="theme-color" content="#4285f4">
     
     <style>
-        * {
+        body {
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #ffffff;
-            overflow: hidden;
-            height: 100vh;
-            width: 100vw;
-            color: #000000;
-        }
-        
-        .home-screen {
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            width: 100vw;
-            background-color: #ffffff;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
         }
         
-        .start-button {
-            background-color: #ffffff;
-            color: #000000;
-            border: 2px solid #000000;
-            padding: 20px 40px;
-            font-size: 24px;
-            border-radius: 50px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-            outline: none;
+        .container {
+            text-align: center;
+            padding: 30px;
+            border-radius: 12px;
+            background-color: white;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            max-width: 400px;
+            width: 90%;
         }
         
-        .start-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        h1 {
+            color: #333;
+            margin-bottom: 15px;
         }
         
-        .start-button:active {
-            transform: translateY(0);
-        }
-        
-        .canvas-container {
-            position: relative;
-            width: 100%;
-            height: 100vh;
-            background-color: #ffffff;
-            display: none;
-        }
-        
-        .drawing-canvas {
-            position: absolute;
-            background-color: #ffffff;
-            border: 2px solid #000000;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            touch-action: none;
-        }
-        
-        .toolbar {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 10;
-            display: flex;
-            gap: 10px;
-        }
-        
-        .tool-btn {
-            background-color: #ffffff;
-            border: 2px solid #000000;
-            padding: 12px;
-            border-radius: 50%;
-            cursor: pointer;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .tool-btn:hover {
-            background-color: #f8f8f8;
-            transform: scale(1.05);
-        }
-        
-        .color-picker {
-            width: 40px;
-            height: 40px;
-            border: 2px solid #000000;
-            border-radius: 50%;
-            cursor: pointer;
-            overflow: hidden;
-        }
-        
-        .back-btn {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            z-index: 10;
-            background-color: #ffffff;
-            border: 2px solid #000000;
-            padding: 12px;
-            border-radius: 50%;
-            cursor: pointer;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            transition: all 0.2s ease;
-        }
-        
-        .back-btn:hover {
-            background-color: #f8f8f8;
-            transform: scale(1.05);
+        p {
+            color: #666;
+            line-height: 1.5;
         }
     </style>
 </head>
 <body>
-    <div class="home-screen">
-        <button class="start-button">Start</button>
+    <div class="container">
+        <h1>Hello World!</h1>
+        <p>This is a simple installable PWA.<br>Works offline too!</p>
     </div>
-    
-    <div class="canvas-container">
-        <button class="back-btn" onclick="goHome()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
-            </svg>
-        </button>
-        
-        <div class="toolbar">
-            <input type="color" class="color-picker" id="colorPicker" value="#000000">
-            <button class="tool-btn" id="clearBtn">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 6h18"></path>
-                    <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
-                </svg>
-            </button>
-        </div>
-        
-        <canvas class="drawing-canvas" id="drawingCanvas"></canvas>
-    </div>
+
     <script>
-        // Register service worker for offline capabilities
+        // Service Worker Registration
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then(registration => console.log('Service Worker registered'))
-                    .catch(error => console.error('Service Worker registration failed:', error));
+            window.addEventListener('load', async () => {
+                try {
+                    const swBlob = new Blob([
+                        `self.addEventListener('install', event => {
+                            event.waitUntil(caches.open('hello-pwa-cache').then(cache => cache.add('/')));
+                        });
+                        
+                        self.addEventListener('fetch', event => {
+                            event.respondWith(caches.match(event.request).then(response => 
+                                response || fetch(event.request)
+                            ));
+                        });`
+                    ], { type: 'application/javascript' });
+                    
+                    const swUrl = URL.createObjectURL(swBlob);
+                    await navigator.serviceWorker.register(swUrl);
+                    URL.revokeObjectURL(swUrl);
+                } catch (error) {
+                    console.error('Service worker registration failed:', error);
+                }
             });
         }
-        
-        // Main application logic
-        const startButton = document.querySelector('.start-button');
-        const homeScreen = document.querySelector('.home-screen');
-        const canvasContainer = document.querySelector('.canvas-container');
-        const canvas = document.getElementById('drawingCanvas');
-        const ctx = canvas.getContext('2d');
-        const colorPicker = document.getElementById('colorPicker');
-        const clearBtn = document.getElementById('clearBtn');
-        let isDrawing = false;
-        let lastX = 0;
-        let lastY = 0;
-        
-        // Set up canvas size to cover entire width with 16:9 ratio
-        function resizeCanvas() {
-            const containerWidth = window.innerWidth;
-            const containerHeight = window.innerHeight;
+
+        // Add to home screen prompt handling
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', e => {
+            e.preventDefault();
+            deferredPrompt = e;
             
-            // Calculate desired canvas dimensions (full width, 16:9 ratio)
-            const desiredWidth = containerWidth;
-            const desiredHeight = (desiredWidth * 9) / 16;
-            
-            // Check if desired height exceeds available space (leaving room for toolbar)
-            const availableHeight = containerHeight * 0.9; // 10% space for toolbar
-            
-            let canvasWidth, canvasHeight;
-            
-            if (desiredHeight <= availableHeight) {
-                // Fit within available height
-                canvasWidth = desiredWidth;
-                canvasHeight = desiredHeight;
-            } else {
-                // Constrain height to available space, adjust width to maintain ratio
-                canvasHeight = availableHeight;
-                canvasWidth = (canvasHeight * 16) / 9;
-            }
-            
-            // Set canvas dimensions
-            canvas.width = canvasWidth;
-            canvas.height = canvasHeight;
-            
-            // Position canvas: full width, centered vertically
-            canvas.style.left = '0px';
-            canvas.style.top = `${(containerHeight - canvasHeight) / 2}px`;
-            
-            // Set line properties
-            ctx.lineJoin = 'round';
-            ctx.lineCap = 'round';
-            ctx.lineWidth = 2;
-            ctx.strokeStyle = colorPicker.value;
-        }
-        
-        // Get pointer position with pressure info
-        function getPointerPosition(e) {
-            const rect = canvas.getBoundingClientRect();
-            const clientX = e.clientX || (e.touches && e.touches[0].clientX) || 
-                           (e.pointerType === 'pen' ? e.clientX : 0);
-            const clientY = e.clientY || (e.touches && e.touches[0].clientY) || 
-                           (e.pointerType === 'pen' ? e.clientY : 0);
-            
-            return {
-                x: clientX - rect.left,
-                y: clientY - rect.top,
-                pressure: e.pressure || 0.5 // Default to medium pressure if unsupported
+            // Optional: Show custom install button
+            const installButton = document.createElement('button');
+            installButton.textContent = 'Install App';
+            installButton.style.cssText = `
+                position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+                padding: 12px 24px; background: #4285f4; color: white;
+                border: none; border-radius: 8px; cursor: pointer; font-size: 16px;
+            `;
+            installButton.onclick = () => {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then(choiceResult => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('User accepted installation');
+                    }
+                    deferredPrompt = null;
+                    installButton.remove();
+                });
             };
-        }
-        
-        // Start drawing when clicking the Start button
-        startButton.addEventListener('click', () => {
-            homeScreen.style.display = 'none';
-            canvasContainer.style.display = 'block';
-            requestFullscreen();
-            resizeCanvas();
+            document.body.appendChild(installButton);
         });
-        
-        // Go back to home screen
-        function goHome() {
-            exitFullscreen();
-            canvasContainer.style.display = 'none';
-            homeScreen.style.display = 'flex';
-        }
-        
-        // Handle drawing with stylus pressure support
-        function startDrawing(e) {
-            // Only proceed if pointer type is pen/stylus
-            if (e.pointerType !== 'pen') return;
-            
-            isDrawing = true;
-            const pos = getPointerPosition(e);
-            lastX = pos.x;
-            lastY = pos.y;
-        }
-        
-        function draw(e) {
-            // Only proceed if pointer type is pen/stylus
-            if (e.pointerType !== 'pen') return;
-            
-            if (!isDrawing) return;
-            
-            const pos = getPointerPosition(e);
-            const currentX = pos.x;
-            const currentY = pos.y;
-            const pressure = pos.pressure;
-            
-            // Map pressure to line width (1px to 15px)
-            ctx.lineWidth = Math.max(1, Math.min(15, pressure * 14 + 1));
-            
-            ctx.beginPath();
-            ctx.moveTo(lastX, lastY);
-            ctx.lineTo(currentX, currentY);
-            ctx.stroke();
-            
-            lastX = currentX;
-            lastY = currentY;
-        }
-        
-        function stopDrawing(e) {
-            // Only proceed if pointer type is pen/stylus
-            if (e.pointerType !== 'pen') return;
-            
-            isDrawing = false;
-        }
-        
-        // Event listeners for drawing - ONLY FOR PEN INPUT
-        canvas.addEventListener('pointerdown', startDrawing);
-        canvas.addEventListener('pointermove', draw);
-        canvas.addEventListener('pointerup', stopDrawing);
-        canvas.addEventListener('pointerout', stopDrawing);
-        
-        // Color picker change
-        colorPicker.addEventListener('change', (e) => {
-            ctx.strokeStyle = e.target.value;
-        });
-        
-        // Clear canvas
-        clearBtn.addEventListener('click', () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-        });
-        
-        // Handle window resize
-        window.addEventListener('resize', resizeCanvas);
-        
-        // Fullscreen functions
-        function requestFullscreen() {
-            if (document.documentElement.requestFullscreen) {
-                document.documentElement.requestFullscreen();
-            } else if (document.documentElement.mozRequestFullScreen) { // Firefox
-                document.documentElement.mozRequestFullScreen();
-            } else if (document.documentElement.webkitRequestFullscreen) { // Chrome, Safari and Opera
-                document.documentElement.webkitRequestFullscreen();
-            } else if (document.documentElement.msRequestFullscreen) { // IE/Edge
-                document.documentElement.msRequestFullscreen();
-            }
-        }
-        
-        function exitFullscreen() {
-            if (document.exitFullscreen) {
-                document.exitFullscreen();
-            } else if (document.mozCancelFullScreen) { /* Firefox */
-                document.mozCancelFullScreen();
-            } else if (document.webkitExitFullscreen) { /* Chrome, Safari and Opera */
-                document.webkitExitFullscreen();
-            } else if (document.msExitFullscreen) { /* IE/Edge */
-                document.msExitFullscreen();
-            }
-        }
-        
-        // Handle fullscreen change
-        document.addEventListener('fullscreenchange', () => {
-            if (!document.fullscreenElement) {
-                goHome();
-            }
-        });
-        
-        // Initialize canvas
-        resizeCanvas();
     </script>
 </body>
 </html>
