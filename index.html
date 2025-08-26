@@ -490,21 +490,7 @@
             pointer-events: none;
         }
 
-        /* Fix for mobile scrolling and zooming */
-        html {
-            touch-action: none;
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        body {
-            touch-action: none;
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            overscroll-behavior: none;
-        }
-
+        /* Selective touch prevention - only for canvas area */
         #canvas {
             touch-action: none;
             -webkit-touch-callout: none;
@@ -513,16 +499,29 @@
             -webkit-user-drag: none;
         }
 
-        /* Disable context menu and touch hold */
-        * {
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            -khtml-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
-            -webkit-user-drag: none;
+        /* Allow interactions for toolbar and UI elements */
+        .toolbar,
+        .toolbar-pill,
+        .tool-btn,
+        .color-picker,
+        .size-picker,
+        .size-option,
+        .pressure-control,
+        .pressure-switch {
+            touch-action: manipulation;
+            -webkit-touch-callout: default;
+            -webkit-user-select: auto;
+            -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+        }
+
+        /* Global settings for general interaction */
+        html {
             -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            -webkit-user-select: none;
+            overscroll-behavior: none;
         }
     </style>
 <script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script></head>
@@ -686,7 +685,7 @@
                 this.setupCanvas();
                 this.setupEventListeners();
                 this.saveState();
-                this.disableContextMenu();
+                this.disableCanvasContextMenu();
             }
 
             setupCanvas() {
@@ -712,39 +711,33 @@
                 this.ctx.imageSmoothingQuality = 'high';
             }
 
-            // Disable all context menus and touch-and-hold
-            disableContextMenu() {
-                // Disable context menu
-                document.addEventListener('contextmenu', (e) => {
+            // Selective context menu prevention - only for canvas
+            disableCanvasContextMenu() {
+                // Disable context menu only on canvas
+                this.canvas.addEventListener('contextmenu', (e) => {
                     e.preventDefault();
                     return false;
                 });
                 
-                // Disable touch and hold context menu
-                document.addEventListener('touchstart', (e) => {
+                // Disable touch and hold context menu only on canvas
+                this.canvas.addEventListener('touchstart', (e) => {
                     if (e.touches.length > 1) {
                         e.preventDefault();
                     }
                 }, { passive: false });
                 
-                document.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                }, { passive: false });
-                
-                document.addEventListener('touchmove', (e) => {
-                    e.preventDefault();
-                }, { passive: false });
-                
-                // Disable drag and drop
-                document.addEventListener('dragstart', (e) => {
-                    e.preventDefault();
-                    return false;
-                });
-                
-                // Disable selection
-                document.addEventListener('selectstart', (e) => {
-                    e.preventDefault();
-                    return false;
+                // Allow normal interaction with UI elements
+                const interactiveElements = document.querySelectorAll('.toolbar, .toolbar-pill, .tool-btn, .color-picker, .size-picker, .size-option, .pressure-switch');
+                interactiveElements.forEach(element => {
+                    element.addEventListener('touchstart', (e) => {
+                        // Allow normal touch interactions for UI
+                        e.stopPropagation();
+                    }, { passive: true });
+                    
+                    element.addEventListener('contextmenu', (e) => {
+                        // Allow context menu for UI elements if needed
+                        e.stopPropagation();
+                    });
                 });
             }
 
@@ -836,6 +829,7 @@
                 // Pen button with double-click detection
                 const penBtn = document.getElementById('penTool');
                 penBtn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent interference
                     if (this.penClickTimeout) {
                         clearTimeout(this.penClickTimeout);
                         this.penClickTimeout = null;
@@ -851,6 +845,7 @@
                 // Eraser button with double-click detection
                 const eraserBtn = document.getElementById('eraserTool');
                 eraserBtn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent interference
                     if (this.eraserClickTimeout) {
                         clearTimeout(this.eraserClickTimeout);
                         this.eraserClickTimeout = null;
@@ -867,14 +862,18 @@
                 const pressureSwitch = document.getElementById('pressureSwitch');
                 const pressureStatus = document.getElementById('pressureStatus');
                 
-                pressureSwitch.addEventListener('click', () => {
+                pressureSwitch.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent interference
                     this.pressureSensitive = !this.pressureSensitive;
                     pressureSwitch.classList.toggle('active', this.pressureSensitive);
                     pressureStatus.textContent = this.pressureSensitive ? 'On' : 'Off';
                 });
                 
                 // Second monitor button
-                document.getElementById('secondMonitorBtn').addEventListener('click', () => this.openSecondMonitor());
+                document.getElementById('secondMonitorBtn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.openSecondMonitor();
+                });
                 
                 // Size pickers
                 this.setupPenSizePicker();
@@ -882,12 +881,20 @@
                 
                 // Controls
                 document.getElementById('colorPicker').addEventListener('change', (e) => {
+                    e.stopPropagation();
                     this.currentColor = e.target.value;
                     this.syncStateToSecondMonitor();
                 });
                 
-                document.getElementById('undoBtn').addEventListener('click', () => this.undo());
-                document.getElementById('clearBtn').addEventListener('click', () => this.clear());
+                document.getElementById('undoBtn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.undo();
+                });
+                
+                document.getElementById('clearBtn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.clear();
+                });
                 
                 // Use Pointer Events for better stylus detection
                 if (window.PointerEvent) {
@@ -980,10 +987,11 @@
 
             // Touch Event handlers (check for stylus properties)
             handleTouchStart(e) {
-                e.preventDefault();
                 if (!this.isStylusInput(e)) {
+                    e.preventDefault();
                     return;
                 }
+                e.preventDefault();
                 const touch = e.touches[0];
                 const mouseEvent = new MouseEvent('mousedown', {
                     clientX: touch.clientX,
@@ -993,10 +1001,11 @@
             }
 
             handleTouchMove(e) {
-                e.preventDefault();
                 if (!this.isStylusInput(e)) {
+                    e.preventDefault();
                     return;
                 }
+                e.preventDefault();
                 const touch = e.touches[0];
                 const mouseEvent = new MouseEvent('mousemove', {
                     clientX: touch.clientX,
@@ -1327,6 +1336,7 @@
                 const sizeOptions = this.penSizePicker.querySelectorAll('.size-option');
                 sizeOptions.forEach(option => {
                     option.addEventListener('click', (e) => {
+                        e.stopPropagation();
                         const size = parseFloat(e.currentTarget.dataset.size);
                         this.selectPenSize(size);
                         this.hidePenSizePicker();
@@ -1338,6 +1348,7 @@
                 const sizeOptions = this.eraserSizePicker.querySelectorAll('.size-option');
                 sizeOptions.forEach(option => {
                     option.addEventListener('click', (e) => {
+                        e.stopPropagation();
                         const size = parseFloat(e.currentTarget.dataset.size);
                         this.selectEraserSize(size);
                         this.hideEraserSizePicker();
