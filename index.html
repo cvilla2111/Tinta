@@ -522,7 +522,7 @@
             overscroll-behavior: none;
         }
     </style>
-<script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script><script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script></head>
+<script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script></head>
 <body>
     <div class="canvas-container">
         <canvas id="canvas"></canvas>
@@ -660,12 +660,10 @@
                 this.currentSize = 3;
                 this.pressureSensitive = false;
                 
-                // Spike-free smoothing system
+                // Quadratic curve implementation with proper pressure handling
                 this.points = [];
-                this.lastDrawnIndex = 0;
-                this.smoothingFactor = 0.4; // Balanced for smoothness without spikes
-                this.lastSmoothedPoint = null;
-                this.currentPath = null; // Track current drawing path
+                this.lastPoint = null;
+                this.lastDrawnIndex = 0; // Track what we've already drawn
                 
                 // Optimized second monitor sync
                 this.syncPending = false;
@@ -779,125 +777,39 @@
                 return 1.0;
             }
 
-            // Improved smoothing to prevent spikes
-            getSmoothedPoint(newPoint) {
-                if (!this.lastSmoothedPoint) {
-                    this.lastSmoothedPoint = { ...newPoint };
-                    return newPoint;
+            // Fixed quadratic implementation with proper pressure handling
+            drawQuadraticCurveSegment(point) {
+                if (this.points.length < 3) {
+                    // For first and second points, draw simple lines
+                    const pressure = this.pressureSensitive && this.currentTool === 'pen' ? point.pressure : 1.0;
+                    this.ctx.lineWidth = this.currentSize * pressure;
+                    this.ctx.lineTo(point.x, point.y);
+                    this.ctx.stroke();
+                    return;
                 }
                 
-                // Calculate distance to detect sudden jumps
-                const distance = Math.sqrt(
-                    (newPoint.x - this.lastSmoothedPoint.x) ** 2 + 
-                    (newPoint.y - this.lastSmoothedPoint.y) ** 2
-                );
+                // Draw only new segments with proper pressure
+                const p1 = this.points[this.points.length - 3];
+                const p2 = this.points[this.points.length - 2];
                 
-                // Adaptive smoothing based on distance
-                let adaptiveFactor = this.smoothingFactor;
-                if (distance > 10) {
-                    // Reduce smoothing for large movements to prevent lag
-                    adaptiveFactor = Math.min(0.7, this.smoothingFactor + 0.3);
-                } else if (distance < 2) {
-                    // Increase smoothing for small movements to reduce jitter
-                    adaptiveFactor = Math.max(0.1, this.smoothingFactor - 0.2);
-                }
-                
-                const smoothed = {
-                    x: this.lastSmoothedPoint.x + adaptiveFactor * (newPoint.x - this.lastSmoothedPoint.x),
-                    y: this.lastSmoothedPoint.y + adaptiveFactor * (newPoint.y - this.lastSmoothedPoint.y),
-                    pressure: this.lastSmoothedPoint.pressure + adaptiveFactor * (newPoint.pressure - this.lastSmoothedPoint.pressure)
+                const cp = { x: p2.x, y: p2.y };
+                const end = {
+                    x: (p2.x + point.x) / 2,
+                    y: (p2.y + point.y) / 2
                 };
                 
-                this.lastSmoothedPoint = smoothed;
-                return smoothed;
-            }
-
-            // Spike-free continuous path drawing
-            drawContinuousPath() {
-                if (this.points.length < 2) return;
+                // Set line width based on the control point's pressure
+                const pressure = this.pressureSensitive && this.currentTool === 'pen' ? p2.pressure : 1.0;
+                this.ctx.lineWidth = this.currentSize * pressure;
                 
-                // Start new path if needed
-                if (!this.currentPath) {
-                    this.currentPath = new Path2D();
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(this.points[0].x, this.points[0].y);
-                }
-                
-                // Draw smooth curves between points
-                for (let i = Math.max(1, this.lastDrawnIndex); i < this.points.length; i++) {
-                    const current = this.points[i];
-                    const prev = this.points[i - 1];
-                    
-                    if (!current || !prev) continue;
-                    
-                    // Set line width for pressure sensitivity
-                    if (this.currentTool === 'pen' && this.pressureSensitive) {
-                        this.ctx.lineWidth = this.currentSize * current.pressure;
-                    } else {
-                        this.ctx.lineWidth = this.currentSize;
-                    }
-                    
-                    if (i === 1) {
-                        // First segment - direct line to avoid spikes at start
-                        this.ctx.lineTo(current.x, current.y);
-                    } else {
-                        // Subsequent segments - use smooth curves
-                        const prevPrev = this.points[i - 2];
-                        
-                        // Calculate control points for smooth connection
-                        const cp1x = prev.x + (current.x - prevPrev.x) * 0.1;
-                        const cp1y = prev.y + (current.y - prevPrev.y) * 0.1;
-                        
-                        this.ctx.quadraticCurveTo(cp1x, cp1y, current.x, current.y);
-                    }
-                }
-                
+                // Begin new path for this segment only
+                this.ctx.beginPath();
+                this.ctx.moveTo(this.lastDrawnPoint.x, this.lastDrawnPoint.y);
+                this.ctx.quadraticCurveTo(cp.x, cp.y, end.x, end.y);
                 this.ctx.stroke();
-                this.lastDrawnIndex = this.points.length - 1;
-            }
-
-            // Efficient point management with better filtering
-            addPoint(x, y, pressure) {
-                const point = { x, y, pressure };
                 
-                // Improved filtering to prevent spikes
-                if (this.points.length > 0) {
-                    const lastPoint = this.points[this.points.length - 1];
-                    const distance = Math.sqrt((x - lastPoint.x) ** 2 + (y - lastPoint.y) ** 2);
-                    
-                    // Adaptive distance threshold
-                    const threshold = this.points.length === 1 ? 0.1 : 0.8;
-                    
-                    if (distance < threshold) {
-                        // Update pressure but don't add new point
-                        lastPoint.pressure = (lastPoint.pressure + pressure) / 2;
-                        return false;
-                    }
-                    
-                    // Reject extreme jumps that could cause spikes
-                    if (distance > 50 && this.points.length > 1) {
-                        // Instead of rejecting, create intermediate points
-                        const steps = Math.ceil(distance / 10);
-                        for (let i = 1; i <= steps; i++) {
-                            const t = i / steps;
-                            const interpX = lastPoint.x + (x - lastPoint.x) * t;
-                            const interpY = lastPoint.y + (y - lastPoint.y) * t;
-                            const interpPressure = lastPoint.pressure + (pressure - lastPoint.pressure) * t;
-                            this.points.push({ x: interpX, y: interpY, pressure: interpPressure });
-                        }
-                        return true;
-                    }
-                }
-                
-                this.points.push(point);
-                
-                // Efficient cleanup
-                if (this.points.length > 60) {
-                    this.points.shift();
-                    this.lastDrawnIndex = Math.max(0, this.lastDrawnIndex - 1);
-                }
-                
-                return true;
+                // Update last drawn point
+                this.lastDrawnPoint = { x: end.x, y: end.y };
             }
 
             // Throttled sync
@@ -1223,12 +1135,10 @@
                 };
                 img.src = canvasData;
                 
-                // Simple drawing setup for second monitor with same spike prevention
+                // Quadratic drawing setup for second monitor with fixed pressure
                 let isDrawing = false;
                 let points = [];
-                let lastDrawnIndex = 0;
-                let lastSmoothedPoint = null;
-                let currentPath = null;
+                let lastDrawnPoint = null;
                 
                 const isStylusInput = (e) => {
                     if (e.pointerType !== undefined) {
@@ -1276,104 +1186,35 @@
                     };
                 };
 
-                const getSmoothedPoint = (newPoint) => {
-                    if (!lastSmoothedPoint) {
-                        lastSmoothedPoint = { ...newPoint };
-                        return newPoint;
+                // Fixed quadratic implementation for second monitor
+                const drawQuadraticCurveSegment = (point) => {
+                    if (points.length < 3) {
+                        const pressure = this.pressureSensitive && this.currentTool === 'pen' ? point.pressure : 1.0;
+                        secondCtx.lineWidth = this.currentSize * pressure;
+                        secondCtx.lineTo(point.x, point.y);
+                        secondCtx.stroke();
+                        lastDrawnPoint = { x: point.x, y: point.y };
+                        return;
                     }
                     
-                    const distance = Math.sqrt(
-                        (newPoint.x - lastSmoothedPoint.x) ** 2 + 
-                        (newPoint.y - lastSmoothedPoint.y) ** 2
-                    );
+                    const p1 = points[points.length - 3];
+                    const p2 = points[points.length - 2];
                     
-                    let adaptiveFactor = 0.4;
-                    if (distance > 10) {
-                        adaptiveFactor = Math.min(0.7, 0.4 + 0.3);
-                    } else if (distance < 2) {
-                        adaptiveFactor = Math.max(0.1, 0.4 - 0.2);
-                    }
-                    
-                    const smoothed = {
-                        x: lastSmoothedPoint.x + adaptiveFactor * (newPoint.x - lastSmoothedPoint.x),
-                        y: lastSmoothedPoint.y + adaptiveFactor * (newPoint.y - lastSmoothedPoint.y),
-                        pressure: lastSmoothedPoint.pressure + adaptiveFactor * (newPoint.pressure - lastSmoothedPoint.pressure)
+                    const cp = { x: p2.x, y: p2.y };
+                    const end = {
+                        x: (p2.x + point.x) / 2,
+                        y: (p2.y + point.y) / 2
                     };
                     
-                    lastSmoothedPoint = smoothed;
-                    return smoothed;
-                };
-
-                const drawContinuousPath = () => {
-                    if (points.length < 2) return;
+                    const pressure = this.pressureSensitive && this.currentTool === 'pen' ? p2.pressure : 1.0;
+                    secondCtx.lineWidth = this.currentSize * pressure;
                     
-                    if (!currentPath) {
-                        currentPath = new Path2D();
-                        secondCtx.beginPath();
-                        secondCtx.moveTo(points[0].x, points[0].y);
-                    }
-                    
-                    for (let i = Math.max(1, lastDrawnIndex); i < points.length; i++) {
-                        const current = points[i];
-                        const prev = points[i - 1];
-                        
-                        if (!current || !prev) continue;
-                        
-                        if (this.currentTool === 'pen' && this.pressureSensitive) {
-                            secondCtx.lineWidth = this.currentSize * current.pressure;
-                        } else {
-                            secondCtx.lineWidth = this.currentSize;
-                        }
-                        
-                        if (i === 1) {
-                            secondCtx.lineTo(current.x, current.y);
-                        } else {
-                            const prevPrev = points[i - 2];
-                            const cp1x = prev.x + (current.x - prevPrev.x) * 0.1;
-                            const cp1y = prev.y + (current.y - prevPrev.y) * 0.1;
-                            secondCtx.quadraticCurveTo(cp1x, cp1y, current.x, current.y);
-                        }
-                    }
-                    
+                    secondCtx.beginPath();
+                    secondCtx.moveTo(lastDrawnPoint.x, lastDrawnPoint.y);
+                    secondCtx.quadraticCurveTo(cp.x, cp.y, end.x, end.y);
                     secondCtx.stroke();
-                    lastDrawnIndex = points.length - 1;
-                };
-
-                const addPoint = (x, y, pressure) => {
-                    const point = { x, y, pressure };
                     
-                    if (points.length > 0) {
-                        const lastPoint = points[points.length - 1];
-                        const distance = Math.sqrt((x - lastPoint.x) ** 2 + (y - lastPoint.y) ** 2);
-                        
-                        const threshold = points.length === 1 ? 0.1 : 0.8;
-                        
-                        if (distance < threshold) {
-                            lastPoint.pressure = (lastPoint.pressure + pressure) / 2;
-                            return false;
-                        }
-                        
-                        if (distance > 50 && points.length > 1) {
-                            const steps = Math.ceil(distance / 10);
-                            for (let i = 1; i <= steps; i++) {
-                                const t = i / steps;
-                                const interpX = lastPoint.x + (x - lastPoint.x) * t;
-                                const interpY = lastPoint.y + (y - lastPoint.y) * t;
-                                const interpPressure = lastPoint.pressure + (pressure - lastPoint.pressure) * t;
-                                points.push({ x: interpX, y: interpY, pressure: interpPressure });
-                            }
-                            return true;
-                        }
-                    }
-                    
-                    points.push(point);
-                    
-                    if (points.length > 60) {
-                        points.shift();
-                        lastDrawnIndex = Math.max(0, lastDrawnIndex - 1);
-                    }
-                    
-                    return true;
+                    lastDrawnPoint = { x: end.x, y: end.y };
                 };
 
                 const startDrawing = (e) => {
@@ -1383,11 +1224,8 @@
                     const pos = getMousePos(e);
                     const pressure = getStylusPressure(e);
                     
-                    points = [];
-                    lastDrawnIndex = 0;
-                    lastSmoothedPoint = null;
-                    currentPath = null;
-                    addPoint(pos.x, pos.y, pressure);
+                    points = [{ x: pos.x, y: pos.y, pressure }];
+                    lastDrawnPoint = { x: pos.x, y: pos.y };
                     
                     if (this.currentTool === 'eraser') {
                         secondCtx.globalCompositeOperation = 'destination-out';
@@ -1398,6 +1236,13 @@
                         secondCtx.shadowColor = this.currentColor;
                         secondCtx.shadowBlur = 0.5;
                     }
+                    
+                    const lineWidth = this.pressureSensitive && this.currentTool === 'pen' ? 
+                        this.currentSize * pressure : this.currentSize;
+                    secondCtx.lineWidth = lineWidth;
+                    
+                    secondCtx.beginPath();
+                    secondCtx.moveTo(pos.x, pos.y);
 
                     setTimeout(() => this.syncFromSecondMonitor(secondCanvas), 0);
                 };
@@ -1407,50 +1252,36 @@
                     
                     const pos = getMousePos(e);
                     const pressure = getStylusPressure(e);
+                    const point = { x: pos.x, y: pos.y, pressure };
                     
-                    if (addPoint(pos.x, pos.y, pressure)) {
-                        if (this.currentTool === 'pen') {
-                            drawContinuousPath();
-                        } else {
-                            // Direct line for eraser
-                            if (points.length >= 2) {
-                                const prevPoint = points[points.length - 2];
-                                const currPoint = points[points.length - 1];
-                                
-                                secondCtx.lineWidth = this.currentSize;
-                                secondCtx.beginPath();
-                                secondCtx.moveTo(prevPoint.x, prevPoint.y);
-                                secondCtx.lineTo(currPoint.x, currPoint.y);
-                                secondCtx.stroke();
-                            }
-                        }
-                        
-                        this.queueSecondMonitorSync = () => {
-                            setTimeout(() => this.syncFromSecondMonitor(secondCanvas), 0);
-                        };
-                        this.queueSecondMonitorSync();
+                    points.push(point);
+                    
+                    if (this.currentTool === 'pen') {
+                        drawQuadraticCurveSegment(point);
+                    } else {
+                        secondCtx.lineWidth = this.currentSize;
+                        secondCtx.lineTo(pos.x, pos.y);
+                        secondCtx.stroke();
                     }
+                    
+                    this.queueSecondMonitorSync = () => {
+                        setTimeout(() => this.syncFromSecondMonitor(secondCanvas), 0);
+                    };
+                    this.queueSecondMonitorSync();
                 };
 
                 const stopDrawing = (e) => {
                     if (!isDrawing) return;
                     
                     isDrawing = false;
-                    
-                    if (this.currentTool === 'pen') {
-                        drawContinuousPath();
-                    }
-                    
                     points = [];
-                    lastDrawnIndex = 0;
-                    lastSmoothedPoint = null;
-                    currentPath = null;
+                    lastDrawnPoint = null;
                     
                     this.syncFromSecondMonitor(secondCanvas);
                     this.saveState();
                 };
 
-                // Event listeners
+                // Event listeners for second monitor
                 if (this.secondMonitorWindow.PointerEvent) {
                     secondCanvas.addEventListener('pointerdown', startDrawing, { passive: false });
                     secondCanvas.addEventListener('pointermove', draw, { passive: false });
@@ -1613,11 +1444,10 @@
                 this.currentTool = tool;
                 this.currentSize = this.toolSizes[tool];
                 
-                // Reset drawing state to prevent spikes
+                // Reset drawing state
                 this.points = [];
-                this.lastDrawnIndex = 0;
-                this.lastSmoothedPoint = null;
-                this.currentPath = null;
+                this.lastPoint = null;
+                this.lastDrawnPoint = null;
                 
                 document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
                 document.getElementById(tool + 'Tool').classList.add('active');
@@ -1689,12 +1519,10 @@
                 const pos = this.getMousePos(e);
                 const pressure = this.getStylusPressure(e);
                 
-                // Reset spike-free drawing state
-                this.points = [];
-                this.lastDrawnIndex = 0;
-                this.lastSmoothedPoint = null;
-                this.currentPath = null;
-                this.addPoint(pos.x, pos.y, pressure);
+                // Reset points array for new stroke
+                this.points = [{ x: pos.x, y: pos.y, pressure }];
+                this.lastPoint = { x: pos.x, y: pos.y, pressure };
+                this.lastDrawnPoint = { x: pos.x, y: pos.y }; // Track where we last drew
                 
                 if (this.currentTool === 'eraser') {
                     this.ctx.globalCompositeOperation = 'destination-out';
@@ -1708,6 +1536,14 @@
                     this.ctx.shadowColor = this.currentColor;
                     this.ctx.shadowBlur = 0.5;
                 }
+                
+                // Set initial line width based on pressure
+                const lineWidth = this.pressureSensitive && this.currentTool === 'pen' ? 
+                    this.currentSize * pressure : this.currentSize;
+                this.ctx.lineWidth = lineWidth;
+                
+                this.ctx.beginPath();
+                this.ctx.moveTo(pos.x, pos.y);
 
                 this.queueSecondMonitorSync();
             }
@@ -1717,29 +1553,25 @@
                 
                 const pos = this.getMousePos(e);
                 const pressure = this.getStylusPressure(e);
+                const point = { x: pos.x, y: pos.y, pressure };
                 
-                if (this.addPoint(pos.x, pos.y, pressure)) {
-                    if (this.currentTool === 'pen') {
-                        this.drawContinuousPath();
-                    } else {
-                        // Direct line for eraser
-                        if (this.points.length >= 2) {
-                            const prevPoint = this.points[this.points.length - 2];
-                            const currPoint = this.points[this.points.length - 1];
-                            
-                            this.ctx.lineWidth = this.currentSize;
-                            this.ctx.beginPath();
-                            this.ctx.moveTo(prevPoint.x, prevPoint.y);
-                            this.ctx.lineTo(currPoint.x, currPoint.y);
-                            this.ctx.stroke();
-                        }
-                    }
+                this.points.push(point);
+
+                if (this.currentTool === 'pen') {
+                    // Use fixed quadratic implementation
+                    this.drawQuadraticCurveSegment(point);
+                } else {
+                    // Direct line for eraser
+                    this.ctx.lineWidth = this.currentSize;
+                    this.ctx.lineTo(pos.x, pos.y);
+                    this.ctx.stroke();
                 }
 
                 if (this.currentTool === 'eraser') {
                     this.updateEraserPosition(e);
                 }
 
+                this.lastPoint = point;
                 this.queueSecondMonitorSync();
             }
 
@@ -1747,16 +1579,10 @@
                 if (this.isDrawing) {
                     this.isDrawing = false;
                     
-                    // Final smooth pass for pen
-                    if (this.currentTool === 'pen') {
-                        this.drawContinuousPath();
-                    }
-                    
-                    // Reset state to prevent spikes in next stroke
+                    // Reset state
                     this.points = [];
-                    this.lastDrawnIndex = 0;
-                    this.lastSmoothedPoint = null;
-                    this.currentPath = null;
+                    this.lastPoint = null;
+                    this.lastDrawnPoint = null;
                     
                     this.hideEraserCursor();
                     this.saveState();
@@ -1800,7 +1626,6 @@
             navigator.serviceWorker.register('data:text/javascript;base64,c2VsZi5hZGRFdmVudExpc3RlbmVyKCJpbnN0YWxsIiwgZnVuY3Rpb24oZSkge2UucHJldmVudERlZmF1bHQoKTt9KQ==');
         }
     </script>
-
 
 
 </body></html>
