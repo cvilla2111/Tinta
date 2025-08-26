@@ -660,6 +660,10 @@
                 this.currentSize = 3;
                 this.pressureSensitive = false;
                 
+                // Stylus eraser button state tracking
+                this.previousToolBeforeEraser = 'pen';
+                this.isUsingEraserButton = false;
+                
                 // Quadratic curve implementation with proper pressure handling
                 this.points = [];
                 this.lastPoint = null;
@@ -757,6 +761,25 @@
                 return false;
             }
 
+            // NEW: Check if stylus eraser button is pressed
+            isStylusEraserPressed(e) {
+                // For pointer events
+                if (e.buttons !== undefined) {
+                    // Button 32 is the eraser button on stylus
+                    return (e.buttons & 32) === 32;
+                }
+                
+                // For some styluses, the eraser is detected as inverted stylus
+                if (e.pointerType === 'pen' && e.twist !== undefined) {
+                    // Some styluses report inverted state differently
+                    return e.getCoalescedEvents && e.getCoalescedEvents().some(event => 
+                        event.buttons && (event.buttons & 32) === 32
+                    );
+                }
+                
+                return false;
+            }
+
             getStylusPressure(e) {
                 if (!this.pressureSensitive || this.currentTool !== 'pen') return 1.0;
                 
@@ -775,6 +798,24 @@
                 }
                 
                 return 1.0;
+            }
+
+            // NEW: Handle stylus eraser button state
+            handleStylusEraserButton(e) {
+                if (!this.isStylusInput(e)) return;
+                
+                const eraserPressed = this.isStylusEraserPressed(e);
+                
+                if (eraserPressed && !this.isUsingEraserButton) {
+                    // Eraser button just pressed - switch to eraser
+                    this.isUsingEraserButton = true;
+                    this.previousToolBeforeEraser = this.currentTool;
+                    this.setTool('eraser', true); // true = don't update toolbar UI
+                } else if (!eraserPressed && this.isUsingEraserButton) {
+                    // Eraser button just released - switch back to previous tool
+                    this.isUsingEraserButton = false;
+                    this.setTool(this.previousToolBeforeEraser, true);
+                }
             }
 
             // Fixed quadratic implementation with proper pressure handling
@@ -980,13 +1021,14 @@
                 }, 1000);
             }
 
-            // Event handlers
+            // Event handlers with stylus eraser button support
             handlePointerStart(e) {
                 if (!this.isStylusInput(e)) {
                     e.preventDefault();
                     return;
                 }
                 e.preventDefault();
+                this.handleStylusEraserButton(e); // NEW: Check eraser button
                 this.startDrawing(e);
             }
 
@@ -996,6 +1038,7 @@
                     return;
                 }
                 e.preventDefault();
+                this.handleStylusEraserButton(e); // NEW: Check eraser button
                 this.draw(e);
                 this.updateEraserPosition(e);
             }
@@ -1006,6 +1049,7 @@
                     return;
                 }
                 e.preventDefault();
+                this.handleStylusEraserButton(e); // NEW: Check eraser button
                 this.stopDrawing();
             }
 
@@ -1015,6 +1059,7 @@
                     return;
                 }
                 e.preventDefault();
+                this.handleStylusEraserButton(e); // NEW: Check eraser button
                 this.startDrawing(e);
             }
 
@@ -1022,6 +1067,7 @@
                 if (!this.isStylusInput(e)) {
                     return;
                 }
+                this.handleStylusEraserButton(e); // NEW: Check eraser button
                 this.draw(e);
             }
 
@@ -1037,6 +1083,7 @@
                     clientY: touch.clientY,
                     pressure: touch.force || touch.pressure || 1.0
                 };
+                this.handleStylusEraserButton(mouseEvent); // NEW: Check eraser button
                 this.startDrawing(mouseEvent);
             }
 
@@ -1052,6 +1099,7 @@
                     clientY: touch.clientY,
                     pressure: touch.force || touch.pressure || 1.0
                 };
+                this.handleStylusEraserButton(mouseEvent); // NEW: Check eraser button
                 this.draw(mouseEvent);
                 this.updateEraserPositionTouch(touch);
             }
@@ -1220,6 +1268,9 @@
                 const startDrawing = (e) => {
                     if (!isStylusInput(e)) return;
                     
+                    // NEW: Handle stylus eraser button on second monitor
+                    this.handleStylusEraserButton(e);
+                    
                     isDrawing = true;
                     const pos = getMousePos(e);
                     const pressure = getStylusPressure(e);
@@ -1250,6 +1301,9 @@
                 const draw = (e) => {
                     if (!isDrawing || !isStylusInput(e)) return;
                     
+                    // NEW: Handle stylus eraser button on second monitor
+                    this.handleStylusEraserButton(e);
+                    
                     const pos = getMousePos(e);
                     const pressure = getStylusPressure(e);
                     const point = { x: pos.x, y: pos.y, pressure };
@@ -1273,6 +1327,9 @@
                 const stopDrawing = (e) => {
                     if (!isDrawing) return;
                     
+                    // NEW: Handle stylus eraser button on second monitor
+                    this.handleStylusEraserButton(e);
+                    
                     isDrawing = false;
                     points = [];
                     lastDrawnPoint = null;
@@ -1281,7 +1338,7 @@
                     this.saveState();
                 };
 
-                // Event listeners for second monitor
+                // Event listeners for second monitor with eraser button support
                 if (this.secondMonitorWindow.PointerEvent) {
                     secondCanvas.addEventListener('pointerdown', startDrawing, { passive: false });
                     secondCanvas.addEventListener('pointermove', draw, { passive: false });
@@ -1440,7 +1497,8 @@
                 this.eraserSizePicker.classList.remove('show');
             }
 
-            setTool(tool) {
+            // MODIFIED: Added skipUIUpdate parameter for stylus eraser button
+            setTool(tool, skipUIUpdate = false) {
                 this.currentTool = tool;
                 this.currentSize = this.toolSizes[tool];
                 
@@ -1449,8 +1507,11 @@
                 this.lastPoint = null;
                 this.lastDrawnPoint = null;
                 
-                document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
-                document.getElementById(tool + 'Tool').classList.add('active');
+                // Only update UI if not triggered by stylus eraser button
+                if (!skipUIUpdate) {
+                    document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+                    document.getElementById(tool + 'Tool').classList.add('active');
+                }
                 
                 if (tool === 'eraser') {
                     this.canvas.style.cursor = 'none';
