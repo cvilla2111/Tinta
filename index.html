@@ -19,7 +19,7 @@
             background-color: #ffffff;
             overflow: hidden;
             height: 100vh;
-            height: 100dvh; /* Use dynamic viewport height for mobile */
+            height: 100dvh;
             display: flex;
             flex-direction: column;
             position: fixed;
@@ -50,7 +50,7 @@
         }
 
         .eraser-cursor {
-            position: fixed; /* Changed from absolute to fixed for mobile */
+            position: fixed;
             border: 2px dashed #666;
             border-radius: 50%;
             pointer-events: none;
@@ -61,7 +61,7 @@
         }
 
         .size-picker {
-            position: fixed; /* Changed to fixed for better mobile positioning */
+            position: fixed;
             bottom: 80px;
             left: 50%;
             transform: translateX(-50%);
@@ -70,14 +70,16 @@
             border-radius: 20px;
             padding: 12px 16px;
             display: none;
-            gap: 8px;
+            gap: 6px;
             align-items: center;
             border: 1px solid rgba(0,0,0,0.1);
             box-shadow: 0 8px 32px rgba(0,0,0,0.15);
             z-index: 200;
             animation: fadeIn 0.2s ease;
-            max-width: 90vw; /* Prevent overflow on small screens */
+            max-width: 95vw;
             overflow-x: auto;
+            flex-wrap: wrap;
+            justify-content: center;
         }
 
         .size-picker.show {
@@ -90,8 +92,8 @@
         }
 
         .size-option {
-            width: 36px;
-            height: 36px;
+            width: 32px;
+            height: 32px;
             border: 2px solid rgba(0,0,0,0.2);
             border-radius: 50%;
             cursor: pointer;
@@ -101,7 +103,7 @@
             transition: all 0.2s ease;
             background: white;
             position: relative;
-            flex-shrink: 0; /* Prevent shrinking in flex container */
+            flex-shrink: 0;
         }
 
         .size-option:hover {
@@ -123,8 +125,8 @@
             background: white;
         }
 
-        /* Fountain pen sensitivity control */
-        .sensitivity-control {
+        /* Pressure sensitivity control */
+        .pressure-control {
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -132,52 +134,48 @@
             margin-left: 12px;
             padding-left: 12px;
             border-left: 1px solid rgba(0,0,0,0.2);
-            min-width: 60px; /* Ensure minimum width */
+            min-width: 60px;
+            flex-shrink: 0;
         }
 
-        .sensitivity-label {
+        .pressure-label {
             font-size: 10px;
             font-weight: 500;
             color: #333;
             white-space: nowrap;
         }
 
-        .sensitivity-slider {
-            -webkit-appearance: none;
-            width: 50px;
-            height: 3px;
-            border-radius: 2px;
+        .pressure-switch {
+            position: relative;
+            width: 40px;
+            height: 20px;
             background: #ddd;
-            outline: none;
+            border-radius: 10px;
             cursor: pointer;
+            transition: background 0.3s;
         }
 
-        .sensitivity-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 14px;
-            height: 14px;
+        .pressure-switch.active {
+            background: #4CAF50;
+        }
+
+        .pressure-switch-handle {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 16px;
+            height: 16px;
+            background: white;
             border-radius: 50%;
-            background: #333;
-            cursor: pointer;
-            transition: all 0.2s ease;
+            transition: transform 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
-        .sensitivity-slider::-webkit-slider-thumb:hover {
-            background: #000;
-            transform: scale(1.1);
+        .pressure-switch.active .pressure-switch-handle {
+            transform: translateX(20px);
         }
 
-        .sensitivity-slider::-moz-range-thumb {
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: #333;
-            cursor: pointer;
-            border: none;
-        }
-
-        .sensitivity-value {
+        .pressure-status {
             font-size: 9px;
             color: #666;
             min-width: 20px;
@@ -185,7 +183,7 @@
         }
 
         .toolbar {
-            position: fixed; /* Changed to fixed for consistent positioning */
+            position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
@@ -224,7 +222,7 @@
             justify-content: center;
             transition: all 0.2s ease;
             position: relative;
-            flex-shrink: 0; /* Prevent shrinking */
+            flex-shrink: 0;
         }
 
         .tool-btn:hover {
@@ -308,24 +306,34 @@
 
             .size-picker {
                 bottom: 60px;
-                gap: 6px;
+                gap: 4px;
                 padding: 10px 12px;
                 border-radius: 15px;
             }
 
             .size-option {
-                width: 32px;
-                height: 32px;
+                width: 28px;
+                height: 28px;
             }
 
-            .sensitivity-control {
+            .pressure-control {
                 margin-left: 8px;
                 padding-left: 8px;
                 min-width: 50px;
             }
 
-            .sensitivity-slider {
-                width: 40px;
+            .pressure-switch {
+                width: 35px;
+                height: 18px;
+            }
+
+            .pressure-switch-handle {
+                width: 14px;
+                height: 14px;
+            }
+
+            .pressure-switch.active .pressure-switch-handle {
+                transform: translateX(17px);
             }
 
             .divider {
@@ -333,7 +341,7 @@
             }
         }
 
-        /* Very small screens (Galaxy S7 and similar) */
+        /* Very small screens */
         @media (max-width: 480px) {
             body {
                 font-size: 14px;
@@ -348,13 +356,13 @@
                 gap: 4px;
                 padding: 4px 8px;
                 border-radius: 18px;
-                min-height: 44px; /* Ensure minimum touch target */
+                min-height: 44px;
             }
             
             .tool-btn {
                 width: 28px;
                 height: 28px;
-                min-width: 28px; /* Prevent shrinking */
+                min-width: 28px;
             }
             
             .color-picker {
@@ -365,44 +373,48 @@
 
             .size-picker {
                 bottom: 50px;
-                gap: 4px;
+                gap: 3px;
                 padding: 8px 10px;
                 border-radius: 12px;
                 max-width: 95vw;
             }
 
             .size-option {
-                width: 28px;
-                height: 28px;
-                min-width: 28px;
+                width: 24px;
+                height: 24px;
+                min-width: 24px;
             }
 
-            .sensitivity-control {
+            .pressure-control {
                 margin-left: 6px;
                 padding-left: 6px;
                 min-width: 40px;
                 gap: 4px;
             }
 
-            .sensitivity-slider {
-                width: 35px;
-                height: 2px;
+            .pressure-switch {
+                width: 30px;
+                height: 15px;
             }
 
-            .sensitivity-slider::-webkit-slider-thumb {
-                width: 12px;
-                height: 12px;
+            .pressure-switch-handle {
+                width: 11px;
+                height: 11px;
+            }
+
+            .pressure-switch.active .pressure-switch-handle {
+                transform: translateX(15px);
             }
 
             .divider {
                 height: 16px;
             }
 
-            .sensitivity-label {
+            .pressure-label {
                 font-size: 9px;
             }
 
-            .sensitivity-value {
+            .pressure-status {
                 font-size: 8px;
             }
         }
@@ -427,17 +439,27 @@
             }
 
             .size-option {
-                width: 24px;
-                height: 24px;
-                min-width: 24px;
+                width: 20px;
+                height: 20px;
+                min-width: 20px;
             }
 
-            .sensitivity-control {
+            .pressure-control {
                 min-width: 35px;
             }
 
-            .sensitivity-slider {
-                width: 30px;
+            .pressure-switch {
+                width: 25px;
+                height: 12px;
+            }
+
+            .pressure-switch-handle {
+                width: 8px;
+                height: 8px;
+            }
+
+            .pressure-switch.active .pressure-switch-handle {
+                transform: translateX(13px);
             }
         }
 
@@ -487,6 +509,20 @@
             touch-action: none;
             -webkit-touch-callout: none;
             -webkit-user-select: none;
+            -webkit-text-size-adjust: none;
+            -webkit-user-drag: none;
+        }
+
+        /* Disable context menu and touch hold */
+        * {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-user-drag: none;
+            -webkit-tap-highlight-color: transparent;
         }
     </style>
 <script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script></head>
@@ -496,8 +532,14 @@
         <div class="eraser-cursor" id="eraserCursor"></div>
         
         <div class="size-picker" id="penSizePicker">
+            <div class="size-option" data-size="0.5">
+                <div class="size-preview" style="width: 1px; height: 1px;"></div>
+            </div>
             <div class="size-option" data-size="1">
                 <div class="size-preview" style="width: 2px; height: 2px;"></div>
+            </div>
+            <div class="size-option" data-size="2">
+                <div class="size-preview" style="width: 3px; height: 3px;"></div>
             </div>
             <div class="size-option selected" data-size="3">
                 <div class="size-preview" style="width: 4px; height: 4px;"></div>
@@ -506,52 +548,27 @@
                 <div class="size-preview" style="width: 6px; height: 6px;"></div>
             </div>
             <div class="size-option" data-size="8">
-                <div class="size-preview" style="width: 10px; height: 10px;"></div>
-            </div>
-            <div class="size-option" data-size="12">
-                <div class="size-preview" style="width: 14px; height: 14px;"></div>
-            </div>
-            <div class="size-option" data-size="16">
-                <div class="size-preview" style="width: 18px; height: 18px;"></div>
-            </div>
-            <div class="size-option" data-size="20">
-                <div class="size-preview" style="width: 22px; height: 22px;"></div>
-            </div>
-        </div>
-
-        <div class="size-picker" id="fountainPenSizePicker">
-            <div class="size-option" data-size="2">
-                <div class="size-preview" style="width: 3px; height: 3px;"></div>
-            </div>
-            <div class="size-option selected" data-size="4">
-                <div class="size-preview" style="width: 5px; height: 5px;"></div>
-            </div>
-            <div class="size-option" data-size="6">
-                <div class="size-preview" style="width: 7px; height: 7px;"></div>
-            </div>
-            <div class="size-option" data-size="8">
                 <div class="size-preview" style="width: 9px; height: 9px;"></div>
             </div>
-            <div class="size-option" data-size="10">
-                <div class="size-preview" style="width: 11px; height: 11px;"></div>
+            <div class="size-option" data-size="12">
+                <div class="size-preview" style="width: 12px; height: 12px;"></div>
             </div>
-            <div class="size-option" data-size="14">
+            <div class="size-option" data-size="16">
                 <div class="size-preview" style="width: 15px; height: 15px;"></div>
             </div>
-            <div class="size-option" data-size="18">
-                <div class="size-preview" style="width: 19px; height: 19px;"></div>
+            <div class="size-option" data-size="20">
+                <div class="size-preview" style="width: 18px; height: 18px;"></div>
+            </div>
+            <div class="size-option" data-size="25">
+                <div class="size-preview" style="width: 20px; height: 20px;"></div>
             </div>
             
-            <div class="sensitivity-control">
-                <div class="sensitivity-label">Sensitivity</div>
-                <input type="range" 
-                       class="sensitivity-slider" 
-                       id="sensitivitySlider"
-                       min="1" 
-                       max="10" 
-                       value="5" 
-                       step="1">
-                <div class="sensitivity-value" id="sensitivityValue">5</div>
+            <div class="pressure-control">
+                <div class="pressure-label">Pressure</div>
+                <div class="pressure-switch" id="pressureSwitch">
+                    <div class="pressure-switch-handle"></div>
+                </div>
+                <div class="pressure-status" id="pressureStatus">Off</div>
             </div>
         </div>
 
@@ -559,23 +576,32 @@
             <div class="size-option" data-size="5">
                 <div class="size-preview" style="width: 4px; height: 4px;"></div>
             </div>
-            <div class="size-option" data-size="10">
+            <div class="size-option" data-size="8">
+                <div class="size-preview" style="width: 6px; height: 6px;"></div>
+            </div>
+            <div class="size-option" data-size="12">
                 <div class="size-preview" style="width: 8px; height: 8px;"></div>
             </div>
-            <div class="size-option" data-size="15">
-                <div class="size-preview" style="width: 12px; height: 12px;"></div>
+            <div class="size-option" data-size="16">
+                <div class="size-preview" style="width: 10px; height: 10px;"></div>
             </div>
             <div class="size-option selected" data-size="20">
-                <div class="size-preview" style="width: 16px; height: 16px;"></div>
+                <div class="size-preview" style="width: 12px; height: 12px;"></div>
+            </div>
+            <div class="size-option" data-size="25">
+                <div class="size-preview" style="width: 14px; height: 14px;"></div>
             </div>
             <div class="size-option" data-size="30">
-                <div class="size-preview" style="width: 20px; height: 20px;"></div>
+                <div class="size-preview" style="width: 16px; height: 16px;"></div>
             </div>
             <div class="size-option" data-size="40">
-                <div class="size-preview" style="width: 24px; height: 24px;"></div>
+                <div class="size-preview" style="width: 18px; height: 18px;"></div>
             </div>
             <div class="size-option" data-size="50">
-                <div class="size-preview" style="width: 28px; height: 28px;"></div>
+                <div class="size-preview" style="width: 20px; height: 20px;"></div>
+            </div>
+            <div class="size-option" data-size="60">
+                <div class="size-preview" style="width: 22px; height: 22px;"></div>
             </div>
         </div>
         
@@ -585,16 +611,6 @@
                     <button class="tool-btn active" id="penTool" title="Pen">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"></path>
-                        </svg>
-                    </button>
-                    
-                    <button class="tool-btn" id="fountainPenTool" title="Fountain Pen">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2c-1.1 0-2 .9-2 2v1.5c0 .28.22.5.5.5h3c.28 0 .5-.22.5-.5V4c0-1.1-.9-2-2-2z"></path>
-                            <path d="M11 6v2c0 .55.45 1 1 1s1-.45 1-1V6h-2z"></path>
-                            <path d="M10.5 9l-.7 2.1c-.1.3-.3.5-.6.6L7 12.5c-.4.1-.7.5-.7.9 0 .6.4 1.1 1 1.1.2 0 .4-.1.6-.2l2.3-.8c.3-.1.5-.3.6-.6L12 10l1.2 3.4c.1.3.3.5.6.6l2.3.8c.2.1.4.2.6.2.6 0 1-.5 1-1.1 0-.4-.3-.8-.7-.9l-2.2-.8c-.3-.1-.5-.3-.6-.6L13.5 9h-3z"></path>
-                            <circle cx="12" cy="17" r="1.5"></circle>
-                            <path d="M11 19v2.5c0 .28.22.5.5.5h1c.28 0 .5-.22.5-.5V19h-2z"></path>
                         </svg>
                     </button>
                     
@@ -640,39 +656,37 @@
                 this.ctx = this.canvas.getContext('2d');
                 this.eraserCursor = document.getElementById('eraserCursor');
                 this.penSizePicker = document.getElementById('penSizePicker');
-                this.fountainPenSizePicker = document.getElementById('fountainPenSizePicker');
                 this.eraserSizePicker = document.getElementById('eraserSizePicker');
                 this.isDrawing = false;
                 this.currentTool = 'pen';
                 this.currentColor = '#000000';
                 this.currentSize = 3;
+                this.pressureSensitive = false;
                 
                 // Smooth drawing for pen
                 this.penPoints = [];
                 
-                // Fountain pen properties - simple like Google Canvas
+                // Pressure sensitivity properties
                 this.lastPoint = null;
                 this.lastTime = 0;
                 this.currentPressure = 1.0;
-                this.fountainPenSensitivity = 5;
                 
                 // Separate size memory for each tool
                 this.toolSizes = {
                     pen: 3,
-                    fountainPen: 4,
                     eraser: 20
                 };
                 
                 this.history = [];
                 this.historyStep = -1;
                 this.penClickTimeout = null;
-                this.fountainPenClickTimeout = null;
                 this.eraserClickTimeout = null;
                 this.secondMonitorWindow = null;
                 
                 this.setupCanvas();
                 this.setupEventListeners();
                 this.saveState();
+                this.disableContextMenu();
             }
 
             setupCanvas() {
@@ -698,6 +712,85 @@
                 this.ctx.imageSmoothingQuality = 'high';
             }
 
+            // Disable all context menus and touch-and-hold
+            disableContextMenu() {
+                // Disable context menu
+                document.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    return false;
+                });
+                
+                // Disable touch and hold context menu
+                document.addEventListener('touchstart', (e) => {
+                    if (e.touches.length > 1) {
+                        e.preventDefault();
+                    }
+                }, { passive: false });
+                
+                document.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                }, { passive: false });
+                
+                document.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                }, { passive: false });
+                
+                // Disable drag and drop
+                document.addEventListener('dragstart', (e) => {
+                    e.preventDefault();
+                    return false;
+                });
+                
+                // Disable selection
+                document.addEventListener('selectstart', (e) => {
+                    e.preventDefault();
+                    return false;
+                });
+            }
+
+            // Check if input is from stylus
+            isStylusInput(e) {
+                // For PointerEvent (modern browsers)
+                if (e.pointerType !== undefined) {
+                    return e.pointerType === 'pen';
+                }
+                
+                // For TouchEvent - check if it has pressure or other stylus properties
+                if (e.touches && e.touches.length > 0) {
+                    const touch = e.touches[0];
+                    return touch.force !== undefined || 
+                           touch.radiusX !== undefined || 
+                           touch.pressure !== undefined ||
+                           touch.altitudeAngle !== undefined ||
+                           touch.azimuthAngle !== undefined;
+                }
+                
+                return false;
+            }
+
+            // Get pressure from stylus input
+            getStylusPressure(e) {
+                if (!this.pressureSensitive) return 1.0;
+                
+                // For PointerEvent
+                if (e.pressure !== undefined) {
+                    return Math.max(0.1, e.pressure);
+                }
+                
+                // For TouchEvent
+                if (e.touches && e.touches.length > 0) {
+                    const touch = e.touches[0];
+                    if (touch.force !== undefined) {
+                        return Math.max(0.1, touch.force);
+                    }
+                    if (touch.pressure !== undefined) {
+                        return Math.max(0.1, touch.pressure);
+                    }
+                }
+                
+                return 1.0;
+            }
+
             // Smooth curve drawing for pen
             drawSmoothPenCurve(points) {
                 if (points.length < 2) return;
@@ -721,35 +814,22 @@
                 this.ctx.stroke();
             }
 
-            // Simple fountain pen like Google Canvas
-            calculateFountainPenPressure(currentPoint, currentTime) {
-                if (!this.lastPoint || !this.lastTime) {
-                    this.lastPoint = currentPoint;
-                    this.lastTime = currentTime;
-                    return 1.0;
+            // Draw pressure-sensitive pen curve
+            drawPressureSensitiveCurve(points) {
+                if (points.length < 2) return;
+                
+                for (let i = 1; i < points.length; i++) {
+                    const prevPoint = points[i - 1];
+                    const currPoint = points[i];
+                    
+                    // Use the pressure for this point
+                    this.ctx.lineWidth = currPoint.pressure * this.currentSize;
+                    
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(prevPoint.x, prevPoint.y);
+                    this.ctx.lineTo(currPoint.x, currPoint.y);
+                    this.ctx.stroke();
                 }
-                
-                const distance = Math.sqrt(
-                    Math.pow(currentPoint.x - this.lastPoint.x, 2) + 
-                    Math.pow(currentPoint.y - this.lastPoint.y, 2)
-                );
-                const timeDelta = Math.max(currentTime - this.lastTime, 1);
-                const velocity = distance / timeDelta;
-                
-                const minVelocity = 0.1;
-                const maxVelocity = 3.0;
-                const normalizedVelocity = Math.min(Math.max(velocity, minVelocity), maxVelocity);
-                
-                const basePressure = 1.5 - (normalizedVelocity / maxVelocity);
-                const sensitivityFactor = this.fountainPenSensitivity / 5.0;
-                let pressure = basePressure * sensitivityFactor;
-                
-                this.currentPressure = this.currentPressure * 0.7 + pressure * 0.3;
-                
-                this.lastPoint = currentPoint;
-                this.lastTime = currentTime;
-                
-                return Math.max(0.3, Math.min(2.0, this.currentPressure));
             }
 
             setupEventListeners() {
@@ -764,21 +844,6 @@
                         this.penClickTimeout = setTimeout(() => {
                             this.setTool('pen');
                             this.penClickTimeout = null;
-                        }, 250);
-                    }
-                });
-
-                // Fountain pen button with double-click detection
-                const fountainPenBtn = document.getElementById('fountainPenTool');
-                fountainPenBtn.addEventListener('click', (e) => {
-                    if (this.fountainPenClickTimeout) {
-                        clearTimeout(this.fountainPenClickTimeout);
-                        this.fountainPenClickTimeout = null;
-                        this.toggleFountainPenSizePicker();
-                    } else {
-                        this.fountainPenClickTimeout = setTimeout(() => {
-                            this.setTool('fountainPen');
-                            this.fountainPenClickTimeout = null;
                         }, 250);
                     }
                 });
@@ -798,13 +863,14 @@
                     }
                 });
                 
-                // Sensitivity slider
-                const sensitivitySlider = document.getElementById('sensitivitySlider');
-                const sensitivityValue = document.getElementById('sensitivityValue');
+                // Pressure switch
+                const pressureSwitch = document.getElementById('pressureSwitch');
+                const pressureStatus = document.getElementById('pressureStatus');
                 
-                sensitivitySlider.addEventListener('input', (e) => {
-                    this.fountainPenSensitivity = parseInt(e.target.value);
-                    sensitivityValue.textContent = this.fountainPenSensitivity;
+                pressureSwitch.addEventListener('click', () => {
+                    this.pressureSensitive = !this.pressureSensitive;
+                    pressureSwitch.classList.toggle('active', this.pressureSensitive);
+                    pressureStatus.textContent = this.pressureSensitive ? 'On' : 'Off';
                 });
                 
                 // Second monitor button
@@ -812,7 +878,6 @@
                 
                 // Size pickers
                 this.setupPenSizePicker();
-                this.setupFountainPenSizePicker();
                 this.setupEraserSizePicker();
                 
                 // Controls
@@ -824,51 +889,31 @@
                 document.getElementById('undoBtn').addEventListener('click', () => this.undo());
                 document.getElementById('clearBtn').addEventListener('click', () => this.clear());
                 
-                // Canvas events
-                this.canvas.addEventListener('mousedown', (e) => this.startDrawing(e));
-                this.canvas.addEventListener('mousemove', (e) => this.draw(e));
-                this.canvas.addEventListener('mouseup', () => this.stopDrawing());
-                this.canvas.addEventListener('mouseout', () => this.stopDrawing());
-                
-                this.canvas.addEventListener('mousemove', (e) => this.updateEraserPosition(e));
-                
-                // Touch events with proper mobile handling
-                this.canvas.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    const touch = e.touches[0];
-                    const mouseEvent = new MouseEvent('mousedown', {
-                        clientX: touch.clientX,
-                        clientY: touch.clientY
-                    });
-                    this.canvas.dispatchEvent(mouseEvent);
-                });
-                
-                this.canvas.addEventListener('touchmove', (e) => {
-                    e.preventDefault();
-                    const touch = e.touches[0];
-                    const mouseEvent = new MouseEvent('mousemove', {
-                        clientX: touch.clientX,
-                        clientY: touch.clientY
-                    });
-                    this.canvas.dispatchEvent(mouseEvent);
+                // Use Pointer Events for better stylus detection
+                if (window.PointerEvent) {
+                    this.canvas.addEventListener('pointerdown', (e) => this.handlePointerStart(e));
+                    this.canvas.addEventListener('pointermove', (e) => this.handlePointerMove(e));
+                    this.canvas.addEventListener('pointerup', (e) => this.handlePointerEnd(e));
+                    this.canvas.addEventListener('pointerout', (e) => this.handlePointerEnd(e));
+                } else {
+                    // Fallback to touch/mouse events
+                    this.canvas.addEventListener('mousedown', (e) => this.handleMouseStart(e));
+                    this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+                    this.canvas.addEventListener('mouseup', () => this.stopDrawing());
+                    this.canvas.addEventListener('mouseout', () => this.stopDrawing());
                     
-                    // Update eraser cursor for touch
-                    this.updateEraserPositionTouch(touch);
-                });
+                    this.canvas.addEventListener('touchstart', (e) => this.handleTouchStart(e));
+                    this.canvas.addEventListener('touchmove', (e) => this.handleTouchMove(e));
+                    this.canvas.addEventListener('touchend', () => this.stopDrawing());
+                }
                 
-                this.canvas.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                    const mouseEvent = new MouseEvent('mouseup', {});
-                    this.canvas.dispatchEvent(mouseEvent);
-                });
+                // Mouse move for eraser cursor (non-drawing)
+                this.canvas.addEventListener('mousemove', (e) => this.updateEraserPosition(e));
                 
                 // Click outside to close size pickers
                 document.addEventListener('click', (e) => {
                     if (!this.penSizePicker.contains(e.target) && !document.getElementById('penTool').contains(e.target)) {
                         this.hidePenSizePicker();
-                    }
-                    if (!this.fountainPenSizePicker.contains(e.target) && !document.getElementById('fountainPenTool').contains(e.target)) {
-                        this.hideFountainPenSizePicker();
                     }
                     if (!this.eraserSizePicker.contains(e.target) && !document.getElementById('eraserTool').contains(e.target)) {
                         this.hideEraserSizePicker();
@@ -889,6 +934,76 @@
                         document.getElementById('secondMonitorBtn').classList.remove('active');
                     }
                 }, 1000);
+            }
+
+            // Pointer Event handlers (modern stylus detection)
+            handlePointerStart(e) {
+                if (!this.isStylusInput(e)) {
+                    e.preventDefault();
+                    return;
+                }
+                this.startDrawing(e);
+            }
+
+            handlePointerMove(e) {
+                if (!this.isStylusInput(e)) {
+                    e.preventDefault();
+                    return;
+                }
+                this.draw(e);
+                this.updateEraserPosition(e);
+            }
+
+            handlePointerEnd(e) {
+                if (!this.isStylusInput(e)) {
+                    e.preventDefault();
+                    return;
+                }
+                this.stopDrawing();
+            }
+
+            // Mouse Event handlers (check for stylus properties)
+            handleMouseStart(e) {
+                if (!this.isStylusInput(e)) {
+                    e.preventDefault();
+                    return;
+                }
+                this.startDrawing(e);
+            }
+
+            handleMouseMove(e) {
+                if (!this.isStylusInput(e)) {
+                    return; // Allow mouse move for eraser cursor, but no drawing
+                }
+                this.draw(e);
+            }
+
+            // Touch Event handlers (check for stylus properties)
+            handleTouchStart(e) {
+                e.preventDefault();
+                if (!this.isStylusInput(e)) {
+                    return;
+                }
+                const touch = e.touches[0];
+                const mouseEvent = new MouseEvent('mousedown', {
+                    clientX: touch.clientX,
+                    clientY: touch.clientY
+                });
+                this.startDrawing(mouseEvent);
+            }
+
+            handleTouchMove(e) {
+                e.preventDefault();
+                if (!this.isStylusInput(e)) {
+                    return;
+                }
+                const touch = e.touches[0];
+                const mouseEvent = new MouseEvent('mousemove', {
+                    clientX: touch.clientX,
+                    clientY: touch.clientY
+                });
+                this.draw(mouseEvent);
+                this.updateEraserPositionTouch(touch);
             }
 
             openSecondMonitor() {
@@ -971,10 +1086,42 @@
                 
                 // Set up drawing with same logic as main canvas
                 let isDrawing = false;
-                let lastPoint = null;
-                let lastTime = 0;
-                let currentPressure = 1.0;
                 let penPoints = [];
+                
+                const isStylusInput = (e) => {
+                    if (e.pointerType !== undefined) {
+                        return e.pointerType === 'pen';
+                    }
+                    if (e.touches && e.touches.length > 0) {
+                        const touch = e.touches[0];
+                        return touch.force !== undefined || 
+                               touch.radiusX !== undefined || 
+                               touch.pressure !== undefined ||
+                               touch.altitudeAngle !== undefined ||
+                               touch.azimuthAngle !== undefined;
+                    }
+                    return false;
+                };
+
+                const getStylusPressure = (e) => {
+                    if (!this.pressureSensitive) return 1.0;
+                    
+                    if (e.pressure !== undefined) {
+                        return Math.max(0.1, e.pressure);
+                    }
+                    
+                    if (e.touches && e.touches.length > 0) {
+                        const touch = e.touches[0];
+                        if (touch.force !== undefined) {
+                            return Math.max(0.1, touch.force);
+                        }
+                        if (touch.pressure !== undefined) {
+                            return Math.max(0.1, touch.pressure);
+                        }
+                    }
+                    
+                    return 1.0;
+                };
                 
                 const getMousePos = (e) => {
                     const rect = secondCanvas.getBoundingClientRect();
@@ -1009,56 +1156,31 @@
                     secondCtx.stroke();
                 };
 
-                const calculateFountainPenPressure = (currentPoint, currentTime) => {
-                    if (!lastPoint || !lastTime) {
-                        lastPoint = currentPoint;
-                        lastTime = currentTime;
-                        return 1.0;
-                    }
+                const drawPressureSensitiveCurve = (points) => {
+                    if (points.length < 2) return;
                     
-                    const distance = Math.sqrt(
-                        Math.pow(currentPoint.x - lastPoint.x, 2) + 
-                        Math.pow(currentPoint.y - lastPoint.y, 2)
-                    );
-                    const timeDelta = Math.max(currentTime - lastTime, 1);
-                    const velocity = distance / timeDelta;
-                    
-                    const minVelocity = 0.1;
-                    const maxVelocity = 3.0;
-                    const normalizedVelocity = Math.min(Math.max(velocity, minVelocity), maxVelocity);
-                    
-                    const basePressure = 1.5 - (normalizedVelocity / maxVelocity);
-                    const sensitivityFactor = this.fountainPenSensitivity / 5.0;
-                    let pressure = basePressure * sensitivityFactor;
-                    
-                    currentPressure = currentPressure * 0.7 + pressure * 0.3;
-                    
-                    lastPoint = currentPoint;
-                    lastTime = currentTime;
-                    
-                    return Math.max(0.3, Math.min(2.0, currentPressure));
-                };
-
-                const updateEraserCursor = () => {
-                    if (this.currentTool === 'eraser' && isDrawing) {
-                        const rect = secondCanvas.getBoundingClientRect();
-                        const scale = rect.width / secondCanvas.width;
-                        const size = this.currentSize * scale;
+                    for (let i = 1; i < points.length; i++) {
+                        const prevPoint = points[i - 1];
+                        const currPoint = points[i];
                         
-                        secondEraserCursor.style.width = size + 'px';
-                        secondEraserCursor.style.height = size + 'px';
-                        secondEraserCursor.style.display = 'block';
-                    } else {
-                        secondEraserCursor.style.display = 'none';
+                        secondCtx.lineWidth = currPoint.pressure * this.currentSize;
+                        
+                        secondCtx.beginPath();
+                        secondCtx.moveTo(prevPoint.x, prevPoint.y);
+                        secondCtx.lineTo(currPoint.x, currPoint.y);
+                        secondCtx.stroke();
                     }
                 };
 
                 const startDrawing = (e) => {
+                    if (!isStylusInput(e)) return;
+                    
                     isDrawing = true;
                     const pos = getMousePos(e);
+                    const pressure = getStylusPressure(e);
                     
                     if (this.currentTool === 'pen') {
-                        penPoints = [pos];
+                        penPoints = [{x: pos.x, y: pos.y, pressure: pressure}];
                     } else {
                         secondCtx.beginPath();
                         secondCtx.moveTo(pos.x, pos.y);
@@ -1066,39 +1188,28 @@
                     
                     if (this.currentTool === 'eraser') {
                         secondCtx.globalCompositeOperation = 'destination-out';
-                        updateEraserCursor();
                     } else {
                         secondCtx.globalCompositeOperation = 'source-over';
                         secondCtx.strokeStyle = this.currentColor;
                     }
                     
-                    if (this.currentTool === 'fountainPen') {
-                        secondCtx.lineWidth = this.currentSize;
-                        secondCtx.globalAlpha = 0.8;
-                        secondCtx.shadowColor = this.currentColor;
-                        secondCtx.shadowBlur = 0.5;
-                        lastPoint = null;
-                        lastTime = 0;
-                        currentPressure = 1.0;
-                    } else {
-                        secondCtx.lineWidth = this.currentSize;
-                        secondCtx.globalAlpha = 1.0;
-                        secondCtx.shadowBlur = 0;
-                    }
+                    secondCtx.lineWidth = this.currentSize * pressure;
+                    secondCtx.globalAlpha = 1.0;
+                    secondCtx.shadowBlur = 0;
 
                     this.syncFromSecondMonitor(secondCanvas);
                 };
 
                 const draw = (e) => {
-                    if (!isDrawing) return;
+                    if (!isDrawing || !isStylusInput(e)) return;
                     
                     const pos = getMousePos(e);
-                    const currentTime = Date.now();
+                    const pressure = getStylusPressure(e);
                     
                     if (this.currentTool === 'pen') {
-                        penPoints.push(pos);
+                        penPoints.push({x: pos.x, y: pos.y, pressure: pressure});
                         
-                        if (penPoints.length >= 3) {
+                        if (penPoints.length >= 2) {
                             const tempCanvas = document.createElement('canvas');
                             tempCanvas.width = secondCanvas.width;
                             tempCanvas.height = secondCanvas.height;
@@ -1107,83 +1218,84 @@
                             
                             secondCtx.clearRect(0, 0, secondCanvas.width, secondCanvas.height);
                             secondCtx.drawImage(tempCanvas, 0, 0);
-                            drawSmoothPenCurve(penPoints);
+                            
+                            if (this.pressureSensitive) {
+                                drawPressureSensitiveCurve(penPoints);
+                            } else {
+                                secondCtx.lineWidth = this.currentSize;
+                                drawSmoothPenCurve(penPoints);
+                            }
                         }
-                    } else if (this.currentTool === 'fountainPen') {
-                        const pressure = calculateFountainPenPressure(pos, currentTime);
-                        secondCtx.lineWidth = this.currentSize * pressure;
-                        
-                        secondCtx.lineTo(pos.x, pos.y);
-                        secondCtx.stroke();
-                        secondCtx.beginPath();
-                        secondCtx.moveTo(pos.x, pos.y);
                     } else {
+                        secondCtx.lineWidth = this.currentSize * pressure;
                         secondCtx.lineTo(pos.x, pos.y);
                         secondCtx.stroke();
                         secondCtx.beginPath();
                         secondCtx.moveTo(pos.x, pos.y);
-                    }
-
-                    if (this.currentTool === 'eraser') {
-                        secondEraserCursor.style.left = e.clientX + 'px';
-                        secondEraserCursor.style.top = e.clientY + 'px';
                     }
 
                     this.syncFromSecondMonitor(secondCanvas);
                 };
 
-                const stopDrawing = () => {
-                    if (isDrawing) {
-                        isDrawing = false;
-                        
-                        if (this.currentTool === 'pen' && penPoints.length >= 2) {
+                const stopDrawing = (e) => {
+                    if (!isDrawing) return;
+                    
+                    isDrawing = false;
+                    
+                    if (this.currentTool === 'pen' && penPoints.length >= 2) {
+                        if (this.pressureSensitive) {
+                            drawPressureSensitiveCurve(penPoints);
+                        } else {
+                            secondCtx.lineWidth = this.currentSize;
                             drawSmoothPenCurve(penPoints);
-                        } else if (this.currentTool !== 'pen') {
-                            secondCtx.beginPath();
                         }
-                        
-                        penPoints = [];
-                        lastPoint = null;
-                        lastTime = 0;
-                        currentPressure = 1.0;
-                        
-                        secondEraserCursor.style.display = 'none';
-                        this.syncFromSecondMonitor(secondCanvas);
-                        this.saveState();
+                    } else if (this.currentTool !== 'pen') {
+                        secondCtx.beginPath();
                     }
+                    
+                    penPoints = [];
+                    
+                    this.syncFromSecondMonitor(secondCanvas);
+                    this.saveState();
                 };
 
-                secondCanvas.addEventListener('mousedown', startDrawing);
-                secondCanvas.addEventListener('mousemove', draw);
-                secondCanvas.addEventListener('mouseup', stopDrawing);
-                secondCanvas.addEventListener('mouseout', stopDrawing);
-                
-                // Touch events
-                secondCanvas.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    const touch = e.touches[0];
-                    const mouseEvent = new MouseEvent('mousedown', {
-                        clientX: touch.clientX,
-                        clientY: touch.clientY
+                // Use Pointer Events if available
+                if (this.secondMonitorWindow.PointerEvent) {
+                    secondCanvas.addEventListener('pointerdown', startDrawing);
+                    secondCanvas.addEventListener('pointermove', draw);
+                    secondCanvas.addEventListener('pointerup', stopDrawing);
+                    secondCanvas.addEventListener('pointerout', stopDrawing);
+                } else {
+                    // Fallback
+                    secondCanvas.addEventListener('mousedown', startDrawing);
+                    secondCanvas.addEventListener('mousemove', draw);
+                    secondCanvas.addEventListener('mouseup', stopDrawing);
+                    secondCanvas.addEventListener('mouseout', stopDrawing);
+                    
+                    secondCanvas.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        if (!isStylusInput(e)) return;
+                        const touch = e.touches[0];
+                        const mouseEvent = new MouseEvent('pointerdown', {
+                            clientX: touch.clientX,
+                            clientY: touch.clientY
+                        });
+                        startDrawing(mouseEvent);
                     });
-                    secondCanvas.dispatchEvent(mouseEvent);
-                });
-                
-                secondCanvas.addEventListener('touchmove', (e) => {
-                    e.preventDefault();
-                    const touch = e.touches[0];
-                    const mouseEvent = new MouseEvent('mousemove', {
-                        clientX: touch.clientX,
-                        clientY: touch.clientY
+                    
+                    secondCanvas.addEventListener('touchmove', (e) => {
+                        e.preventDefault();
+                        if (!isStylusInput(e)) return;
+                        const touch = e.touches[0];
+                        const mouseEvent = new MouseEvent('pointermove', {
+                            clientX: touch.clientX,
+                            clientY: touch.clientY
+                        });
+                        draw(mouseEvent);
                     });
-                    secondCanvas.dispatchEvent(mouseEvent);
-                });
-                
-                secondCanvas.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                    const mouseEvent = new MouseEvent('mouseup', {});
-                    secondCanvas.dispatchEvent(mouseEvent);
-                });
+                    
+                    secondCanvas.addEventListener('touchend', stopDrawing);
+                }
                 
                 this.secondCanvas = secondCanvas;
                 this.secondCtx = secondCtx;
@@ -1215,20 +1327,9 @@
                 const sizeOptions = this.penSizePicker.querySelectorAll('.size-option');
                 sizeOptions.forEach(option => {
                     option.addEventListener('click', (e) => {
-                        const size = parseInt(e.currentTarget.dataset.size);
+                        const size = parseFloat(e.currentTarget.dataset.size);
                         this.selectPenSize(size);
                         this.hidePenSizePicker();
-                    });
-                });
-            }
-
-            setupFountainPenSizePicker() {
-                const sizeOptions = this.fountainPenSizePicker.querySelectorAll('.size-option');
-                sizeOptions.forEach(option => {
-                    option.addEventListener('click', (e) => {
-                        const size = parseInt(e.currentTarget.dataset.size);
-                        this.selectFountainPenSize(size);
-                        this.hideFountainPenSizePicker();
                     });
                 });
             }
@@ -1237,7 +1338,7 @@
                 const sizeOptions = this.eraserSizePicker.querySelectorAll('.size-option');
                 sizeOptions.forEach(option => {
                     option.addEventListener('click', (e) => {
-                        const size = parseInt(e.currentTarget.dataset.size);
+                        const size = parseFloat(e.currentTarget.dataset.size);
                         this.selectEraserSize(size);
                         this.hideEraserSizePicker();
                     });
@@ -1254,19 +1355,6 @@
                 this.penSizePicker.querySelector(`[data-size="${size}"]`).classList.add('selected');
                 
                 this.setTool('pen');
-                this.syncStateToSecondMonitor();
-            }
-
-            selectFountainPenSize(size) {
-                this.toolSizes.fountainPen = size;
-                this.currentSize = size;
-                
-                this.fountainPenSizePicker.querySelectorAll('.size-option').forEach(option => {
-                    option.classList.remove('selected');
-                });
-                this.fountainPenSizePicker.querySelector(`[data-size="${size}"]`).classList.add('selected');
-                
-                this.setTool('fountainPen');
                 this.syncStateToSecondMonitor();
             }
 
@@ -1302,14 +1390,6 @@
                 }
             }
 
-            toggleFountainPenSizePicker() {
-                if (this.fountainPenSizePicker.classList.contains('show')) {
-                    this.hideFountainPenSizePicker();
-                } else {
-                    this.showFountainPenSizePicker();
-                }
-            }
-
             toggleEraserSizePicker() {
                 if (this.eraserSizePicker.classList.contains('show')) {
                     this.hideEraserSizePicker();
@@ -1319,7 +1399,6 @@
             }
 
             showPenSizePicker() {
-                this.hideFountainPenSizePicker();
                 this.hideEraserSizePicker();
                 this.updatePickerSelection(this.penSizePicker, this.toolSizes.pen);
                 this.penSizePicker.classList.add('show');
@@ -1329,20 +1408,8 @@
                 this.penSizePicker.classList.remove('show');
             }
 
-            showFountainPenSizePicker() {
-                this.hidePenSizePicker();
-                this.hideEraserSizePicker();
-                this.updatePickerSelection(this.fountainPenSizePicker, this.toolSizes.fountainPen);
-                this.fountainPenSizePicker.classList.add('show');
-            }
-
-            hideFountainPenSizePicker() {
-                this.fountainPenSizePicker.classList.remove('show');
-            }
-
             showEraserSizePicker() {
                 this.hidePenSizePicker();
-                this.hideFountainPenSizePicker();
                 this.updatePickerSelection(this.eraserSizePicker, this.toolSizes.eraser);
                 this.eraserSizePicker.classList.add('show');
             }
@@ -1372,7 +1439,6 @@
                 }
                 
                 this.hidePenSizePicker();
-                this.hideFountainPenSizePicker();
                 this.hideEraserSizePicker();
                 this.syncStateToSecondMonitor();
             }
@@ -1390,7 +1456,6 @@
 
             updateEraserPosition(e) {
                 if (this.currentTool === 'eraser' && this.isDrawing) {
-                    // Use viewport-relative positioning for better mobile compatibility
                     this.eraserCursor.style.left = e.clientX + 'px';
                     this.eraserCursor.style.top = e.clientY + 'px';
                 }
@@ -1398,7 +1463,6 @@
 
             updateEraserPositionTouch(touch) {
                 if (this.currentTool === 'eraser' && this.isDrawing) {
-                    // Use touch coordinates directly for mobile
                     this.eraserCursor.style.left = touch.clientX + 'px';
                     this.eraserCursor.style.top = touch.clientY + 'px';
                 }
@@ -1428,9 +1492,10 @@
             startDrawing(e) {
                 this.isDrawing = true;
                 const pos = this.getMousePos(e);
+                const pressure = this.getStylusPressure(e);
                 
                 if (this.currentTool === 'pen') {
-                    this.penPoints = [pos];
+                    this.penPoints = [{x: pos.x, y: pos.y, pressure: pressure}];
                 } else {
                     this.ctx.beginPath();
                     this.ctx.moveTo(pos.x, pos.y);
@@ -1446,19 +1511,9 @@
                     this.ctx.strokeStyle = this.currentColor;
                 }
                 
-                if (this.currentTool === 'fountainPen') {
-                    this.ctx.lineWidth = this.currentSize;
-                    this.ctx.globalAlpha = 0.8;
-                    this.ctx.shadowColor = this.currentColor;
-                    this.ctx.shadowBlur = 0.5;
-                    this.lastPoint = null;
-                    this.lastTime = 0;
-                    this.currentPressure = 1.0;
-                } else {
-                    this.ctx.lineWidth = this.currentSize;
-                    this.ctx.globalAlpha = 1.0;
-                    this.ctx.shadowBlur = 0;
-                }
+                this.ctx.lineWidth = this.currentSize * pressure;
+                this.ctx.globalAlpha = 1.0;
+                this.ctx.shadowBlur = 0;
 
                 this.syncToSecondMonitor();
             }
@@ -1467,26 +1522,25 @@
                 if (!this.isDrawing) return;
                 
                 const pos = this.getMousePos(e);
-                const currentTime = Date.now();
+                const pressure = this.getStylusPressure(e);
                 
                 if (this.currentTool === 'pen') {
-                    this.penPoints.push(pos);
+                    this.penPoints.push({x: pos.x, y: pos.y, pressure: pressure});
                     
-                    if (this.penPoints.length >= 3) {
+                    if (this.penPoints.length >= 2) {
                         const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
                         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
                         this.ctx.putImageData(imageData, 0, 0);
-                        this.drawSmoothPenCurve(this.penPoints);
+                        
+                        if (this.pressureSensitive) {
+                            this.drawPressureSensitiveCurve(this.penPoints);
+                        } else {
+                            this.ctx.lineWidth = this.currentSize;
+                            this.drawSmoothPenCurve(this.penPoints);
+                        }
                     }
-                } else if (this.currentTool === 'fountainPen') {
-                    const pressure = this.calculateFountainPenPressure(pos, currentTime);
-                    this.ctx.lineWidth = this.currentSize * pressure;
-                    
-                    this.ctx.lineTo(pos.x, pos.y);
-                    this.ctx.stroke();
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(pos.x, pos.y);
                 } else {
+                    this.ctx.lineWidth = this.currentSize * pressure;
                     this.ctx.lineTo(pos.x, pos.y);
                     this.ctx.stroke();
                     this.ctx.beginPath();
@@ -1505,7 +1559,12 @@
                     this.isDrawing = false;
                     
                     if (this.currentTool === 'pen' && this.penPoints.length >= 2) {
-                        this.drawSmoothPenCurve(this.penPoints);
+                        if (this.pressureSensitive) {
+                            this.drawPressureSensitiveCurve(this.penPoints);
+                        } else {
+                            this.ctx.lineWidth = this.currentSize;
+                            this.drawSmoothPenCurve(this.penPoints);
+                        }
                     } else if (this.currentTool !== 'pen') {
                         this.ctx.beginPath();
                     }
