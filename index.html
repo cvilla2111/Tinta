@@ -705,10 +705,28 @@
                 this.canvas.style.width = canvasWidth + 'px';
                 this.canvas.style.height = canvasHeight + 'px';
                 
+                // Enhanced canvas settings for smooth drawing
                 this.ctx.lineCap = 'round';
                 this.ctx.lineJoin = 'round';
                 this.ctx.imageSmoothingEnabled = true;
                 this.ctx.imageSmoothingQuality = 'high';
+                
+                // Set higher pixel density for better quality
+                const pixelRatio = window.devicePixelRatio || 1;
+                if (pixelRatio > 1) {
+                    const rect = this.canvas.getBoundingClientRect();
+                    this.canvas.width = rect.width * pixelRatio;
+                    this.canvas.height = rect.height * pixelRatio;
+                    this.ctx.scale(pixelRatio, pixelRatio);
+                    this.canvas.style.width = rect.width + 'px';
+                    this.canvas.style.height = rect.height + 'px';
+                    
+                    // Reapply settings after scaling
+                    this.ctx.lineCap = 'round';
+                    this.ctx.lineJoin = 'round';
+                    this.ctx.imageSmoothingEnabled = true;
+                    this.ctx.imageSmoothingQuality = 'high';
+                }
             }
 
             // Selective context menu prevention - only for canvas
@@ -761,45 +779,56 @@
                 return false;
             }
 
-            // Get pressure from stylus input
+            // Get pressure from stylus input (only for pen tool)
             getStylusPressure(e) {
-                if (!this.pressureSensitive) return 1.0;
+                // Only apply pressure to pen tool, not eraser
+                if (!this.pressureSensitive || this.currentTool !== 'pen') return 1.0;
                 
                 // For PointerEvent
                 if (e.pressure !== undefined) {
-                    return Math.max(0.1, e.pressure);
+                    return Math.max(0.1, Math.min(2.0, e.pressure));
                 }
                 
                 // For TouchEvent
                 if (e.touches && e.touches.length > 0) {
                     const touch = e.touches[0];
                     if (touch.force !== undefined) {
-                        return Math.max(0.1, touch.force);
+                        return Math.max(0.1, Math.min(2.0, touch.force));
                     }
                     if (touch.pressure !== undefined) {
-                        return Math.max(0.1, touch.pressure);
+                        return Math.max(0.1, Math.min(2.0, touch.pressure));
                     }
                 }
                 
                 return 1.0;
             }
 
-            // Smooth curve drawing for pen
+            // Enhanced smooth curve drawing for pen with better interpolation
             drawSmoothPenCurve(points) {
                 if (points.length < 2) return;
                 
                 this.ctx.beginPath();
+                
+                // Start with the first point
                 this.ctx.moveTo(points[0].x, points[0].y);
                 
-                for (let i = 1; i < points.length - 1; i++) {
-                    const currentPoint = points[i];
-                    const nextPoint = points[i + 1];
-                    const controlX = (currentPoint.x + nextPoint.x) / 2;
-                    const controlY = (currentPoint.y + nextPoint.y) / 2;
-                    this.ctx.quadraticCurveTo(currentPoint.x, currentPoint.y, controlX, controlY);
-                }
-                
-                if (points.length > 1) {
+                if (points.length === 2) {
+                    // For just two points, draw a straight line
+                    this.ctx.lineTo(points[1].x, points[1].y);
+                } else {
+                    // For multiple points, use smooth curves
+                    for (let i = 1; i < points.length - 1; i++) {
+                        const currentPoint = points[i];
+                        const nextPoint = points[i + 1];
+                        
+                        // Calculate control point for smoother curves
+                        const controlX = (currentPoint.x + nextPoint.x) / 2;
+                        const controlY = (currentPoint.y + nextPoint.y) / 2;
+                        
+                        this.ctx.quadraticCurveTo(currentPoint.x, currentPoint.y, controlX, controlY);
+                    }
+                    
+                    // Connect to the last point
                     const lastPoint = points[points.length - 1];
                     this.ctx.lineTo(lastPoint.x, lastPoint.y);
                 }
@@ -807,21 +836,40 @@
                 this.ctx.stroke();
             }
 
-            // Draw pressure-sensitive pen curve
+            // Enhanced pressure-sensitive pen curve with better smoothing
             drawPressureSensitiveCurve(points) {
                 if (points.length < 2) return;
                 
+                // Use smaller segments for smoother pressure transitions
                 for (let i = 1; i < points.length; i++) {
                     const prevPoint = points[i - 1];
                     const currPoint = points[i];
                     
-                    // Use the pressure for this point
-                    this.ctx.lineWidth = currPoint.pressure * this.currentSize;
+                    // Smooth pressure interpolation between points
+                    const pressureChange = Math.abs(currPoint.pressure - prevPoint.pressure);
+                    const segments = Math.max(1, Math.ceil(pressureChange * 10)); // More segments for big pressure changes
                     
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(prevPoint.x, prevPoint.y);
-                    this.ctx.lineTo(currPoint.x, currPoint.y);
-                    this.ctx.stroke();
+                    for (let s = 0; s < segments; s++) {
+                        const t = s / segments;
+                        const nextT = (s + 1) / segments;
+                        
+                        // Interpolate position
+                        const startX = prevPoint.x + (currPoint.x - prevPoint.x) * t;
+                        const startY = prevPoint.y + (currPoint.y - prevPoint.y) * t;
+                        const endX = prevPoint.x + (currPoint.x - prevPoint.x) * nextT;
+                        const endY = prevPoint.y + (currPoint.y - prevPoint.y) * nextT;
+                        
+                        // Interpolate pressure smoothly
+                        const pressure = prevPoint.pressure + (currPoint.pressure - prevPoint.pressure) * (t + nextT) / 2;
+                        
+                        // Apply pressure to line width
+                        this.ctx.lineWidth = pressure * this.currentSize;
+                        
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(startX, startY);
+                        this.ctx.lineTo(endX, endY);
+                        this.ctx.stroke();
+                    }
                 }
             }
 
@@ -1082,14 +1130,32 @@
                 secondCanvas.style.width = canvasWidth + 'px';
                 secondCanvas.style.height = canvasHeight + 'px';
                 
+                // Enhanced settings for second monitor too
                 secondCtx.lineCap = 'round';
                 secondCtx.lineJoin = 'round';
                 secondCtx.imageSmoothingEnabled = true;
                 secondCtx.imageSmoothingQuality = 'high';
                 
+                // Apply pixel ratio scaling for second monitor
+                const pixelRatio = this.secondMonitorWindow.devicePixelRatio || 1;
+                if (pixelRatio > 1) {
+                    const rect = secondCanvas.getBoundingClientRect();
+                    secondCanvas.width = rect.width * pixelRatio;
+                    secondCanvas.height = rect.height * pixelRatio;
+                    secondCtx.scale(pixelRatio, pixelRatio);
+                    secondCanvas.style.width = rect.width + 'px';
+                    secondCanvas.style.height = rect.height + 'px';
+                    
+                    // Reapply settings after scaling
+                    secondCtx.lineCap = 'round';
+                    secondCtx.lineJoin = 'round';
+                    secondCtx.imageSmoothingEnabled = true;
+                    secondCtx.imageSmoothingQuality = 'high';
+                }
+                
                 const img = new Image();
                 img.onload = () => {
-                    secondCtx.drawImage(img, 0, 0, secondCanvas.width, secondCanvas.height);
+                    secondCtx.drawImage(img, 0, 0, secondCanvas.width / pixelRatio, secondCanvas.height / pixelRatio);
                 };
                 img.src = canvasData;
                 
@@ -1113,19 +1179,20 @@
                 };
 
                 const getStylusPressure = (e) => {
-                    if (!this.pressureSensitive) return 1.0;
+                    // Only apply pressure to pen tool, not eraser
+                    if (!this.pressureSensitive || this.currentTool !== 'pen') return 1.0;
                     
                     if (e.pressure !== undefined) {
-                        return Math.max(0.1, e.pressure);
+                        return Math.max(0.1, Math.min(2.0, e.pressure));
                     }
                     
                     if (e.touches && e.touches.length > 0) {
                         const touch = e.touches[0];
                         if (touch.force !== undefined) {
-                            return Math.max(0.1, touch.force);
+                            return Math.max(0.1, Math.min(2.0, touch.force));
                         }
                         if (touch.pressure !== undefined) {
-                            return Math.max(0.1, touch.pressure);
+                            return Math.max(0.1, Math.min(2.0, touch.pressure));
                         }
                     }
                     
@@ -1134,8 +1201,8 @@
                 
                 const getMousePos = (e) => {
                     const rect = secondCanvas.getBoundingClientRect();
-                    const scaleX = secondCanvas.width / rect.width;
-                    const scaleY = secondCanvas.height / rect.height;
+                    const scaleX = (secondCanvas.width / pixelRatio) / rect.width;
+                    const scaleY = (secondCanvas.height / pixelRatio) / rect.height;
                     
                     return {
                         x: (e.clientX - rect.left) * scaleX,
@@ -1149,15 +1216,17 @@
                     secondCtx.beginPath();
                     secondCtx.moveTo(points[0].x, points[0].y);
                     
-                    for (let i = 1; i < points.length - 1; i++) {
-                        const currentPoint = points[i];
-                        const nextPoint = points[i + 1];
-                        const controlX = (currentPoint.x + nextPoint.x) / 2;
-                        const controlY = (currentPoint.y + nextPoint.y) / 2;
-                        secondCtx.quadraticCurveTo(currentPoint.x, currentPoint.y, controlX, controlY);
-                    }
-                    
-                    if (points.length > 1) {
+                    if (points.length === 2) {
+                        secondCtx.lineTo(points[1].x, points[1].y);
+                    } else {
+                        for (let i = 1; i < points.length - 1; i++) {
+                            const currentPoint = points[i];
+                            const nextPoint = points[i + 1];
+                            const controlX = (currentPoint.x + nextPoint.x) / 2;
+                            const controlY = (currentPoint.y + nextPoint.y) / 2;
+                            secondCtx.quadraticCurveTo(currentPoint.x, currentPoint.y, controlX, controlY);
+                        }
+                        
                         const lastPoint = points[points.length - 1];
                         secondCtx.lineTo(lastPoint.x, lastPoint.y);
                     }
@@ -1172,12 +1241,27 @@
                         const prevPoint = points[i - 1];
                         const currPoint = points[i];
                         
-                        secondCtx.lineWidth = currPoint.pressure * this.currentSize;
+                        const pressureChange = Math.abs(currPoint.pressure - prevPoint.pressure);
+                        const segments = Math.max(1, Math.ceil(pressureChange * 10));
                         
-                        secondCtx.beginPath();
-                        secondCtx.moveTo(prevPoint.x, prevPoint.y);
-                        secondCtx.lineTo(currPoint.x, currPoint.y);
-                        secondCtx.stroke();
+                        for (let s = 0; s < segments; s++) {
+                            const t = s / segments;
+                            const nextT = (s + 1) / segments;
+                            
+                            const startX = prevPoint.x + (currPoint.x - prevPoint.x) * t;
+                            const startY = prevPoint.y + (currPoint.y - prevPoint.y) * t;
+                            const endX = prevPoint.x + (currPoint.x - prevPoint.x) * nextT;
+                            const endY = prevPoint.y + (currPoint.y - prevPoint.y) * nextT;
+                            
+                            const pressure = prevPoint.pressure + (currPoint.pressure - prevPoint.pressure) * (t + nextT) / 2;
+                            
+                            secondCtx.lineWidth = pressure * this.currentSize;
+                            
+                            secondCtx.beginPath();
+                            secondCtx.moveTo(startX, startY);
+                            secondCtx.lineTo(endX, endY);
+                            secondCtx.stroke();
+                        }
                     }
                 };
 
@@ -1197,12 +1281,14 @@
                     
                     if (this.currentTool === 'eraser') {
                         secondCtx.globalCompositeOperation = 'destination-out';
+                        // Eraser always uses constant size (no pressure)
+                        secondCtx.lineWidth = this.currentSize;
                     } else {
                         secondCtx.globalCompositeOperation = 'source-over';
                         secondCtx.strokeStyle = this.currentColor;
+                        secondCtx.lineWidth = this.currentSize * pressure;
                     }
                     
-                    secondCtx.lineWidth = this.currentSize * pressure;
                     secondCtx.globalAlpha = 1.0;
                     secondCtx.shadowBlur = 0;
 
@@ -1236,7 +1322,8 @@
                             }
                         }
                     } else {
-                        secondCtx.lineWidth = this.currentSize * pressure;
+                        // Eraser: no pressure sensitivity
+                        secondCtx.lineWidth = this.currentSize;
                         secondCtx.lineTo(pos.x, pos.y);
                         secondCtx.stroke();
                         secondCtx.beginPath();
@@ -1323,7 +1410,7 @@
                 const img = new Image();
                 img.onload = () => {
                     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                    this.ctx.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
+                    this.ctx.drawImage(img, 0, 0, this.canvas.width / (window.devicePixelRatio || 1), this.canvas.height / (window.devicePixelRatio || 1));
                 };
                 img.src = imageData;
             }
@@ -1457,7 +1544,7 @@
             updateEraserCursor() {
                 if (this.currentTool === 'eraser' && this.isDrawing) {
                     const rect = this.canvas.getBoundingClientRect();
-                    const scale = rect.width / this.canvas.width;
+                    const scale = rect.width / (this.canvas.width / (window.devicePixelRatio || 1));
                     const size = this.currentSize * scale;
                     
                     this.eraserCursor.style.width = size + 'px';
@@ -1491,8 +1578,9 @@
 
             getMousePos(e) {
                 const rect = this.canvas.getBoundingClientRect();
-                const scaleX = this.canvas.width / rect.width;
-                const scaleY = this.canvas.height / rect.height;
+                const pixelRatio = window.devicePixelRatio || 1;
+                const scaleX = (this.canvas.width / pixelRatio) / rect.width;
+                const scaleY = (this.canvas.height / pixelRatio) / rect.height;
                 
                 return {
                     x: (e.clientX - rect.left) * scaleX,
@@ -1514,15 +1602,17 @@
                 
                 if (this.currentTool === 'eraser') {
                     this.ctx.globalCompositeOperation = 'destination-out';
+                    // Eraser always uses constant size (no pressure)
+                    this.ctx.lineWidth = this.currentSize;
                     this.showEraserCursor();
                     this.updateEraserCursor();
                     this.updateEraserPosition(e);
                 } else {
                     this.ctx.globalCompositeOperation = 'source-over';
                     this.ctx.strokeStyle = this.currentColor;
+                    this.ctx.lineWidth = this.currentSize * pressure;
                 }
                 
-                this.ctx.lineWidth = this.currentSize * pressure;
                 this.ctx.globalAlpha = 1.0;
                 this.ctx.shadowBlur = 0;
 
@@ -1551,7 +1641,8 @@
                         }
                     }
                 } else {
-                    this.ctx.lineWidth = this.currentSize * pressure;
+                    // Eraser: no pressure sensitivity
+                    this.ctx.lineWidth = this.currentSize;
                     this.ctx.lineTo(pos.x, pos.y);
                     this.ctx.stroke();
                     this.ctx.beginPath();
@@ -1597,8 +1688,9 @@
                 const imageData = this.canvas.toDataURL();
                 const img = new Image();
                 img.onload = () => {
+                    const pixelRatio = this.secondMonitorWindow.devicePixelRatio || 1;
                     this.secondCtx.clearRect(0, 0, this.secondCanvas.width, this.secondCanvas.height);
-                    this.secondCtx.drawImage(img, 0, 0, this.secondCanvas.width, this.secondCanvas.height);
+                    this.secondCtx.drawImage(img, 0, 0, this.secondCanvas.width / pixelRatio, this.secondCanvas.height / pixelRatio);
                 };
                 img.src = imageData;
             }
@@ -1617,7 +1709,8 @@
                     const img = new Image();
                     img.onload = () => {
                         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                        this.ctx.drawImage(img, 0, 0);
+                        const pixelRatio = window.devicePixelRatio || 1;
+                        this.ctx.drawImage(img, 0, 0, this.canvas.width / pixelRatio, this.canvas.height / pixelRatio);
                         this.syncToSecondMonitor();
                     };
                     img.src = this.history[this.historyStep];
