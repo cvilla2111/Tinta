@@ -1,4 +1,6 @@
-<!DOCTYPE html><html lang="en"><head><meta name="x-poe-datastore-behavior" content="local_only"><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
+<!DOCTYPE html>
+<html lang="en">
+<head>
     <meta name="x-poe-datastore-behavior" content="local_only">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
     <meta charset="UTF-8">
@@ -108,6 +110,66 @@
 
         .size-option.selected .size-preview {
             background: white;
+        }
+
+        /* Fountain pen sensitivity control */
+        .sensitivity-control {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            margin-left: 16px;
+            padding-left: 16px;
+            border-left: 1px solid rgba(0,0,0,0.2);
+        }
+
+        .sensitivity-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: #333;
+            white-space: nowrap;
+        }
+
+        .sensitivity-slider {
+            -webkit-appearance: none;
+            width: 80px;
+            height: 4px;
+            border-radius: 2px;
+            background: #ddd;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .sensitivity-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #333;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .sensitivity-slider::-webkit-slider-thumb:hover {
+            background: #000;
+            transform: scale(1.1);
+        }
+
+        .sensitivity-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #333;
+            cursor: pointer;
+            border: none;
+        }
+
+        .sensitivity-value {
+            font-size: 10px;
+            color: #666;
+            min-width: 30px;
+            text-align: center;
         }
 
         .toolbar {
@@ -231,6 +293,15 @@
                 width: 36px;
                 height: 36px;
             }
+
+            .sensitivity-control {
+                margin-left: 12px;
+                padding-left: 12px;
+            }
+
+            .sensitivity-slider {
+                width: 60px;
+            }
         }
 
         @media (max-width: 480px) {
@@ -259,6 +330,15 @@
                 width: 32px;
                 height: 32px;
             }
+
+            .sensitivity-control {
+                margin-left: 8px;
+                padding-left: 8px;
+            }
+
+            .sensitivity-slider {
+                width: 50px;
+            }
         }
 
         /* Prevent canvas from being affected by toolbar */
@@ -271,7 +351,7 @@
             pointer-events: none;
         }
     </style>
-<script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script><script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script></head>
+<script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script></head>
 <body>
     <div class="canvas-container">
         <canvas id="canvas"></canvas>
@@ -322,6 +402,18 @@
             </div>
             <div class="size-option" data-size="18">
                 <div class="size-preview" style="width: 19px; height: 19px;"></div>
+            </div>
+            
+            <div class="sensitivity-control">
+                <div class="sensitivity-label">Sensitivity</div>
+                <input type="range" 
+                       class="sensitivity-slider" 
+                       id="sensitivitySlider"
+                       min="1" 
+                       max="10" 
+                       value="5" 
+                       step="1">
+                <div class="sensitivity-value" id="sensitivityValue">5</div>
             </div>
         </div>
 
@@ -417,11 +509,14 @@
                 this.currentColor = '#000000';
                 this.currentSize = 3;
                 
-                // Fountain pen speed tracking
+                // Smooth drawing for pen
+                this.penPoints = [];
+                
+                // Fountain pen properties - simple like Google Canvas
                 this.lastPoint = null;
                 this.lastTime = 0;
-                this.velocityHistory = [];
-                this.velocityHistorySize = 2; // Even shorter for instant response
+                this.currentPressure = 1.0;
+                this.fountainPenSensitivity = 5; // 1-10 scale
                 
                 // Separate size memory for each tool
                 this.toolSizes = {
@@ -443,14 +538,12 @@
             }
 
             setupCanvas() {
-                // Full viewport width with 16:9 aspect ratio
                 const viewportWidth = window.innerWidth;
                 const viewportHeight = window.innerHeight;
                 
                 let canvasWidth = viewportWidth;
                 let canvasHeight = canvasWidth * (9 / 16);
                 
-                // If the calculated height exceeds viewport height, scale down
                 if (canvasHeight > viewportHeight) {
                     canvasHeight = viewportHeight;
                     canvasWidth = canvasHeight * (16 / 9);
@@ -464,65 +557,68 @@
                 this.ctx.lineCap = 'round';
                 this.ctx.lineJoin = 'round';
                 this.ctx.imageSmoothingEnabled = true;
+                this.ctx.imageSmoothingQuality = 'high';
             }
 
-            calculateVelocity(currentPoint, currentTime) {
+            // Smooth curve drawing for pen
+            drawSmoothPenCurve(points) {
+                if (points.length < 2) return;
+                
+                this.ctx.beginPath();
+                this.ctx.moveTo(points[0].x, points[0].y);
+                
+                for (let i = 1; i < points.length - 1; i++) {
+                    const currentPoint = points[i];
+                    const nextPoint = points[i + 1];
+                    const controlX = (currentPoint.x + nextPoint.x) / 2;
+                    const controlY = (currentPoint.y + nextPoint.y) / 2;
+                    this.ctx.quadraticCurveTo(currentPoint.x, currentPoint.y, controlX, controlY);
+                }
+                
+                if (points.length > 1) {
+                    const lastPoint = points[points.length - 1];
+                    this.ctx.lineTo(lastPoint.x, lastPoint.y);
+                }
+                
+                this.ctx.stroke();
+            }
+
+            // Simple fountain pen like Google Canvas
+            calculateFountainPenPressure(currentPoint, currentTime) {
                 if (!this.lastPoint || !this.lastTime) {
                     this.lastPoint = currentPoint;
                     this.lastTime = currentTime;
-                    return 0;
+                    return 1.0; // Start with full pressure
                 }
                 
                 const distance = Math.sqrt(
                     Math.pow(currentPoint.x - this.lastPoint.x, 2) + 
                     Math.pow(currentPoint.y - this.lastPoint.y, 2)
                 );
-                const timeDelta = currentTime - this.lastTime;
-                
-                if (timeDelta === 0) return 0;
-                
+                const timeDelta = Math.max(currentTime - this.lastTime, 1);
                 const velocity = distance / timeDelta;
                 
-                // Store velocity in history for minimal smoothing
-                this.velocityHistory.push(velocity);
-                if (this.velocityHistory.length > this.velocityHistorySize) {
-                    this.velocityHistory.shift();
-                }
+                // Simple pressure calculation based on velocity
+                // Slower = more pressure (thicker line)
+                // Faster = less pressure (thinner line)
+                const minVelocity = 0.1;
+                const maxVelocity = 3.0;
+                const normalizedVelocity = Math.min(Math.max(velocity, minVelocity), maxVelocity);
                 
-                // Simple average for minimal smoothing
-                const avgVelocity = this.velocityHistory.reduce((sum, v) => sum + v, 0) / this.velocityHistory.length;
+                // Inverse relationship: slow = high pressure, fast = low pressure
+                const basePressure = 1.5 - (normalizedVelocity / maxVelocity);
+                
+                // Apply sensitivity (1-10 scale)
+                const sensitivityFactor = this.fountainPenSensitivity / 5.0; // Convert to 0.2-2.0 range
+                let pressure = basePressure * sensitivityFactor;
+                
+                // Smooth pressure changes
+                this.currentPressure = this.currentPressure * 0.7 + pressure * 0.3;
                 
                 this.lastPoint = currentPoint;
                 this.lastTime = currentTime;
                 
-                return avgVelocity;
-            }
-
-            getFountainPenSize(velocity) {
-                // Base size from tool setting
-                const baseSize = this.currentSize;
-                
-                // ULTRA SENSITIVE speed thresholds for dramatic changes at ANY speed
-                const minSpeed = 0.01;  // Almost no movement
-                const maxSpeed = 0.8;   // Very low threshold for "fast"
-                const minSizeMultiplier = 4.0;   // Super thick when slow
-                const maxSizeMultiplier = 0.08;  // Super thin when fast
-                
-                // Clamp velocity to our ultra-sensitive range
-                const clampedVelocity = Math.max(minSpeed, Math.min(maxSpeed, velocity));
-                
-                // Use exponential curve for extreme sensitivity
-                const normalizedSpeed = (clampedVelocity - minSpeed) / (maxSpeed - minSpeed);
-                
-                // Super aggressive exponential curve
-                const exponentialSpeed = Math.pow(normalizedSpeed, 0.3); // 0.3 makes it EXTREMELY sensitive
-                
-                const sizeMultiplier = minSizeMultiplier - (exponentialSpeed * (minSizeMultiplier - maxSizeMultiplier));
-                
-                // Apply multiplier to base size
-                const finalSize = Math.max(0.2, baseSize * sizeMultiplier);
-                
-                return finalSize;
+                return Math.max(0.3, Math.min(2.0, this.currentPressure));
             }
 
             setupEventListeners() {
@@ -530,12 +626,10 @@
                 const penBtn = document.getElementById('penTool');
                 penBtn.addEventListener('click', (e) => {
                     if (this.penClickTimeout) {
-                        // Double click detected
                         clearTimeout(this.penClickTimeout);
                         this.penClickTimeout = null;
                         this.togglePenSizePicker();
                     } else {
-                        // Single click - set tool after delay to check for double click
                         this.penClickTimeout = setTimeout(() => {
                             this.setTool('pen');
                             this.penClickTimeout = null;
@@ -547,12 +641,10 @@
                 const fountainPenBtn = document.getElementById('fountainPenTool');
                 fountainPenBtn.addEventListener('click', (e) => {
                     if (this.fountainPenClickTimeout) {
-                        // Double click detected
                         clearTimeout(this.fountainPenClickTimeout);
                         this.fountainPenClickTimeout = null;
                         this.toggleFountainPenSizePicker();
                     } else {
-                        // Single click - set tool after delay to check for double click
                         this.fountainPenClickTimeout = setTimeout(() => {
                             this.setTool('fountainPen');
                             this.fountainPenClickTimeout = null;
@@ -564,17 +656,24 @@
                 const eraserBtn = document.getElementById('eraserTool');
                 eraserBtn.addEventListener('click', (e) => {
                     if (this.eraserClickTimeout) {
-                        // Double click detected
                         clearTimeout(this.eraserClickTimeout);
                         this.eraserClickTimeout = null;
                         this.toggleEraserSizePicker();
                     } else {
-                        // Single click - set tool after delay to check for double click
                         this.eraserClickTimeout = setTimeout(() => {
                             this.setTool('eraser');
                             this.eraserClickTimeout = null;
                         }, 250);
                     }
+                });
+                
+                // Sensitivity slider
+                const sensitivitySlider = document.getElementById('sensitivitySlider');
+                const sensitivityValue = document.getElementById('sensitivityValue');
+                
+                sensitivitySlider.addEventListener('input', (e) => {
+                    this.fountainPenSensitivity = parseInt(e.target.value);
+                    sensitivityValue.textContent = this.fountainPenSensitivity;
                 });
                 
                 // Second monitor button
@@ -600,7 +699,6 @@
                 this.canvas.addEventListener('mouseup', () => this.stopDrawing());
                 this.canvas.addEventListener('mouseout', () => this.stopDrawing());
                 
-                // Mouse move for eraser cursor - only update position, don't show
                 this.canvas.addEventListener('mousemove', (e) => this.updateEraserPosition(e));
                 
                 // Touch events
@@ -665,46 +763,18 @@
                     return;
                 }
 
-                // Get current canvas state
                 const canvasData = this.canvas.toDataURL();
                 
-                // Create the second monitor window HTML
                 const secondMonitorHTML = `
                 <!DOCTYPE html>
                 <html>
                 <head>
                     <title>Drawing Canvas - Second Monitor</title>
                     <style>
-                        * {
-                            margin: 0;
-                            padding: 0;
-                            box-sizing: border-box;
-                        }
-                        body {
-                            background: #000;
-                            overflow: hidden;
-                            height: 100vh;
-                            display: flex;
-                            justify-content: center;
-                            align-items: center;
-                            cursor: none;
-                        }
-                        #secondCanvas {
-                            background: white;
-                            max-width: 100vw;
-                            max-height: 100vh;
-                            cursor: none;
-                        }
-                        .eraser-cursor {
-                            position: absolute;
-                            border: 2px dashed #666;
-                            border-radius: 50%;
-                            pointer-events: none;
-                            display: none;
-                            z-index: 50;
-                            transform: translate(-50%, -50%);
-                            background: rgba(255,255,255,0.1);
-                        }
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        body { background: #000; overflow: hidden; height: 100vh; display: flex; justify-content: center; align-items: center; cursor: none; }
+                        #secondCanvas { background: white; max-width: 100vw; max-height: 100vh; cursor: none; }
+                        .eraser-cursor { position: absolute; border: 2px dashed #666; border-radius: 50%; pointer-events: none; display: none; z-index: 50; transform: translate(-50%, -50%); background: rgba(255,255,255,0.1); }
                     </style>
                 </head>
                 <body>
@@ -713,7 +783,6 @@
                 </body>
                 </html>`;
 
-                // Open new window on second monitor
                 this.secondMonitorWindow = window.open('', '_blank', 
                     'width=' + screen.availWidth + 
                     ',height=' + screen.availHeight + 
@@ -724,7 +793,6 @@
                     this.secondMonitorWindow.document.write(secondMonitorHTML);
                     this.secondMonitorWindow.document.close();
                     
-                    // Wait for window to load, then set up the canvas
                     this.secondMonitorWindow.addEventListener('load', () => {
                         this.setupSecondMonitorCanvas(canvasData);
                     });
@@ -740,11 +808,9 @@
                 const secondCtx = secondCanvas.getContext('2d');
                 const secondEraserCursor = this.secondMonitorWindow.document.getElementById('secondEraserCursor');
                 
-                // Set canvas size to fill the second monitor
                 const secondScreenWidth = this.secondMonitorWindow.screen.availWidth;
                 const secondScreenHeight = this.secondMonitorWindow.screen.availHeight;
                 
-                // Maintain 16:9 aspect ratio
                 let canvasWidth = secondScreenWidth;
                 let canvasHeight = canvasWidth * (9 / 16);
                 
@@ -761,19 +827,20 @@
                 secondCtx.lineCap = 'round';
                 secondCtx.lineJoin = 'round';
                 secondCtx.imageSmoothingEnabled = true;
+                secondCtx.imageSmoothingQuality = 'high';
                 
-                // Load current canvas content
                 const img = new Image();
                 img.onload = () => {
                     secondCtx.drawImage(img, 0, 0, secondCanvas.width, secondCanvas.height);
                 };
                 img.src = canvasData;
                 
-                // Set up drawing on second monitor
+                // Set up drawing with same logic as main canvas
                 let isDrawing = false;
                 let lastPoint = null;
                 let lastTime = 0;
-                let velocityHistory = [];
+                let currentPressure = 1.0;
+                let penPoints = [];
                 
                 const getMousePos = (e) => {
                     const rect = secondCanvas.getBoundingClientRect();
@@ -786,49 +853,56 @@
                     };
                 };
 
-                const calculateVelocity = (currentPoint, currentTime) => {
+                const drawSmoothPenCurve = (points) => {
+                    if (points.length < 2) return;
+                    
+                    secondCtx.beginPath();
+                    secondCtx.moveTo(points[0].x, points[0].y);
+                    
+                    for (let i = 1; i < points.length - 1; i++) {
+                        const currentPoint = points[i];
+                        const nextPoint = points[i + 1];
+                        const controlX = (currentPoint.x + nextPoint.x) / 2;
+                        const controlY = (currentPoint.y + nextPoint.y) / 2;
+                        secondCtx.quadraticCurveTo(currentPoint.x, currentPoint.y, controlX, controlY);
+                    }
+                    
+                    if (points.length > 1) {
+                        const lastPoint = points[points.length - 1];
+                        secondCtx.lineTo(lastPoint.x, lastPoint.y);
+                    }
+                    
+                    secondCtx.stroke();
+                };
+
+                const calculateFountainPenPressure = (currentPoint, currentTime) => {
                     if (!lastPoint || !lastTime) {
                         lastPoint = currentPoint;
                         lastTime = currentTime;
-                        return 0;
+                        return 1.0;
                     }
                     
                     const distance = Math.sqrt(
                         Math.pow(currentPoint.x - lastPoint.x, 2) + 
                         Math.pow(currentPoint.y - lastPoint.y, 2)
                     );
-                    const timeDelta = currentTime - lastTime;
-                    
-                    if (timeDelta === 0) return 0;
-                    
+                    const timeDelta = Math.max(currentTime - lastTime, 1);
                     const velocity = distance / timeDelta;
                     
-                    velocityHistory.push(velocity);
-                    if (velocityHistory.length > 2) {
-                        velocityHistory.shift();
-                    }
+                    const minVelocity = 0.1;
+                    const maxVelocity = 3.0;
+                    const normalizedVelocity = Math.min(Math.max(velocity, minVelocity), maxVelocity);
                     
-                    const avgVelocity = velocityHistory.reduce((sum, v) => sum + v, 0) / velocityHistory.length;
+                    const basePressure = 1.5 - (normalizedVelocity / maxVelocity);
+                    const sensitivityFactor = this.fountainPenSensitivity / 5.0;
+                    let pressure = basePressure * sensitivityFactor;
+                    
+                    currentPressure = currentPressure * 0.7 + pressure * 0.3;
                     
                     lastPoint = currentPoint;
                     lastTime = currentTime;
                     
-                    return avgVelocity;
-                };
-
-                const getFountainPenSize = (velocity) => {
-                    const baseSize = this.currentSize;
-                    const minSpeed = 0.01;
-                    const maxSpeed = 0.8;
-                    const minSizeMultiplier = 4.0;
-                    const maxSizeMultiplier = 0.08;
-                    
-                    const clampedVelocity = Math.max(minSpeed, Math.min(maxSpeed, velocity));
-                    const normalizedSpeed = (clampedVelocity - minSpeed) / (maxSpeed - minSpeed);
-                    const exponentialSpeed = Math.pow(normalizedSpeed, 0.3);
-                    const sizeMultiplier = minSizeMultiplier - (exponentialSpeed * (minSizeMultiplier - maxSizeMultiplier));
-                    
-                    return Math.max(0.2, baseSize * sizeMultiplier);
+                    return Math.max(0.3, Math.min(2.0, currentPressure));
                 };
 
                 const updateEraserCursor = () => {
@@ -848,10 +922,13 @@
                 const startDrawing = (e) => {
                     isDrawing = true;
                     const pos = getMousePos(e);
-                    const currentTime = Date.now();
                     
-                    secondCtx.beginPath();
-                    secondCtx.moveTo(pos.x, pos.y);
+                    if (this.currentTool === 'pen') {
+                        penPoints = [pos];
+                    } else {
+                        secondCtx.beginPath();
+                        secondCtx.moveTo(pos.x, pos.y);
+                    }
                     
                     if (this.currentTool === 'eraser') {
                         secondCtx.globalCompositeOperation = 'destination-out';
@@ -862,12 +939,13 @@
                     }
                     
                     if (this.currentTool === 'fountainPen') {
-                        const velocity = calculateVelocity(pos, currentTime);
-                        const dynamicSize = getFountainPenSize(velocity);
-                        secondCtx.lineWidth = dynamicSize;
-                        secondCtx.globalAlpha = 0.9;
+                        secondCtx.lineWidth = this.currentSize;
+                        secondCtx.globalAlpha = 0.8;
                         secondCtx.shadowColor = this.currentColor;
-                        secondCtx.shadowBlur = 1;
+                        secondCtx.shadowBlur = 0.5;
+                        lastPoint = null;
+                        lastTime = 0;
+                        currentPressure = 1.0;
                     } else {
                         secondCtx.lineWidth = this.currentSize;
                         secondCtx.globalAlpha = 1.0;
@@ -883,16 +961,34 @@
                     const pos = getMousePos(e);
                     const currentTime = Date.now();
                     
-                    if (this.currentTool === 'fountainPen') {
-                        const velocity = calculateVelocity(pos, currentTime);
-                        const dynamicSize = getFountainPenSize(velocity);
-                        secondCtx.lineWidth = dynamicSize;
+                    if (this.currentTool === 'pen') {
+                        penPoints.push(pos);
+                        
+                        if (penPoints.length >= 3) {
+                            const tempCanvas = document.createElement('canvas');
+                            tempCanvas.width = secondCanvas.width;
+                            tempCanvas.height = secondCanvas.height;
+                            const tempCtx = tempCanvas.getContext('2d');
+                            tempCtx.drawImage(secondCanvas, 0, 0);
+                            
+                            secondCtx.clearRect(0, 0, secondCanvas.width, secondCanvas.height);
+                            secondCtx.drawImage(tempCanvas, 0, 0);
+                            drawSmoothPenCurve(penPoints);
+                        }
+                    } else if (this.currentTool === 'fountainPen') {
+                        const pressure = calculateFountainPenPressure(pos, currentTime);
+                        secondCtx.lineWidth = this.currentSize * pressure;
+                        
+                        secondCtx.lineTo(pos.x, pos.y);
+                        secondCtx.stroke();
+                        secondCtx.beginPath();
+                        secondCtx.moveTo(pos.x, pos.y);
+                    } else {
+                        secondCtx.lineTo(pos.x, pos.y);
+                        secondCtx.stroke();
+                        secondCtx.beginPath();
+                        secondCtx.moveTo(pos.x, pos.y);
                     }
-                    
-                    secondCtx.lineTo(pos.x, pos.y);
-                    secondCtx.stroke();
-                    secondCtx.beginPath();
-                    secondCtx.moveTo(pos.x, pos.y);
 
                     if (this.currentTool === 'eraser') {
                         secondEraserCursor.style.left = e.clientX + 'px';
@@ -905,12 +1001,17 @@
                 const stopDrawing = () => {
                     if (isDrawing) {
                         isDrawing = false;
-                        secondCtx.beginPath();
                         
-                        // Reset velocity tracking
+                        if (this.currentTool === 'pen' && penPoints.length >= 2) {
+                            drawSmoothPenCurve(penPoints);
+                        } else if (this.currentTool !== 'pen') {
+                            secondCtx.beginPath();
+                        }
+                        
+                        penPoints = [];
                         lastPoint = null;
                         lastTime = 0;
-                        velocityHistory = [];
+                        currentPressure = 1.0;
                         
                         secondEraserCursor.style.display = 'none';
                         this.syncFromSecondMonitor(secondCanvas);
@@ -918,7 +1019,6 @@
                     }
                 };
 
-                // Mouse events
                 secondCanvas.addEventListener('mousedown', startDrawing);
                 secondCanvas.addEventListener('mousemove', draw);
                 secondCanvas.addEventListener('mouseup', stopDrawing);
@@ -951,24 +1051,19 @@
                     secondCanvas.dispatchEvent(mouseEvent);
                 });
                 
-                // Store references for syncing
                 this.secondCanvas = secondCanvas;
                 this.secondCtx = secondCtx;
                 this.secondEraserCursor = secondEraserCursor;
                 
-                // Focus the second monitor window and request fullscreen
                 this.secondMonitorWindow.focus();
                 if (secondCanvas.requestFullscreen) {
-                    secondCanvas.requestFullscreen().catch(() => {
-                        // Fullscreen failed, but that's okay
-                    });
+                    secondCanvas.requestFullscreen().catch(() => {});
                 }
             }
 
             syncFromSecondMonitor(secondCanvas) {
                 if (!secondCanvas) return;
                 
-                // Get the image data from second monitor and apply to main canvas
                 const imageData = secondCanvas.toDataURL();
                 const img = new Image();
                 img.onload = () => {
@@ -980,8 +1075,6 @@
 
             syncStateToSecondMonitor() {
                 if (!this.secondCanvas || !this.secondMonitorWindow || this.secondMonitorWindow.closed) return;
-                
-                // No automatic eraser cursor sync - it will only show during drawing
             }
 
             setupPenSizePicker() {
@@ -1018,11 +1111,9 @@
             }
 
             selectPenSize(size) {
-                // Store size only for pen tool
                 this.toolSizes.pen = size;
                 this.currentSize = size;
                 
-                // Update visual selection for pen
                 this.penSizePicker.querySelectorAll('.size-option').forEach(option => {
                     option.classList.remove('selected');
                 });
@@ -1033,11 +1124,9 @@
             }
 
             selectFountainPenSize(size) {
-                // Store size only for fountain pen tool
                 this.toolSizes.fountainPen = size;
                 this.currentSize = size;
                 
-                // Update visual selection for fountain pen
                 this.fountainPenSizePicker.querySelectorAll('.size-option').forEach(option => {
                     option.classList.remove('selected');
                 });
@@ -1048,11 +1137,9 @@
             }
 
             selectEraserSize(size) {
-                // Store size only for eraser tool
                 this.toolSizes.eraser = size;
                 this.currentSize = size;
                 
-                // Update visual selection for eraser
                 this.eraserSizePicker.querySelectorAll('.size-option').forEach(option => {
                     option.classList.remove('selected');
                 });
@@ -1132,14 +1219,12 @@
 
             setTool(tool) {
                 this.currentTool = tool;
-                
-                // Load the size for the selected tool
                 this.currentSize = this.toolSizes[tool];
                 
-                // Reset fountain pen velocity tracking when switching tools
+                this.penPoints = [];
                 this.lastPoint = null;
                 this.lastTime = 0;
-                this.velocityHistory = [];
+                this.currentPressure = 1.0;
                 
                 document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
                 document.getElementById(tool + 'Tool').classList.add('active');
@@ -1152,12 +1237,9 @@
                     this.hideEraserCursor();
                 }
                 
-                // Hide all size pickers when switching tools
                 this.hidePenSizePicker();
                 this.hideFountainPenSizePicker();
                 this.hideEraserSizePicker();
-                
-                // Sync state to second monitor
                 this.syncStateToSecondMonitor();
             }
 
@@ -1203,14 +1285,16 @@
             startDrawing(e) {
                 this.isDrawing = true;
                 const pos = this.getMousePos(e);
-                const currentTime = Date.now();
                 
-                this.ctx.beginPath();
-                this.ctx.moveTo(pos.x, pos.y);
+                if (this.currentTool === 'pen') {
+                    this.penPoints = [pos];
+                } else {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(pos.x, pos.y);
+                }
                 
                 if (this.currentTool === 'eraser') {
                     this.ctx.globalCompositeOperation = 'destination-out';
-                    // Show eraser cursor when drawing starts
                     this.showEraserCursor();
                     this.updateEraserCursor();
                     this.updateEraserPosition(e);
@@ -1220,19 +1304,20 @@
                 }
                 
                 if (this.currentTool === 'fountainPen') {
-                    const velocity = this.calculateVelocity(pos, currentTime);
-                    const dynamicSize = this.getFountainPenSize(velocity);
-                    this.ctx.lineWidth = dynamicSize;
-                    this.ctx.globalAlpha = 0.9;
+                    this.ctx.lineWidth = this.currentSize;
+                    this.ctx.globalAlpha = 0.8;
                     this.ctx.shadowColor = this.currentColor;
-                    this.ctx.shadowBlur = 1;
+                    this.ctx.shadowBlur = 0.5;
+                    // Reset pressure tracking
+                    this.lastPoint = null;
+                    this.lastTime = 0;
+                    this.currentPressure = 1.0;
                 } else {
                     this.ctx.lineWidth = this.currentSize;
                     this.ctx.globalAlpha = 1.0;
                     this.ctx.shadowBlur = 0;
                 }
 
-                // Sync to second monitor
                 this.syncToSecondMonitor();
             }
 
@@ -1242,42 +1327,54 @@
                 const pos = this.getMousePos(e);
                 const currentTime = Date.now();
                 
-                if (this.currentTool === 'fountainPen') {
-                    const velocity = this.calculateVelocity(pos, currentTime);
-                    const dynamicSize = this.getFountainPenSize(velocity);
-                    this.ctx.lineWidth = dynamicSize;
+                if (this.currentTool === 'pen') {
+                    this.penPoints.push(pos);
+                    
+                    if (this.penPoints.length >= 3) {
+                        const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+                        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                        this.ctx.putImageData(imageData, 0, 0);
+                        this.drawSmoothPenCurve(this.penPoints);
+                    }
+                } else if (this.currentTool === 'fountainPen') {
+                    const pressure = this.calculateFountainPenPressure(pos, currentTime);
+                    this.ctx.lineWidth = this.currentSize * pressure;
+                    
+                    this.ctx.lineTo(pos.x, pos.y);
+                    this.ctx.stroke();
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(pos.x, pos.y);
+                } else {
+                    this.ctx.lineTo(pos.x, pos.y);
+                    this.ctx.stroke();
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(pos.x, pos.y);
                 }
-                
-                this.ctx.lineTo(pos.x, pos.y);
-                this.ctx.stroke();
-                this.ctx.beginPath();
-                this.ctx.moveTo(pos.x, pos.y);
 
-                // Update eraser cursor position during drawing
                 if (this.currentTool === 'eraser') {
                     this.updateEraserPosition(e);
                 }
 
-                // Sync to second monitor
                 this.syncToSecondMonitor();
             }
 
             stopDrawing() {
                 if (this.isDrawing) {
                     this.isDrawing = false;
-                    this.ctx.beginPath();
                     
-                    // Reset fountain pen velocity tracking
+                    if (this.currentTool === 'pen' && this.penPoints.length >= 2) {
+                        this.drawSmoothPenCurve(this.penPoints);
+                    } else if (this.currentTool !== 'pen') {
+                        this.ctx.beginPath();
+                    }
+                    
+                    this.penPoints = [];
                     this.lastPoint = null;
                     this.lastTime = 0;
-                    this.velocityHistory = [];
+                    this.currentPressure = 1.0;
                     
-                    // Hide eraser cursor when drawing stops
                     this.hideEraserCursor();
-                    
                     this.saveState();
-                    
-                    // Final sync to second monitor
                     this.syncToSecondMonitor();
                 }
             }
@@ -1285,7 +1382,6 @@
             syncToSecondMonitor() {
                 if (!this.secondCanvas || !this.secondMonitorWindow || this.secondMonitorWindow.closed) return;
                 
-                // Get the current canvas data and update second monitor
                 const imageData = this.canvas.toDataURL();
                 const img = new Image();
                 img.onload = () => {
@@ -1323,17 +1419,14 @@
             }
         }
 
-        // Initialize the app
         document.addEventListener('DOMContentLoaded', () => {
             new DrawingApp();
         });
 
-        // PWA Service Worker registration
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('data:text/javascript;base64,c2VsZi5hZGRFdmVudExpc3RlbmVyKCJpbnN0YWxsIiwgZnVuY3Rpb24oZSkge2UucHJldmVudERlZmF1bHQoKTt9KQ==');
         }
     </script>
 
-
-
-</body></html>
+</body>
+</html>
