@@ -222,7 +222,7 @@
             </div>
 
             <!-- Bottom Toolbar -->
-            <div id="floatingToolbar" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center gap-4">
+            <div id="floatingToolbar" class="fixed bottom-2 left-1/2 transform -translate-x-1/2 z-50 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center gap-4">
                 <!-- Tool Selection -->
                 <button id="penTool" onclick="setTool('pen')" 
                         class="w-8 h-8 rounded-full flex items-center justify-center tool-active hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
@@ -321,7 +321,7 @@
             // Tool buttons with double-click detection
             document.getElementById('penTool').addEventListener('pointerdown', handleToolDoubleClick);
             document.getElementById('eraserTool').addEventListener('pointerdown', handleToolDoubleClick);
-            document.getElementById('colorTool').addEventListener('pointerdown', handleColorDoubleClick);
+            document.getElementById('colorTool').addEventListener('pointerdown', handleColorSingleClick);
         }
 
         // Brush size selection
@@ -378,21 +378,13 @@
             lastClickTarget = target;
         }
 
-        // Handle double-click on color button
-        function handleColorDoubleClick(e) {
+        // Handle single-click on color button
+        function handleColorSingleClick(e) {
             if (e.pointerType !== 'pen') return;
             
-            const currentTime = Date.now();
-            const target = e.currentTarget;
-            
-            if (lastClickTarget === target && (currentTime - lastClickTime) < DOUBLE_CLICK_DELAY) {
-                // Double-click detected
-                e.preventDefault();
-                showSettingsModal('color');
-            }
-            
-            lastClickTime = currentTime;
-            lastClickTarget = target;
+            // Immediately show color picker on single tap
+            e.preventDefault();
+            showSettingsModal('color');
         }
 
         // Modal management
