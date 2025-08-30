@@ -294,6 +294,10 @@
                         class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                     <i data-lucide="cast" class="w-4 h-4 text-gray-700 dark:text-gray-300"></i>
                 </button>
+                <button onclick="toggleFullscreen()" id="fullscreenBtn"
+                        class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <i data-lucide="maximize" class="w-4 h-4 text-gray-700 dark:text-gray-300"></i>
+                </button>
                 <button onclick="clearCanvas()" 
                         class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                     <i data-lucide="trash-2" class="w-4 h-4 text-red-600 dark:text-red-400"></i>
@@ -1760,6 +1764,70 @@
                 showCustomAlert('Error downloading the file.');
             }
         }
+
+        // Fullscreen functionality for Android devices
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                // Enter fullscreen
+                const element = document.documentElement;
+                if (element.requestFullscreen) {
+                    element.requestFullscreen();
+                } else if (element.webkitRequestFullscreen) {
+                    // Safari
+                    element.webkitRequestFullscreen();
+                } else if (element.msRequestFullscreen) {
+                    // IE/Edge
+                    element.msRequestFullscreen();
+                } else if (element.mozRequestFullScreen) {
+                    // Firefox
+                    element.mozRequestFullScreen();
+                }
+                
+                // Update icon to minimize
+                updateFullscreenIcon(true);
+            } else {
+                // Exit fullscreen
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                } else if (document.mozCancelFullScreen) {
+                    document.mozCancelFullScreen();
+                }
+                
+                // Update icon to maximize
+                updateFullscreenIcon(false);
+            }
+        }
+
+        function updateFullscreenIcon(isFullscreen) {
+            const icon = document.querySelector('#fullscreenBtn i');
+            if (icon) {
+                if (isFullscreen) {
+                    icon.setAttribute('data-lucide', 'minimize');
+                } else {
+                    icon.setAttribute('data-lucide', 'maximize');
+                }
+                // Reinitialize icons to update the display
+                initializeLucideIcons();
+            }
+        }
+
+        // Listen for fullscreen changes to update the icon
+        document.addEventListener('fullscreenchange', () => {
+            updateFullscreenIcon(!!document.fullscreenElement);
+        });
+        document.addEventListener('webkitfullscreenchange', () => {
+            updateFullscreenIcon(!!document.webkitFullscreenElement);
+        });
+        document.addEventListener('msfullscreenchange', () => {
+            updateFullscreenIcon(!!document.msFullscreenElement);
+        });
+        document.addEventListener('mozfullscreenchange', () => {
+            updateFullscreenIcon(!!document.mozFullScreenElement);
+        });
 
         // Custom dialog functions (replacing alert/confirm)
         function showCustomAlert(message) {
