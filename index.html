@@ -1,1692 +1,893 @@
-<!DOCTYPE html><html lang="en"><head><meta name="x-poe-datastore-behavior" content="local_only"><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
-    <meta name="x-poe-datastore-behavior" content="local_only">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
+<!DOCTYPE html>
+<html lang="en">
+<head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>Drawing PWA</title>
-    <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiRHJhd2luZyBQV0EiLCJzaG9ydF9uYW1lIjoiRHJhdyIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwic3RhcnRfdXJsIjoiLyIsInRoZW1lX2NvbG9yIjoiIzAwMDAwMCIsImJhY2tncm91bmRfY29sb3IiOiIjZmZmZmZmIn0=">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Drawing App - Stylus Only</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Roboto', Arial, sans-serif;
-            background-color: #ffffff;
-            overflow: hidden;
-            height: 100vh;
-            height: 100dvh;
-            display: flex;
-            flex-direction: column;
-            position: fixed;
-            width: 100%;
+        .drawing-canvas {
+            position: absolute;
             top: 0;
             left: 0;
-        }
-
-        .canvas-container {
-            flex: 1;
-            position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: #f8f8f8;
-            width: 100%;
-            height: 100%;
-        }
-
-        #canvas {
-            background: white;
             cursor: crosshair;
-            width: 100vw;
-            height: calc(100vw * 9 / 16);
-            max-height: 100vh;
-            max-height: 100dvh;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            z-index: 10;
+            touch-action: none; /* Prevent default touch behaviors */
         }
-
-        .eraser-cursor {
-            position: fixed;
-            border: 2px dashed #666;
-            border-radius: 50%;
-            pointer-events: none;
-            display: none;
-            z-index: 50;
-            transform: translate(-50%, -50%);
-            background: rgba(255,255,255,0.1);
-        }
-
-        .size-picker {
-            position: fixed;
-            bottom: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(255,255,255,0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 12px 16px;
-            display: none;
-            gap: 6px;
-            align-items: center;
-            border: 1px solid rgba(0,0,0,0.1);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-            z-index: 200;
-            animation: fadeIn 0.2s ease;
-            max-width: 95vw;
-            overflow-x: auto;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        .size-picker.show {
-            display: flex;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateX(-50%) translateY(10px); }
-            to { opacity: 1; transform: translateX(-50%) translateY(0); }
-        }
-
-        .size-option {
-            width: 32px;
-            height: 32px;
-            border: 2px solid rgba(0,0,0,0.2);
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-            background: white;
+        .pdf-page-container {
             position: relative;
-            flex-shrink: 0;
+            margin: 0 auto;
+        }
+        .tool-active {
+            background-color: #E5E7EB !important;
+            color: #374151 !important;
+        }
+        .dark .tool-active {
+            background-color: #4B5563 !important;
+            color: #F3F4F6 !important;
+        }
+        .selected-size {
+            background-color: #E5E7EB !important;
+        }
+        .dark .selected-size {
+            background-color: #4B5563 !important;
+        }
+        .selected-eraser-size {
+            background-color: #E5E7EB !important;
+        }
+        .dark .selected-eraser-size {
+            background-color: #4B5563 !important;
         }
 
-        .size-option:hover {
-            transform: scale(1.1);
-            border-color: #333;
-        }
 
-        .size-option.selected {
-            border-color: #000;
-            background: #000;
-        }
-
-        .size-preview {
-            background: #333;
-            border-radius: 50%;
-        }
-
-        .size-option.selected .size-preview {
-            background: white;
-        }
-
-        /* Pressure sensitivity control */
-        .pressure-control {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 6px;
-            margin-left: 12px;
-            padding-left: 12px;
-            border-left: 1px solid rgba(0,0,0,0.2);
-            min-width: 60px;
-            flex-shrink: 0;
-        }
-
-        .pressure-label {
-            font-size: 10px;
-            font-weight: 500;
-            color: #333;
-            white-space: nowrap;
-        }
-
-        .pressure-switch {
-            position: relative;
-            width: 40px;
-            height: 20px;
-            background: #ddd;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-
-        .pressure-switch.active {
-            background: #4CAF50;
-        }
-
-        .pressure-switch-handle {
-            position: absolute;
-            top: 2px;
-            left: 2px;
-            width: 16px;
-            height: 16px;
-            background: white;
-            border-radius: 50%;
-            transition: transform 0.3s;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-
-        .pressure-switch.active .pressure-switch-handle {
-            transform: translateX(20px);
-        }
-
-        .pressure-status {
-            font-size: 9px;
-            color: #666;
-            min-width: 20px;
-            text-align: center;
-        }
-
-        .toolbar {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            z-index: 100;
-            pointer-events: none;
-            padding: 12px;
-            display: flex;
-            justify-content: center;
-        }
-
-        .toolbar-pill {
-            background: rgba(255,255,255,0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 25px;
-            padding: 8px 12px;
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            border: 1px solid rgba(0,0,0,0.1);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-            pointer-events: auto;
-            max-width: 100%;
-            overflow-x: auto;
-        }
-
-        .tool-btn {
-            width: 36px;
-            height: 36px;
-            border: none;
-            border-radius: 50%;
-            background: rgba(0,0,0,0.05);
-            color: #333;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-            position: relative;
-            flex-shrink: 0;
-        }
-
-        .tool-btn:hover {
-            background: rgba(0,0,0,0.1);
-            transform: scale(1.05);
-        }
-
-        .tool-btn.active {
-            background: #000;
-            color: white;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        }
-
-        .color-picker {
-            width: 28px;
-            height: 28px;
-            border: none;
-            border-radius: 50%;
-            cursor: pointer;
-            background: #000;
-            border: 2px solid rgba(0,0,0,0.2);
-            overflow: hidden;
-            flex-shrink: 0;
-        }
-
-        .color-picker::-webkit-color-swatch {
-            border: none;
-            border-radius: 50%;
-        }
-
-        .color-picker::-webkit-color-swatch-wrapper {
-            padding: 0;
-            border: none;
-            border-radius: 50%;
-        }
-
-        .divider {
-            width: 1px;
-            height: 24px;
-            background: rgba(0,0,0,0.2);
-            flex-shrink: 0;
-        }
-
-        /* Second monitor styles */
-        .second-monitor-btn {
-            background: rgba(59, 130, 246, 0.1);
-            color: #2563eb;
-        }
-
-        .second-monitor-btn:hover {
-            background: rgba(59, 130, 246, 0.2);
-        }
-
-        .second-monitor-btn.active {
-            background: #2563eb;
-            color: white;
-        }
-
-        /* Mobile-specific adjustments */
-        @media (max-width: 768px) {
-            .toolbar {
-                bottom: 0;
-                padding: 8px;
-            }
-            
-            .toolbar-pill {
-                gap: 6px;
-                padding: 6px 10px;
-                border-radius: 20px;
-            }
-            
-            .tool-btn {
-                width: 32px;
-                height: 32px;
-            }
-            
-            .color-picker {
-                width: 24px;
-                height: 24px;
-            }
-
-            .size-picker {
-                bottom: 60px;
-                gap: 4px;
-                padding: 10px 12px;
-                border-radius: 15px;
-            }
-
-            .size-option {
-                width: 28px;
-                height: 28px;
-            }
-
-            .pressure-control {
-                margin-left: 8px;
-                padding-left: 8px;
-                min-width: 50px;
-            }
-
-            .pressure-switch {
-                width: 35px;
-                height: 18px;
-            }
-
-            .pressure-switch-handle {
-                width: 14px;
-                height: 14px;
-            }
-
-            .pressure-switch.active .pressure-switch-handle {
-                transform: translateX(17px);
-            }
-
-            .divider {
-                height: 20px;
-            }
-        }
-
-        /* Very small screens */
-        @media (max-width: 480px) {
-            body {
-                font-size: 14px;
-            }
-            
-            .toolbar {
-                bottom: 0;
-                padding: 6px;
-            }
-            
-            .toolbar-pill {
-                gap: 4px;
-                padding: 4px 8px;
-                border-radius: 18px;
-                min-height: 44px;
-            }
-            
-            .tool-btn {
-                width: 28px;
-                height: 28px;
-                min-width: 28px;
-            }
-            
-            .color-picker {
-                width: 20px;
-                height: 20px;
-                min-width: 20px;
-            }
-
-            .size-picker {
-                bottom: 50px;
-                gap: 3px;
-                padding: 8px 10px;
-                border-radius: 12px;
-                max-width: 95vw;
-            }
-
-            .size-option {
-                width: 24px;
-                height: 24px;
-                min-width: 24px;
-            }
-
-            .pressure-control {
-                margin-left: 6px;
-                padding-left: 6px;
-                min-width: 40px;
-                gap: 4px;
-            }
-
-            .pressure-switch {
-                width: 30px;
-                height: 15px;
-            }
-
-            .pressure-switch-handle {
-                width: 11px;
-                height: 11px;
-            }
-
-            .pressure-switch.active .pressure-switch-handle {
-                transform: translateX(15px);
-            }
-
-            .divider {
-                height: 16px;
-            }
-
-            .pressure-label {
-                font-size: 9px;
-            }
-
-            .pressure-status {
-                font-size: 8px;
-            }
-        }
-
-        /* Extra small screens */
-        @media (max-width: 360px) {
-            .toolbar-pill {
-                gap: 2px;
-                padding: 3px 6px;
-            }
-            
-            .tool-btn {
-                width: 24px;
-                height: 24px;
-                min-width: 24px;
-            }
-            
-            .color-picker {
-                width: 18px;
-                height: 18px;
-                min-width: 18px;
-            }
-
-            .size-option {
-                width: 20px;
-                height: 20px;
-                min-width: 20px;
-            }
-
-            .pressure-control {
-                min-width: 35px;
-            }
-
-            .pressure-switch {
-                width: 25px;
-                height: 12px;
-            }
-
-            .pressure-switch-handle {
-                width: 8px;
-                height: 8px;
-            }
-
-            .pressure-switch.active .pressure-switch-handle {
-                transform: translateX(13px);
-            }
-        }
-
-        /* Landscape orientation adjustments */
-        @media (orientation: landscape) and (max-height: 500px) {
-            .toolbar {
-                bottom: 0;
-                padding: 4px;
-            }
-            
-            .toolbar-pill {
-                padding: 3px 6px;
-            }
-            
-            .size-picker {
-                bottom: 40px;
-                padding: 6px 8px;
-            }
-        }
-
-        /* Prevent canvas from being affected by toolbar */
-        .canvas-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-
-        /* Selective touch prevention - only for canvas area */
-        #canvas {
-            touch-action: none;
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            -webkit-text-size-adjust: none;
-            -webkit-user-drag: none;
-        }
-
-        /* Allow interactions for toolbar and UI elements */
-        .toolbar,
-        .toolbar-pill,
-        .tool-btn,
-        .color-picker,
-        .size-picker,
-        .size-option,
-        .pressure-control,
-        .pressure-switch {
-            touch-action: manipulation;
-            -webkit-touch-callout: default;
-            -webkit-user-select: auto;
-            -webkit-tap-highlight-color: rgba(0,0,0,0.1);
-        }
-
-        /* Global settings for general interaction */
-        html {
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        body {
-            -webkit-user-select: none;
-            overscroll-behavior: none;
-        }
     </style>
-<script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script></head>
-<body>
-    <div class="canvas-container">
-        <canvas id="canvas"></canvas>
-        <div class="eraser-cursor" id="eraserCursor"></div>
-        
-        <div class="size-picker" id="penSizePicker">
-            <div class="size-option" data-size="0.5">
-                <div class="size-preview" style="width: 1px; height: 1px;"></div>
-            </div>
-            <div class="size-option" data-size="1">
-                <div class="size-preview" style="width: 2px; height: 2px;"></div>
-            </div>
-            <div class="size-option" data-size="2">
-                <div class="size-preview" style="width: 3px; height: 3px;"></div>
-            </div>
-            <div class="size-option selected" data-size="3">
-                <div class="size-preview" style="width: 4px; height: 4px;"></div>
-            </div>
-            <div class="size-option" data-size="5">
-                <div class="size-preview" style="width: 6px; height: 6px;"></div>
-            </div>
-            <div class="size-option" data-size="8">
-                <div class="size-preview" style="width: 9px; height: 9px;"></div>
-            </div>
-            <div class="size-option" data-size="12">
-                <div class="size-preview" style="width: 12px; height: 12px;"></div>
-            </div>
-            <div class="size-option" data-size="16">
-                <div class="size-preview" style="width: 15px; height: 15px;"></div>
-            </div>
-            <div class="size-option" data-size="20">
-                <div class="size-preview" style="width: 18px; height: 18px;"></div>
-            </div>
-            <div class="size-option" data-size="25">
-                <div class="size-preview" style="width: 20px; height: 20px;"></div>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-white dark:bg-gray-900 min-h-screen">
+
+
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">PDF Drawing App</h1>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Stylus input only - Microsoft Pen Protocol required</p>
             </div>
             
-            <div class="pressure-control">
-                <div class="pressure-label">Pressure</div>
-                <div class="pressure-switch" id="pressureSwitch">
-                    <div class="pressure-switch-handle"></div>
+            <!-- File Upload and Theme Toggle -->
+            <div class="flex flex-col sm:flex-row gap-3 items-center">
+                <!-- Theme Toggle -->
+                <div class="flex items-center gap-2">
+                    <i data-lucide="sun" class="w-4 h-4 text-gray-600 dark:text-gray-400"></i>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="themeToggle" class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-600"></div>
+                    </label>
+                    <i data-lucide="moon" class="w-4 h-4 text-gray-600 dark:text-gray-400"></i>
                 </div>
-                <div class="pressure-status" id="pressureStatus">Off</div>
+                
+                <div class="w-px h-6 bg-gray-300 dark:bg-gray-600 hidden sm:block"></div>
+                
+                <input type="file" id="pdfUpload" accept=".pdf" class="hidden">
+                <button onclick="document.getElementById('pdfUpload').click()" 
+                        class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-base">
+                    Upload PDF
+                </button>
+                <button id="downloadBtn" onclick="downloadPDF()" 
+                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-base" 
+                        disabled>
+                    Download
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div id="mainContent" class="max-w-7xl mx-auto">
+        <!-- Initial Upload Area -->
+        <div id="uploadArea" class="p-4">
+            <div class="text-center">
+                <div class="bg-gray-50 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-12">
+                    <div class="text-gray-400 dark:text-gray-500">
+                        <svg class="mx-auto h-12 w-12 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        <p class="text-lg font-medium">No PDF loaded</p>
+                        <p class="text-sm mt-2">Upload a PDF file to start drawing with your stylus</p>
+                        <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                            <p class="text-sm text-blue-700 dark:text-blue-300">
+                                <strong>Note:</strong> This app requires a Microsoft Pen Protocol stylus. Mouse and finger input are disabled for drawing.
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="size-picker" id="eraserSizePicker">
-            <div class="size-option" data-size="5">
-                <div class="size-preview" style="width: 4px; height: 4px;"></div>
-            </div>
-            <div class="size-option" data-size="8">
-                <div class="size-preview" style="width: 6px; height: 6px;"></div>
-            </div>
-            <div class="size-option" data-size="12">
-                <div class="size-preview" style="width: 8px; height: 8px;"></div>
-            </div>
-            <div class="size-option" data-size="16">
-                <div class="size-preview" style="width: 10px; height: 10px;"></div>
-            </div>
-            <div class="size-option selected" data-size="20">
-                <div class="size-preview" style="width: 12px; height: 12px;"></div>
-            </div>
-            <div class="size-option" data-size="25">
-                <div class="size-preview" style="width: 14px; height: 14px;"></div>
-            </div>
-            <div class="size-option" data-size="30">
-                <div class="size-preview" style="width: 16px; height: 16px;"></div>
-            </div>
-            <div class="size-option" data-size="40">
-                <div class="size-preview" style="width: 18px; height: 18px;"></div>
-            </div>
-            <div class="size-option" data-size="50">
-                <div class="size-preview" style="width: 20px; height: 20px;"></div>
-            </div>
-            <div class="size-option" data-size="60">
-                <div class="size-preview" style="width: 22px; height: 22px;"></div>
-            </div>
-        </div>
-        
-        <div class="canvas-overlay">
-            <div class="toolbar">
-                <div class="toolbar-pill">
-                    <button class="tool-btn active" id="penTool" title="Pen">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"></path>
-                        </svg>
-                    </button>
-                    
-                    <button class="tool-btn" id="eraserTool" title="Eraser">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M16.24 3.56l4.95 4.94c.78.79.78 2.05 0 2.84L12 20.53a4.008 4.008 0 0 1-5.66 0L2.81 17c-.78-.79-.78-2.05 0-2.84l10.6-10.6c.79-.78 2.05-.78 2.83 0M4.22 15.58l3.54 3.53c.78.79 2.04.79 2.83 0l3.53-3.53-6.36-6.36-3.54 3.36Z"></path>
-                        </svg>
-                    </button>
-                    
-                    <div class="divider"></div>
-                    
-                    <input type="color" class="color-picker" id="colorPicker" value="#000000" title="Color">
-                    
-                    <div class="divider"></div>
-                    
-                    <button class="tool-btn second-monitor-btn" id="secondMonitorBtn" title="Second Monitor">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M20 3H4c-1.11 0-2 .89-2 2v11c0 1.11.89 2 2 2h3l-1 1v2h12v-2l-1-1h3c1.11 0 2-.89 2-2V5c0-1.11-.89-2-2-2zm0 13H4V5h16v11z"></path>
-                            <path d="M13 7h6v2h-6zM13 10h6v2h-6z"></path>
-                        </svg>
-                    </button>
-                    
-                    <button class="tool-btn" id="undoBtn" title="Undo">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"></path>
-                        </svg>
-                    </button>
-                    
-                    <button class="tool-btn" id="clearBtn" title="Clear">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"></path>
-                        </svg>
-                    </button>
+        <!-- PDF Viewer Area (Full Screen) -->
+        <div id="pdfViewer" class="hidden fixed inset-0 bg-white">
+            <!-- Settings Modal -->
+            <div id="settingsModal" class="fixed bottom-20 left-1/2 transform -translate-x-1/2 z-40 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 px-6 py-3 hidden">
+                <!-- Pen Settings -->
+                <div id="penSettings" class="hidden">
+                    <!-- Brush Size Dots and Pressure Switch in Horizontal Pill -->
+                    <div class="flex items-center gap-2">
+                        <button onclick="setBrushSize(1)" class="brush-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-size="1">
+                            <div style="width: 1px; height: 1px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
+                        </button>
+                        <button onclick="setBrushSize(2)" class="brush-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-size="2">
+                            <div style="width: 2px; height: 2px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
+                        </button>
+                        <button onclick="setBrushSize(4)" class="brush-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-size="4">
+                            <div style="width: 4px; height: 4px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
+                        </button>
+                        <button onclick="setBrushSize(6)" class="brush-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors selected-size relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-size="6">
+                            <div style="width: 6px; height: 6px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
+                        </button>
+                        <button onclick="setBrushSize(8)" class="brush-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-size="8">
+                            <div style="width: 8px; height: 8px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
+                        </button>
+                        <button onclick="setBrushSize(11)" class="brush-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-size="11">
+                            <div style="width: 11px; height: 11px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
+                        </button>
+                        <button onclick="setBrushSize(14)" class="brush-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-size="14">
+                            <div style="width: 14px; height: 14px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
+                        </button>
+                        <button onclick="setBrushSize(16)" class="brush-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-size="16">
+                            <div style="width: 16px; height: 16px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
+                        </button>
+                        <button onclick="setBrushSize(18)" class="brush-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-size="18">
+                            <div style="width: 18px; height: 18px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
+                        </button>
+                        <button onclick="setBrushSize(20)" class="brush-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-size="20">
+                            <div style="width: 20px; height: 20px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
+                        </button>
+                        
+                        <div class="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-2"></div>
+                        
+                        <!-- Pressure Switch -->
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="zap" class="w-3 h-3 text-gray-600 dark:text-gray-400"></i>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="pressureSwitch" class="sr-only peer" checked>
+                                <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                            </label>
+                            <span class="text-xs text-gray-600 dark:text-gray-400">Pressure</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Color Settings -->
+                <div id="colorSettings" class="hidden flex items-center gap-4">
+                    <!-- Color Grid -->
+                    <div class="grid grid-cols-10 gap-1">
+                        <button onclick="setColor('#000000')" class="w-5 h-5 rounded-full bg-black border border-gray-300 hover:scale-110 transition-transform"></button>
+                        <button onclick="setColor('#FFFFFF')" class="w-5 h-5 rounded-full bg-white border border-gray-400 hover:scale-110 transition-transform"></button>
+                        <button onclick="setColor('#6B7280')" class="w-5 h-5 rounded-full bg-gray-500 border border-gray-300 hover:scale-110 transition-transform"></button>
+                        <button onclick="setColor('#EF4444')" class="w-5 h-5 rounded-full bg-red-500 border border-gray-300 hover:scale-110 transition-transform"></button>
+                        <button onclick="setColor('#F97316')" class="w-5 h-5 rounded-full bg-orange-500 border border-gray-300 hover:scale-110 transition-transform"></button>
+                        <button onclick="setColor('#F59E0B')" class="w-5 h-5 rounded-full bg-yellow-500 border border-gray-300 hover:scale-110 transition-transform"></button>
+                        <button onclick="setColor('#84CC16')" class="w-5 h-5 rounded-full bg-lime-500 border border-gray-300 hover:scale-110 transition-transform"></button>
+                        <button onclick="setColor('#10B981')" class="w-5 h-5 rounded-full bg-emerald-500 border border-gray-300 hover:scale-110 transition-transform"></button>
+                        <button onclick="setColor('#06B6D4')" class="w-5 h-5 rounded-full bg-cyan-500 border border-gray-300 hover:scale-110 transition-transform"></button>
+                        <button onclick="setColor('#3B82F6')" class="w-5 h-5 rounded-full bg-blue-500 border border-gray-300 hover:scale-110 transition-transform"></button>
+                        
+                        <button onclick="setColor('#6366F1')" class="w-5 h-5 rounded-full bg-indigo-500 border border-gray-300 hover:scale-110 transition-transform"></button>
+                        <button onclick="setColor('#8B5CF6')" class="w-5 h-5 rounded-full bg-violet-500 border border-gray-300 hover:scale-110 transition-transform"></button>
+                        <button onclick="setColor('#A855F7')" class="w-5 h-5 rounded-full bg-purple-500 border border-gray-300 hover:scale-110 transition-transform"></button>
+                        <button onclick="setColor('#EC4899')" class="w-5 h-5 rounded-full bg-pink-500 border border-gray-300 hover:scale-110 transition-transform"></button>
+                        <button onclick="setColor('#F43F5E')" class="w-5 h-5 rounded-full bg-rose-500 border border-gray-300 hover:scale-110 transition-transform"></button>
+                        <button onclick="setColor('#DC2626')" class="w-5 h-5 rounded-full bg-red-600 border border-gray-300 hover:scale-110 transition-transform"></button>
+                        <button onclick="setColor('#059669')" class="w-5 h-5 rounded-full bg-emerald-600 border border-gray-300 hover:scale-110 transition-transform"></button>
+                        <button onclick="setColor('#2563EB')" class="w-5 h-5 rounded-full bg-blue-600 border border-gray-300 hover:scale-110 transition-transform"></button>
+                        <button onclick="setColor('#7C3AED')" class="w-5 h-5 rounded-full bg-violet-600 border border-gray-300 hover:scale-110 transition-transform"></button>
+                        <button onclick="setColor('#92400E')" class="w-5 h-5 rounded-full bg-yellow-800 border border-gray-300 hover:scale-110 transition-transform"></button>
+                    </div>
+                </div>
+
+                <!-- Eraser Settings -->
+                <div id="eraserSettings" class="hidden">
+                    <!-- Eraser Size Dots in Horizontal Pill -->
+                    <div class="flex items-center gap-2">
+                        <button onclick="setEraserSize(4)" class="eraser-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-eraser-size="4">
+                            <div style="width: 4px; height: 4px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
+                        </button>
+                        <button onclick="setEraserSize(12)" class="eraser-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-eraser-size="12">
+                            <div style="width: 12px; height: 12px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
+                        </button>
+                        <button onclick="setEraserSize(25)" class="eraser-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors selected-eraser-size relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-eraser-size="25">
+                            <div style="width: 25px; height: 25px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
+                        </button>
+                        <button onclick="setEraserSize(35)" class="eraser-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-eraser-size="35">
+                            <div style="width: 35px; height: 35px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
+                        </button>
+                        <button onclick="setEraserSize(50)" class="eraser-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-eraser-size="50">
+                            <div style="width: 50px; height: 50px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
+                        </button>
+                    </div>
                 </div>
             </div>
+
+            <!-- Bottom Toolbar -->
+            <div id="floatingToolbar" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center gap-4">
+                <!-- Tool Selection -->
+                <button id="penTool" onclick="setTool('pen')" 
+                        class="w-8 h-8 rounded-full flex items-center justify-center tool-active hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <i data-lucide="pen-tool" class="w-4 h-4 text-gray-700 dark:text-gray-300"></i>
+                </button>
+                <button id="eraserTool" onclick="setTool('eraser')" 
+                        class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <i data-lucide="eraser" class="w-4 h-4 text-gray-700 dark:text-gray-300"></i>
+                </button>
+                <button id="colorTool" 
+                        class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <div id="colorIndicator" class="w-5 h-5 rounded-full border-2 border-gray-400 dark:border-gray-500" style="background-color: #000000;"></div>
+                </button>
+                
+                <div class="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
+                
+                <!-- Actions -->
+                <button onclick="clearCanvas()" 
+                        class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <i data-lucide="trash-2" class="w-4 h-4 text-red-600 dark:text-red-400"></i>
+                </button>
+            </div>
+
+            <!-- PDF Content -->
+            <div id="pdfContent" class="w-full h-full flex items-center justify-center overflow-auto"></div>
         </div>
     </div>
 
     <script>
-        class DrawingApp {
-            constructor() {
-                this.canvas = document.getElementById('canvas');
-                this.ctx = this.canvas.getContext('2d');
-                this.eraserCursor = document.getElementById('eraserCursor');
-                this.penSizePicker = document.getElementById('penSizePicker');
-                this.eraserSizePicker = document.getElementById('eraserSizePicker');
-                this.isDrawing = false;
-                this.currentTool = 'pen';
-                this.currentColor = '#000000';
-                this.currentSize = 3;
-                this.pressureSensitive = false;
-                
-                // Stylus eraser button state tracking
-                this.previousToolBeforeEraser = 'pen';
-                this.isUsingEraserButton = false;
-                
-                // Quadratic curve implementation with proper pressure handling
-                this.points = [];
-                this.lastPoint = null;
-                this.lastDrawnIndex = 0; // Track what we've already drawn
-                
-                // Optimized second monitor sync
-                this.syncPending = false;
-                this.lastSyncTime = 0;
-                this.syncThrottle = 32;
-                
-                // Separate size memory for each tool
-                this.toolSizes = {
-                    pen: 3,
-                    eraser: 20
-                };
-                
-                this.history = [];
-                this.historyStep = -1;
-                this.penClickTimeout = null;
-                this.eraserClickTimeout = null;
-                this.secondMonitorWindow = null;
-                this.secondMonitorSyncEnabled = true;
-                
-                this.setupCanvas();
-                this.setupEventListeners();
-                this.saveState();
-                this.disableCanvasContextMenu();
-            }
-
-            setupCanvas() {
-                const viewportWidth = window.innerWidth;
-                const viewportHeight = window.innerHeight;
-                
-                let canvasWidth = viewportWidth;
-                let canvasHeight = canvasWidth * (9 / 16);
-                
-                if (canvasHeight > viewportHeight) {
-                    canvasHeight = viewportHeight;
-                    canvasWidth = canvasHeight * (16 / 9);
-                }
-                
-                this.canvas.width = canvasWidth;
-                this.canvas.height = canvasHeight;
-                this.canvas.style.width = canvasWidth + 'px';
-                this.canvas.style.height = canvasHeight + 'px';
-                
-                // Optimized canvas settings
-                this.ctx.lineCap = 'round';
-                this.ctx.lineJoin = 'round';
-                this.ctx.imageSmoothingEnabled = true;
-                this.ctx.imageSmoothingQuality = 'high';
-                this.ctx.globalCompositeOperation = 'source-over';
-                this.ctx.shadowBlur = 0.5;
-                this.ctx.shadowColor = this.currentColor;
-            }
-
-            disableCanvasContextMenu() {
-                this.canvas.addEventListener('contextmenu', (e) => {
-                    e.preventDefault();
-                    return false;
-                });
-                
-                this.canvas.addEventListener('touchstart', (e) => {
-                    if (e.touches.length > 1) {
-                        e.preventDefault();
-                    }
-                }, { passive: false });
-                
-                const interactiveElements = document.querySelectorAll('.toolbar, .toolbar-pill, .tool-btn, .color-picker, .size-picker, .size-option, .pressure-switch');
-                interactiveElements.forEach(element => {
-                    element.addEventListener('touchstart', (e) => {
-                        e.stopPropagation();
-                    }, { passive: true });
-                    
-                    element.addEventListener('contextmenu', (e) => {
-                        e.stopPropagation();
-                    });
-                });
-            }
-
-            isStylusInput(e) {
-                if (e.pointerType !== undefined) {
-                    return e.pointerType === 'pen';
-                }
-                
-                if (e.touches && e.touches.length > 0) {
-                    const touch = e.touches[0];
-                    return touch.force !== undefined || 
-                           touch.radiusX !== undefined || 
-                           touch.pressure !== undefined ||
-                           touch.altitudeAngle !== undefined ||
-                           touch.azimuthAngle !== undefined;
-                }
-                
-                return false;
-            }
-
-            // NEW: Check if stylus eraser button is pressed
-            isStylusEraserPressed(e) {
-                // For pointer events
-                if (e.buttons !== undefined) {
-                    // Button 32 is the eraser button on stylus
-                    return (e.buttons & 32) === 32;
-                }
-                
-                // For some styluses, the eraser is detected as inverted stylus
-                if (e.pointerType === 'pen' && e.twist !== undefined) {
-                    // Some styluses report inverted state differently
-                    return e.getCoalescedEvents && e.getCoalescedEvents().some(event => 
-                        event.buttons && (event.buttons & 32) === 32
-                    );
-                }
-                
-                return false;
-            }
-
-            getStylusPressure(e) {
-                if (!this.pressureSensitive || this.currentTool !== 'pen') return 1.0;
-                
-                if (e.pressure !== undefined) {
-                    return Math.max(0.1, Math.min(2.0, e.pressure));
-                }
-                
-                if (e.touches && e.touches.length > 0) {
-                    const touch = e.touches[0];
-                    if (touch.force !== undefined) {
-                        return Math.max(0.1, Math.min(2.0, touch.force));
-                    }
-                    if (touch.pressure !== undefined) {
-                        return Math.max(0.1, Math.min(2.0, touch.pressure));
-                    }
-                }
-                
-                return 1.0;
-            }
-
-            // NEW: Handle stylus eraser button state
-            handleStylusEraserButton(e) {
-                if (!this.isStylusInput(e)) return;
-                
-                const eraserPressed = this.isStylusEraserPressed(e);
-                
-                if (eraserPressed && !this.isUsingEraserButton) {
-                    // Eraser button just pressed - switch to eraser
-                    this.isUsingEraserButton = true;
-                    this.previousToolBeforeEraser = this.currentTool;
-                    this.setTool('eraser', true); // true = don't update toolbar UI
-                } else if (!eraserPressed && this.isUsingEraserButton) {
-                    // Eraser button just released - switch back to previous tool
-                    this.isUsingEraserButton = false;
-                    this.setTool(this.previousToolBeforeEraser, true);
-                }
-            }
-
-            // Fixed quadratic implementation with proper pressure handling
-            drawQuadraticCurveSegment(point) {
-                if (this.points.length < 3) {
-                    // For first and second points, draw simple lines
-                    const pressure = this.pressureSensitive && this.currentTool === 'pen' ? point.pressure : 1.0;
-                    this.ctx.lineWidth = this.currentSize * pressure;
-                    this.ctx.lineTo(point.x, point.y);
-                    this.ctx.stroke();
-                    return;
-                }
-                
-                // Draw only new segments with proper pressure
-                const p1 = this.points[this.points.length - 3];
-                const p2 = this.points[this.points.length - 2];
-                
-                const cp = { x: p2.x, y: p2.y };
-                const end = {
-                    x: (p2.x + point.x) / 2,
-                    y: (p2.y + point.y) / 2
-                };
-                
-                // Set line width based on the control point's pressure
-                const pressure = this.pressureSensitive && this.currentTool === 'pen' ? p2.pressure : 1.0;
-                this.ctx.lineWidth = this.currentSize * pressure;
-                
-                // Begin new path for this segment only
-                this.ctx.beginPath();
-                this.ctx.moveTo(this.lastDrawnPoint.x, this.lastDrawnPoint.y);
-                this.ctx.quadraticCurveTo(cp.x, cp.y, end.x, end.y);
-                this.ctx.stroke();
-                
-                // Update last drawn point
-                this.lastDrawnPoint = { x: end.x, y: end.y };
-            }
-
-            // Throttled sync
-            queueSecondMonitorSync() {
-                if (!this.secondMonitorSyncEnabled || !this.secondCanvas || 
-                    !this.secondMonitorWindow || this.secondMonitorWindow.closed) return;
-                
-                const now = performance.now();
-                
-                if (now - this.lastSyncTime < this.syncThrottle) {
-                    if (!this.syncPending) {
-                        this.syncPending = true;
-                        setTimeout(() => {
-                            this.performSecondMonitorSync();
-                            this.syncPending = false;
-                        }, this.syncThrottle - (now - this.lastSyncTime));
-                    }
-                    return;
-                }
-                
-                this.performSecondMonitorSync();
-            }
-
-            performSecondMonitorSync() {
-                if (!this.secondCanvas || !this.secondMonitorWindow || this.secondMonitorWindow.closed) return;
-                
-                this.lastSyncTime = performance.now();
-                
-                if (typeof createImageBitmap !== 'undefined') {
-                    createImageBitmap(this.canvas).then(bitmap => {
-                        this.secondCtx.clearRect(0, 0, this.secondCanvas.width, this.secondCanvas.height);
-                        this.secondCtx.drawImage(bitmap, 0, 0, this.secondCanvas.width, this.secondCanvas.height);
-                        bitmap.close();
-                    }).catch(() => {
-                        this.regularSync();
-                    });
-                } else {
-                    this.regularSync();
-                }
-            }
-
-            regularSync() {
-                requestAnimationFrame(() => {
-                    this.secondCtx.clearRect(0, 0, this.secondCanvas.width, this.secondCanvas.height);
-                    this.secondCtx.drawImage(this.canvas, 0, 0, this.secondCanvas.width, this.secondCanvas.height);
-                });
-            }
-
-            setupEventListeners() {
-                // Pen button with double-click detection
-                const penBtn = document.getElementById('penTool');
-                penBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    if (this.penClickTimeout) {
-                        clearTimeout(this.penClickTimeout);
-                        this.penClickTimeout = null;
-                        this.togglePenSizePicker();
-                    } else {
-                        this.penClickTimeout = setTimeout(() => {
-                            this.setTool('pen');
-                            this.penClickTimeout = null;
-                        }, 250);
-                    }
-                });
-                
-                // Eraser button with double-click detection
-                const eraserBtn = document.getElementById('eraserTool');
-                eraserBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    if (this.eraserClickTimeout) {
-                        clearTimeout(this.eraserClickTimeout);
-                        this.eraserClickTimeout = null;
-                        this.toggleEraserSizePicker();
-                    } else {
-                        this.eraserClickTimeout = setTimeout(() => {
-                            this.setTool('eraser');
-                            this.eraserClickTimeout = null;
-                        }, 250);
-                    }
-                });
-                
-                // Pressure switch
-                const pressureSwitch = document.getElementById('pressureSwitch');
-                const pressureStatus = document.getElementById('pressureStatus');
-                
-                pressureSwitch.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.pressureSensitive = !this.pressureSensitive;
-                    pressureSwitch.classList.toggle('active', this.pressureSensitive);
-                    pressureStatus.textContent = this.pressureSensitive ? 'On' : 'Off';
-                });
-                
-                // Second monitor button
-                document.getElementById('secondMonitorBtn').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.openSecondMonitor();
-                });
-                
-                // Size pickers
-                this.setupPenSizePicker();
-                this.setupEraserSizePicker();
-                
-                // Controls
-                document.getElementById('colorPicker').addEventListener('change', (e) => {
-                    e.stopPropagation();
-                    this.currentColor = e.target.value;
-                    this.ctx.shadowColor = this.currentColor;
-                    this.syncStateToSecondMonitor();
-                });
-                
-                document.getElementById('undoBtn').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.undo();
-                });
-                
-                document.getElementById('clearBtn').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.clear();
-                });
-                
-                // Use Pointer Events for best stylus support
-                if (window.PointerEvent) {
-                    this.canvas.addEventListener('pointerdown', (e) => this.handlePointerStart(e), { passive: false });
-                    this.canvas.addEventListener('pointermove', (e) => this.handlePointerMove(e), { passive: false });
-                    this.canvas.addEventListener('pointerup', (e) => this.handlePointerEnd(e), { passive: false });
-                    this.canvas.addEventListener('pointerout', (e) => this.handlePointerEnd(e), { passive: false });
-                } else {
-                    // Fallback events
-                    this.canvas.addEventListener('mousedown', (e) => this.handleMouseStart(e), { passive: false });
-                    this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e), { passive: false });
-                    this.canvas.addEventListener('mouseup', () => this.stopDrawing(), { passive: false });
-                    this.canvas.addEventListener('mouseout', () => this.stopDrawing(), { passive: false });
-                    
-                    this.canvas.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: false });
-                    this.canvas.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: false });
-                    this.canvas.addEventListener('touchend', () => this.stopDrawing(), { passive: false });
-                }
-                
-                // Mouse move for eraser cursor
-                this.canvas.addEventListener('mousemove', (e) => this.updateEraserPosition(e));
-                
-                // Click outside to close size pickers
-                document.addEventListener('click', (e) => {
-                    if (!this.penSizePicker.contains(e.target) && !document.getElementById('penTool').contains(e.target)) {
-                        this.hidePenSizePicker();
-                    }
-                    if (!this.eraserSizePicker.contains(e.target) && !document.getElementById('eraserTool').contains(e.target)) {
-                        this.hideEraserSizePicker();
-                    }
-                });
-                
-                // Resize handler
-                window.addEventListener('resize', () => {
-                    const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-                    this.setupCanvas();
-                    this.ctx.putImageData(imageData, 0, 0);
-                });
-
-                // Check if second monitor window is closed
-                setInterval(() => {
-                    if (this.secondMonitorWindow && this.secondMonitorWindow.closed) {
-                        this.secondMonitorWindow = null;
-                        this.secondCanvas = null;
-                        this.secondCtx = null;
-                        this.secondMonitorSyncEnabled = false;
-                        document.getElementById('secondMonitorBtn').classList.remove('active');
-                    }
-                }, 1000);
-            }
-
-            // Event handlers with stylus eraser button support
-            handlePointerStart(e) {
-                if (!this.isStylusInput(e)) {
-                    e.preventDefault();
-                    return;
-                }
-                e.preventDefault();
-                this.handleStylusEraserButton(e); // NEW: Check eraser button
-                this.startDrawing(e);
-            }
-
-            handlePointerMove(e) {
-                if (!this.isStylusInput(e)) {
-                    e.preventDefault();
-                    return;
-                }
-                e.preventDefault();
-                this.handleStylusEraserButton(e); // NEW: Check eraser button
-                this.draw(e);
-                this.updateEraserPosition(e);
-            }
-
-            handlePointerEnd(e) {
-                if (!this.isStylusInput(e)) {
-                    e.preventDefault();
-                    return;
-                }
-                e.preventDefault();
-                this.handleStylusEraserButton(e); // NEW: Check eraser button
-                this.stopDrawing();
-            }
-
-            handleMouseStart(e) {
-                if (!this.isStylusInput(e)) {
-                    e.preventDefault();
-                    return;
-                }
-                e.preventDefault();
-                this.handleStylusEraserButton(e); // NEW: Check eraser button
-                this.startDrawing(e);
-            }
-
-            handleMouseMove(e) {
-                if (!this.isStylusInput(e)) {
-                    return;
-                }
-                this.handleStylusEraserButton(e); // NEW: Check eraser button
-                this.draw(e);
-            }
-
-            handleTouchStart(e) {
-                if (!this.isStylusInput(e)) {
-                    e.preventDefault();
-                    return;
-                }
-                e.preventDefault();
-                const touch = e.touches[0];
-                const mouseEvent = {
-                    clientX: touch.clientX,
-                    clientY: touch.clientY,
-                    pressure: touch.force || touch.pressure || 1.0
-                };
-                this.handleStylusEraserButton(mouseEvent); // NEW: Check eraser button
-                this.startDrawing(mouseEvent);
-            }
-
-            handleTouchMove(e) {
-                if (!this.isStylusInput(e)) {
-                    e.preventDefault();
-                    return;
-                }
-                e.preventDefault();
-                const touch = e.touches[0];
-                const mouseEvent = {
-                    clientX: touch.clientX,
-                    clientY: touch.clientY,
-                    pressure: touch.force || touch.pressure || 1.0
-                };
-                this.handleStylusEraserButton(mouseEvent); // NEW: Check eraser button
-                this.draw(mouseEvent);
-                this.updateEraserPositionTouch(touch);
-            }
-
-            openSecondMonitor() {
-                if (this.secondMonitorWindow && !this.secondMonitorWindow.closed) {
-                    this.secondMonitorWindow.focus();
-                    return;
-                }
-
-                const canvasData = this.canvas.toDataURL();
-                
-                const secondMonitorHTML = `
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>Drawing Canvas - Second Monitor</title>
-                    <style>
-                        * { margin: 0; padding: 0; box-sizing: border-box; }
-                        body { background: #000; overflow: hidden; height: 100vh; display: flex; justify-content: center; align-items: center; cursor: none; }
-                        #secondCanvas { background: white; max-width: 100vw; max-height: 100vh; cursor: none; }
-                    </style>
-                </head>
-                <body>
-                    <canvas id="secondCanvas"></canvas>
-                </body>
-                </html>`;
-
-                this.secondMonitorWindow = window.open('', '_blank', 
-                    'width=' + screen.availWidth + 
-                    ',height=' + screen.availHeight + 
-                    ',left=' + screen.availWidth + 
-                    ',top=0,toolbar=no,menubar=no,scrollbars=no,resizable=yes,location=no,directories=no,status=no');
-                
-                if (this.secondMonitorWindow) {
-                    this.secondMonitorWindow.document.write(secondMonitorHTML);
-                    this.secondMonitorWindow.document.close();
-                    
-                    this.secondMonitorWindow.addEventListener('load', () => {
-                        this.setupSecondMonitorCanvas(canvasData);
-                    });
-                    
-                    document.getElementById('secondMonitorBtn').classList.add('active');
-                }
-            }
-
-            setupSecondMonitorCanvas(canvasData) {
-                if (!this.secondMonitorWindow || this.secondMonitorWindow.closed) return;
-
-                const secondCanvas = this.secondMonitorWindow.document.getElementById('secondCanvas');
-                const secondCtx = secondCanvas.getContext('2d');
-                
-                const secondScreenWidth = this.secondMonitorWindow.screen.availWidth;
-                const secondScreenHeight = this.secondMonitorWindow.screen.availHeight;
-                
-                let canvasWidth = secondScreenWidth;
-                let canvasHeight = canvasWidth * (9 / 16);
-                
-                if (canvasHeight > secondScreenHeight) {
-                    canvasHeight = secondScreenHeight;
-                    canvasWidth = canvasHeight * (16 / 9);
-                }
-                
-                secondCanvas.width = canvasWidth;
-                secondCanvas.height = canvasHeight;
-                secondCanvas.style.width = canvasWidth + 'px';
-                secondCanvas.style.height = canvasHeight + 'px';
-                
-                // Same optimized settings
-                secondCtx.lineCap = 'round';
-                secondCtx.lineJoin = 'round';
-                secondCtx.imageSmoothingEnabled = true;
-                secondCtx.imageSmoothingQuality = 'high';
-                secondCtx.globalCompositeOperation = 'source-over';
-                secondCtx.shadowBlur = 0.5;
-                secondCtx.shadowColor = this.currentColor;
-                
-                const img = new Image();
-                img.onload = () => {
-                    secondCtx.drawImage(img, 0, 0, secondCanvas.width, secondCanvas.height);
-                };
-                img.src = canvasData;
-                
-                // Quadratic drawing setup for second monitor with fixed pressure
-                let isDrawing = false;
-                let points = [];
-                let lastDrawnPoint = null;
-                
-                const isStylusInput = (e) => {
-                    if (e.pointerType !== undefined) {
-                        return e.pointerType === 'pen';
-                    }
-                    if (e.touches && e.touches.length > 0) {
-                        const touch = e.touches[0];
-                        return touch.force !== undefined || 
-                               touch.radiusX !== undefined || 
-                               touch.pressure !== undefined ||
-                               touch.altitudeAngle !== undefined ||
-                               touch.azimuthAngle !== undefined;
-                    }
-                    return false;
-                };
-
-                const getStylusPressure = (e) => {
-                    if (!this.pressureSensitive || this.currentTool !== 'pen') return 1.0;
-                    
-                    if (e.pressure !== undefined) {
-                        return Math.max(0.1, Math.min(2.0, e.pressure));
-                    }
-                    
-                    if (e.touches && e.touches.length > 0) {
-                        const touch = e.touches[0];
-                        if (touch.force !== undefined) {
-                            return Math.max(0.1, Math.min(2.0, touch.force));
-                        }
-                        if (touch.pressure !== undefined) {
-                            return Math.max(0.1, Math.min(2.0, touch.pressure));
-                        }
-                    }
-                    
-                    return 1.0;
-                };
-                
-                const getMousePos = (e) => {
-                    const rect = secondCanvas.getBoundingClientRect();
-                    const scaleX = secondCanvas.width / rect.width;
-                    const scaleY = secondCanvas.height / rect.height;
-                    
-                    return {
-                        x: (e.clientX - rect.left) * scaleX,
-                        y: (e.clientY - rect.top) * scaleY
-                    };
-                };
-
-                // Fixed quadratic implementation for second monitor
-                const drawQuadraticCurveSegment = (point) => {
-                    if (points.length < 3) {
-                        const pressure = this.pressureSensitive && this.currentTool === 'pen' ? point.pressure : 1.0;
-                        secondCtx.lineWidth = this.currentSize * pressure;
-                        secondCtx.lineTo(point.x, point.y);
-                        secondCtx.stroke();
-                        lastDrawnPoint = { x: point.x, y: point.y };
-                        return;
-                    }
-                    
-                    const p1 = points[points.length - 3];
-                    const p2 = points[points.length - 2];
-                    
-                    const cp = { x: p2.x, y: p2.y };
-                    const end = {
-                        x: (p2.x + point.x) / 2,
-                        y: (p2.y + point.y) / 2
-                    };
-                    
-                    const pressure = this.pressureSensitive && this.currentTool === 'pen' ? p2.pressure : 1.0;
-                    secondCtx.lineWidth = this.currentSize * pressure;
-                    
-                    secondCtx.beginPath();
-                    secondCtx.moveTo(lastDrawnPoint.x, lastDrawnPoint.y);
-                    secondCtx.quadraticCurveTo(cp.x, cp.y, end.x, end.y);
-                    secondCtx.stroke();
-                    
-                    lastDrawnPoint = { x: end.x, y: end.y };
-                };
-
-                const startDrawing = (e) => {
-                    if (!isStylusInput(e)) return;
-                    
-                    // NEW: Handle stylus eraser button on second monitor
-                    this.handleStylusEraserButton(e);
-                    
-                    isDrawing = true;
-                    const pos = getMousePos(e);
-                    const pressure = getStylusPressure(e);
-                    
-                    points = [{ x: pos.x, y: pos.y, pressure }];
-                    lastDrawnPoint = { x: pos.x, y: pos.y };
-                    
-                    if (this.currentTool === 'eraser') {
-                        secondCtx.globalCompositeOperation = 'destination-out';
-                        secondCtx.shadowBlur = 0;
-                    } else {
-                        secondCtx.globalCompositeOperation = 'source-over';
-                        secondCtx.strokeStyle = this.currentColor;
-                        secondCtx.shadowColor = this.currentColor;
-                        secondCtx.shadowBlur = 0.5;
-                    }
-                    
-                    const lineWidth = this.pressureSensitive && this.currentTool === 'pen' ? 
-                        this.currentSize * pressure : this.currentSize;
-                    secondCtx.lineWidth = lineWidth;
-                    
-                    secondCtx.beginPath();
-                    secondCtx.moveTo(pos.x, pos.y);
-
-                    setTimeout(() => this.syncFromSecondMonitor(secondCanvas), 0);
-                };
-
-                const draw = (e) => {
-                    if (!isDrawing || !isStylusInput(e)) return;
-                    
-                    // NEW: Handle stylus eraser button on second monitor
-                    this.handleStylusEraserButton(e);
-                    
-                    const pos = getMousePos(e);
-                    const pressure = getStylusPressure(e);
-                    const point = { x: pos.x, y: pos.y, pressure };
-                    
-                    points.push(point);
-                    
-                    if (this.currentTool === 'pen') {
-                        drawQuadraticCurveSegment(point);
-                    } else {
-                        secondCtx.lineWidth = this.currentSize;
-                        secondCtx.lineTo(pos.x, pos.y);
-                        secondCtx.stroke();
-                    }
-                    
-                    this.queueSecondMonitorSync = () => {
-                        setTimeout(() => this.syncFromSecondMonitor(secondCanvas), 0);
-                    };
-                    this.queueSecondMonitorSync();
-                };
-
-                const stopDrawing = (e) => {
-                    if (!isDrawing) return;
-                    
-                    // NEW: Handle stylus eraser button on second monitor
-                    this.handleStylusEraserButton(e);
-                    
-                    isDrawing = false;
-                    points = [];
-                    lastDrawnPoint = null;
-                    
-                    this.syncFromSecondMonitor(secondCanvas);
-                    this.saveState();
-                };
-
-                // Event listeners for second monitor with eraser button support
-                if (this.secondMonitorWindow.PointerEvent) {
-                    secondCanvas.addEventListener('pointerdown', startDrawing, { passive: false });
-                    secondCanvas.addEventListener('pointermove', draw, { passive: false });
-                    secondCanvas.addEventListener('pointerup', stopDrawing, { passive: false });
-                    secondCanvas.addEventListener('pointerout', stopDrawing, { passive: false });
-                } else {
-                    secondCanvas.addEventListener('mousedown', startDrawing, { passive: false });
-                    secondCanvas.addEventListener('mousemove', draw, { passive: false });
-                    secondCanvas.addEventListener('mouseup', stopDrawing, { passive: false });
-                    secondCanvas.addEventListener('mouseout', stopDrawing, { passive: false });
-                    
-                    secondCanvas.addEventListener('touchstart', (e) => {
-                        e.preventDefault();
-                        if (!isStylusInput(e)) return;
-                        const touch = e.touches[0];
-                        const mouseEvent = {
-                            clientX: touch.clientX,
-                            clientY: touch.clientY,
-                            pressure: touch.force || touch.pressure || 1.0
-                        };
-                        startDrawing(mouseEvent);
-                    }, { passive: false });
-                    
-                    secondCanvas.addEventListener('touchmove', (e) => {
-                        e.preventDefault();
-                        if (!isStylusInput(e)) return;
-                        const touch = e.touches[0];
-                        const mouseEvent = {
-                            clientX: touch.clientX,
-                            clientY: touch.clientY,
-                            pressure: touch.force || touch.pressure || 1.0
-                        };
-                        draw(mouseEvent);
-                    }, { passive: false });
-                    
-                    secondCanvas.addEventListener('touchend', stopDrawing, { passive: false });
-                }
-                
-                this.secondCanvas = secondCanvas;
-                this.secondCtx = secondCtx;
-                this.secondMonitorSyncEnabled = true;
-                
-                this.secondMonitorWindow.focus();
-                if (secondCanvas.requestFullscreen) {
-                    secondCanvas.requestFullscreen().catch(() => {});
-                }
-            }
-
-            syncFromSecondMonitor(secondCanvas) {
-                if (!secondCanvas) return;
-                
-                requestAnimationFrame(() => {
-                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                    this.ctx.drawImage(secondCanvas, 0, 0, this.canvas.width, this.canvas.height);
-                });
-            }
-
-            syncStateToSecondMonitor() {
-                if (!this.secondCanvas || !this.secondMonitorWindow || this.secondMonitorWindow.closed) return;
-            }
-
-            setupPenSizePicker() {
-                const sizeOptions = this.penSizePicker.querySelectorAll('.size-option');
-                sizeOptions.forEach(option => {
-                    option.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        const size = parseFloat(e.currentTarget.dataset.size);
-                        this.selectPenSize(size);
-                        this.hidePenSizePicker();
-                    });
-                });
-            }
-
-            setupEraserSizePicker() {
-                const sizeOptions = this.eraserSizePicker.querySelectorAll('.size-option');
-                sizeOptions.forEach(option => {
-                    option.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        const size = parseFloat(e.currentTarget.dataset.size);
-                        this.selectEraserSize(size);
-                        this.hideEraserSizePicker();
-                    });
-                });
-            }
-
-            selectPenSize(size) {
-                this.toolSizes.pen = size;
-                this.currentSize = size;
-                
-                this.penSizePicker.querySelectorAll('.size-option').forEach(option => {
-                    option.classList.remove('selected');
-                });
-                this.penSizePicker.querySelector(`[data-size="${size}"]`).classList.add('selected');
-                
-                this.setTool('pen');
-                this.syncStateToSecondMonitor();
-            }
-
-            selectEraserSize(size) {
-                this.toolSizes.eraser = size;
-                this.currentSize = size;
-                
-                this.eraserSizePicker.querySelectorAll('.size-option').forEach(option => {
-                    option.classList.remove('selected');
-                });
-                this.eraserSizePicker.querySelector(`[data-size="${size}"]`).classList.add('selected');
-                
-                this.updateEraserCursor();
-                this.setTool('eraser');
-                this.syncStateToSecondMonitor();
-            }
-
-            updatePickerSelection(picker, size) {
-                picker.querySelectorAll('.size-option').forEach(option => {
-                    option.classList.remove('selected');
-                });
-                const targetOption = picker.querySelector(`[data-size="${size}"]`);
-                if (targetOption) {
-                    targetOption.classList.add('selected');
-                }
-            }
-
-            togglePenSizePicker() {
-                if (this.penSizePicker.classList.contains('show')) {
-                    this.hidePenSizePicker();
-                } else {
-                    this.showPenSizePicker();
-                }
-            }
-
-            toggleEraserSizePicker() {
-                if (this.eraserSizePicker.classList.contains('show')) {
-                    this.hideEraserSizePicker();
-                } else {
-                    this.showEraserSizePicker();
-                }
-            }
-
-            showPenSizePicker() {
-                this.hideEraserSizePicker();
-                this.updatePickerSelection(this.penSizePicker, this.toolSizes.pen);
-                this.penSizePicker.classList.add('show');
-            }
-
-            hidePenSizePicker() {
-                this.penSizePicker.classList.remove('show');
-            }
-
-            showEraserSizePicker() {
-                this.hidePenSizePicker();
-                this.updatePickerSelection(this.eraserSizePicker, this.toolSizes.eraser);
-                this.eraserSizePicker.classList.add('show');
-            }
-
-            hideEraserSizePicker() {
-                this.eraserSizePicker.classList.remove('show');
-            }
-
-            // MODIFIED: Added skipUIUpdate parameter for stylus eraser button
-            setTool(tool, skipUIUpdate = false) {
-                this.currentTool = tool;
-                this.currentSize = this.toolSizes[tool];
-                
-                // Reset drawing state
-                this.points = [];
-                this.lastPoint = null;
-                this.lastDrawnPoint = null;
-                
-                // Only update UI if not triggered by stylus eraser button
-                if (!skipUIUpdate) {
-                    document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
-                    document.getElementById(tool + 'Tool').classList.add('active');
-                }
-                
-                if (tool === 'eraser') {
-                    this.canvas.style.cursor = 'none';
-                    this.ctx.shadowBlur = 0;
-                    this.updateEraserCursor();
-                } else {
-                    this.canvas.style.cursor = 'crosshair';
-                    this.ctx.shadowBlur = 0.5;
-                    this.ctx.shadowColor = this.currentColor;
-                    this.hideEraserCursor();
-                }
-                
-                this.hidePenSizePicker();
-                this.hideEraserSizePicker();
-                this.syncStateToSecondMonitor();
-            }
-
-            updateEraserCursor() {
-                if (this.currentTool === 'eraser' && this.isDrawing) {
-                    const rect = this.canvas.getBoundingClientRect();
-                    const scale = rect.width / this.canvas.width;
-                    const size = this.currentSize * scale;
-                    
-                    this.eraserCursor.style.width = size + 'px';
-                    this.eraserCursor.style.height = size + 'px';
-                }
-            }
-
-            updateEraserPosition(e) {
-                if (this.currentTool === 'eraser' && this.isDrawing) {
-                    this.eraserCursor.style.left = e.clientX + 'px';
-                    this.eraserCursor.style.top = e.clientY + 'px';
-                }
-            }
-
-            updateEraserPositionTouch(touch) {
-                if (this.currentTool === 'eraser' && this.isDrawing) {
-                    this.eraserCursor.style.left = touch.clientX + 'px';
-                    this.eraserCursor.style.top = touch.clientY + 'px';
-                }
-            }
-
-            showEraserCursor() {
-                if (this.currentTool === 'eraser' && this.isDrawing) {
-                    this.eraserCursor.style.display = 'block';
-                }
-            }
-
-            hideEraserCursor() {
-                this.eraserCursor.style.display = 'none';
-            }
-
-            getMousePos(e) {
-                const rect = this.canvas.getBoundingClientRect();
-                const scaleX = this.canvas.width / rect.width;
-                const scaleY = this.canvas.height / rect.height;
-                
-                return {
-                    x: (e.clientX - rect.left) * scaleX,
-                    y: (e.clientY - rect.top) * scaleY
-                };
-            }
-
-            startDrawing(e) {
-                this.isDrawing = true;
-                const pos = this.getMousePos(e);
-                const pressure = this.getStylusPressure(e);
-                
-                // Reset points array for new stroke
-                this.points = [{ x: pos.x, y: pos.y, pressure }];
-                this.lastPoint = { x: pos.x, y: pos.y, pressure };
-                this.lastDrawnPoint = { x: pos.x, y: pos.y }; // Track where we last drew
-                
-                if (this.currentTool === 'eraser') {
-                    this.ctx.globalCompositeOperation = 'destination-out';
-                    this.ctx.shadowBlur = 0;
-                    this.showEraserCursor();
-                    this.updateEraserCursor();
-                    this.updateEraserPosition(e);
-                } else {
-                    this.ctx.globalCompositeOperation = 'source-over';
-                    this.ctx.strokeStyle = this.currentColor;
-                    this.ctx.shadowColor = this.currentColor;
-                    this.ctx.shadowBlur = 0.5;
-                }
-                
-                // Set initial line width based on pressure
-                const lineWidth = this.pressureSensitive && this.currentTool === 'pen' ? 
-                    this.currentSize * pressure : this.currentSize;
-                this.ctx.lineWidth = lineWidth;
-                
-                this.ctx.beginPath();
-                this.ctx.moveTo(pos.x, pos.y);
-
-                this.queueSecondMonitorSync();
-            }
-
-            draw(e) {
-                if (!this.isDrawing) return;
-                
-                const pos = this.getMousePos(e);
-                const pressure = this.getStylusPressure(e);
-                const point = { x: pos.x, y: pos.y, pressure };
-                
-                this.points.push(point);
-
-                if (this.currentTool === 'pen') {
-                    // Use fixed quadratic implementation
-                    this.drawQuadraticCurveSegment(point);
-                } else {
-                    // Direct line for eraser
-                    this.ctx.lineWidth = this.currentSize;
-                    this.ctx.lineTo(pos.x, pos.y);
-                    this.ctx.stroke();
-                }
-
-                if (this.currentTool === 'eraser') {
-                    this.updateEraserPosition(e);
-                }
-
-                this.lastPoint = point;
-                this.queueSecondMonitorSync();
-            }
-
-            stopDrawing() {
-                if (this.isDrawing) {
-                    this.isDrawing = false;
-                    
-                    // Reset state
-                    this.points = [];
-                    this.lastPoint = null;
-                    this.lastDrawnPoint = null;
-                    
-                    this.hideEraserCursor();
-                    this.saveState();
-                    this.queueSecondMonitorSync();
-                }
-            }
-
-            saveState() {
-                this.historyStep++;
-                if (this.historyStep < this.history.length) {
-                    this.history.length = this.historyStep;
-                }
-                this.history.push(this.canvas.toDataURL());
-            }
-
-            undo() {
-                if (this.historyStep > 0) {
-                    this.historyStep--;
-                    const img = new Image();
-                    img.onload = () => {
-                        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                        this.ctx.drawImage(img, 0, 0);
-                        this.queueSecondMonitorSync();
-                    };
-                    img.src = this.history[this.historyStep];
-                }
-            }
-
-            clear() {
-                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                this.saveState();
-                this.queueSecondMonitorSync();
-            }
+        // Dark mode detection
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
         }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            new DrawingApp();
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
         });
 
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('data:text/javascript;base64,c2VsZi5hZGRFdmVudExpc3RlbmVyKCJpbnN0YWxsIiwgZnVuY3Rpb24oZSkge2UucHJldmVudERlZmF1bHQoKTt9KQ==');
+        // Initialize PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        // Application state
+        let pdfDoc = null;
+        let currentPage = 1;
+        let totalPages = 0;
+        let currentTool = 'pen';
+        let currentColor = '#000000';
+        let currentBrushSize = 3;
+        let currentEraserSize = 25;
+        let pressureEnabled = true;
+        let isDrawing = false;
+        let drawingData = {}; // Store drawing data for each page with scale info
+        let originalPageDimensions = {}; // Store original PDF page dimensions
+        
+        // Stylus eraser button state
+        let originalTool = 'pen'; // Track the original tool before eraser button press
+        let isEraserButtonPressed = false;
+
+        // Double-click detection
+        let lastClickTime = 0;
+        let lastClickTarget = null;
+        const DOUBLE_CLICK_DELAY = 300; // milliseconds
+
+        // Drawing state
+        let lastX = 0;
+        let lastY = 0;
+
+        // File upload handler
+        document.getElementById('pdfUpload').addEventListener('change', handleFileUpload);
+
+        // Settings event listeners
+        function setupSettingsListeners() {
+            // Pressure switch
+            const pressureSwitch = document.getElementById('pressureSwitch');
+            pressureSwitch.addEventListener('change', function() {
+                pressureEnabled = this.checked;
+            });
+
+            // Theme toggle switch
+            const themeToggle = document.getElementById('themeToggle');
+            
+            // Set initial state based on current theme
+            themeToggle.checked = document.documentElement.classList.contains('dark');
+            
+            themeToggle.addEventListener('change', function() {
+                if (this.checked) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            });
+
+            // Tool buttons with double-click detection
+            document.getElementById('penTool').addEventListener('pointerdown', handleToolDoubleClick);
+            document.getElementById('eraserTool').addEventListener('pointerdown', handleToolDoubleClick);
+            document.getElementById('colorTool').addEventListener('pointerdown', handleColorDoubleClick);
         }
+
+        // Brush size selection
+        function setBrushSize(size) {
+            currentBrushSize = size;
+            
+            // Update visual selection
+            document.querySelectorAll('.brush-size-dot').forEach(btn => {
+                btn.classList.remove('selected-size');
+            });
+            document.querySelector(`[data-size="${size}"]`).classList.add('selected-size');
+            
+            // Close modal after selection
+            hideSettingsModal();
+        }
+
+        // Eraser size selection
+        function setEraserSize(size) {
+            currentEraserSize = size;
+            
+            // Update visual selection
+            document.querySelectorAll('.eraser-size-dot').forEach(btn => {
+                btn.classList.remove('selected-eraser-size');
+            });
+            document.querySelector(`[data-eraser-size="${size}"]`).classList.add('selected-eraser-size');
+            
+            // Close modal after selection
+            hideSettingsModal();
+        }
+
+        // Handle double-click on tool buttons
+        function handleToolDoubleClick(e) {
+            if (e.pointerType !== 'pen') return;
+            
+            const currentTime = Date.now();
+            const target = e.currentTarget;
+            
+            if (lastClickTarget === target && (currentTime - lastClickTime) < DOUBLE_CLICK_DELAY) {
+                // Double-click detected
+                e.preventDefault();
+                const toolType = target.id === 'penTool' ? 'pen' : 'eraser';
+                showSettingsModal(toolType);
+            } else {
+                // Single click - set tool
+                setTimeout(() => {
+                    if (Date.now() - currentTime >= DOUBLE_CLICK_DELAY) {
+                        const toolType = target.id === 'penTool' ? 'pen' : 'eraser';
+                        setTool(toolType);
+                    }
+                }, DOUBLE_CLICK_DELAY);
+            }
+            
+            lastClickTime = currentTime;
+            lastClickTarget = target;
+        }
+
+        // Handle double-click on color button
+        function handleColorDoubleClick(e) {
+            if (e.pointerType !== 'pen') return;
+            
+            const currentTime = Date.now();
+            const target = e.currentTarget;
+            
+            if (lastClickTarget === target && (currentTime - lastClickTime) < DOUBLE_CLICK_DELAY) {
+                // Double-click detected
+                e.preventDefault();
+                showSettingsModal('color');
+            }
+            
+            lastClickTime = currentTime;
+            lastClickTarget = target;
+        }
+
+        // Modal management
+        function showSettingsModal(toolType) {
+            const modal = document.getElementById('settingsModal');
+            const penSettings = document.getElementById('penSettings');
+            const eraserSettings = document.getElementById('eraserSettings');
+            const colorSettings = document.getElementById('colorSettings');
+            
+            // Hide all settings panels
+            penSettings.classList.add('hidden');
+            eraserSettings.classList.add('hidden');
+            colorSettings.classList.add('hidden');
+            
+            // Show the appropriate settings panel
+            if (toolType === 'pen') {
+                penSettings.classList.remove('hidden');
+            } else if (toolType === 'eraser') {
+                eraserSettings.classList.remove('hidden');
+            } else if (toolType === 'color') {
+                colorSettings.classList.remove('hidden');
+            }
+            
+            // Show the modal
+            modal.classList.remove('hidden');
+        }
+
+        function hideSettingsModal() {
+            const modal = document.getElementById('settingsModal');
+            modal.classList.add('hidden');
+        }
+
+        // Click outside modal to close
+        document.addEventListener('pointerdown', function(e) {
+            if (e.pointerType !== 'pen') return;
+            
+            const modal = document.getElementById('settingsModal');
+            const toolbar = document.getElementById('floatingToolbar');
+            
+            if (!modal.contains(e.target) && !toolbar.contains(e.target) && !modal.classList.contains('hidden')) {
+                hideSettingsModal();
+            }
+        });
+
+        // Keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            if (!pdfDoc) return;
+            
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                changePage(-1);
+            } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                changePage(1);
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                closePDF();
+            }
+        });
+
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                pdfDoc = await pdfjsLib.getDocument(arrayBuffer).promise;
+                totalPages = pdfDoc.numPages;
+                currentPage = 1;
+                drawingData = {}; // Reset drawing data
+                
+                // Hide upload area and header, show PDF viewer
+                document.getElementById('uploadArea').style.display = 'none';
+                document.querySelector('header').style.display = 'none';
+                document.getElementById('pdfViewer').classList.remove('hidden');
+                
+                await renderPage(currentPage);
+                document.getElementById('downloadBtn').disabled = false;
+            } catch (error) {
+                console.error('Error loading PDF:', error);
+                showCustomAlert('Error loading PDF file. Please try again.');
+            }
+        }
+
+        async function renderPage(pageNum) {
+            try {
+                const page = await pdfDoc.getPage(pageNum);
+                const container = document.getElementById('pdfContent');
+                
+                // Calculate scale to fit the screen width (with small margin to prevent scrollbars)
+                const containerWidth = window.innerWidth - 20; // Small margin to prevent overflow
+                const viewport = page.getViewport({ scale: 1 });
+                
+                // Scale to fill the width while preventing overflow
+                const scale = containerWidth / viewport.width;
+                const scaledViewport = page.getViewport({ scale });
+
+                // Create page container
+                const pageContainer = document.createElement('div');
+                pageContainer.className = 'pdf-page-container';
+                pageContainer.style.width = scaledViewport.width + 'px';
+                pageContainer.style.height = scaledViewport.height + 'px';
+
+                // Create and setup PDF canvas
+                const pdfCanvas = document.createElement('canvas');
+                pdfCanvas.width = scaledViewport.width;
+                pdfCanvas.height = scaledViewport.height;
+                pdfCanvas.style.display = 'block';
+
+                // Create and setup drawing canvas
+                const drawingCanvas = document.createElement('canvas');
+                drawingCanvas.className = 'drawing-canvas';
+                drawingCanvas.width = scaledViewport.width;
+                drawingCanvas.height = scaledViewport.height;
+
+                // Setup drawing event listeners
+                setupDrawingEvents(drawingCanvas);
+
+                // Clear container and add new elements
+                container.innerHTML = '';
+                pageContainer.appendChild(pdfCanvas);
+                pageContainer.appendChild(drawingCanvas);
+                container.appendChild(pageContainer);
+
+                // Store original page dimensions for first render or if not stored
+                if (!originalPageDimensions[pageNum]) {
+                    originalPageDimensions[pageNum] = {
+                        width: viewport.width,
+                        height: viewport.height
+                    };
+                }
+
+                // Render PDF page
+                const renderContext = {
+                    canvasContext: pdfCanvas.getContext('2d'),
+                    viewport: scaledViewport
+                };
+                await page.render(renderContext).promise;
+
+                // Restore drawing data for this page with proper scaling
+                if (drawingData[pageNum]) {
+                    const ctx = drawingCanvas.getContext('2d');
+                    const img = new Image();
+                    img.onload = function() {
+                        // Calculate scaling factors based on canvas size changes
+                        const scaleX = scaledViewport.width / drawingData[pageNum].canvasWidth;
+                        const scaleY = scaledViewport.height / drawingData[pageNum].canvasHeight;
+                        
+                        // Scale and draw the image to fit the new canvas size
+                        ctx.save();
+                        ctx.scale(scaleX, scaleY);
+                        ctx.drawImage(img, 0, 0);
+                        ctx.restore();
+                    };
+                    img.src = drawingData[pageNum].imageData;
+                }
+
+            } catch (error) {
+                console.error('Error rendering page:', error);
+            }
+        }
+
+        function setupDrawingEvents(canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            // Create eraser indicator
+            const eraserIndicator = document.createElement('div');
+            eraserIndicator.id = 'eraserIndicator';
+            eraserIndicator.style.cssText = `
+                position: absolute;
+                border: 2px dashed #666;
+                border-radius: 50%;
+                pointer-events: none;
+                z-index: 15;
+                display: none;
+                background: rgba(255, 255, 255, 0.1);
+            `;
+            document.body.appendChild(eraserIndicator);
+
+            // Pointer events for stylus detection
+            canvas.addEventListener('pointerdown', startDrawing);
+            canvas.addEventListener('pointermove', draw);
+            canvas.addEventListener('pointerup', stopDrawing);
+            canvas.addEventListener('pointerout', stopDrawing);
+            canvas.addEventListener('pointercancel', stopDrawing);
+
+            // Prevent default touch and mouse behaviors to avoid conflicts
+            canvas.addEventListener('touchstart', e => e.preventDefault());
+            canvas.addEventListener('touchmove', e => e.preventDefault());
+            canvas.addEventListener('touchend', e => e.preventDefault());
+            canvas.addEventListener('mousedown', e => e.preventDefault());
+            canvas.addEventListener('mousemove', e => e.preventDefault());
+            canvas.addEventListener('mouseup', e => e.preventDefault());
+
+            function startDrawing(e) {
+                // Only allow pen input (Microsoft Pen Protocol stylus)
+                if (e.pointerType !== 'pen') {
+                    return;
+                }
+
+                // Check for eraser button press (barrel button on stylus)
+                // Common eraser button values: button 2 (right click) or button 5 (eraser)
+                // Also check buttons bitmask for barrel button (bit 2 = 4)
+                const eraserButtonPressed = e.button === 2 || e.button === 5 || (e.buttons & 4) !== 0;
+                
+                if (eraserButtonPressed && !isEraserButtonPressed) {
+                    // Store original tool and switch to eraser
+                    originalTool = currentTool;
+                    isEraserButtonPressed = true;
+                    if (currentTool !== 'eraser') {
+                        setTool('eraser');
+                    }
+                } else if (!eraserButtonPressed && isEraserButtonPressed) {
+                    // Restore original tool when eraser button is released
+                    isEraserButtonPressed = false;
+                    setTool(originalTool);
+                }
+
+                isDrawing = true;
+                const rect = canvas.getBoundingClientRect();
+                lastX = e.clientX - rect.left;
+                lastY = e.clientY - rect.top;
+                
+                // Show eraser indicator if using eraser tool
+                if (currentTool === 'eraser') {
+                    showEraserIndicator(e.clientX, e.clientY);
+                }
+                
+                // Update pressure indicator
+                updatePressureIndicator(e.pressure || 0);
+            }
+
+            function draw(e) {
+                // Only allow pen input
+                if (e.pointerType !== 'pen' || !isDrawing) {
+                    return;
+                }
+                
+                const rect = canvas.getBoundingClientRect();
+                const currentX = e.clientX - rect.left;
+                const currentY = e.clientY - rect.top;
+
+                // Update eraser indicator position if using eraser tool
+                if (currentTool === 'eraser') {
+                    updateEraserIndicator(e.clientX, e.clientY);
+                }
+
+                ctx.globalCompositeOperation = currentTool === 'eraser' ? 'destination-out' : 'source-over';
+                ctx.strokeStyle = currentColor;
+                
+                // Get pressure value for both tools
+                const pressure = e.pressure || 0.5;
+                
+                // Use appropriate size based on tool
+                const toolSize = currentTool === 'eraser' ? currentEraserSize : currentBrushSize;
+                
+                // Apply pressure only to pen tool, not eraser
+                if (currentTool === 'eraser') {
+                    // Eraser uses consistent size without pressure variation
+                    ctx.lineWidth = toolSize;
+                } else {
+                    // Pen tool uses pressure for line width if enabled (pressure ranges from 0 to 1)
+                    const pressureMultiplier = pressureEnabled ? (0.2 + (pressure * 1.8)) : 1.0; // Range from 0.2 to 2.0 or fixed at 1.0
+                    ctx.lineWidth = toolSize * pressureMultiplier;
+                }
+
+                ctx.beginPath();
+                ctx.moveTo(lastX, lastY);
+                ctx.lineTo(currentX, currentY);
+                ctx.stroke();
+
+                lastX = currentX;
+                lastY = currentY;
+                
+                // Update pressure indicator (but only for pen tool)
+                if (currentTool === 'pen') {
+                    updatePressureIndicator(pressure);
+                }
+            }
+
+            function stopDrawing(e) {
+                // Only process pen input
+                if (e.pointerType !== 'pen') return;
+                
+                if (isDrawing) {
+                    isDrawing = false;
+                    // Save drawing data for current page with canvas dimensions
+                    drawingData[currentPage] = {
+                        imageData: canvas.toDataURL(),
+                        canvasWidth: canvas.width,
+                        canvasHeight: canvas.height
+                    };
+                    
+                    // Hide eraser indicator
+                    hideEraserIndicator();
+                    
+                    // Reset pressure indicator
+                    updatePressureIndicator(0);
+                }
+            }
+
+            function showEraserIndicator(clientX, clientY) {
+                const indicator = document.getElementById('eraserIndicator');
+                if (indicator) {
+                    const size = currentEraserSize;
+                    indicator.style.width = size + 'px';
+                    indicator.style.height = size + 'px';
+                    indicator.style.left = (clientX - size/2) + 'px';
+                    indicator.style.top = (clientY - size/2) + 'px';
+                    indicator.style.display = 'block';
+                }
+            }
+
+            function updateEraserIndicator(clientX, clientY) {
+                const indicator = document.getElementById('eraserIndicator');
+                if (indicator && indicator.style.display === 'block') {
+                    const size = currentEraserSize;
+                    indicator.style.left = (clientX - size/2) + 'px';
+                    indicator.style.top = (clientY - size/2) + 'px';
+                }
+            }
+
+            function hideEraserIndicator() {
+                const indicator = document.getElementById('eraserIndicator');
+                if (indicator) {
+                    indicator.style.display = 'none';
+                }
+            }
+        }
+
+
+
+        function updatePressureIndicator(pressure) {
+            const indicator = document.getElementById('pressureIndicator');
+            if (indicator) {
+                const percentage = Math.round(pressure * 100);
+                indicator.textContent = `Pressure: ${percentage}%`;
+            }
+        }
+
+        function changePage(direction) {
+            const newPage = currentPage + direction;
+            if (newPage >= 1 && newPage <= totalPages) {
+                currentPage = newPage;
+                renderPage(currentPage);
+            }
+        }
+
+        function closePDF() {
+            // Show upload area and header, hide PDF viewer
+            document.getElementById('uploadArea').style.display = 'block';
+            document.querySelector('header').style.display = 'block';
+            document.getElementById('pdfViewer').classList.add('hidden');
+            
+            // Reset state
+            pdfDoc = null;
+            currentPage = 1;
+            totalPages = 0;
+            drawingData = {};
+            document.getElementById('downloadBtn').disabled = true;
+            document.getElementById('pdfUpload').value = '';
+        }
+
+        function setTool(tool) {
+            currentTool = tool;
+            
+            // Update tool buttons
+            document.querySelectorAll('#penTool, #eraserTool').forEach(btn => {
+                btn.classList.remove('tool-active');
+            });
+            
+            if (tool === 'pen') {
+                document.getElementById('penTool').classList.add('tool-active');
+            } else if (tool === 'eraser') {
+                document.getElementById('eraserTool').classList.add('tool-active');
+            }
+
+            // Update cursor
+            const canvas = document.querySelector('.drawing-canvas');
+            if (canvas) {
+                canvas.style.cursor = tool === 'eraser' ? 'grab' : 'crosshair';
+            }
+        }
+
+        function setColor(color) {
+            currentColor = color;
+            
+            // Update color indicator
+            const colorIndicator = document.getElementById('colorIndicator');
+            if (colorIndicator) {
+                colorIndicator.style.backgroundColor = color;
+            }
+            
+            // Close modal after selection
+            hideSettingsModal();
+        }
+
+        function clearCanvas() {
+            showConfirmDialog('Are you sure you want to clear all drawings on this page?', () => {
+                const canvas = document.querySelector('.drawing-canvas');
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    delete drawingData[currentPage];
+                }
+            });
+        }
+
+        async function downloadPDF() {
+            if (!pdfDoc) return;
+
+            try {
+                if (drawingData[currentPage]) {
+                    const link = document.createElement('a');
+                    link.download = `pdf-drawing-page-${currentPage}.png`;
+                    link.href = drawingData[currentPage].imageData;
+                    link.click();
+                } else {
+                    showCustomAlert('No drawings found on current page to download.');
+                }
+                
+            } catch (error) {
+                console.error('Error downloading:', error);
+                showCustomAlert('Error downloading the file.');
+            }
+        }
+
+        // Custom dialog functions (replacing alert/confirm)
+        function showCustomAlert(message) {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+            modal.innerHTML = `
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-sm w-full">
+                    <p class="text-gray-700 dark:text-gray-300 mb-4">${message}</p>
+                    <div class="flex justify-end">
+                        <button class="px-4 py-2 bg-primary text-white hover:bg-primary/90 rounded text-base" onclick="this.closest('.fixed').remove()">OK</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function showConfirmDialog(message, onConfirm) {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+            modal.innerHTML = `
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-sm w-full">
+                    <p class="text-gray-700 dark:text-gray-300 mb-4">${message}</p>
+                    <div class="flex justify-end space-x-3">
+                        <button class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-base" onclick="this.closest('.fixed').remove()">Cancel</button>
+                        <button class="px-4 py-2 bg-red-500 text-white hover:bg-red-600 rounded text-base" onclick="this.closest('.fixed').remove(); (${onConfirm})()">Confirm</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // Initialize Lucide icons
+        function initializeLucideIcons() {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            } else {
+                // Retry after a short delay if Lucide isn't loaded yet
+                setTimeout(initializeLucideIcons, 100);
+            }
+        }
+        
+        // Initialize icons when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeLucideIcons();
+            setupSettingsListeners();
+        });
+        
+        // Also initialize when PDF viewer is shown
+        const originalRenderPage = renderPage;
+        renderPage = async function(pageNum) {
+            await originalRenderPage(pageNum);
+            initializeLucideIcons();
+        };
+
+        // Handle window resize for responsive behavior with debouncing
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            if (pdfDoc) {
+                // Clear existing timeout
+                clearTimeout(resizeTimeout);
+                
+                // Set new timeout to prevent excessive re-rendering
+                resizeTimeout = setTimeout(() => {
+                    renderPage(currentPage);
+                }, 250); // Wait 250ms after resize stops
+            }
+        });
     </script>
-
-
-</body></html>
+</body>
+</html>
