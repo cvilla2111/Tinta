@@ -40,6 +40,37 @@
         .dark .selected-eraser-size {
             background-color: #4B5563 !important;
         }
+        
+        /* Page transition effects */
+        .page-transition {
+            transition: opacity 0.3s ease-in-out;
+        }
+        .page-fade-out {
+            opacity: 0;
+        }
+        .page-fade-in {
+            opacity: 1;
+        }
+
+        /* Page thumbnail modal */
+        .page-thumbnail-modal {
+            transform: translateX(100%);
+            transition: transform 0.3s ease-in-out;
+        }
+        .page-thumbnail-modal.open {
+            transform: translateX(0);
+        }
+        .page-thumbnail {
+            transition: all 0.2s ease;
+        }
+        .page-thumbnail:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        .page-thumbnail.current {
+            border-color: #5D5CDE !important;
+            box-shadow: 0 0 0 2px #5D5CDE;
+        }
 
 
     </style>
@@ -221,6 +252,25 @@
                 </div>
             </div>
 
+            <!-- Page Navigation -->
+            <div id="pageNavigation" class="fixed top-4 right-4 z-50 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 px-3 py-1.5 flex items-center gap-2">
+                <button onclick="changePage(-1)" id="prevPageBtn" 
+                        class="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i data-lucide="chevron-left" class="w-3 h-3 text-gray-700 dark:text-gray-300"></i>
+                </button>
+                
+                <button onclick="openPageThumbnailModal()" class="flex items-center gap-1 px-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors">
+                    <span id="currentPageNum" class="text-xs font-medium text-gray-900 dark:text-gray-100">1</span>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">/</span>
+                    <span id="totalPagesNum" class="text-xs text-gray-500 dark:text-gray-400">1</span>
+                </button>
+                
+                <button onclick="changePage(1)" id="nextPageBtn"
+                        class="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i data-lucide="chevron-right" class="w-3 h-3 text-gray-700 dark:text-gray-300"></i>
+                </button>
+            </div>
+
             <!-- Bottom Toolbar -->
             <div id="floatingToolbar" class="fixed bottom-2 left-1/2 transform -translate-x-1/2 z-50 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center gap-4">
                 <!-- Tool Selection -->
@@ -240,11 +290,36 @@
                 <div class="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
                 
                 <!-- Actions -->
+                <button onclick="openPresentationMode()" 
+                        class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <i data-lucide="cast" class="w-4 h-4 text-gray-700 dark:text-gray-300"></i>
+                </button>
                 <button onclick="clearCanvas()" 
                         class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                     <i data-lucide="trash-2" class="w-4 h-4 text-red-600 dark:text-red-400"></i>
                 </button>
             </div>
+
+            <!-- Page Thumbnail Modal -->
+            <div id="pageThumbnailModal" class="page-thumbnail-modal fixed inset-y-0 right-0 w-80 bg-white dark:bg-gray-800 shadow-2xl z-[70] border-l border-gray-200 dark:border-gray-700">
+                <div class="h-full flex flex-col">
+                    <!-- Header -->
+                    <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Pages</h3>
+                        <button onclick="closePageThumbnailModal()" class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                            <i data-lucide="x" class="w-4 h-4 text-gray-700 dark:text-gray-300"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Thumbnails Container -->
+                    <div id="thumbnailContainer" class="flex-1 overflow-y-auto p-4 space-y-3">
+                        <!-- Thumbnails will be generated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Backdrop -->
+            <div id="modalBackdrop" class="fixed inset-0 bg-black bg-opacity-50 z-[65] hidden" onclick="closePageThumbnailModal()"></div>
 
             <!-- PDF Content -->
             <div id="pdfContent" class="w-full h-full flex items-center justify-center overflow-auto"></div>
@@ -269,6 +344,7 @@
 
         // Application state
         let pdfDoc = null;
+        let pdfArrayBuffer = null; // Store PDF data for presentation window
         let currentPage = 1;
         let totalPages = 0;
         let currentTool = 'pen';
@@ -279,6 +355,9 @@
         let isDrawing = false;
         let drawingData = {}; // Store drawing data for each page with scale info
         let originalPageDimensions = {}; // Store original PDF page dimensions
+        
+        // Presentation mode state
+        let presentationWindow = null;
         
         // Stylus eraser button state
         let originalTool = 'pen'; // Track the original tool before eraser button press
@@ -451,6 +530,7 @@
 
             try {
                 const arrayBuffer = await file.arrayBuffer();
+                pdfArrayBuffer = arrayBuffer.slice(); // Store a copy for presentation window
                 pdfDoc = await pdfjsLib.getDocument(arrayBuffer).promise;
                 totalPages = pdfDoc.numPages;
                 currentPage = 1;
@@ -463,16 +543,27 @@
                 
                 await renderPage(currentPage);
                 document.getElementById('downloadBtn').disabled = false;
+                
+                // Update page navigation UI
+                updatePageNavigation();
             } catch (error) {
                 console.error('Error loading PDF:', error);
                 showCustomAlert('Error loading PDF file. Please try again.');
             }
         }
 
-        async function renderPage(pageNum) {
+        async function renderPage(pageNum, withTransition = false, direction = 1) {
             try {
                 const page = await pdfDoc.getPage(pageNum);
                 const container = document.getElementById('pdfContent');
+                
+                console.log('renderPage called with transition:', withTransition, 'direction:', direction); // Debug log
+                
+                if (withTransition) {
+                    console.log('Starting fade transition'); // Debug log
+                    await performFadeTransition(pageNum, direction);
+                    return;
+                }
                 
                 // Calculate scale to fit the screen width (with small margin to prevent scrollbars)
                 const containerWidth = window.innerWidth - 20; // Small margin to prevent overflow
@@ -542,9 +633,127 @@
                     img.src = drawingData[pageNum].imageData;
                 }
 
+                // Reset any transition styles
+                container.style.transition = '';
+                container.style.transform = '';
+
             } catch (error) {
                 console.error('Error rendering page:', error);
+                // Reset styles on error
+                const container = document.getElementById('pdfContent');
+                container.style.transition = '';
+                container.style.transform = '';
             }
+        }
+
+        async function performFadeTransition(targetPageNum, direction) {
+            const container = document.getElementById('pdfContent');
+            const currentPageElement = container.firstElementChild;
+            
+            // Calculate scale for consistent sizing
+            const containerWidth = window.innerWidth - 20;
+            const targetPage = await pdfDoc.getPage(targetPageNum);
+            const viewport = targetPage.getViewport({ scale: 1 });
+            const scale = containerWidth / viewport.width;
+            const scaledViewport = targetPage.getViewport({ scale });
+
+            // Create new page container
+            const newPageContainer = document.createElement('div');
+            newPageContainer.className = 'pdf-page-container';
+            newPageContainer.style.cssText = `
+                width: ${scaledViewport.width}px;
+                height: ${scaledViewport.height}px;
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                opacity: 0;
+                transition: opacity 0.4s ease-in-out;
+            `;
+
+            // Create PDF canvas
+            const pdfCanvas = document.createElement('canvas');
+            pdfCanvas.width = scaledViewport.width;
+            pdfCanvas.height = scaledViewport.height;
+            pdfCanvas.style.display = 'block';
+
+            // Create drawing canvas
+            const drawingCanvas = document.createElement('canvas');
+            drawingCanvas.className = 'drawing-canvas';
+            drawingCanvas.width = scaledViewport.width;
+            drawingCanvas.height = scaledViewport.height;
+
+            newPageContainer.appendChild(pdfCanvas);
+            newPageContainer.appendChild(drawingCanvas);
+
+            // Render the new page
+            const renderContext = {
+                canvasContext: pdfCanvas.getContext('2d'),
+                viewport: scaledViewport
+            };
+            await targetPage.render(renderContext).promise;
+
+            // Restore drawing data for new page
+            if (drawingData[targetPageNum]) {
+                const ctx = drawingCanvas.getContext('2d');
+                const img = new Image();
+                img.onload = function() {
+                    const scaleX = scaledViewport.width / drawingData[targetPageNum].canvasWidth;
+                    const scaleY = scaledViewport.height / drawingData[targetPageNum].canvasHeight;
+                    
+                    ctx.save();
+                    ctx.scale(scaleX, scaleY);
+                    ctx.drawImage(img, 0, 0);
+                    ctx.restore();
+                };
+                img.src = drawingData[targetPageNum].imageData;
+            }
+
+            // Position current page absolutely and prepare for fade out
+            if (currentPageElement) {
+                currentPageElement.style.cssText = `
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    opacity: 1;
+                    transition: opacity 0.5s ease-in-out;
+                `;
+            }
+
+            // Add new page to container (behind current page)
+            container.appendChild(newPageContainer);
+
+            // Force reflow
+            newPageContainer.offsetHeight;
+
+            // Start fade transition
+            if (currentPageElement) {
+                currentPageElement.style.opacity = '0';
+            }
+            newPageContainer.style.opacity = '1';
+
+            // Wait for fade animation to complete
+            await new Promise(resolve => setTimeout(resolve, 400));
+
+            // Clean up: remove old page and reset container
+            container.innerHTML = '';
+            
+            // Reset new page styles to normal positioning
+            newPageContainer.style.cssText = `
+                width: ${scaledViewport.width}px;
+                height: ${scaledViewport.height}px;
+                position: relative;
+                margin: 0 auto;
+                opacity: 1;
+            `;
+            
+            container.appendChild(newPageContainer);
+
+            // Setup drawing events for new page
+            setupDrawingEvents(drawingCanvas);
+
+            console.log('Fade transition complete'); // Debug log
         }
 
         function setupDrawingEvents(canvas) {
@@ -658,6 +867,9 @@
                 ctx.lineTo(currentX, currentY);
                 ctx.stroke();
 
+                // Update presentation window in real-time
+                updatePresentationWindowRealtime(lastX, lastY, currentX, currentY, ctx.lineWidth, currentTool, currentColor);
+
                 lastX = currentX;
                 lastY = currentY;
                 
@@ -731,7 +943,723 @@
             const newPage = currentPage + direction;
             if (newPage >= 1 && newPage <= totalPages) {
                 currentPage = newPage;
-                renderPage(currentPage);
+                
+                // Update page navigation UI
+                updatePageNavigation();
+                
+                // Start transitions in both windows simultaneously
+                renderPage(currentPage, true, direction); // Main window fade transition
+                
+                // Trigger presentation window fade transition if open
+                if (presentationWindow && !presentationWindow.closed) {
+                    triggerPresentationFadeTransition(currentPage, direction);
+                }
+            }
+        }
+
+        // Update page navigation UI
+        function updatePageNavigation() {
+            // Update page numbers
+            document.getElementById('currentPageNum').textContent = currentPage;
+            document.getElementById('totalPagesNum').textContent = totalPages;
+            
+            // Update button states
+            const prevBtn = document.getElementById('prevPageBtn');
+            const nextBtn = document.getElementById('nextPageBtn');
+            
+            // Disable previous button if on first page
+            if (currentPage <= 1) {
+                prevBtn.disabled = true;
+                prevBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                prevBtn.disabled = false;
+                prevBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+            
+            // Disable next button if on last page
+            if (currentPage >= totalPages) {
+                nextBtn.disabled = true;
+                nextBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                nextBtn.disabled = false;
+                nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+            
+            // Update thumbnail selection if modal is open
+            updateThumbnailSelection();
+        }
+
+        // Page Thumbnail Modal Functions
+        async function openPageThumbnailModal() {
+            if (!pdfDoc) return;
+
+            const modal = document.getElementById('pageThumbnailModal');
+            const backdrop = document.getElementById('modalBackdrop');
+            const container = document.getElementById('thumbnailContainer');
+
+            // Show backdrop
+            backdrop.classList.remove('hidden');
+
+            // Generate thumbnails if not already done
+            if (container.children.length === 0) {
+                await generatePageThumbnails();
+            }
+
+            // Update current page selection
+            updateThumbnailSelection();
+
+            // Show modal with slide animation
+            setTimeout(() => {
+                modal.classList.add('open');
+            }, 10);
+
+            // Scroll to current page
+            scrollToCurrentThumbnail();
+        }
+
+        function closePageThumbnailModal() {
+            const modal = document.getElementById('pageThumbnailModal');
+            const backdrop = document.getElementById('modalBackdrop');
+
+            // Hide modal with slide animation
+            modal.classList.remove('open');
+
+            // Hide backdrop after animation
+            setTimeout(() => {
+                backdrop.classList.add('hidden');
+            }, 300);
+        }
+
+        async function generatePageThumbnails() {
+            const container = document.getElementById('thumbnailContainer');
+            container.innerHTML = '<div class="text-center py-8"><div class="text-gray-500 dark:text-gray-400">Generating thumbnails...</div></div>';
+
+            const thumbnails = [];
+
+            for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+                try {
+                    const page = await pdfDoc.getPage(pageNum);
+                    const viewport = page.getViewport({ scale: 0.3 }); // Small scale for thumbnails
+
+                    // Create thumbnail container
+                    const thumbnailDiv = document.createElement('div');
+                    thumbnailDiv.className = 'page-thumbnail bg-white dark:bg-gray-700 rounded-lg border-2 border-gray-200 dark:border-gray-600 overflow-hidden cursor-pointer';
+                    thumbnailDiv.setAttribute('data-page', pageNum);
+                    thumbnailDiv.onclick = () => goToPage(pageNum);
+
+                    // Create canvas for PDF
+                    const canvas = document.createElement('canvas');
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+                    canvas.className = 'w-full h-auto';
+
+                    // Create canvas for drawings overlay
+                    const drawingCanvas = document.createElement('canvas');
+                    drawingCanvas.width = viewport.width;
+                    drawingCanvas.height = viewport.height;
+                    drawingCanvas.className = 'absolute top-0 left-0 w-full h-auto';
+
+                    // Container for canvases
+                    const canvasContainer = document.createElement('div');
+                    canvasContainer.className = 'relative';
+                    canvasContainer.appendChild(canvas);
+                    canvasContainer.appendChild(drawingCanvas);
+
+                    // Page number label
+                    const pageLabel = document.createElement('div');
+                    pageLabel.className = 'p-2 text-xs text-center text-gray-600 dark:text-gray-400 border-t border-gray-200 dark:border-gray-600';
+                    pageLabel.textContent = `Page ${pageNum}`;
+
+                    thumbnailDiv.appendChild(canvasContainer);
+                    thumbnailDiv.appendChild(pageLabel);
+
+                    // Render PDF page
+                    const renderContext = {
+                        canvasContext: canvas.getContext('2d'),
+                        viewport: viewport
+                    };
+                    await page.render(renderContext).promise;
+
+                    // Render drawings if they exist
+                    if (drawingData[pageNum]) {
+                        const ctx = drawingCanvas.getContext('2d');
+                        const img = new Image();
+                        img.onload = function() {
+                            const scaleX = viewport.width / drawingData[pageNum].canvasWidth;
+                            const scaleY = viewport.height / drawingData[pageNum].canvasHeight;
+                            
+                            ctx.save();
+                            ctx.scale(scaleX, scaleY);
+                            ctx.drawImage(img, 0, 0);
+                            ctx.restore();
+                        };
+                        img.src = drawingData[pageNum].imageData;
+                    }
+
+                    thumbnails.push(thumbnailDiv);
+
+                } catch (error) {
+                    console.error(`Error generating thumbnail for page ${pageNum}:`, error);
+                }
+            }
+
+            // Clear loading message and add all thumbnails
+            container.innerHTML = '';
+            thumbnails.forEach(thumb => container.appendChild(thumb));
+
+            // Initialize icons for the thumbnails
+            initializeLucideIcons();
+        }
+
+        function updateThumbnailSelection() {
+            const thumbnails = document.querySelectorAll('.page-thumbnail');
+            thumbnails.forEach(thumb => {
+                const pageNum = parseInt(thumb.getAttribute('data-page'));
+                if (pageNum === currentPage) {
+                    thumb.classList.add('current');
+                } else {
+                    thumb.classList.remove('current');
+                }
+            });
+        }
+
+        function scrollToCurrentThumbnail() {
+            const container = document.getElementById('thumbnailContainer');
+            const currentThumbnail = container.querySelector(`[data-page="${currentPage}"]`);
+            
+            if (currentThumbnail) {
+                // Scroll to center the current thumbnail
+                const containerHeight = container.clientHeight;
+                const thumbnailTop = currentThumbnail.offsetTop;
+                const thumbnailHeight = currentThumbnail.offsetHeight;
+                
+                const scrollPosition = thumbnailTop - (containerHeight / 2) + (thumbnailHeight / 2);
+                container.scrollTo({
+                    top: Math.max(0, scrollPosition),
+                    behavior: 'smooth'
+                });
+            }
+        }
+
+        function goToPage(pageNum) {
+            if (pageNum >= 1 && pageNum <= totalPages && pageNum !== currentPage) {
+                const direction = pageNum > currentPage ? 1 : -1;
+                currentPage = pageNum;
+                
+                // Update page navigation UI
+                updatePageNavigation();
+                
+                // Start transitions in both windows
+                renderPage(currentPage, true, direction);
+                
+                // Trigger presentation window fade transition if open
+                if (presentationWindow && !presentationWindow.closed) {
+                    triggerPresentationFadeTransition(currentPage, direction);
+                }
+                
+                // Close the modal
+                closePageThumbnailModal();
+            }
+        }
+
+        // Presentation Mode Functions
+        function openPresentationMode() {
+            if (!pdfDoc || !pdfArrayBuffer) {
+                showCustomAlert('Please load a PDF first before opening presentation mode.');
+                return;
+            }
+
+            // Check if presentation window is already open
+            if (presentationWindow && !presentationWindow.closed) {
+                showConfirmDialog('Close the presentation window?', () => {
+                    presentationWindow.close();
+                    presentationWindow = null;
+                });
+                return;
+            }
+
+            // Open new presentation window
+            const windowFeatures = 'width=1280,height=720,resizable=yes,scrollbars=no,status=no,menubar=no,toolbar=no';
+            presentationWindow = window.open('about:blank', 'PDFPresentation', windowFeatures);
+            
+            if (presentationWindow) {
+                // Handle presentation window close
+                presentationWindow.addEventListener('beforeunload', () => {
+                    presentationWindow = null;
+                });
+                
+                // Create and inject presentation HTML
+                const presentationHTML = createPresentationHTML();
+                presentationWindow.document.write(presentationHTML);
+                presentationWindow.document.close();
+                
+                // Use a different approach - wait for the window's load event
+                presentationWindow.addEventListener('load', () => {
+                    // Additional wait to ensure PDF.js is loaded
+                    setTimeout(() => {
+                        initializePresentationWindow();
+                    }, 300);
+                });
+                
+                // Backup initialization in case load event doesn't fire
+                setTimeout(() => {
+                    if (presentationWindow && !presentationWindow.closed) {
+                        initializePresentationWindow();
+                    }
+                }, 1000);
+                
+            } else {
+                showCustomAlert('Unable to open presentation window. Please allow popups for this site.');
+            }
+        }
+
+        // Initialize presentation window with PDF data
+        function initializePresentationWindow() {
+            if (!presentationWindow || presentationWindow.closed) return;
+            
+            try {
+                // Use postMessage for more reliable cross-window communication
+                const initData = {
+                    type: 'INIT_PDF',
+                    pdfArrayBuffer: pdfArrayBuffer,
+                    currentPage: currentPage,
+                    totalPages: totalPages,
+                    drawingData: drawingData
+                };
+                
+                presentationWindow.postMessage(initData, '*');
+                
+            } catch (error) {
+                console.error('Error initializing presentation window:', error);
+                // Fallback to direct property assignment
+                try {
+                    presentationWindow.pdfArrayBuffer = pdfArrayBuffer;
+                    presentationWindow.currentPage = currentPage;
+                    presentationWindow.totalPages = totalPages;
+                    presentationWindow.drawingData = drawingData;
+                    
+                    presentationWindow.eval(`
+                        if (typeof initializePDF === 'function') {
+                            initializePDF();
+                        }
+                    `);
+                } catch (fallbackError) {
+                    console.error('Fallback initialization also failed:', fallbackError);
+                }
+            }
+        }
+
+        function createPresentationHTML() {
+            return '<!DOCTYPE html>' +
+                '<html lang="en">' +
+                '<head>' +
+                    '<meta charset="UTF-8">' +
+                    '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+                    '<title>PDF Presentation</title>' +
+                    '<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"><\/script>' +
+                    '<style>' +
+                        'body {' +
+                            'margin: 0;' +
+                            'padding: 0;' +
+                            'background: #000;' +
+                            'display: flex;' +
+                            'justify-content: center;' +
+                            'align-items: center;' +
+                            'min-height: 100vh;' +
+                            'overflow: hidden;' +
+                        '}' +
+                        '#presentationContent {' +
+                            'display: flex;' +
+                            'justify-content: center;' +
+                            'align-items: center;' +
+                            'width: 100%;' +
+                            'height: 100vh;' +
+                        '}' +
+                        '.pdf-page-container {' +
+                            'position: relative;' +
+                        '}' +
+                        '.presentation-canvas {' +
+                            'position: absolute;' +
+                            'top: 0;' +
+                            'left: 0;' +
+                        '}' +
+                        '#fullscreenBtn {' +
+                            'position: fixed;' +
+                            'top: 20px;' +
+                            'right: 20px;' +
+                            'z-index: 1000;' +
+                            'background: rgba(255, 255, 255, 0.9);' +
+                            'border: none;' +
+                            'border-radius: 8px;' +
+                            'padding: 12px 16px;' +
+                            'cursor: pointer;' +
+                            'font-size: 14px;' +
+                            'font-weight: 600;' +
+                            'color: #374151;' +
+                            'box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);' +
+                            'transition: all 0.2s ease;' +
+                            'display: flex;' +
+                            'align-items: center;' +
+                            'gap: 8px;' +
+                        '}' +
+                        '#fullscreenBtn:hover {' +
+                            'background: rgba(255, 255, 255, 1);' +
+                            'transform: translateY(-1px);' +
+                            'box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);' +
+                        '}' +
+                        '#fullscreenBtn:active {' +
+                            'transform: translateY(0);' +
+                        '}' +
+                        '#fullscreenBtn svg {' +
+                            'width: 16px;' +
+                            'height: 16px;' +
+                        '}' +
+                        '.fullscreen-hidden {' +
+                            'opacity: 0;' +
+                            'pointer-events: none;' +
+                            'transform: translateY(-10px);' +
+                        '}' +
+                    '</style>' +
+                '</head>' +
+                '<body>' +
+                    '<button id="fullscreenBtn" onclick="enterFullscreen()">' +
+                        '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                            '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>' +
+                        '</svg>' +
+                        'Fullscreen' +
+                    '</button>' +
+                    '<div id="presentationContent"></div>' +
+                    '<script>' +
+                        'pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";' +
+                        'window.addEventListener("resize", () => {' +
+                            'if (window.currentRenderFunction) {' +
+                                'window.currentRenderFunction();' +
+                            '}' +
+                        '});' +
+                        'window.addEventListener("message", async function(event) {' +
+                            'if (event.data && event.data.type === "INIT_PDF") {' +
+                                'try {' +
+                                    'window.pdfArrayBuffer = event.data.pdfArrayBuffer;' +
+                                    'window.currentPage = event.data.currentPage;' +
+                                    'window.totalPages = event.data.totalPages;' +
+                                    'window.drawingData = event.data.drawingData;' +
+                                    'if (window.pdfArrayBuffer) {' +
+                                        'window.presentationPdfDoc = await pdfjsLib.getDocument(window.pdfArrayBuffer).promise;' +
+                                        'window.renderPresentationPage(window.currentPage);' +
+                                    '}' +
+                                '} catch (error) {' +
+                                    'console.error("Error handling postMessage:", error);' +
+                                '}' +
+                            '} else if (event.data && event.data.type === "FADE_TRANSITION") {' +
+                                'try {' +
+                                    'window.drawingData = event.data.drawingData;' +
+                                    'window.performPresentationFadeTransition(event.data.targetPageNum, event.data.direction);' +
+                                '} catch (error) {' +
+                                    'console.error("Error handling fade transition:", error);' +
+                                '}' +
+                            '}' +
+                        '});' +
+                        'window.initializePDF = async function() {' +
+                            'try {' +
+                                'if (window.pdfArrayBuffer) {' +
+                                    'window.presentationPdfDoc = await pdfjsLib.getDocument(window.pdfArrayBuffer).promise;' +
+                                    'window.renderPresentationPage(window.currentPage || 1);' +
+                                '}' +
+                            '} catch (error) {' +
+                                'console.error("Error in initializePDF:", error);' +
+                            '}' +
+                        '};' +
+                        'window.renderPresentationPage = async function(pageNum) {' +
+                            'if (!window.presentationPdfDoc) return;' +
+                            'try {' +
+                                'const page = await window.presentationPdfDoc.getPage(pageNum);' +
+                                'const container = document.getElementById("presentationContent");' +
+                                'const windowWidth = window.innerWidth;' +
+                                'const windowHeight = window.innerHeight;' +
+                                'const viewport = page.getViewport({ scale: 1 });' +
+                                'const scaleX = windowWidth / viewport.width;' +
+                                'const scaleY = (windowHeight - 10) / viewport.height;' +
+                                'const scale = scaleX;' +
+                                'const scaledViewport = page.getViewport({ scale });' +
+                                'const pageContainer = document.createElement("div");' +
+                                'pageContainer.className = "pdf-page-container";' +
+                                'pageContainer.style.width = scaledViewport.width + "px";' +
+                                'pageContainer.style.height = scaledViewport.height + "px";' +
+                                'const pdfCanvas = document.createElement("canvas");' +
+                                'pdfCanvas.width = scaledViewport.width;' +
+                                'pdfCanvas.height = scaledViewport.height;' +
+                                'pdfCanvas.style.display = "block";' +
+                                'const drawingCanvas = document.createElement("canvas");' +
+                                'drawingCanvas.className = "presentation-canvas";' +
+                                'drawingCanvas.width = scaledViewport.width;' +
+                                'drawingCanvas.height = scaledViewport.height;' +
+                                'container.innerHTML = "";' +
+                                'pageContainer.appendChild(pdfCanvas);' +
+                                'pageContainer.appendChild(drawingCanvas);' +
+                                'container.appendChild(pageContainer);' +
+                                'const renderContext = {' +
+                                    'canvasContext: pdfCanvas.getContext("2d"),' +
+                                    'viewport: scaledViewport' +
+                                '};' +
+                                'await page.render(renderContext).promise;' +
+                                'if (window.drawingData && window.drawingData[pageNum]) {' +
+                                    'const ctx = drawingCanvas.getContext("2d");' +
+                                    'const img = new Image();' +
+                                    'img.onload = function() {' +
+                                        'const scaleX = scaledViewport.width / window.drawingData[pageNum].canvasWidth;' +
+                                        'const scaleY = scaledViewport.height / window.drawingData[pageNum].canvasHeight;' +
+                                        'ctx.save();' +
+                                        'ctx.scale(scaleX, scaleY);' +
+                                        'ctx.drawImage(img, 0, 0);' +
+                                        'ctx.restore();' +
+                                    '};' +
+                                    'img.src = window.drawingData[pageNum].imageData;' +
+                                '}' +
+                                'window.currentRenderFunction = () => window.renderPresentationPage(pageNum);' +
+                            '} catch (error) {' +
+                                'console.error("Error rendering presentation page:", error);' +
+                            '}' +
+                        '};' +
+                        'window.performPresentationFadeTransition = async function(targetPageNum, direction) {' +
+                            'if (!window.presentationPdfDoc) return;' +
+                            'try {' +
+                                'const container = document.getElementById("presentationContent");' +
+                                'const currentPageElement = container.firstElementChild;' +
+                                'const windowWidth = window.innerWidth;' +
+                                'const windowHeight = window.innerHeight;' +
+                                'const targetPage = await window.presentationPdfDoc.getPage(targetPageNum);' +
+                                'const viewport = targetPage.getViewport({ scale: 1 });' +
+                                'const scaleX = windowWidth / viewport.width;' +
+                                'const scaleY = (windowHeight - 10) / viewport.height;' +
+                                'const scale = scaleX;' +
+                                'const scaledViewport = targetPage.getViewport({ scale });' +
+                                'const newPageContainer = document.createElement("div");' +
+                                'newPageContainer.className = "pdf-page-container";' +
+                                'newPageContainer.style.cssText = `width: ${scaledViewport.width}px; height: ${scaledViewport.height}px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0; transition: opacity 0.5s ease-in-out;`;' +
+                                'const pdfCanvas = document.createElement("canvas");' +
+                                'pdfCanvas.width = scaledViewport.width;' +
+                                'pdfCanvas.height = scaledViewport.height;' +
+                                'pdfCanvas.style.display = "block";' +
+                                'const drawingCanvas = document.createElement("canvas");' +
+                                'drawingCanvas.className = "presentation-canvas";' +
+                                'drawingCanvas.width = scaledViewport.width;' +
+                                'drawingCanvas.height = scaledViewport.height;' +
+                                'newPageContainer.appendChild(pdfCanvas);' +
+                                'newPageContainer.appendChild(drawingCanvas);' +
+                                'const renderContext = { canvasContext: pdfCanvas.getContext("2d"), viewport: scaledViewport };' +
+                                'await targetPage.render(renderContext).promise;' +
+                                'if (window.drawingData && window.drawingData[targetPageNum]) {' +
+                                    'const ctx = drawingCanvas.getContext("2d");' +
+                                    'const img = new Image();' +
+                                    'img.onload = function() {' +
+                                        'const scaleX = scaledViewport.width / window.drawingData[targetPageNum].canvasWidth;' +
+                                        'const scaleY = scaledViewport.height / window.drawingData[targetPageNum].canvasHeight;' +
+                                        'ctx.save();' +
+                                        'ctx.scale(scaleX, scaleY);' +
+                                        'ctx.drawImage(img, 0, 0);' +
+                                        'ctx.restore();' +
+                                    '};' +
+                                    'img.src = window.drawingData[targetPageNum].imageData;' +
+                                '}' +
+                                'if (currentPageElement) {' +
+                                    'currentPageElement.style.cssText = `position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 1; transition: opacity 0.5s ease-in-out;`;' +
+                                '}' +
+                                'container.appendChild(newPageContainer);' +
+                                'newPageContainer.offsetHeight;' +
+                                'if (currentPageElement) {' +
+                                    'currentPageElement.style.opacity = "0";' +
+                                '}' +
+                                'newPageContainer.style.opacity = "1";' +
+                                'await new Promise(resolve => setTimeout(resolve, 500));' +
+                                'container.innerHTML = "";' +
+                                'newPageContainer.style.cssText = `width: ${scaledViewport.width}px; height: ${scaledViewport.height}px; position: relative; opacity: 1;`;' +
+                                'container.appendChild(newPageContainer);' +
+                                'window.currentRenderFunction = () => window.renderPresentationPage(targetPageNum);' +
+                            '} catch (error) {' +
+                                'console.error("Error in presentation fade transition:", error);' +
+                            '}' +
+                        '};' +
+                        'function enterFullscreen() {' +
+                            'const btn = document.getElementById("fullscreenBtn");' +
+                            'if (document.documentElement.requestFullscreen) {' +
+                                'document.documentElement.requestFullscreen().then(() => {' +
+                                    'btn.classList.add("fullscreen-hidden");' +
+                                '}).catch(err => {' +
+                                    'console.error("Error entering fullscreen:", err);' +
+                                '});' +
+                            '} else if (document.documentElement.webkitRequestFullscreen) {' +
+                                'document.documentElement.webkitRequestFullscreen();' +
+                                'btn.classList.add("fullscreen-hidden");' +
+                            '} else if (document.documentElement.msRequestFullscreen) {' +
+                                'document.documentElement.msRequestFullscreen();' +
+                                'btn.classList.add("fullscreen-hidden");' +
+                            '}' +
+                        '}' +
+                        'document.addEventListener("fullscreenchange", handleFullscreenChange);' +
+                        'document.addEventListener("webkitfullscreenchange", handleFullscreenChange);' +
+                        'document.addEventListener("msfullscreenchange", handleFullscreenChange);' +
+                        'function handleFullscreenChange() {' +
+                            'const btn = document.getElementById("fullscreenBtn");' +
+                            'const isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);' +
+                            'if (isFullscreen) {' +
+                                'btn.classList.add("fullscreen-hidden");' +
+                            '} else {' +
+                                'btn.classList.remove("fullscreen-hidden");' +
+                            '}' +
+                            'setTimeout(() => {' +
+                                'if (window.currentRenderFunction) {' +
+                                    'window.currentRenderFunction();' +
+                                '}' +
+                            '}, 100);' +
+                        '}' +
+                    '<\/script>' +
+                '</body>' +
+                '</html>';
+        }
+
+        async function renderPresentationPage(pageNum) {
+            if (!presentationWindow || presentationWindow.closed || !pdfDoc) return;
+
+            try {
+                const page = await pdfDoc.getPage(pageNum);
+                const container = presentationWindow.document.getElementById('presentationContent');
+                
+                // Calculate scale to fit the presentation window
+                const windowWidth = presentationWindow.innerWidth;
+                const windowHeight = presentationWindow.innerHeight;
+                const viewport = page.getViewport({ scale: 1 });
+                
+                // Scale to fit both width and height with some padding
+                const scaleX = (windowWidth - 40) / viewport.width;
+                const scaleY = (windowHeight - 40) / viewport.height;
+                const scale = Math.min(scaleX, scaleY);
+                
+                const scaledViewport = page.getViewport({ scale });
+
+                // Create page container
+                const pageContainer = presentationWindow.document.createElement('div');
+                pageContainer.className = 'pdf-page-container';
+                pageContainer.style.width = scaledViewport.width + 'px';
+                pageContainer.style.height = scaledViewport.height + 'px';
+
+                // Create and setup PDF canvas
+                const pdfCanvas = presentationWindow.document.createElement('canvas');
+                pdfCanvas.width = scaledViewport.width;
+                pdfCanvas.height = scaledViewport.height;
+                pdfCanvas.style.display = 'block';
+
+                // Create and setup presentation canvas for drawings
+                const drawingCanvas = presentationWindow.document.createElement('canvas');
+                drawingCanvas.className = 'presentation-canvas';
+                drawingCanvas.width = scaledViewport.width;
+                drawingCanvas.height = scaledViewport.height;
+
+                // Clear container and add new elements
+                container.innerHTML = '';
+                pageContainer.appendChild(pdfCanvas);
+                pageContainer.appendChild(drawingCanvas);
+                container.appendChild(pageContainer);
+
+                // Render PDF page
+                const renderContext = {
+                    canvasContext: pdfCanvas.getContext('2d'),
+                    viewport: scaledViewport
+                };
+                await page.render(renderContext).promise;
+
+                // Restore drawing data for this page with proper scaling
+                if (drawingData[pageNum]) {
+                    const ctx = drawingCanvas.getContext('2d');
+                    const img = new Image();
+                    img.onload = function() {
+                        // Calculate scaling factors based on canvas size changes
+                        const scaleX = scaledViewport.width / drawingData[pageNum].canvasWidth;
+                        const scaleY = scaledViewport.height / drawingData[pageNum].canvasHeight;
+                        
+                        // Scale and draw the image to fit the new canvas size
+                        ctx.save();
+                        ctx.scale(scaleX, scaleY);
+                        ctx.drawImage(img, 0, 0);
+                        ctx.restore();
+                    };
+                    img.src = drawingData[pageNum].imageData;
+                }
+
+                // Store render function for window resize
+                presentationWindow.currentRenderFunction = () => renderPresentationPage(pageNum);
+
+            } catch (error) {
+                console.error('Error rendering presentation page:', error);
+            }
+        }
+
+        function updatePresentationWindow() {
+            if (presentationWindow && !presentationWindow.closed) {
+                try {
+                    // Update drawing data in presentation window
+                    presentationWindow.drawingData = drawingData;
+                    presentationWindow.currentPage = currentPage;
+                    
+                    // Call the presentation window's render function
+                    presentationWindow.renderPresentationPage(currentPage);
+                } catch (error) {
+                    console.error('Error updating presentation window:', error);
+                }
+            }
+        }
+
+        // Trigger fade transition in presentation window
+        function triggerPresentationFadeTransition(targetPageNum, direction) {
+            if (!presentationWindow || presentationWindow.closed) return;
+
+            try {
+                // Send message to presentation window to start fade transition
+                presentationWindow.postMessage({
+                    type: 'FADE_TRANSITION',
+                    targetPageNum: targetPageNum,
+                    direction: direction,
+                    drawingData: drawingData
+                }, '*');
+            } catch (error) {
+                console.error('Error triggering presentation fade transition:', error);
+                // Fallback to direct update
+                updatePresentationWindow();
+            }
+        }
+
+        // Real-time presentation window update for drawing
+        function updatePresentationWindowRealtime(fromX, fromY, toX, toY, lineWidth, tool, color) {
+            if (!presentationWindow || presentationWindow.closed) return;
+
+            try {
+                const container = presentationWindow.document.getElementById('presentationContent');
+                const drawingCanvas = container.querySelector('.presentation-canvas');
+                if (!drawingCanvas) return;
+
+                const ctx = drawingCanvas.getContext('2d');
+                const mainCanvas = document.querySelector('.drawing-canvas');
+                
+                if (!mainCanvas) return;
+
+                // Calculate scaling factors between main canvas and presentation canvas
+                const scaleX = drawingCanvas.width / mainCanvas.width;
+                const scaleY = drawingCanvas.height / mainCanvas.height;
+
+                // Apply the same drawing properties
+                ctx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over';
+                ctx.strokeStyle = color;
+                ctx.lineWidth = lineWidth * Math.min(scaleX, scaleY); // Scale line width proportionally
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                // Draw the line with scaled coordinates
+                ctx.beginPath();
+                ctx.moveTo(fromX * scaleX, fromY * scaleY);
+                ctx.lineTo(toX * scaleX, toY * scaleY);
+                ctx.stroke();
+
+            } catch (error) {
+                console.error('Error updating presentation window in real-time:', error);
             }
         }
 
@@ -791,8 +1719,27 @@
                     const ctx = canvas.getContext('2d');
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                     delete drawingData[currentPage];
+                    
+                    // Clear presentation window canvas in real-time
+                    clearPresentationCanvas();
                 }
             });
+        }
+
+        // Clear presentation window canvas
+        function clearPresentationCanvas() {
+            if (!presentationWindow || presentationWindow.closed) return;
+
+            try {
+                const container = presentationWindow.document.getElementById('presentationContent');
+                const drawingCanvas = container.querySelector('.presentation-canvas');
+                if (drawingCanvas) {
+                    const ctx = drawingCanvas.getContext('2d');
+                    ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+                }
+            } catch (error) {
+                console.error('Error clearing presentation canvas:', error);
+            }
         }
 
         async function downloadPDF() {
@@ -862,8 +1809,8 @@
         
         // Also initialize when PDF viewer is shown
         const originalRenderPage = renderPage;
-        renderPage = async function(pageNum) {
-            await originalRenderPage(pageNum);
+        renderPage = async function(pageNum, withTransition = false) {
+            await originalRenderPage(pageNum, withTransition);
             initializeLucideIcons();
         };
 
