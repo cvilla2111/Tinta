@@ -94,7 +94,7 @@
     <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
         <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">PDF Drawing App SPEN</h1>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">PDF Drawing App</h1>
                 <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Stylus input only - Supports MPP stylus & Samsung S-Pen</p>
             </div>
             
@@ -951,23 +951,30 @@
                     pressureHistory.shift();
                 }
 
-                ctx.globalCompositeOperation = currentTool === 'eraser' ? 'destination-out' : 'source-over';
-                
                 // Use appropriate size based on tool (scale up for high-DPI)
                 const scaleFactor = Math.min(scaleX, scaleY);
                 const toolSize = (currentTool === 'eraser' ? currentEraserSize : currentBrushSize) * scaleFactor;
                 
                 if (currentTool === 'eraser') {
-                    // Eraser: Simple consistent rendering
+                    // Eraser: Use destination-out to remove pixels
+                    ctx.globalCompositeOperation = 'destination-out';
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
                     ctx.lineWidth = toolSize;
-                    ctx.strokeStyle = currentColor; // For composite operation
+                    
+                    // Draw eraser stroke - color doesn't matter for destination-out, but set it anyway
+                    ctx.strokeStyle = 'rgba(0,0,0,1)';
                     
                     ctx.beginPath();
                     ctx.moveTo(lastX, lastY);
                     ctx.lineTo(currentX, currentY);
                     ctx.stroke();
+                    
+                    // Reset composite operation for next draw
+                    ctx.globalCompositeOperation = 'source-over';
                 } else {
                     // Pen: Enhanced ink rendering with smoothing and pressure
+                    ctx.globalCompositeOperation = 'source-over';
                     drawSmoothStroke(ctx, points, pressureHistory, toolSize);
                 }
 
