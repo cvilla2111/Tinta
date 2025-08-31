@@ -633,9 +633,9 @@
                     const ctx = drawingCanvas.getContext('2d');
                     const img = new Image();
                     img.onload = function() {
-                        // Calculate scaling factors based on canvas size changes
-                        const scaleX = scaledViewport.width / drawingData[pageNum].canvasWidth;
-                        const scaleY = scaledViewport.height / drawingData[pageNum].canvasHeight;
+                        // Calculate scaling factors based on canvas size changes (use drawing canvas dimensions)
+                        const scaleX = drawingCanvas.width / drawingData[pageNum].canvasWidth;
+                        const scaleY = drawingCanvas.height / drawingData[pageNum].canvasHeight;
                         
                         // Scale and draw the image to fit the new canvas size
                         ctx.save();
@@ -722,8 +722,9 @@
                 const ctx = drawingCanvas.getContext('2d');
                 const img = new Image();
                 img.onload = function() {
-                    const scaleX = scaledViewport.width / drawingData[targetPageNum].canvasWidth;
-                    const scaleY = scaledViewport.height / drawingData[targetPageNum].canvasHeight;
+                    // Calculate scaling factors based on canvas size changes (use drawing canvas dimensions)
+                    const scaleX = drawingCanvas.width / drawingData[targetPageNum].canvasWidth;
+                    const scaleY = drawingCanvas.height / drawingData[targetPageNum].canvasHeight;
                     
                     ctx.save();
                     ctx.scale(scaleX, scaleY);
