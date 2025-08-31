@@ -94,7 +94,7 @@
     <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
         <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">PDF Drawing App SPEN</h1>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">PDF Drawing App</h1>
                 <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Stylus input only - Supports MPP stylus & Samsung S-Pen</p>
             </div>
             
@@ -831,6 +831,10 @@
             canvas.addEventListener('mousedown', e => e.preventDefault());
             canvas.addEventListener('mousemove', e => e.preventDefault());
             canvas.addEventListener('mouseup', e => e.preventDefault());
+            
+            // Samsung S-Pen specific: Handle context menu event (S-Pen button press)
+            canvas.addEventListener('contextmenu', handleSPenContextMenu);
+            document.addEventListener('contextmenu', handleSPenContextMenu);
 
             function startDrawing(e) {
                 // Only allow pen input (Microsoft Pen Protocol stylus)
@@ -1080,6 +1084,44 @@
         }
 
 
+
+        // Samsung S-Pen Context Menu Handler (Galaxy Tab S7 eraser button)
+        function handleSPenContextMenu(e) {
+            console.log('Context menu event triggered:', {
+                type: e.type,
+                pointerType: e.pointerType,
+                button: e.button,
+                buttons: e.buttons,
+                target: e.target.tagName,
+                timestamp: Date.now()
+            });
+            
+            // Check if this is S-Pen related (prevent regular context menus from being affected)
+            if (e.pointerType === 'pen' || 
+                (e.target && e.target.classList && e.target.classList.contains('drawing-canvas'))) {
+                
+                e.preventDefault(); // Prevent context menu from showing
+                e.stopPropagation();
+                
+                console.log('S-Pen eraser button detected via context menu!');
+                
+                // Toggle eraser mode when S-Pen button is pressed
+                if (!isEraserButtonPressed) {
+                    console.log('Switching to eraser mode');
+                    originalTool = currentTool;
+                    isEraserButtonPressed = true;
+                    if (currentTool !== 'eraser') {
+                        setTool('eraser');
+                    }
+                } else {
+                    console.log('Switching back to original tool:', originalTool);
+                    isEraserButtonPressed = false;
+                    setTool(originalTool);
+                }
+                
+                return false;
+            }
+        }
 
         function updatePressureIndicator(pressure) {
             const indicator = document.getElementById('pressureIndicator');
