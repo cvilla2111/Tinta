@@ -95,7 +95,7 @@
         <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-gray-900 dark:text-white">PDF Drawing App</h1>
-                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Stylus input only - Microsoft Pen Protocol required</p>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Stylus input only - Supports MPP stylus & Samsung S-Pen</p>
             </div>
             
             <!-- File Upload and Theme Toggle -->
@@ -140,7 +140,7 @@
                         <p class="text-sm mt-2">Upload a PDF file to start drawing with your stylus</p>
                         <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                             <p class="text-sm text-blue-700 dark:text-blue-300">
-                                <strong>Note:</strong> This app requires a Microsoft Pen Protocol stylus. Mouse and finger input are disabled for drawing.
+                                <strong>Note:</strong> This app supports MPP stylus and Samsung S-Pen. Mouse and finger input are disabled for drawing.
                             </p>
                         </div>
                     </div>
@@ -839,9 +839,10 @@
                 }
 
                 // Check for eraser button press (barrel button on stylus)
-                // Common eraser button values: button 2 (right click) or button 5 (eraser)
-                // Also check buttons bitmask for barrel button (bit 2 = 4)
-                const eraserButtonPressed = e.button === 2 || e.button === 5 || (e.buttons & 4) !== 0;
+                // MPP Stylus: button 2 (right click) or button 5 (eraser), buttons bitmask bit 2 = 4
+                // Samsung S-Pen: button 5 (eraser), buttons bitmask bit 5 = 32, also check for eraser tip
+                const eraserButtonPressed = e.button === 2 || e.button === 5 || 
+                                           (e.buttons & 4) !== 0 || (e.buttons & 32) !== 0;
                 
                 if (eraserButtonPressed && !isEraserButtonPressed) {
                     // Store original tool and switch to eraser
