@@ -573,27 +573,36 @@
                 const containerWidth = window.innerWidth - 20; // Small margin to prevent overflow
                 const viewport = page.getViewport({ scale: 1 });
                 
-                // Scale to fill the width while preventing overflow
-                const scale = containerWidth / viewport.width;
-                const scaledViewport = page.getViewport({ scale });
+                // Ultra-High-DPI rendering: Scale to fill the width, then render at 4x resolution for maximum quality
+                const displayScale = containerWidth / viewport.width;
+                const renderScale = displayScale * 4; // 4x resolution for ultra-high quality
+                const scaledViewport = page.getViewport({ scale: renderScale });
+                
+                // Calculate display dimensions (what user sees)
+                const displayWidth = Math.floor(containerWidth);
+                const displayHeight = Math.floor(viewport.height * displayScale);
 
-                // Create page container
+                // Create page container with display dimensions
                 const pageContainer = document.createElement('div');
                 pageContainer.className = 'pdf-page-container';
-                pageContainer.style.width = scaledViewport.width + 'px';
-                pageContainer.style.height = scaledViewport.height + 'px';
+                pageContainer.style.width = displayWidth + 'px';
+                pageContainer.style.height = displayHeight + 'px';
 
-                // Create and setup PDF canvas
+                // Create and setup PDF canvas with high resolution
                 const pdfCanvas = document.createElement('canvas');
-                pdfCanvas.width = scaledViewport.width;
-                pdfCanvas.height = scaledViewport.height;
+                pdfCanvas.width = scaledViewport.width;  // High resolution (2x)
+                pdfCanvas.height = scaledViewport.height; // High resolution (2x)
+                pdfCanvas.style.width = displayWidth + 'px';  // Display size
+                pdfCanvas.style.height = displayHeight + 'px'; // Display size
                 pdfCanvas.style.display = 'block';
 
-                // Create and setup drawing canvas
+                // Create and setup drawing canvas with NORMAL resolution for performance
                 const drawingCanvas = document.createElement('canvas');
                 drawingCanvas.className = 'drawing-canvas';
-                drawingCanvas.width = scaledViewport.width;
-                drawingCanvas.height = scaledViewport.height;
+                drawingCanvas.width = displayWidth;   // Normal resolution for smooth drawing
+                drawingCanvas.height = displayHeight; // Normal resolution for smooth drawing
+                drawingCanvas.style.width = displayWidth + 'px';  // Display size
+                drawingCanvas.style.height = displayHeight + 'px'; // Display size
 
                 // Setup drawing event listeners
                 setupDrawingEvents(drawingCanvas);
@@ -654,19 +663,26 @@
             const container = document.getElementById('pdfContent');
             const currentPageElement = container.firstElementChild;
             
-            // Calculate scale for consistent sizing
+            // Calculate scale for consistent sizing with ultra-high quality
             const containerWidth = window.innerWidth - 20;
             const targetPage = await pdfDoc.getPage(targetPageNum);
             const viewport = targetPage.getViewport({ scale: 1 });
-            const scale = containerWidth / viewport.width;
-            const scaledViewport = targetPage.getViewport({ scale });
+            
+            // Ultra-High-DPI rendering: Same 4x scaling as main render
+            const displayScale = containerWidth / viewport.width;
+            const renderScale = displayScale * 4; // 4x resolution for ultra-high quality
+            const scaledViewport = targetPage.getViewport({ scale: renderScale });
+            
+            // Calculate display dimensions (what user sees)
+            const displayWidth = Math.floor(containerWidth);
+            const displayHeight = Math.floor(viewport.height * displayScale);
 
             // Create new page container
             const newPageContainer = document.createElement('div');
             newPageContainer.className = 'pdf-page-container';
             newPageContainer.style.cssText = `
-                width: ${scaledViewport.width}px;
-                height: ${scaledViewport.height}px;
+                width: ${displayWidth}px;
+                height: ${displayHeight}px;
                 position: absolute;
                 top: 50%;
                 left: 50%;
@@ -675,17 +691,21 @@
                 transition: opacity 0.4s ease-in-out;
             `;
 
-            // Create PDF canvas
+            // Create PDF canvas with ultra-high resolution
             const pdfCanvas = document.createElement('canvas');
-            pdfCanvas.width = scaledViewport.width;
-            pdfCanvas.height = scaledViewport.height;
+            pdfCanvas.width = scaledViewport.width;  // Ultra-high resolution (4x)
+            pdfCanvas.height = scaledViewport.height; // Ultra-high resolution (4x)
+            pdfCanvas.style.width = displayWidth + 'px';  // Display size
+            pdfCanvas.style.height = displayHeight + 'px'; // Display size
             pdfCanvas.style.display = 'block';
 
-            // Create drawing canvas
+            // Create drawing canvas with NORMAL resolution for performance
             const drawingCanvas = document.createElement('canvas');
             drawingCanvas.className = 'drawing-canvas';
-            drawingCanvas.width = scaledViewport.width;
-            drawingCanvas.height = scaledViewport.height;
+            drawingCanvas.width = displayWidth;   // Normal resolution for smooth drawing
+            drawingCanvas.height = displayHeight; // Normal resolution for smooth drawing
+            drawingCanvas.style.width = displayWidth + 'px';  // Display size
+            drawingCanvas.style.height = displayHeight + 'px'; // Display size
 
             newPageContainer.appendChild(pdfCanvas);
             newPageContainer.appendChild(drawingCanvas);
@@ -745,8 +765,8 @@
             
             // Reset new page styles to normal positioning
             newPageContainer.style.cssText = `
-                width: ${scaledViewport.width}px;
-                height: ${scaledViewport.height}px;
+                width: ${displayWidth}px;
+                height: ${displayHeight}px;
                 position: relative;
                 margin: 0 auto;
                 opacity: 1;
@@ -764,6 +784,15 @@
             const ctx = canvas.getContext('2d');
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
+            
+            // Enhanced ink quality settings
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            
+            // Stroke smoothing variables
+            let points = [];
+            let pressureHistory = [];
+            const maxHistoryLength = 5;
 
             // Create eraser indicator
             const eraserIndicator = document.createElement('div');
@@ -783,8 +812,16 @@
             canvas.addEventListener('pointerdown', startDrawing);
             canvas.addEventListener('pointermove', draw);
             canvas.addEventListener('pointerup', stopDrawing);
-            canvas.addEventListener('pointerout', stopDrawing);
             canvas.addEventListener('pointercancel', stopDrawing);
+            
+            // Only stop drawing on pointerout if we're actually drawing and the pointer leaves the document
+            canvas.addEventListener('pointerout', (e) => {
+                // Only stop if we're actually drawing and the pointer is leaving the entire viewport
+                if (isDrawing && (e.clientX < 0 || e.clientY < 0 || 
+                    e.clientX > window.innerWidth || e.clientY > window.innerHeight)) {
+                    stopDrawing(e);
+                }
+            });
 
             // Prevent default touch and mouse behaviors to avoid conflicts
             canvas.addEventListener('touchstart', e => e.preventDefault());
@@ -820,8 +857,24 @@
 
                 isDrawing = true;
                 const rect = canvas.getBoundingClientRect();
-                lastX = e.clientX - rect.left;
-                lastY = e.clientY - rect.top;
+                
+                // Calculate coordinates accounting for high-DPI scaling
+                const displayX = e.clientX - rect.left;
+                const displayY = e.clientY - rect.top;
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                
+                lastX = displayX * scaleX;
+                lastY = displayY * scaleY;
+                
+                // Reset stroke history for new stroke
+                points = [];
+                pressureHistory = [];
+                
+                // Add initial point
+                const pressure = e.pressure || 0.5;
+                points.push({ x: lastX, y: lastY, pressure: pressure });
+                pressureHistory.push(pressure);
                 
                 // Show eraser indicator if using eraser tool
                 if (currentTool === 'eraser') {
@@ -829,7 +882,7 @@
                 }
                 
                 // Update pressure indicator
-                updatePressureIndicator(e.pressure || 0);
+                updatePressureIndicator(pressure);
             }
 
             function draw(e) {
@@ -839,37 +892,53 @@
                 }
                 
                 const rect = canvas.getBoundingClientRect();
-                const currentX = e.clientX - rect.left;
-                const currentY = e.clientY - rect.top;
+                
+                // Calculate coordinates accounting for high-DPI scaling
+                const displayX = e.clientX - rect.left;
+                const displayY = e.clientY - rect.top;
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                
+                const currentX = displayX * scaleX;
+                const currentY = displayY * scaleY;
 
                 // Update eraser indicator position if using eraser tool
                 if (currentTool === 'eraser') {
                     updateEraserIndicator(e.clientX, e.clientY);
                 }
 
-                ctx.globalCompositeOperation = currentTool === 'eraser' ? 'destination-out' : 'source-over';
-                ctx.strokeStyle = currentColor;
-                
-                // Get pressure value for both tools
+                // Get pressure value
                 const pressure = e.pressure || 0.5;
                 
-                // Use appropriate size based on tool
-                const toolSize = currentTool === 'eraser' ? currentEraserSize : currentBrushSize;
+                // Add current point to history for smoothing
+                points.push({ x: currentX, y: currentY, pressure: pressure });
+                pressureHistory.push(pressure);
                 
-                // Apply pressure only to pen tool, not eraser
-                if (currentTool === 'eraser') {
-                    // Eraser uses consistent size without pressure variation
-                    ctx.lineWidth = toolSize;
-                } else {
-                    // Pen tool uses pressure for line width if enabled (pressure ranges from 0 to 1)
-                    const pressureMultiplier = pressureEnabled ? (0.2 + (pressure * 1.8)) : 1.0; // Range from 0.2 to 2.0 or fixed at 1.0
-                    ctx.lineWidth = toolSize * pressureMultiplier;
+                // Keep history within limits
+                if (points.length > maxHistoryLength) {
+                    points.shift();
+                    pressureHistory.shift();
                 }
 
-                ctx.beginPath();
-                ctx.moveTo(lastX, lastY);
-                ctx.lineTo(currentX, currentY);
-                ctx.stroke();
+                ctx.globalCompositeOperation = currentTool === 'eraser' ? 'destination-out' : 'source-over';
+                
+                // Use appropriate size based on tool (scale up for high-DPI)
+                const scaleFactor = Math.min(scaleX, scaleY);
+                const toolSize = (currentTool === 'eraser' ? currentEraserSize : currentBrushSize) * scaleFactor;
+                
+                if (currentTool === 'eraser') {
+                    // Eraser: Simple consistent rendering
+                    ctx.lineWidth = toolSize;
+                    ctx.strokeStyle = currentColor; // For composite operation
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(lastX, lastY);
+                    ctx.lineTo(currentX, currentY);
+                    ctx.stroke();
+                } else {
+                    // Pen: Enhanced ink rendering with smoothing and pressure
+                    drawSmoothStroke(ctx, points, pressureHistory, toolSize);
+                }
 
                 // Update presentation window in real-time
                 updatePresentationWindowRealtime(lastX, lastY, currentX, currentY, ctx.lineWidth, currentTool, currentColor);
@@ -881,6 +950,56 @@
                 if (currentTool === 'pen') {
                     updatePressureIndicator(pressure);
                 }
+            }
+            
+            // Advanced smooth stroke rendering function
+            function drawSmoothStroke(ctx, points, pressureHistory, baseSize) {
+                if (points.length < 2) return;
+                
+                // Smooth pressure calculation
+                const avgPressure = pressureHistory.reduce((sum, p) => sum + p, 0) / pressureHistory.length;
+                const smoothPressure = pressureEnabled ? avgPressure : 0.7;
+                
+                // Calculate dynamic line width with pressure
+                const pressureMultiplier = pressureEnabled ? (0.3 + (smoothPressure * 1.4)) : 1.0;
+                const dynamicWidth = baseSize * pressureMultiplier;
+                
+                // Use solid, opaque color - no transparency
+                ctx.strokeStyle = currentColor;
+                ctx.lineWidth = dynamicWidth;
+                
+                // Smooth curve drawing using quadratic curves
+                if (points.length >= 3) {
+                    const p0 = points[points.length - 3];
+                    const p1 = points[points.length - 2];
+                    const p2 = points[points.length - 1];
+                    
+                    // Calculate control point for smooth curve
+                    const midPoint1 = { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 };
+                    const midPoint2 = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(midPoint1.x, midPoint1.y);
+                    ctx.quadraticCurveTo(p1.x, p1.y, midPoint2.x, midPoint2.y);
+                    ctx.stroke();
+                } else if (points.length === 2) {
+                    // Fallback for first stroke segment
+                    const p1 = points[0];
+                    const p2 = points[1];
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(p1.x, p1.y);
+                    ctx.lineTo(p2.x, p2.y);
+                    ctx.stroke();
+                }
+            }
+            
+            // Helper function to convert hex color to rgba
+            function hexToRgba(hex, alpha) {
+                const r = parseInt(hex.slice(1, 3), 16);
+                const g = parseInt(hex.slice(3, 5), 16);
+                const b = parseInt(hex.slice(5, 7), 16);
+                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
             }
 
             function stopDrawing(e) {
@@ -1004,10 +1123,8 @@
             // Show backdrop
             backdrop.classList.remove('hidden');
 
-            // Generate thumbnails if not already done
-            if (container.children.length === 0) {
-                await generatePageThumbnails();
-            }
+            // Always regenerate thumbnails for better quality (force refresh)
+            await generatePageThumbnails();
 
             // Update current page selection
             updateThumbnailSelection();
@@ -1043,7 +1160,11 @@
             for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
                 try {
                     const page = await pdfDoc.getPage(pageNum);
-                    const viewport = page.getViewport({ scale: 0.3 }); // Small scale for thumbnails
+                    // Ultra-high quality thumbnails - scale to fit width of ~400px for crisp display
+                    const targetWidth = 400;
+                    const viewport = page.getViewport({ scale: 1 });
+                    const scale = targetWidth / viewport.width;
+                    const scaledViewport = page.getViewport({ scale });
 
                     // Create thumbnail container
                     const thumbnailDiv = document.createElement('div');
@@ -1051,16 +1172,16 @@
                     thumbnailDiv.setAttribute('data-page', pageNum);
                     thumbnailDiv.onclick = () => goToPage(pageNum);
 
-                    // Create canvas for PDF
+                    // Create canvas for PDF with higher resolution
                     const canvas = document.createElement('canvas');
-                    canvas.width = viewport.width;
-                    canvas.height = viewport.height;
+                    canvas.width = scaledViewport.width;
+                    canvas.height = scaledViewport.height;
                     canvas.className = 'w-full h-auto';
 
-                    // Create canvas for drawings overlay
+                    // Create canvas for drawings overlay with higher resolution
                     const drawingCanvas = document.createElement('canvas');
-                    drawingCanvas.width = viewport.width;
-                    drawingCanvas.height = viewport.height;
+                    drawingCanvas.width = scaledViewport.width;
+                    drawingCanvas.height = scaledViewport.height;
                     drawingCanvas.className = 'absolute top-0 left-0 w-full h-auto';
 
                     // Container for canvases
@@ -1077,20 +1198,20 @@
                     thumbnailDiv.appendChild(canvasContainer);
                     thumbnailDiv.appendChild(pageLabel);
 
-                    // Render PDF page
+                    // Render PDF page with higher quality
                     const renderContext = {
                         canvasContext: canvas.getContext('2d'),
-                        viewport: viewport
+                        viewport: scaledViewport
                     };
                     await page.render(renderContext).promise;
 
-                    // Render drawings if they exist
+                    // Render drawings if they exist with proper scaling
                     if (drawingData[pageNum]) {
                         const ctx = drawingCanvas.getContext('2d');
                         const img = new Image();
                         img.onload = function() {
-                            const scaleX = viewport.width / drawingData[pageNum].canvasWidth;
-                            const scaleY = viewport.height / drawingData[pageNum].canvasHeight;
+                            const scaleX = scaledViewport.width / drawingData[pageNum].canvasWidth;
+                            const scaleY = scaledViewport.height / drawingData[pageNum].canvasHeight;
                             
                             ctx.save();
                             ctx.scale(scaleX, scaleY);
