@@ -94,7 +94,7 @@
     <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
         <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">PDF Drawing AppSpen</h1>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">PDF Drawing App</h1>
                 <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Stylus input only - Supports MPP stylus & Samsung S-Pen</p>
             </div>
             
@@ -870,6 +870,25 @@
             // Samsung S-Pen specific: Handle context menu event (S-Pen button press)
             canvas.addEventListener('contextmenu', handleSPenContextMenu);
             document.addEventListener('contextmenu', handleSPenContextMenu);
+            
+            // Additional S-Pen button detection methods
+            canvas.addEventListener('keydown', handleSPenKeyEvents);
+            canvas.addEventListener('keyup', handleSPenKeyEvents);
+            document.addEventListener('keydown', handleSPenKeyEvents);
+            document.addEventListener('keyup', handleSPenKeyEvents);
+            
+            // Alternative pointer button detection
+            canvas.addEventListener('pointerenter', handleSPenPointerEvents);
+            canvas.addEventListener('pointerleave', handleSPenPointerEvents);
+            
+            // Touch events for S-Pen detection
+            canvas.addEventListener('touchstart', handleSPenTouchEvents);
+            canvas.addEventListener('touchend', handleSPenTouchEvents);
+            
+            // Mouse events as fallback
+            canvas.addEventListener('mousedown', handleSPenMouseEvents);
+            canvas.addEventListener('mouseup', handleSPenMouseEvents);
+            canvas.addEventListener('auxclick', handleSPenMouseEvents);
 
             function startDrawing(e) {
                 // Only allow pen input (Microsoft Pen Protocol stylus)
@@ -1241,6 +1260,126 @@
                 e.stopPropagation();
                 e.stopImmediatePropagation();
                 return false;
+            }
+        }
+
+        // Additional S-Pen button detection event handlers
+        function handleSPenKeyEvents(e) {
+            console.log('Key event triggered:', {
+                type: e.type,
+                key: e.key,
+                code: e.code,
+                keyCode: e.keyCode,
+                which: e.which,
+                metaKey: e.metaKey,
+                altKey: e.altKey,
+                ctrlKey: e.ctrlKey,
+                shiftKey: e.shiftKey
+            });
+            
+            // Some S-Pens trigger key events for button press
+            // Common keys: F18, F19, F20, or custom key codes
+            const isPenButtonKey = 
+                e.key === 'F18' || e.key === 'F19' || e.key === 'F20' ||
+                e.keyCode === 131 || e.keyCode === 132 || // Samsung specific
+                e.code === 'StylusButton' || e.code === 'Eraser' ||
+                (e.keyCode >= 229 && e.keyCode <= 235); // Range for stylus keys
+                
+            if (isPenButtonKey) {
+                console.log('S-Pen button detected via key event!');
+                updateDebugPanel(null, 'keyevent');
+                
+                if (e.type === 'keydown' && !isEraserButtonPressed) {
+                    originalTool = currentTool;
+                    isEraserButtonPressed = true;
+                    if (currentTool !== 'eraser') {
+                        setTool('eraser');
+                    }
+                } else if (e.type === 'keyup' && isEraserButtonPressed) {
+                    isEraserButtonPressed = false;
+                    setTool(originalTool);
+                }
+                
+                updateDebugPanel(null, 'keyevent');
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }
+
+        function handleSPenPointerEvents(e) {
+            console.log('Pointer enter/leave event:', {
+                type: e.type,
+                pointerType: e.pointerType,
+                button: e.button,
+                buttons: e.buttons,
+                pressure: e.pressure,
+                tangentialPressure: e.tangentialPressure
+            });
+            
+            // Update debug panel with enter/leave events
+            updateDebugPanel(e, e.type);
+        }
+
+        function handleSPenTouchEvents(e) {
+            console.log('Touch event triggered:', {
+                type: e.type,
+                touches: e.touches.length,
+                changedTouches: e.changedTouches.length,
+                targetTouches: e.targetTouches.length
+            });
+            
+            if (e.touches.length > 0) {
+                const touch = e.touches[0];
+                console.log('Touch details:', {
+                    force: touch.force,
+                    radiusX: touch.radiusX,
+                    radiusY: touch.radiusY,
+                    rotationAngle: touch.rotationAngle,
+                    touchType: touch.touchType
+                });
+                
+                // Some S-Pens report as touch with specific touchType
+                if (touch.touchType === 'stylus') {
+                    updateDebugPanel(null, 'touchevent');
+                }
+            }
+        }
+
+        function handleSPenMouseEvents(e) {
+            console.log('Mouse event triggered:', {
+                type: e.type,
+                button: e.button,
+                buttons: e.buttons,
+                which: e.which,
+                detail: e.detail,
+                clientX: e.clientX,
+                clientY: e.clientY
+            });
+            
+            // Some S-Pens fall back to mouse events
+            const isPenButton = 
+                e.button === 1 || e.button === 2 || // Middle/right mouse buttons
+                e.which === 2 || e.which === 3 || // Alternative button detection
+                (e.type === 'auxclick'); // Auxiliary click (middle/right button)
+                
+            if (isPenButton) {
+                console.log('S-Pen button detected via mouse event!');
+                updateDebugPanel(null, 'mouseevent');
+                
+                if ((e.type === 'mousedown' || e.type === 'auxclick') && !isEraserButtonPressed) {
+                    originalTool = currentTool;
+                    isEraserButtonPressed = true;
+                    if (currentTool !== 'eraser') {
+                        setTool('eraser');
+                    }
+                } else if (e.type === 'mouseup' && isEraserButtonPressed) {
+                    isEraserButtonPressed = false;
+                    setTool(originalTool);
+                }
+                
+                updateDebugPanel(null, 'mouseevent');
+                e.preventDefault();
+                e.stopPropagation();
             }
         }
 
