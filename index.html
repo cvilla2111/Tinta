@@ -325,35 +325,7 @@
             <!-- Modal Backdrop -->
             <div id="modalBackdrop" class="fixed inset-0 bg-black bg-opacity-50 z-[65] hidden" onclick="closePageThumbnailModal()"></div>
 
-            <!-- Debug Panel -->
-            <div id="debugPanel" class="fixed top-4 left-4 z-50 bg-black bg-opacity-80 text-white p-4 rounded-lg text-xs font-mono max-w-sm hidden">
-                <div class="flex justify-between items-center mb-2">
-                    <h3 class="font-bold text-sm">S-Pen Debug</h3>
-                    <button onclick="toggleDebugPanel()" class="text-gray-400 hover:text-white">×</button>
-                </div>
-                <div id="debugContent">
-                    <div>Current Tool: <span id="debugCurrentTool" class="font-bold text-yellow-300">pen</span></div>
-                    <div>S-Pen Button: <span id="debugSPenButton" class="font-bold text-red-300">Released</span></div>
-                    <div>Original Tool: <span id="debugOriginalTool" class="font-bold text-blue-300">pen</span></div>
-                    <div>Drawing: <span id="debugDrawing" class="font-bold text-green-300">No</span></div>
-                    <hr class="my-2 border-gray-600">
-                    <div class="text-xs">Last Pointer Event:</div>
-                    <div>Type: <span id="debugPointerType" class="text-cyan-300">-</span></div>
-                    <div>Button: <span id="debugButton" class="text-cyan-300">-</span></div>
-                    <div>Buttons: <span id="debugButtons" class="text-cyan-300">-</span></div>
-                    <div>Pressure: <span id="debugPressure" class="text-cyan-300">-</span></div>
-                    <div>Tangential: <span id="debugTangential" class="text-cyan-300">-</span></div>
-                    <hr class="my-2 border-gray-600">
-                    <div class="text-xs">Context Menu Events:</div>
-                    <div id="debugContextMenuCount" class="text-orange-300">Count: 0</div>
-                    <div id="debugLastContextMenu" class="text-orange-300">Last: -</div>
-                </div>
-            </div>
 
-            <!-- Debug Toggle Button -->
-            <button id="debugToggle" onclick="toggleDebugPanel()" class="fixed top-4 left-4 z-40 bg-red-600 text-white px-3 py-1 rounded text-xs font-bold hover:bg-red-700 transition-colors">
-                DEBUG
-            </button>
 
             <!-- PDF Content -->
             <div id="pdfContent" class="w-full h-full flex items-center justify-center overflow-auto"></div>
@@ -383,7 +355,7 @@
         let totalPages = 0;
         let currentTool = 'pen';
         let currentColor = '#000000';
-        let currentBrushSize = 3;
+        let currentBrushSize = 6;
         let currentEraserSize = 25;
         let pressureEnabled = true;
         let isDrawing = false;
@@ -405,11 +377,6 @@
         // Drawing state
         let lastX = 0;
         let lastY = 0;
-
-        // Debug state tracking
-        let debugEventCount = 0;
-        let contextMenuCount = 0;
-        let lastContextMenuTime = 0;
 
         // File upload handler
         document.getElementById('pdfUpload').addEventListener('change', handleFileUpload);
@@ -596,10 +563,7 @@
                 const page = await pdfDoc.getPage(pageNum);
                 const container = document.getElementById('pdfContent');
                 
-                console.log('renderPage called with transition:', withTransition, 'direction:', direction); // Debug log
-                
                 if (withTransition) {
-                    console.log('Starting fade transition'); // Debug log
                     await performFadeTransition(pageNum, direction);
                     return;
                 }
@@ -896,21 +860,7 @@
                     return;
                 }
 
-                // Debug logging for Samsung S-Pen detection
-                console.log('Pointer event details:', {
-                    button: e.button,
-                    buttons: e.buttons,
-                    buttonsBinary: e.buttons.toString(2),
-                    pointerType: e.pointerType,
-                    pressure: e.pressure,
-                    tangentialPressure: e.tangentialPressure,
-                    tiltX: e.tiltX,
-                    tiltY: e.tiltY,
-                    twist: e.twist
-                });
 
-                // Update debug panel
-                updateDebugPanel(e, 'pointerdown');
 
                 // Enhanced eraser detection for multiple stylus types
                 // MPP Stylus: button 2 (right click) or button 5 (eraser), buttons bitmask bit 2 = 4
@@ -1149,71 +1099,15 @@
 
 
 
-        // Debug Panel Functions
-        function toggleDebugPanel() {
-            const panel = document.getElementById('debugPanel');
-            const toggle = document.getElementById('debugToggle');
-            
-            if (panel.classList.contains('hidden')) {
-                panel.classList.remove('hidden');
-                toggle.textContent = 'HIDE';
-                toggle.classList.remove('bg-red-600', 'hover:bg-red-700');
-                toggle.classList.add('bg-green-600', 'hover:bg-green-700');
-            } else {
-                panel.classList.add('hidden');
-                toggle.textContent = 'DEBUG';
-                toggle.classList.remove('bg-green-600', 'hover:bg-green-700');
-                toggle.classList.add('bg-red-600', 'hover:bg-red-700');
-            }
-        }
 
-        function updateDebugPanel(e, eventType) {
-            // Update current state
-            document.getElementById('debugCurrentTool').textContent = currentTool;
-            document.getElementById('debugSPenButton').textContent = isEraserButtonPressed ? 'Pressed' : 'Released';
-            document.getElementById('debugOriginalTool').textContent = originalTool;
-            document.getElementById('debugDrawing').textContent = isDrawing ? 'Yes' : 'No';
-            
-            // Update pointer event data
-            if (e) {
-                document.getElementById('debugPointerType').textContent = e.pointerType || '-';
-                document.getElementById('debugButton').textContent = e.button !== undefined ? e.button : '-';
-                document.getElementById('debugButtons').textContent = e.buttons !== undefined ? `${e.buttons} (${e.buttons.toString(2).padStart(8, '0')})` : '-';
-                document.getElementById('debugPressure').textContent = e.pressure !== undefined ? e.pressure.toFixed(3) : '-';
-                document.getElementById('debugTangential').textContent = e.tangentialPressure !== undefined ? e.tangentialPressure.toFixed(3) : '-';
-            }
-            
-            // Update debug event counter
-            debugEventCount++;
-        }
-
-        function updateDebugContextMenu() {
-            contextMenuCount++;
-            lastContextMenuTime = Date.now();
-            
-            document.getElementById('debugContextMenuCount').textContent = `Count: ${contextMenuCount}`;
-            document.getElementById('debugLastContextMenu').textContent = `Last: ${new Date(lastContextMenuTime).toLocaleTimeString()}`;
-        }
 
         // Samsung S-Pen Context Menu Handler (Galaxy Tab S7 eraser button)
         function handleSPenContextMenu(e) {
-            console.log('Context menu event triggered:', {
-                type: e.type,
-                pointerType: e.pointerType,
-                button: e.button,
-                buttons: e.buttons,
-                target: e.target.tagName,
-                clientX: e.clientX,
-                clientY: e.clientY,
-                timestamp: Date.now()
-            });
-            
-            // Update debug panel
-            updateDebugContextMenu();
-            
             // Always prevent context menu in PDF viewer area
-            if (document.getElementById('pdfViewer') && !document.getElementById('pdfViewer').classList.contains('hidden')) {
-                console.log('Blocking context menu in PDF viewer area');
+            const pdfViewer = document.getElementById('pdfViewer');
+            const isPdfViewerActive = pdfViewer && !pdfViewer.classList.contains('hidden');
+            
+            if (isPdfViewerActive) {
                 e.preventDefault();
                 e.stopPropagation();
                 e.stopImmediatePropagation();
@@ -1224,27 +1118,22 @@
                                        e.target.classList.contains('drawing-canvas') ||
                                        e.target.closest('.pdf-page-container') ||
                                        e.target.closest('#pdfContent')
-                                   ));
+                                   )) ||
+                                   // Galaxy Tab S7 specific: Context menu with empty pointerType
+                                   (!e.pointerType && e.type === 'contextmenu');
                 
                 if (isPenRelated) {
-                    console.log('S-Pen eraser button detected via context menu!');
-                    
                     // Toggle eraser mode when S-Pen button is pressed
                     if (!isEraserButtonPressed) {
-                        console.log('Switching to eraser mode');
                         originalTool = currentTool;
                         isEraserButtonPressed = true;
                         if (currentTool !== 'eraser') {
                             setTool('eraser');
                         }
                     } else {
-                        console.log('Switching back to original tool:', originalTool);
                         isEraserButtonPressed = false;
                         setTool(originalTool);
                     }
-                    
-                    // Update debug panel after tool change
-                    updateDebugPanel(e, 'contextmenu');
                 }
                 
                 return false;
@@ -1255,7 +1144,6 @@
         function blockAllContextMenus(e) {
             // Block all context menus when PDF viewer is active
             if (document.getElementById('pdfViewer') && !document.getElementById('pdfViewer').classList.contains('hidden')) {
-                console.log('Global context menu block:', e.target.tagName);
                 e.preventDefault();
                 e.stopPropagation();
                 e.stopImmediatePropagation();
@@ -1265,18 +1153,6 @@
 
         // Additional S-Pen button detection event handlers
         function handleSPenKeyEvents(e) {
-            console.log('Key event triggered:', {
-                type: e.type,
-                key: e.key,
-                code: e.code,
-                keyCode: e.keyCode,
-                which: e.which,
-                metaKey: e.metaKey,
-                altKey: e.altKey,
-                ctrlKey: e.ctrlKey,
-                shiftKey: e.shiftKey
-            });
-            
             // Some S-Pens trigger key events for button press
             // Common keys: F18, F19, F20, or custom key codes
             const isPenButtonKey = 
@@ -1286,9 +1162,6 @@
                 (e.keyCode >= 229 && e.keyCode <= 235); // Range for stylus keys
                 
             if (isPenButtonKey) {
-                console.log('S-Pen button detected via key event!');
-                updateDebugPanel(null, 'keyevent');
-                
                 if (e.type === 'keydown' && !isEraserButtonPressed) {
                     originalTool = currentTool;
                     isEraserButtonPressed = true;
@@ -1300,62 +1173,26 @@
                     setTool(originalTool);
                 }
                 
-                updateDebugPanel(null, 'keyevent');
                 e.preventDefault();
                 e.stopPropagation();
             }
         }
 
         function handleSPenPointerEvents(e) {
-            console.log('Pointer enter/leave event:', {
-                type: e.type,
-                pointerType: e.pointerType,
-                button: e.button,
-                buttons: e.buttons,
-                pressure: e.pressure,
-                tangentialPressure: e.tangentialPressure
-            });
-            
-            // Update debug panel with enter/leave events
-            updateDebugPanel(e, e.type);
+            // Placeholder for additional S-Pen pointer event handling if needed
         }
 
         function handleSPenTouchEvents(e) {
-            console.log('Touch event triggered:', {
-                type: e.type,
-                touches: e.touches.length,
-                changedTouches: e.changedTouches.length,
-                targetTouches: e.targetTouches.length
-            });
-            
+            // Some S-Pens report as touch with specific touchType
             if (e.touches.length > 0) {
                 const touch = e.touches[0];
-                console.log('Touch details:', {
-                    force: touch.force,
-                    radiusX: touch.radiusX,
-                    radiusY: touch.radiusY,
-                    rotationAngle: touch.rotationAngle,
-                    touchType: touch.touchType
-                });
-                
-                // Some S-Pens report as touch with specific touchType
                 if (touch.touchType === 'stylus') {
-                    updateDebugPanel(null, 'touchevent');
+                    // Handle stylus touch events if needed
                 }
             }
         }
 
         function handleSPenMouseEvents(e) {
-            console.log('Mouse event triggered:', {
-                type: e.type,
-                button: e.button,
-                buttons: e.buttons,
-                which: e.which,
-                detail: e.detail,
-                clientX: e.clientX,
-                clientY: e.clientY
-            });
-            
             // Some S-Pens fall back to mouse events
             const isPenButton = 
                 e.button === 1 || e.button === 2 || // Middle/right mouse buttons
@@ -1363,9 +1200,6 @@
                 (e.type === 'auxclick'); // Auxiliary click (middle/right button)
                 
             if (isPenButton) {
-                console.log('S-Pen button detected via mouse event!');
-                updateDebugPanel(null, 'mouseevent');
-                
                 if ((e.type === 'mousedown' || e.type === 'auxclick') && !isEraserButtonPressed) {
                     originalTool = currentTool;
                     isEraserButtonPressed = true;
@@ -1377,7 +1211,6 @@
                     setTool(originalTool);
                 }
                 
-                updateDebugPanel(null, 'mouseevent');
                 e.preventDefault();
                 e.stopPropagation();
             }
@@ -2319,6 +2152,8 @@
             }
         }
         
+
+
         // Initialize icons when DOM is ready
         document.addEventListener('DOMContentLoaded', () => {
             initializeLucideIcons();
