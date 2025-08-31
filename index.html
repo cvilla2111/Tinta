@@ -94,7 +94,7 @@
     <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
         <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">PDF Drawing App</h1>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">PDF Drawing App SPEN</h1>
                 <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Stylus input only - Supports MPP stylus & Samsung S-Pen</p>
             </div>
             
@@ -1093,32 +1093,56 @@
                 button: e.button,
                 buttons: e.buttons,
                 target: e.target.tagName,
+                clientX: e.clientX,
+                clientY: e.clientY,
                 timestamp: Date.now()
             });
             
-            // Check if this is S-Pen related (prevent regular context menus from being affected)
-            if (e.pointerType === 'pen' || 
-                (e.target && e.target.classList && e.target.classList.contains('drawing-canvas'))) {
-                
-                e.preventDefault(); // Prevent context menu from showing
+            // Always prevent context menu in PDF viewer area
+            if (document.getElementById('pdfViewer') && !document.getElementById('pdfViewer').classList.contains('hidden')) {
+                console.log('Blocking context menu in PDF viewer area');
+                e.preventDefault();
                 e.stopPropagation();
+                e.stopImmediatePropagation();
                 
-                console.log('S-Pen eraser button detected via context menu!');
+                // Check if this is likely S-Pen related
+                const isPenRelated = e.pointerType === 'pen' || 
+                                   (e.target && (
+                                       e.target.classList.contains('drawing-canvas') ||
+                                       e.target.closest('.pdf-page-container') ||
+                                       e.target.closest('#pdfContent')
+                                   ));
                 
-                // Toggle eraser mode when S-Pen button is pressed
-                if (!isEraserButtonPressed) {
-                    console.log('Switching to eraser mode');
-                    originalTool = currentTool;
-                    isEraserButtonPressed = true;
-                    if (currentTool !== 'eraser') {
-                        setTool('eraser');
+                if (isPenRelated) {
+                    console.log('S-Pen eraser button detected via context menu!');
+                    
+                    // Toggle eraser mode when S-Pen button is pressed
+                    if (!isEraserButtonPressed) {
+                        console.log('Switching to eraser mode');
+                        originalTool = currentTool;
+                        isEraserButtonPressed = true;
+                        if (currentTool !== 'eraser') {
+                            setTool('eraser');
+                        }
+                    } else {
+                        console.log('Switching back to original tool:', originalTool);
+                        isEraserButtonPressed = false;
+                        setTool(originalTool);
                     }
-                } else {
-                    console.log('Switching back to original tool:', originalTool);
-                    isEraserButtonPressed = false;
-                    setTool(originalTool);
                 }
                 
+                return false;
+            }
+        }
+
+        // Global context menu blocking for S-Pen
+        function blockAllContextMenus(e) {
+            // Block all context menus when PDF viewer is active
+            if (document.getElementById('pdfViewer') && !document.getElementById('pdfViewer').classList.contains('hidden')) {
+                console.log('Global context menu block:', e.target.tagName);
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
                 return false;
             }
         }
@@ -2063,6 +2087,9 @@
         document.addEventListener('DOMContentLoaded', () => {
             initializeLucideIcons();
             setupSettingsListeners();
+            
+            // Add global context menu blocking for S-Pen
+            document.addEventListener('contextmenu', blockAllContextMenus, true);
         });
         
         // Also initialize when PDF viewer is shown
