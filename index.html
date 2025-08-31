@@ -838,11 +838,36 @@
                     return;
                 }
 
-                // Check for eraser button press (barrel button on stylus)
+                // Debug logging for Samsung S-Pen detection
+                console.log('Pointer event details:', {
+                    button: e.button,
+                    buttons: e.buttons,
+                    buttonsBinary: e.buttons.toString(2),
+                    pointerType: e.pointerType,
+                    pressure: e.pressure,
+                    tangentialPressure: e.tangentialPressure,
+                    tiltX: e.tiltX,
+                    tiltY: e.tiltY,
+                    twist: e.twist
+                });
+
+                // Enhanced eraser detection for multiple stylus types
                 // MPP Stylus: button 2 (right click) or button 5 (eraser), buttons bitmask bit 2 = 4
-                // Samsung S-Pen: button 5 (eraser), buttons bitmask bit 5 = 32, also check for eraser tip
-                const eraserButtonPressed = e.button === 2 || e.button === 5 || 
-                                           (e.buttons & 4) !== 0 || (e.buttons & 32) !== 0;
+                // Samsung S-Pen: Various patterns - button 2, 5, or different bitmasks
+                // Some S-Pens: Use eraser tip detection or specific button combinations
+                const eraserButtonPressed = 
+                    e.button === 2 ||           // Standard right-click/barrel button
+                    e.button === 5 ||           // Standard eraser button
+                    e.button === 1 ||           // Some S-Pens use button 1 for eraser
+                    (e.buttons & 2) !== 0 ||    // Right button bitmask
+                    (e.buttons & 4) !== 0 ||    // Middle/barrel button bitmask
+                    (e.buttons & 32) !== 0 ||   // Eraser button bitmask (some devices)
+                    
+                    // Samsung S-Pen specific: Check for eraser tip by pressure patterns
+                    (e.pressure === 0 && e.pointerType === 'pen') ||
+                    
+                    // Samsung S-Pen: Some models send tangential pressure for eraser
+                    (e.tangentialPressure && e.tangentialPressure !== 0);
                 
                 if (eraserButtonPressed && !isEraserButtonPressed) {
                     // Store original tool and switch to eraser
