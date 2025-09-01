@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secondary Screen UI Control Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Hide elements on large screens (secondary displays) */
+        @media (min-width: 1440px) {
+            .hide-on-large {
+                display: none !important;
+            }
+        }
+
+        /* Hide elements on ultra-wide screens */
+        @media (min-aspect-ratio: 16/10) {
+            .hide-on-wide {
+                display: none !important;
+            }
+        }
+
+        /* Hide elements on very large screens (projectors/TVs) */
+        @media (min-width: 1920px) {
+            .hide-on-tv {
+                display: none !important;
+            }
+        }
+
+        /* Secondary screen detection classes */
+        .secondary-screen .hide-on-secondary {
+            display: none !important;
+        }
+
+        .secondary-screen .show-on-secondary {
+            display: block !important;
+        }
+
+        /* Presentation mode styles */
+        .presentation-mode .hide-in-presentation {
+            display: none !important;
+        }
+
+        .presentation-mode .show-in-presentation {
+            display: block !important;
+        }
+
+        /* Auto-hide mode (combines multiple detection methods) */
+        .auto-hide-mode .hide-auto {
+            display: none !important;
+        }
+
+        .auto-hide-mode .show-auto {
+            display: block !important;
+        }
+
+        /* Smooth transitions */
+        .ui-element {
+            transition: all 0.3s ease;
+        }
+
+        /* Custom animations */
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(-100%); opacity: 0; }
+        }
+
+        .slide-out {
+            animation: slideOut 0.3s ease-out forwards;
+        }
+
+        /* Screen info display */
+        .screen-info {
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+        }
+
+        /* External display indicator */
+        .external-display-detected {
+            background: linear-gradient(45deg, #10b981, #059669);
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body class="bg-white dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen">
+    <!-- Navigation Bar -->
+    <nav class="ui-element hide-in-presentation bg-primary text-white p-4 shadow-lg">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold">Demo App</h1>
+            <div class="space-x-4">
+                <button class="hide-on-large bg-white bg-opacity-20 px-3 py-1 rounded">Menu</button>
+                <button class="hide-on-tv bg-white bg-opacity-20 px-3 py-1 rounded">Settings</button>
+                <button class="bg-white bg-opacity-20 px-3 py-1 rounded">Profile</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container mx-auto p-4 max-w-6xl">
+        <!-- Smart View Control Panel -->
+        <div class="ui-element hide-in-presentation bg-gray-100 dark:bg-gray-800 rounded-lg p-6 mb-6">
+            <h2 class="text-2xl font-bold mb-4">📱➡️📺 Smart View Controls</h2>
+            
+            <!-- Samsung Smart View Instructions -->
+            <div class="mb-4 p-4 bg-orange-50 dark:bg-orange-900 border border-orange-200 dark:border-orange-700 rounded-lg">
+                <h3 class="font-semibold mb-2 text-orange-800 dark:text-orange-200">🔧 For Samsung Smart View Users:</h3>
+                <ol class="text-sm space-y-1 text-orange-700 dark:text-orange-300">
+                    <li><strong>1.</strong> Before starting Smart View, click "Enable Mirror Mode" below</li>
+                    <li><strong>2.</strong> Then start Samsung Smart View to your TV</li>
+                    <li><strong>3.</strong> The sidebar, edit buttons, and other UI elements will be hidden on your TV</li>
+                    <li><strong>4.</strong> Click "Disable Mirror Mode" when you're done mirroring</li>
+                </ol>
+            </div>
+
+            <!-- Quick Mirror Mode Toggle -->
+            <div class="mb-4">
+                <div class="flex gap-3">
+                    <button id="enable-mirror-mode" class="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors">
+                        🟢 Enable Mirror Mode
+                    </button>
+                    <button id="disable-mirror-mode" class="flex-1 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors">
+                        🔴 Disable Mirror Mode
+                    </button>
+                </div>
+            </div>
+
+            <!-- Current Status -->
+            <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900 rounded">
+                <h3 class="font-semibold mb-2">Current Status:</h3>
+                <div id="status-display" class="screen-info text-sm"></div>
+            </div>
+
+            <!-- Advanced Controls (Collapsible) -->
+            <details class="mb-4">
+                <summary class="cursor-pointer font-semibold p-2 bg-gray-200 dark:bg-gray-700 rounded">
+                    🔧 Advanced Controls & Detection
+                </summary>
+                <div class="mt-3 space-y-3">
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <h4 class="font-semibold mb-2">Manual Toggle:</h4>
+                            <button id="toggle-presentation" class="w-full bg-primary text-white px-4 py-2 rounded hover:bg-purple-600 transition-colors">
+                                Toggle Presentation Mode
+                            </button>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold mb-2">URL Method:</h4>
+                            <div class="space-y-2">
+                                <a href="?presentation=true" class="block bg-green-500 text-white px-4 py-2 rounded text-center hover:bg-green-600 transition-colors text-sm">
+                                    Enable via URL
+                                </a>
+                                <a href="?" class="block bg-red-500 text-white px-4 py-2 rounded text-center hover:bg-red-600 transition-colors text-sm">
+                                    Disable via URL
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </details>
+
+            <!-- Device Detection -->
+            <div class="bg-blue-50 dark:bg-blue-900 p-3 rounded text-sm">
+                <div id="device-info"></div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="grid lg:grid-cols-4 gap-6">
+            <!-- Sidebar (Hidden on large screens and auto-detected secondary screens) -->
+            <div class="ui-element hide-on-large hide-in-presentation hide-on-secondary hide-auto lg:col-span-1">
+                <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
+                    <h3 class="font-semibold mb-3">Sidebar Menu (Hidden on Secondary Screen)</h3>
+                    <div class="space-y-2">
+                        <a href="#" class="block p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded">Dashboard</a>
+                        <a href="#" class="block p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded">Analytics</a>
+                        <a href="#" class="block p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded">Reports</a>
+                        <a href="#" class="block p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded">Settings</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="lg:col-span-3">
+                <!-- Content Card -->
+                <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-6 mb-6">
+                    <h2 class="text-3xl font-bold mb-4">Main Content Area</h2>
+                    <p class="text-gray-600 dark:text-gray-300 mb-4">
+                        This content remains visible on all screens. Perfect for presentations where you want to focus on the main content.
+                    </p>
+                    
+                    <!-- Sample Chart/Visualization Area -->
+                    <div class="bg-white dark:bg-gray-700 rounded p-4 mb-4">
+                        <h3 class="font-semibold mb-2">Sample Visualization</h3>
+                        <div class="h-32 bg-gradient-to-r from-primary to-purple-600 rounded flex items-center justify-center text-white">
+                            Chart/Graph Content
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="space-y-3">
+                        <div class="flex flex-wrap gap-2">
+                            <button class="ui-element hide-in-presentation hide-auto bg-primary text-white px-4 py-2 rounded hover:bg-purple-600 transition-colors">
+                                Edit (Auto-Hidden on Secondary)
+                            </button>
+                            <button class="ui-element hide-on-tv bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors">
+                                Delete (Hidden on TV)
+                            </button>
+                            <button class="ui-element hide-on-secondary bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 transition-colors">
+                                Admin (Hidden on Secondary)
+                            </button>
+                            <button class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors">
+                                View (Always Visible)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Presentation Mode Indicator -->
+                <div id="presentation-indicator" class="show-in-presentation hidden bg-green-100 dark:bg-green-900 border border-green-300 dark:border-green-700 rounded-lg p-4 mb-6">
+                    <h3 class="font-semibold text-green-800 dark:text-green-200 mb-2">🎥 Presentation Mode Active</h3>
+                    <p class="text-green-700 dark:text-green-300">UI elements are now optimized for secondary display viewing.</p>
+                </div>
+
+                <!-- Screen Information -->
+                <div class="bg-blue-50 dark:bg-blue-900 rounded-lg p-4">
+                    <h3 class="font-semibold mb-2">Screen Information</h3>
+                    <div id="screen-info" class="screen-info text-sm"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Controls (Hidden on wide screens) -->
+        <footer class="ui-element hide-on-wide hide-in-presentation mt-8 bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
+            <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600 dark:text-gray-400">Mobile Footer Controls</span>
+                <div class="space-x-2">
+                    <button class="bg-primary text-white px-3 py-1 rounded text-sm">Save</button>
+                    <button class="bg-gray-500 text-white px-3 py-1 rounded text-sm">Cancel</button>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Dark mode detection
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+
+        // Check for presentation mode from URL
+        function checkPresentationMode() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const presentationMode = urlParams.get('presentation') === 'true';
+            
+            if (presentationMode) {
+                document.body.classList.add('presentation-mode');
+            } else {
+                document.body.classList.remove('presentation-mode');
+            }
+            
+            updateStatus();
+        }
+
+        // Smart View specific controls
+        document.getElementById('enable-mirror-mode').addEventListener('click', function() {
+            document.body.classList.add('presentation-mode');
+            this.style.background = '#059669';
+            this.innerHTML = '✅ Mirror Mode Enabled';
+            document.getElementById('disable-mirror-mode').style.background = '#dc2626';
+            document.getElementById('disable-mirror-mode').innerHTML = '🔴 Disable Mirror Mode';
+            updateStatus();
+            
+            // Show confirmation message
+            showNotification('📺 Mirror Mode Enabled! Now start Samsung Smart View.', 'success');
+        });
+
+        document.getElementById('disable-mirror-mode').addEventListener('click', function() {
+            document.body.classList.remove('presentation-mode');
+            this.style.background = '#059669';
+            this.innerHTML = '✅ Mirror Mode Disabled';
+            document.getElementById('enable-mirror-mode').style.background = '#16a34a';
+            document.getElementById('enable-mirror-mode').innerHTML = '🟢 Enable Mirror Mode';
+            updateStatus();
+            
+            // Show confirmation message
+            showNotification('📱 Mirror Mode Disabled! All UI elements restored.', 'info');
+        });
+
+        // Manual presentation mode toggle
+        document.getElementById('toggle-presentation').addEventListener('click', function() {
+            document.body.classList.toggle('presentation-mode');
+            updateStatus();
+        });
+
+        // Notification system
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 max-w-md transition-all transform ${
+                type === 'success' ? 'bg-green-500 text-white' : 
+                type === 'error' ? 'bg-red-500 text-white' : 
+                'bg-blue-500 text-white'
+            }`;
+            notification.innerHTML = message;
+            
+            document.body.appendChild(notification);
+            
+            // Animate in
+            setTimeout(() => {
+                notification.style.transform = 'translateX(0)';
+                notification.style.opacity = '1';
+            }, 100);
+            
+            // Remove after 4 seconds
+            setTimeout(() => {
+                notification.style.transform = 'translateX(100%)';
+                notification.style.opacity = '0';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 4000);
+        }
+
+        // Advanced secondary screen detection
+        function detectSecondaryScreen() {
+            let isSecondaryScreen = false;
+            let detectionReasons = [];
+            
+            // Method 1: Screen size vs window size difference (indicates fullscreen on secondary display)
+            const screenWidth = window.screen.width;
+            const screenHeight = window.screen.height;
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+            
+            // If window is fullscreen or very close to screen size, might be on secondary display
+            const isFullscreenLike = (windowWidth >= screenWidth * 0.9 && windowHeight >= screenHeight * 0.9);
+            
+            // Method 2: High resolution detection (common for external monitors)
+            const isHighRes = screenWidth >= 1920 || screenHeight >= 1080;
+            
+            // Method 3: Ultra-wide aspect ratio (common for external monitors)
+            const aspectRatio = screenWidth / screenHeight;
+            const isUltraWide = aspectRatio >= 1.7; // 16:9 is 1.78, ultrawide is often 21:9 (2.33)
+            
+            // Method 4: Multiple screens detected
+            const hasMultipleScreens = window.screen.availWidth !== screenWidth || 
+                                     window.screen.availHeight !== screenHeight;
+            
+            // Method 5: Window position detection (if window is positioned far from origin)
+            const isWindowRepositioned = window.screenX > screenWidth || window.screenY > screenHeight;
+            
+            // Method 6: Device pixel ratio suggests external display
+            const hasExternalDisplayDPR = window.devicePixelRatio === 1 && screenWidth >= 1920;
+            
+            // Scoring system
+            let score = 0;
+            if (isFullscreenLike && isHighRes) { score += 3; detectionReasons.push('Fullscreen on high-res display'); }
+            if (isUltraWide) { score += 2; detectionReasons.push('Ultra-wide aspect ratio'); }
+            if (hasMultipleScreens) { score += 2; detectionReasons.push('Multiple screens detected'); }
+            if (isWindowRepositioned) { score += 3; detectionReasons.push('Window positioned on secondary screen'); }
+            if (hasExternalDisplayDPR) { score += 1; detectionReasons.push('External display DPR pattern'); }
+            if (isHighRes && windowWidth >= 1440) { score += 1; detectionReasons.push('Large window on high-res screen'); }
+            
+            // Auto-detection threshold
+            isSecondaryScreen = score >= 3;
+            
+            return {
+                isSecondaryScreen,
+                score,
+                detectionReasons,
+                metrics: {
+                    screenWidth,
+                    screenHeight,
+                    windowWidth,
+                    windowHeight,
+                    aspectRatio: aspectRatio.toFixed(2),
+                    isFullscreenLike,
+                    isHighRes,
+                    isUltraWide,
+                    hasMultipleScreens,
+                    isWindowRepositioned,
+                    hasExternalDisplayDPR
+                }
+            };
+        }
+
+        // Update status display with enhanced detection
+        function updateStatus() {
+            const statusDisplay = document.getElementById('status-display');
+            const screenInfo = document.getElementById('screen-info');
+            
+            const isPresentationMode = document.body.classList.contains('presentation-mode');
+            const detection = detectSecondaryScreen();
+            
+            // Auto-apply secondary screen class based on detection
+            if (detection.isSecondaryScreen) {
+                document.body.classList.add('secondary-screen', 'auto-hide-mode');
+            } else {
+                document.body.classList.remove('secondary-screen', 'auto-hide-mode');
+            }
+            
+            // Determine which CSS rules are active
+            const isLargeScreen = window.matchMedia('(min-width: 1440px)').matches;
+            const isWideScreen = window.matchMedia('(min-aspect-ratio: 16/10)').matches;
+            const isTVScreen = window.matchMedia('(min-width: 1920px)').matches;
+            
+            const statusClass = detection.isSecondaryScreen ? 'external-display-detected' : '';
+            
+            statusDisplay.innerHTML = `
+                <div class="${statusClass}">
+                    <strong>🖥️ Secondary Screen Auto-Detection:</strong> ${detection.isSecondaryScreen ? '✅ DETECTED' : '❌ Not detected'} (Score: ${detection.score}/10)<br>
+                    ${detection.detectionReasons.length > 0 ? '<strong>Reasons:</strong> ' + detection.detectionReasons.join(', ') + '<br>' : ''}
+                </div>
+                <strong>Manual Presentation Mode:</strong> ${isPresentationMode ? '✅ Active' : '❌ Inactive'}<br>
+                <strong>Large Screen Rule:</strong> ${isLargeScreen ? '✅ Active (≥1440px)' : '❌ Inactive'}<br>
+                <strong>Wide Screen Rule:</strong> ${isWideScreen ? '✅ Active (≥16:10)' : '❌ Inactive'}<br>
+                <strong>TV Screen Rule:</strong> ${isTVScreen ? '✅ Active (≥1920px)' : '❌ Inactive'}
+            `;
+            
+            screenInfo.innerHTML = `
+                <strong>Screen Resolution:</strong> ${detection.metrics.screenWidth} × ${detection.metrics.screenHeight}<br>
+                <strong>Window Size:</strong> ${detection.metrics.windowWidth} × ${detection.metrics.windowHeight}<br>
+                <strong>Aspect Ratio:</strong> ${detection.metrics.aspectRatio}<br>
+                <strong>Device Pixel Ratio:</strong> ${window.devicePixelRatio}<br>
+                <strong>Window Position:</strong> ${window.screenX}, ${window.screenY}<br>
+                <strong>Available Screen:</strong> ${window.screen.availWidth} × ${window.screen.availHeight}<br>
+                <strong>Fullscreen-like:</strong> ${detection.metrics.isFullscreenLike ? 'Yes' : 'No'}<br>
+                <strong>High Resolution:</strong> ${detection.metrics.isHighRes ? 'Yes' : 'No'}<br>
+                <strong>Ultra-wide:</strong> ${detection.metrics.isUltraWide ? 'Yes' : 'No'}<br>
+                <strong>Multiple Screens:</strong> ${detection.metrics.hasMultipleScreens ? 'Detected' : 'No'}<br>
+                <strong>User Agent:</strong> ${navigator.userAgent.includes('Mobile') ? 'Mobile' : 'Desktop'}
+            `;
+            
+            // Update device info section
+            const deviceInfo = document.getElementById('device-info');
+            const isSamsungDevice = navigator.userAgent.includes('Samsung') || navigator.userAgent.includes('SM-');
+            const isTablet = window.innerWidth >= 768 && window.innerHeight >= 1024;
+            
+            deviceInfo.innerHTML = `
+                <strong>Device Type:</strong> ${isSamsungDevice ? '📱 Samsung Device' : '🖥️ Other Device'}<br>
+                <strong>Form Factor:</strong> ${isTablet ? '📱 Tablet' : '💻 Desktop/Phone'}<br>
+                <strong>Touch Support:</strong> ${'ontouchstart' in window ? '✅ Yes' : '❌ No'}<br>
+                <strong>Orientation:</strong> ${window.screen.orientation ? window.screen.orientation.type : 'Unknown'}<br>
+                ${isSamsungDevice ? '<strong>💡 Tip:</strong> Use "Enable Mirror Mode" before starting Samsung Smart View' : ''}
+            `;
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkPresentationMode();
+            
+            // Update status when window is resized
+            window.addEventListener('resize', updateStatus);
+            
+            // Update status periodically (useful for screen mirroring detection)
+            setInterval(updateStatus, 2000);
+        });
+
+        // Listen for URL changes (if using single-page app)
+        window.addEventListener('popstate', checkPresentationMode);
+    </script>
+</body>
+</html>
