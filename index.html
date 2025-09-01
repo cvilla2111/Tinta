@@ -35,20 +35,7 @@
             justify-content: center !important;
             padding: 0 !important;
         }
-        .selected-eraser-size {
-            border: 1px solid currentColor !important;
-            border-radius: 50% !important;
-            width: 16px !important;
-            height: 16px !important;
-            min-width: 16px !important;
-            min-height: 16px !important;
-            max-width: 16px !important;
-            max-height: 16px !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            padding: 0 !important;
-        }
+
         
         /* Page transition effects */
         .page-transition {
@@ -216,17 +203,7 @@
                     </div>
                 </div>
 
-                <!-- Eraser Settings -->
-                <div id="eraserSettings" class="hidden">
-                    <div class="flex items-center gap-1">
-                        <!-- Eraser Sizes as Numbers -->
-                        <button onclick="setEraserSize(4)" class="eraser-size-dot text-xs font-thin text-gray-300" data-eraser-size="4" style="background: none !important; padding: 2px 4px;">4</button>
-                        <button onclick="setEraserSize(12)" class="eraser-size-dot text-xs font-thin text-gray-300" data-eraser-size="12" style="background: none !important; padding: 2px 4px;">12</button>
-                        <button onclick="setEraserSize(25)" class="eraser-size-dot selected-eraser-size text-xs font-thin text-gray-300" data-eraser-size="25" style="background: none !important; padding: 2px 4px;">25</button>
-                        <button onclick="setEraserSize(35)" class="eraser-size-dot text-xs font-thin text-gray-300" data-eraser-size="35" style="background: none !important; padding: 2px 4px;">35</button>
-                        <button onclick="setEraserSize(50)" class="eraser-size-dot text-xs font-thin text-gray-300" data-eraser-size="50" style="background: none !important; padding: 2px 4px;">50</button>
-                    </div>
-                </div>
+
             </div>
 
             <!-- Page Navigation -->
@@ -398,19 +375,7 @@
             hideSettingsModal();
         }
 
-        // Eraser size selection
-        function setEraserSize(size) {
-            currentEraserSize = size;
-            
-            // Update visual selection
-            document.querySelectorAll('.eraser-size-dot').forEach(btn => {
-                btn.classList.remove('selected-eraser-size');
-            });
-            document.querySelector(`[data-eraser-size="${size}"]`).classList.add('selected-eraser-size');
-            
-            // Close modal after selection
-            hideSettingsModal();
-        }
+
 
         // Handle double-click on tool buttons
         function handleToolDoubleClick(e) {
@@ -422,8 +387,13 @@
             if (lastClickTarget === target && (currentTime - lastClickTime) < DOUBLE_CLICK_DELAY) {
                 // Double-click detected
                 e.preventDefault();
-                const toolType = target.id === 'penTool' ? 'pen' : 'eraser';
-                showSettingsModal(toolType);
+                // Only show settings for pen tool, eraser tool has dynamic sizing now
+                if (target.id === 'penTool') {
+                    showSettingsModal('pen');
+                } else {
+                    // For eraser, just set the tool (no settings needed)
+                    setTool('eraser');
+                }
             } else {
                 // Single click - set tool
                 setTimeout(() => {
@@ -768,6 +738,16 @@
             let points = [];
             let pressureHistory = [];
             const maxHistoryLength = 5;
+            
+            // Speed-based eraser variables
+            let lastMoveTime = 0;
+            let lastMoveX = 0;
+            let lastMoveY = 0;
+            let currentSpeed = 0;
+            let dynamicEraserSize = 12; // Start at minimum size
+            const minEraserSize = 12;
+            const maxEraserSize = 130;
+            const speedSmoothingFactor = 0.3; // How quickly size responds to speed changes
 
             // Create eraser indicator
             const eraserIndicator = document.createElement('div');
@@ -782,6 +762,8 @@
                 background: rgba(255, 255, 255, 0.1);
             `;
             document.body.appendChild(eraserIndicator);
+
+
 
             // Pointer events for stylus detection
             canvas.addEventListener('pointerdown', startDrawing);
@@ -884,6 +866,15 @@
                 points = [];
                 pressureHistory = [];
                 
+                // Reset speed tracking for new stroke
+                lastMoveTime = Date.now();
+                lastMoveX = lastX;
+                lastMoveY = lastY;
+                currentSpeed = 0;
+                if (currentTool === 'eraser') {
+                    dynamicEraserSize = minEraserSize; // Start with minimum size
+                }
+                
                 // Add initial point
                 const pressure = e.pressure || 0.5;
                 points.push({ x: lastX, y: lastY, pressure: pressure });
@@ -915,9 +906,38 @@
                 const currentX = displayX * scaleX;
                 const currentY = displayY * scaleY;
 
-                // Update eraser indicator position if using eraser tool
+                // Calculate speed for dynamic eraser sizing (only for eraser tool)
                 if (currentTool === 'eraser') {
+                    const currentTime = Date.now();
+                    const deltaTime = Math.max(currentTime - lastMoveTime, 1); // Prevent division by zero
+                    const deltaX = currentX - lastMoveX;
+                    const deltaY = currentY - lastMoveY;
+                    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                    
+                    // Calculate speed in pixels per millisecond, then convert to pixels per second
+                    const instantSpeed = (distance / deltaTime) * 1000;
+                    
+                    // Smooth the speed to avoid jittery size changes
+                    currentSpeed = currentSpeed * (1 - speedSmoothingFactor) + instantSpeed * speedSmoothingFactor;
+                    
+                    // Map speed to eraser size range (12-80)
+                    // Speed range: 0-2000 pixels/second (adjust based on testing)
+                    const maxSpeed = 2000; // pixels per second
+                    const speedRatio = Math.min(currentSpeed / maxSpeed, 1.0);
+                    dynamicEraserSize = minEraserSize + (maxEraserSize - minEraserSize) * speedRatio;
+                    
+                    // Update tracking variables for next calculation
+                    lastMoveTime = currentTime;
+                    lastMoveX = currentX;
+                    lastMoveY = currentY;
+                    
+                    // Update eraser indicator with dynamic size
                     updateEraserIndicator(e.clientX, e.clientY);
+                } else {
+                    // Update eraser indicator position for static eraser
+                    if (currentTool === 'eraser') {
+                        updateEraserIndicator(e.clientX, e.clientY);
+                    }
                 }
 
                 // Get pressure value
@@ -935,7 +955,14 @@
 
                 // Use appropriate size based on tool (scale up for high-DPI)
                 const scaleFactor = Math.min(scaleX, scaleY);
-                const toolSize = (currentTool === 'eraser' ? currentEraserSize : currentBrushSize) * scaleFactor;
+                let toolSize;
+                if (currentTool === 'eraser') {
+                    // Use dynamic eraser size based on speed
+                    toolSize = dynamicEraserSize * scaleFactor;
+                } else {
+                    // Use static brush size for pen
+                    toolSize = currentBrushSize * scaleFactor;
+                }
                 
                 if (currentTool === 'eraser') {
                     // Eraser: Use destination-out to remove pixels
@@ -981,7 +1008,7 @@
                 const smoothPressure = pressureEnabled ? avgPressure : 0.7;
                 
                 // Calculate dynamic line width with pressure (increased sensitivity)
-                const pressureMultiplier = pressureEnabled ? (0.2 + (smoothPressure * 2.0)) : 1.0;
+                const pressureMultiplier = pressureEnabled ? (0.15 + (smoothPressure * 3.0)) : 1.0;
                 const dynamicWidth = baseSize * pressureMultiplier;
                 
                 // Use solid, opaque color - no transparency
@@ -1046,7 +1073,8 @@
             function showEraserIndicator(clientX, clientY) {
                 const indicator = document.getElementById('eraserIndicator');
                 if (indicator) {
-                    const size = currentEraserSize;
+                    // Use dynamic eraser size for speed-based feature
+                    const size = currentTool === 'eraser' ? dynamicEraserSize : currentEraserSize;
                     indicator.style.width = size + 'px';
                     indicator.style.height = size + 'px';
                     indicator.style.left = (clientX - size/2) + 'px';
@@ -1058,7 +1086,10 @@
             function updateEraserIndicator(clientX, clientY) {
                 const indicator = document.getElementById('eraserIndicator');
                 if (indicator && indicator.style.display === 'block') {
-                    const size = currentEraserSize;
+                    // Use dynamic eraser size for speed-based feature  
+                    const size = currentTool === 'eraser' ? dynamicEraserSize : currentEraserSize;
+                    indicator.style.width = size + 'px';
+                    indicator.style.height = size + 'px';
                     indicator.style.left = (clientX - size/2) + 'px';
                     indicator.style.top = (clientY - size/2) + 'px';
                 }
