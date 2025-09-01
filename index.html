@@ -20,25 +20,34 @@
             position: relative;
             margin: 0 auto;
         }
-        .tool-active {
-            background-color: #E5E7EB !important;
-            color: #374151 !important;
-        }
-        .dark .tool-active {
-            background-color: #4B5563 !important;
-            color: #F3F4F6 !important;
-        }
+
         .selected-size {
-            background-color: #E5E7EB !important;
-        }
-        .dark .selected-size {
-            background-color: #4B5563 !important;
+            border: 1px solid currentColor !important;
+            border-radius: 50% !important;
+            width: 16px !important;
+            height: 16px !important;
+            min-width: 16px !important;
+            min-height: 16px !important;
+            max-width: 16px !important;
+            max-height: 16px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 0 !important;
         }
         .selected-eraser-size {
-            background-color: #E5E7EB !important;
-        }
-        .dark .selected-eraser-size {
-            background-color: #4B5563 !important;
+            border: 1px solid currentColor !important;
+            border-radius: 50% !important;
+            width: 16px !important;
+            height: 16px !important;
+            min-width: 16px !important;
+            min-height: 16px !important;
+            max-width: 16px !important;
+            max-height: 16px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 0 !important;
         }
         
         /* Page transition effects */
@@ -151,167 +160,133 @@
         <!-- PDF Viewer Area (Full Screen) -->
         <div id="pdfViewer" class="hidden fixed inset-0 bg-white">
             <!-- Settings Modal -->
-            <div id="settingsModal" class="fixed bottom-20 left-1/2 transform -translate-x-1/2 z-40 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 px-6 py-3 hidden">
+            <div id="settingsModal" class="fixed bottom-8 left-2 z-40 px-3 py-2 hidden" style="background: none !important; border: none !important; box-shadow: none !important;">
                 <!-- Pen Settings -->
                 <div id="penSettings" class="hidden">
-                    <!-- Brush Size Dots and Pressure Switch in Horizontal Pill -->
-                    <div class="flex items-center gap-2">
-                        <button onclick="setBrushSize(1)" class="brush-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-size="1">
-                            <div style="width: 1px; height: 1px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
-                        </button>
-                        <button onclick="setBrushSize(2)" class="brush-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors selected-size relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-size="2">
-                            <div style="width: 2px; height: 2px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
-                        </button>
-                        <button onclick="setBrushSize(4)" class="brush-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-size="4">
-                            <div style="width: 4px; height: 4px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
-                        </button>
-                        <button onclick="setBrushSize(6)" class="brush-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-size="6">
-                            <div style="width: 6px; height: 6px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
-                        </button>
-                        <button onclick="setBrushSize(8)" class="brush-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-size="8">
-                            <div style="width: 8px; height: 8px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
-                        </button>
-                        <button onclick="setBrushSize(11)" class="brush-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-size="11">
-                            <div style="width: 11px; height: 11px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
-                        </button>
-                        <button onclick="setBrushSize(14)" class="brush-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-size="14">
-                            <div style="width: 14px; height: 14px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
-                        </button>
-                        <button onclick="setBrushSize(16)" class="brush-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-size="16">
-                            <div style="width: 16px; height: 16px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
-                        </button>
-                        <button onclick="setBrushSize(18)" class="brush-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-size="18">
-                            <div style="width: 18px; height: 18px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
-                        </button>
-                        <button onclick="setBrushSize(20)" class="brush-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-size="20">
-                            <div style="width: 20px; height: 20px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
-                        </button>
+                    <div class="flex items-center gap-1">
+                        <!-- Brush Sizes as Numbers -->
+                        <button onclick="setBrushSize(1)" class="brush-size-dot text-xs font-thin text-gray-300" data-size="1" style="background: none !important; padding: 2px 4px;">1</button>
+                        <button onclick="setBrushSize(2)" class="brush-size-dot selected-size text-xs font-thin text-gray-300" data-size="2" style="background: none !important; padding: 2px 4px;">2</button>
+                        <button onclick="setBrushSize(4)" class="brush-size-dot text-xs font-thin text-gray-300" data-size="4" style="background: none !important; padding: 2px 4px;">4</button>
+                        <button onclick="setBrushSize(6)" class="brush-size-dot text-xs font-thin text-gray-300" data-size="6" style="background: none !important; padding: 2px 4px;">6</button>
+                        <button onclick="setBrushSize(8)" class="brush-size-dot text-xs font-thin text-gray-300" data-size="8" style="background: none !important; padding: 2px 4px;">8</button>
+                        <button onclick="setBrushSize(11)" class="brush-size-dot text-xs font-thin text-gray-300" data-size="11" style="background: none !important; padding: 2px 4px;">11</button>
+                        <button onclick="setBrushSize(14)" class="brush-size-dot text-xs font-thin text-gray-300" data-size="14" style="background: none !important; padding: 2px 4px;">14</button>
+                        <button onclick="setBrushSize(16)" class="brush-size-dot text-xs font-thin text-gray-300" data-size="16" style="background: none !important; padding: 2px 4px;">16</button>
+                        <button onclick="setBrushSize(18)" class="brush-size-dot text-xs font-thin text-gray-300" data-size="18" style="background: none !important; padding: 2px 4px;">18</button>
+                        <button onclick="setBrushSize(20)" class="brush-size-dot text-xs font-thin text-gray-300" data-size="20" style="background: none !important; padding: 2px 4px;">20</button>
                         
-                        <div class="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-2"></div>
+                        <div class="w-px h-4 bg-gray-600 mx-1"></div>
                         
                         <!-- Pressure Switch -->
-                        <div class="flex items-center gap-2">
-                            <i data-lucide="zap" class="w-3 h-3 text-gray-600 dark:text-gray-400"></i>
+                        <div class="flex items-center gap-1">
+                            <i data-lucide="zap" class="w-2.5 h-2.5 text-gray-300" style="stroke-width: 1;"></i>
                             <label class="relative inline-flex items-center cursor-pointer">
                                 <input type="checkbox" id="pressureSwitch" class="sr-only peer" checked>
-                                <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                                <div class="w-6 h-3 bg-gray-400 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1px] after:left-[1px] after:bg-white after:rounded-full after:h-2.5 after:w-2.5 after:transition-all peer-checked:bg-black"></div>
                             </label>
-                            <span class="text-xs text-gray-600 dark:text-gray-400">Pressure</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Color Settings -->
-                <div id="colorSettings" class="hidden flex items-center gap-4">
-                    <!-- Color Grid -->
+                <div id="colorSettings" class="hidden">
                     <div class="grid grid-cols-10 gap-1">
-                        <button onclick="setColor('#000000')" class="w-5 h-5 rounded-full bg-black border border-gray-300 hover:scale-110 transition-transform"></button>
-                        <button onclick="setColor('#FFFFFF')" class="w-5 h-5 rounded-full bg-white border border-gray-400 hover:scale-110 transition-transform"></button>
-                        <button onclick="setColor('#6B7280')" class="w-5 h-5 rounded-full bg-gray-500 border border-gray-300 hover:scale-110 transition-transform"></button>
-                        <button onclick="setColor('#EF4444')" class="w-5 h-5 rounded-full bg-red-500 border border-gray-300 hover:scale-110 transition-transform"></button>
-                        <button onclick="setColor('#F97316')" class="w-5 h-5 rounded-full bg-orange-500 border border-gray-300 hover:scale-110 transition-transform"></button>
-                        <button onclick="setColor('#F59E0B')" class="w-5 h-5 rounded-full bg-yellow-500 border border-gray-300 hover:scale-110 transition-transform"></button>
-                        <button onclick="setColor('#84CC16')" class="w-5 h-5 rounded-full bg-lime-500 border border-gray-300 hover:scale-110 transition-transform"></button>
-                        <button onclick="setColor('#10B981')" class="w-5 h-5 rounded-full bg-emerald-500 border border-gray-300 hover:scale-110 transition-transform"></button>
-                        <button onclick="setColor('#06B6D4')" class="w-5 h-5 rounded-full bg-cyan-500 border border-gray-300 hover:scale-110 transition-transform"></button>
-                        <button onclick="setColor('#3B82F6')" class="w-5 h-5 rounded-full bg-blue-500 border border-gray-300 hover:scale-110 transition-transform"></button>
+                        <button onclick="setColor('#000000')" class="w-4 h-4 rounded bg-black border border-gray-300"></button>
+                        <button onclick="setColor('#FFFFFF')" class="w-4 h-4 rounded bg-white border border-gray-400"></button>
+                        <button onclick="setColor('#6B7280')" class="w-4 h-4 rounded bg-gray-500 border border-gray-300"></button>
+                        <button onclick="setColor('#EF4444')" class="w-4 h-4 rounded bg-red-500 border border-gray-300"></button>
+                        <button onclick="setColor('#F97316')" class="w-4 h-4 rounded bg-orange-500 border border-gray-300"></button>
+                        <button onclick="setColor('#F59E0B')" class="w-4 h-4 rounded bg-yellow-500 border border-gray-300"></button>
+                        <button onclick="setColor('#84CC16')" class="w-4 h-4 rounded bg-lime-500 border border-gray-300"></button>
+                        <button onclick="setColor('#10B981')" class="w-4 h-4 rounded bg-emerald-500 border border-gray-300"></button>
+                        <button onclick="setColor('#06B6D4')" class="w-4 h-4 rounded bg-cyan-500 border border-gray-300"></button>
+                        <button onclick="setColor('#3B82F6')" class="w-4 h-4 rounded bg-blue-500 border border-gray-300"></button>
                         
-                        <button onclick="setColor('#6366F1')" class="w-5 h-5 rounded-full bg-indigo-500 border border-gray-300 hover:scale-110 transition-transform"></button>
-                        <button onclick="setColor('#8B5CF6')" class="w-5 h-5 rounded-full bg-violet-500 border border-gray-300 hover:scale-110 transition-transform"></button>
-                        <button onclick="setColor('#A855F7')" class="w-5 h-5 rounded-full bg-purple-500 border border-gray-300 hover:scale-110 transition-transform"></button>
-                        <button onclick="setColor('#EC4899')" class="w-5 h-5 rounded-full bg-pink-500 border border-gray-300 hover:scale-110 transition-transform"></button>
-                        <button onclick="setColor('#F43F5E')" class="w-5 h-5 rounded-full bg-rose-500 border border-gray-300 hover:scale-110 transition-transform"></button>
-                        <button onclick="setColor('#DC2626')" class="w-5 h-5 rounded-full bg-red-600 border border-gray-300 hover:scale-110 transition-transform"></button>
-                        <button onclick="setColor('#059669')" class="w-5 h-5 rounded-full bg-emerald-600 border border-gray-300 hover:scale-110 transition-transform"></button>
-                        <button onclick="setColor('#2563EB')" class="w-5 h-5 rounded-full bg-blue-600 border border-gray-300 hover:scale-110 transition-transform"></button>
-                        <button onclick="setColor('#7C3AED')" class="w-5 h-5 rounded-full bg-violet-600 border border-gray-300 hover:scale-110 transition-transform"></button>
-                        <button onclick="setColor('#92400E')" class="w-5 h-5 rounded-full bg-yellow-800 border border-gray-300 hover:scale-110 transition-transform"></button>
+                        <button onclick="setColor('#6366F1')" class="w-4 h-4 rounded bg-indigo-500 border border-gray-300"></button>
+                        <button onclick="setColor('#8B5CF6')" class="w-4 h-4 rounded bg-violet-500 border border-gray-300"></button>
+                        <button onclick="setColor('#A855F7')" class="w-4 h-4 rounded bg-purple-500 border border-gray-300"></button>
+                        <button onclick="setColor('#EC4899')" class="w-4 h-4 rounded bg-pink-500 border border-gray-300"></button>
+                        <button onclick="setColor('#F43F5E')" class="w-4 h-4 rounded bg-rose-500 border border-gray-300"></button>
+                        <button onclick="setColor('#DC2626')" class="w-4 h-4 rounded bg-red-600 border border-gray-300"></button>
+                        <button onclick="setColor('#059669')" class="w-4 h-4 rounded bg-emerald-600 border border-gray-300"></button>
+                        <button onclick="setColor('#2563EB')" class="w-4 h-4 rounded bg-blue-600 border border-gray-300"></button>
+                        <button onclick="setColor('#7C3AED')" class="w-4 h-4 rounded bg-violet-600 border border-gray-300"></button>
+                        <button onclick="setColor('#92400E')" class="w-4 h-4 rounded bg-yellow-800 border border-gray-300"></button>
                     </div>
                 </div>
 
                 <!-- Eraser Settings -->
                 <div id="eraserSettings" class="hidden">
-                    <!-- Eraser Size Dots in Horizontal Pill -->
-                    <div class="flex items-center gap-2">
-                        <button onclick="setEraserSize(4)" class="eraser-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-eraser-size="4">
-                            <div style="width: 4px; height: 4px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
-                        </button>
-                        <button onclick="setEraserSize(12)" class="eraser-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-eraser-size="12">
-                            <div style="width: 12px; height: 12px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
-                        </button>
-                        <button onclick="setEraserSize(25)" class="eraser-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors selected-eraser-size relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-eraser-size="25">
-                            <div style="width: 25px; height: 25px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
-                        </button>
-                        <button onclick="setEraserSize(35)" class="eraser-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-eraser-size="35">
-                            <div style="width: 35px; height: 35px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
-                        </button>
-                        <button onclick="setEraserSize(50)" class="eraser-size-dot hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-colors relative flex items-center justify-center w-8 h-8 border border-gray-300 dark:border-gray-600" data-eraser-size="50">
-                            <div style="width: 50px; height: 50px;" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
-                        </button>
+                    <div class="flex items-center gap-1">
+                        <!-- Eraser Sizes as Numbers -->
+                        <button onclick="setEraserSize(4)" class="eraser-size-dot text-xs font-thin text-gray-300" data-eraser-size="4" style="background: none !important; padding: 2px 4px;">4</button>
+                        <button onclick="setEraserSize(12)" class="eraser-size-dot text-xs font-thin text-gray-300" data-eraser-size="12" style="background: none !important; padding: 2px 4px;">12</button>
+                        <button onclick="setEraserSize(25)" class="eraser-size-dot selected-eraser-size text-xs font-thin text-gray-300" data-eraser-size="25" style="background: none !important; padding: 2px 4px;">25</button>
+                        <button onclick="setEraserSize(35)" class="eraser-size-dot text-xs font-thin text-gray-300" data-eraser-size="35" style="background: none !important; padding: 2px 4px;">35</button>
+                        <button onclick="setEraserSize(50)" class="eraser-size-dot text-xs font-thin text-gray-300" data-eraser-size="50" style="background: none !important; padding: 2px 4px;">50</button>
                     </div>
                 </div>
             </div>
 
             <!-- Page Navigation -->
-            <div id="pageNavigation" class="fixed top-4 right-4 z-50 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 px-3 py-1.5 flex items-center gap-2">
+            <div id="pageNavigation" class="fixed top-4 right-4 z-50 rounded-full px-3 py-1.5 flex items-center gap-2">
                 <button onclick="changePage(-1)" id="prevPageBtn" 
-                        class="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                    <i data-lucide="chevron-left" class="w-3 h-3 text-gray-700 dark:text-gray-300"></i>
+                        class="w-6 h-6 rounded-full flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i data-lucide="chevron-left" class="w-3 h-3 text-gray-300"></i>
                 </button>
                 
-                <button onclick="openPageThumbnailModal()" class="flex items-center gap-1 px-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors">
-                    <span id="currentPageNum" class="text-xs font-medium text-gray-900 dark:text-gray-100">1</span>
-                    <span class="text-xs text-gray-500 dark:text-gray-400">/</span>
-                    <span id="totalPagesNum" class="text-xs text-gray-500 dark:text-gray-400">1</span>
+                <button onclick="openPageThumbnailModal()" class="flex items-center gap-1 px-1">
+                    <span id="currentPageNum" class="text-xs font-medium text-gray-300">1</span>
+                    <span class="text-xs text-gray-300">/</span>
+                    <span id="totalPagesNum" class="text-xs text-gray-300">1</span>
                 </button>
                 
                 <button onclick="changePage(1)" id="nextPageBtn"
-                        class="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                    <i data-lucide="chevron-right" class="w-3 h-3 text-gray-700 dark:text-gray-300"></i>
+                        class="w-6 h-6 rounded-full flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i data-lucide="chevron-right" class="w-3 h-3 text-gray-300"></i>
                 </button>
             </div>
 
             <!-- Bottom Toolbar -->
-            <div id="floatingToolbar" class="fixed bottom-2 left-1/2 transform -translate-x-1/2 z-50 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center gap-4">
+            <div id="floatingToolbar" class="fixed bottom-2 left-2 z-50 flex items-center gap-1">
                 <!-- Tool Selection -->
                 <button id="penTool" onclick="setTool('pen')" 
-                        class="w-8 h-8 rounded-full flex items-center justify-center tool-active hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                    <i data-lucide="pen-tool" class="w-4 h-4 text-gray-700 dark:text-gray-300"></i>
+                        class="w-5 h-5 rounded-full flex items-center justify-center">
+                    <i data-lucide="pen-tool" class="w-2.5 h-2.5 text-gray-300" style="stroke-width: 1;"></i>
                 </button>
                 <button id="eraserTool" onclick="setTool('eraser')" 
-                        class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                    <i data-lucide="eraser" class="w-4 h-4 text-gray-700 dark:text-gray-300"></i>
+                        class="w-5 h-5 rounded-full flex items-center justify-center">
+                    <i data-lucide="eraser" class="w-2.5 h-2.5 text-gray-300" style="stroke-width: 1;"></i>
                 </button>
                 <button id="colorTool" 
-                        class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                    <div id="colorIndicator" class="w-5 h-5 rounded-full border-2 border-gray-400 dark:border-gray-500" style="background-color: #000000;"></div>
+                        class="w-5 h-5 rounded-full flex items-center justify-center">
+                    <div id="colorIndicator" class="w-3 h-3 rounded-full border border-gray-500" style="background-color: #000000;"></div>
                 </button>
-                
-                <div class="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
                 
                 <!-- Actions -->
                 <button onclick="openPresentationMode()" 
-                        class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                    <i data-lucide="cast" class="w-4 h-4 text-gray-700 dark:text-gray-300"></i>
+                        class="w-5 h-5 rounded-full flex items-center justify-center">
+                    <i data-lucide="cast" class="w-2.5 h-2.5 text-gray-300" style="stroke-width: 1;"></i>
                 </button>
                 <button onclick="toggleFullscreen()" id="fullscreenBtn"
-                        class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                    <i data-lucide="maximize" class="w-4 h-4 text-gray-700 dark:text-gray-300"></i>
+                        class="w-5 h-5 rounded-full flex items-center justify-center">
+                    <i data-lucide="maximize" class="w-2.5 h-2.5 text-gray-300" style="stroke-width: 1;"></i>
                 </button>
                 <button onclick="clearCanvas()" 
-                        class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                    <i data-lucide="trash-2" class="w-4 h-4 text-red-600 dark:text-red-400"></i>
+                        class="w-5 h-5 rounded-full flex items-center justify-center">
+                    <i data-lucide="trash-2" class="w-2.5 h-2.5 text-gray-300" style="stroke-width: 1;"></i>
                 </button>
             </div>
 
             <!-- Page Thumbnail Modal -->
-            <div id="pageThumbnailModal" class="page-thumbnail-modal fixed inset-y-0 right-0 w-80 bg-white dark:bg-gray-800 shadow-2xl z-[70] border-l border-gray-200 dark:border-gray-700">
+            <div id="pageThumbnailModal" class="page-thumbnail-modal fixed inset-y-0 right-0 w-80 bg-gray-800 shadow-2xl z-[70] border-l border-gray-700">
                 <div class="h-full flex flex-col">
                     <!-- Header -->
-                    <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-                        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Pages</h3>
-                        <button onclick="closePageThumbnailModal()" class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                            <i data-lucide="x" class="w-4 h-4 text-gray-700 dark:text-gray-300"></i>
+                    <div class="flex items-center justify-between p-4 border-b border-gray-700">
+                        <h3 class="text-lg font-semibold text-gray-100">Pages</h3>
+                        <button onclick="closePageThumbnailModal()" class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-700 transition-colors">
+                            <i data-lucide="x" class="w-4 h-4 text-gray-300"></i>
                         </button>
                     </div>
                     
@@ -1006,7 +981,7 @@
                 const smoothPressure = pressureEnabled ? avgPressure : 0.7;
                 
                 // Calculate dynamic line width with pressure (increased sensitivity)
-                const pressureMultiplier = pressureEnabled ? (0.2 + (smoothPressure * 1.8)) : 1.0;
+                const pressureMultiplier = pressureEnabled ? (0.2 + (smoothPressure * 2.0)) : 1.0;
                 const dynamicWidth = baseSize * pressureMultiplier;
                 
                 // Use solid, opaque color - no transparency
@@ -1967,17 +1942,6 @@
 
         function setTool(tool) {
             currentTool = tool;
-            
-            // Update tool buttons
-            document.querySelectorAll('#penTool, #eraserTool').forEach(btn => {
-                btn.classList.remove('tool-active');
-            });
-            
-            if (tool === 'pen') {
-                document.getElementById('penTool').classList.add('tool-active');
-            } else if (tool === 'eraser') {
-                document.getElementById('eraserTool').classList.add('tool-active');
-            }
 
             // Update cursor
             const canvas = document.querySelector('.drawing-canvas');
