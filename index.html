@@ -718,22 +718,20 @@
         });
 
         function startDrag(e) {
+            // Only allow dragging when "Enable Group Drag" is active
+            if (!selectionMode) return;
+            
             if (!menuOpen) return; // Only allow dragging when menu is open
             
             const item = e.target.closest('.menu-item');
             
             // Handle group dragging if in selection mode and item is selected
-            if (selectionMode && selectedItems.has(item)) {
+            if (selectedItems.has(item)) {
                 startGroupDrag(e, item);
                 return;
             }
             
-            // Don't allow individual dragging in selection mode unless item is selected
-            if (selectionMode) {
-                return;
-            }
-            
-            // Original individual drag functionality
+            // Allow individual dragging for unselected items in selection mode
             e.preventDefault();
             draggedElement = item;
             isDragging = true;
