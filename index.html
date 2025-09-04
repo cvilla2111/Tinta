@@ -83,6 +83,51 @@
         .ripple {
             animation: ripple 0.6s ease-out;
         }
+        
+        /* Submenu styles */
+        .submenu-item {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: move;
+            z-index: 12;
+            position: relative;
+            background-color: rgba(255, 255, 255, 0.9) !important;
+        }
+        
+        .dark .submenu-item {
+            background-color: rgba(55, 65, 81, 0.9) !important;
+        }
+        
+        .submenu-item:hover {
+            transform: scale(1.15);
+        }
+        
+        .submenu-active .submenu-item {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+        }
+        
+        .submenu-item {
+            opacity: 0;
+            transform: scale(0.6);
+            pointer-events: none;
+        }
+        
+        .submenu-item.dragging {
+            z-index: 1001;
+            transition: none;
+            transform: scale(1.3);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+        
+        .submenu-item.selected {
+            border-color: #3B82F6 !important;
+            box-shadow: 0 0 0 2px #3B82F6;
+        }
+        
+        .selection-mode .submenu-item {
+            cursor: pointer;
+        }
     </style>
 </head>
 <body class="bg-white dark:bg-gray-900 min-h-screen flex items-center justify-center p-4">
@@ -109,6 +154,99 @@
                         <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/>
                     </svg>
                 </button>
+                
+                <!-- Home Submenu -->
+                <div id="homeSubmenu" class="absolute inset-0 opacity-0 pointer-events-none transition-all duration-300">
+                    <!-- Submenu Item 1 - Living Room -->
+                    <button class="submenu-item absolute w-8 h-8 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full shadow-lg flex items-center justify-center border-2 border-gray-200 dark:border-gray-600 hover:border-primary dark:hover:border-primary" 
+                            style="left: -470px; top: 220px;"
+                            data-item="living-room">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z"/>
+                        </svg>
+                    </button>
+                    
+                    <!-- Submenu Item 2 - Kitchen -->
+                    <button class="submenu-item absolute w-8 h-8 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full shadow-lg flex items-center justify-center border-2 border-gray-200 dark:border-gray-600 hover:border-primary dark:hover:border-primary" 
+                            style="left: -445px; top: 235px;"
+                            data-item="kitchen">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+                        </svg>
+                    </button>
+                    
+                    <!-- Submenu Item 3 - Bedroom -->
+                    <button class="submenu-item absolute w-8 h-8 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full shadow-lg flex items-center justify-center border-2 border-gray-200 dark:border-gray-600 hover:border-primary dark:hover:border-primary" 
+                            style="left: -420px; top: 250px;"
+                            data-item="bedroom">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M3 4a1 1 0 000 2h14a1 1 0 100-2H3zM3 8a1 1 0 000 2h14a1 1 0 100-2H3zM3 12a1 1 0 100 2h14a1 1 0 100-2H3z"/>
+                        </svg>
+                    </button>
+                    
+                    <!-- Submenu Item 4 - Bathroom -->
+                    <button class="submenu-item absolute w-8 h-8 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full shadow-lg flex items-center justify-center border-2 border-gray-200 dark:border-gray-600 hover:border-primary dark:hover:border-primary" 
+                            style="left: -395px; top: 265px;"
+                            data-item="bathroom">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M2 6a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 01-2 2H4a2 2 0 01-2-2V6zm2 0h12v2H4V6zm14 4v2a2 2 0 01-2 2H4a2 2 0 01-2-2v-2h16z" clip-rule="evenodd"/>
+                        </svg>
+                    </button>
+                    
+                    <!-- Submenu Item 5 - Garage -->
+                    <button class="submenu-item absolute w-8 h-8 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full shadow-lg flex items-center justify-center border-2 border-gray-200 dark:border-gray-600 hover:border-primary dark:hover:border-primary" 
+                            style="left: -370px; top: 280px;"
+                            data-item="garage">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M8.445 14.832A1 1 0 0010 14h2a1 1 0 001.555.832L20 10V8a1 1 0 00-1-1H1a1 1 0 00-1 1v2l6.445 4.832z"/>
+                        </svg>
+                    </button>
+                    
+                    <!-- Submenu Item 6 - Office -->
+                    <button class="submenu-item absolute w-8 h-8 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full shadow-lg flex items-center justify-center border-2 border-gray-200 dark:border-gray-600 hover:border-primary dark:hover:border-primary" 
+                            style="left: -345px; top: 295px;"
+                            data-item="office">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4a2 2 0 00-2-2H6zm1 2a1 1 0 000 2h6a1 1 0 100-2H7zm6 7a1 1 0 011 1v3a1 1 0 11-2 0v-3a1 1 0 011-1zm-3 3a1 1 0 100 2h.01a1 1 0 100-2H10zm-4 1a1 1 0 011-1h.01a1 1 0 110 2H7a1 1 0 01-1-1zm1-4a1 1 0 100 2h.01a1 1 0 100-2H7zm2 0a1 1 0 100 2h.01a1 1 0 100-2H9zm2 0a1 1 0 100 2h.01a1 1 0 100-2H11z" clip-rule="evenodd"/>
+                        </svg>
+                    </button>
+                    
+                    <!-- Submenu Item 7 - Garden -->
+                    <button class="submenu-item absolute w-8 h-8 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full shadow-lg flex items-center justify-center border-2 border-gray-200 dark:border-gray-600 hover:border-primary dark:hover:border-primary" 
+                            style="left: -330px; top: 320px;"
+                            data-item="garden">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/>
+                        </svg>
+                    </button>
+                    
+                    <!-- Submenu Item 8 - Basement -->
+                    <button class="submenu-item absolute w-8 h-8 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full shadow-lg flex items-center justify-center border-2 border-gray-200 dark:border-gray-600 hover:border-primary dark:hover:border-primary" 
+                            style="left: -325px; top: 345px;"
+                            data-item="basement">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+                        </svg>
+                    </button>
+                    
+                    <!-- Submenu Item 9 - Attic -->
+                    <button class="submenu-item absolute w-8 h-8 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full shadow-lg flex items-center justify-center border-2 border-gray-200 dark:border-gray-600 hover:border-primary dark:hover:border-primary" 
+                            style="left: -330px; top: 370px;"
+                            data-item="attic">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"/>
+                        </svg>
+                    </button>
+                    
+                    <!-- Submenu Item 10 - Security -->
+                    <button class="submenu-item absolute w-8 h-8 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full shadow-lg flex items-center justify-center border-2 border-gray-200 dark:border-gray-600 hover:border-primary dark:hover:border-primary" 
+                            style="left: -345px; top: 385px;"
+                            data-item="security">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+                        </svg>
+                    </button>
+                </div>
                 
                 <!-- Item 2 - Search -->
                 <button class="menu-item absolute w-10 h-10 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full shadow-lg flex items-center justify-center border-2 border-gray-200 dark:border-gray-600 hover:border-primary dark:hover:border-primary" 
@@ -461,7 +599,7 @@
 
         function clearSelection() {
             selectedItems.clear();
-            document.querySelectorAll('.menu-item').forEach(item => {
+            document.querySelectorAll('.menu-item, .submenu-item').forEach(item => {
                 item.classList.remove('selected');
             });
             menuToggle.classList.remove('selected');
@@ -470,8 +608,8 @@
 
         function selectAllItems() {
             clearSelection();
-            // Select all menu items
-            document.querySelectorAll('.menu-item').forEach(item => {
+            // Select all menu items and submenu items
+            document.querySelectorAll('.menu-item, .submenu-item').forEach(item => {
                 selectedItems.add(item);
                 item.classList.add('selected');
             });
@@ -593,6 +731,30 @@
         selectAllItemsBtn.addEventListener('click', selectAllItems);
         clearSelectionBtn.addEventListener('click', clearSelection);
 
+        // Submenu functionality
+        let homeSubmenuOpen = false;
+        const homeSubmenu = document.getElementById('homeSubmenu');
+        
+        function toggleHomeSubmenu() {
+            homeSubmenuOpen = !homeSubmenuOpen;
+            
+            if (homeSubmenuOpen) {
+                homeSubmenu.classList.add('submenu-active');
+                homeSubmenu.style.opacity = '1';
+                homeSubmenu.style.pointerEvents = 'auto';
+                
+                // Synchronized animation for submenu items
+                const submenuItems = document.querySelectorAll('.submenu-item');
+                submenuItems.forEach((item, index) => {
+                    item.style.transitionDelay = (index * 50) + 'ms';
+                });
+            } else {
+                homeSubmenu.classList.remove('submenu-active');
+                homeSubmenu.style.opacity = '0';
+                homeSubmenu.style.pointerEvents = 'none';
+            }
+        }
+        
         // Handle menu item clicks with selection functionality
         document.querySelectorAll('.menu-item').forEach(item => {
             item.addEventListener('click', (e) => {
@@ -603,8 +765,16 @@
                     return;
                 }
                 
-                // Original click functionality
+                // Check if this is the home item
                 const itemName = e.currentTarget.getAttribute('data-item');
+                if (itemName === 'home') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleHomeSubmenu();
+                    return;
+                }
+                
+                // Original click functionality for other items
                 selectedText.textContent = itemName.charAt(0).toUpperCase() + itemName.slice(1);
                 
                 // Add ripple effect
@@ -632,6 +802,53 @@
             
             item.addEventListener('mouseleave', () => {
                 if (menuOpen) {
+                    item.style.transform = item.style.transform.replace(' translateZ(10px)', '');
+                }
+            });
+        });
+        
+        // Handle submenu item clicks
+        document.querySelectorAll('.submenu-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                if (selectionMode) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleItemSelection(item);
+                    return;
+                }
+                
+                // Submenu item click functionality
+                const itemName = e.currentTarget.getAttribute('data-item');
+                console.log('Submenu item clicked:', itemName);
+                
+                // Add ripple effect
+                rippleEffect.classList.remove('ripple');
+                rippleEffect.style.opacity = '1';
+                void rippleEffect.offsetWidth; // Trigger reflow
+                rippleEffect.classList.add('ripple');
+                
+                setTimeout(() => {
+                    rippleEffect.style.opacity = '0';
+                }, 600);
+                
+                // Close submenu and main menu after selection
+                setTimeout(() => {
+                    toggleHomeSubmenu();
+                    setTimeout(() => {
+                        menuToggle.click();
+                    }, 100);
+                }, 200);
+            });
+            
+            // Add hover effects for submenu items
+            item.addEventListener('mouseenter', () => {
+                if (homeSubmenuOpen) {
+                    item.style.transform += ' translateZ(10px)';
+                }
+            });
+            
+            item.addEventListener('mouseleave', () => {
+                if (homeSubmenuOpen) {
                     item.style.transform = item.style.transform.replace(' translateZ(10px)', '');
                 }
             });
@@ -705,11 +922,35 @@
                 `;
             });
             
+            // Add submenu items if submenu is open
+            if (homeSubmenuOpen) {
+                document.querySelectorAll('.submenu-item').forEach(item => {
+                    const itemName = item.getAttribute('data-item');
+                    const rect = item.getBoundingClientRect();
+                    
+                    // Calculate position relative to container center
+                    const relativeX = rect.left - containerRect.left + rect.width/2 - centerX;
+                    const relativeY = rect.top - containerRect.top + rect.height/2 - centerY;
+                    
+                    // Also show absolute position within container
+                    const absoluteX = rect.left - containerRect.left;
+                    const absoluteY = rect.top - containerRect.top;
+                    
+                    positionText += `
+                        <div class="bg-blue-50 dark:bg-blue-900 p-3 rounded border border-blue-200 dark:border-blue-700">
+                            <strong class="text-blue-600 dark:text-blue-400">📁 ${itemName}:</strong><br>
+                            <span class="text-gray-600 dark:text-gray-300">Absolute: (${Math.round(absoluteX)}, ${Math.round(absoluteY)})</span><br>
+                            <span class="text-gray-600 dark:text-gray-300">From Center: (${Math.round(relativeX)}, ${Math.round(relativeY)})</span>
+                        </div>
+                    `;
+                });
+            }
+            
             positionDataDiv.innerHTML = positionText;
         }
 
-        // Add drag event listeners to all menu items
-        document.querySelectorAll('.menu-item').forEach(item => {
+        // Add drag event listeners to all menu items and submenu items
+        document.querySelectorAll('.menu-item, .submenu-item').forEach(item => {
             // Mouse events
             item.addEventListener('mousedown', startDrag);
             
@@ -723,7 +964,7 @@
             
             if (!menuOpen) return; // Only allow dragging when menu is open
             
-            const item = e.target.closest('.menu-item');
+            const item = e.target.closest('.menu-item, .submenu-item');
             
             // Handle group dragging if in selection mode and item is selected
             if (selectedItems.has(item)) {
@@ -832,6 +1073,20 @@
                 };
             });
             
+            // Add submenu items
+            document.querySelectorAll('.submenu-item').forEach(item => {
+                const itemName = item.getAttribute('data-item');
+                const rect = item.getBoundingClientRect();
+                
+                const absoluteX = rect.left - containerRect.left;
+                const absoluteY = rect.top - containerRect.top;
+                
+                positionsData[itemName] = {
+                    left: Math.round(absoluteX),
+                    top: Math.round(absoluteY)
+                };
+            });
+            
             const jsonData = JSON.stringify(positionsData, null, 2);
             
             // Create a temporary textarea to copy the data
@@ -916,6 +1171,7 @@
             
             const state = {
                 menuItems: {},
+                submenuItems: {},
                 menuToggle: {
                     left: menuToggle.style.left || '',
                     top: menuToggle.style.top || '',
@@ -927,6 +1183,16 @@
             document.querySelectorAll('.menu-item').forEach(item => {
                 const itemName = item.getAttribute('data-item');
                 state.menuItems[itemName] = {
+                    left: item.style.left || '',
+                    top: item.style.top || '',
+                    transform: item.style.transform || ''
+                };
+            });
+            
+            // Save submenu item positions
+            document.querySelectorAll('.submenu-item').forEach(item => {
+                const itemName = item.getAttribute('data-item');
+                state.submenuItems[itemName] = {
                     left: item.style.left || '',
                     top: item.style.top || '',
                     transform: item.style.transform || ''
@@ -968,6 +1234,16 @@
                 }
             });
             
+            // Restore submenu item positions
+            document.querySelectorAll('.submenu-item').forEach(item => {
+                const itemName = item.getAttribute('data-item');
+                if (state.submenuItems && state.submenuItems[itemName]) {
+                    item.style.left = state.submenuItems[itemName].left;
+                    item.style.top = state.submenuItems[itemName].top;
+                    item.style.transform = state.submenuItems[itemName].transform;
+                }
+            });
+            
             updatePositionDisplay();
             isUndoRedoOperation = false;
         }
@@ -979,6 +1255,7 @@
             // Save current state to redo stack
             const currentState = {
                 menuItems: {},
+                submenuItems: {},
                 menuToggle: {
                     left: menuToggle.style.left || '',
                     top: menuToggle.style.top || '',
@@ -989,6 +1266,15 @@
             document.querySelectorAll('.menu-item').forEach(item => {
                 const itemName = item.getAttribute('data-item');
                 currentState.menuItems[itemName] = {
+                    left: item.style.left || '',
+                    top: item.style.top || '',
+                    transform: item.style.transform || ''
+                };
+            });
+            
+            document.querySelectorAll('.submenu-item').forEach(item => {
+                const itemName = item.getAttribute('data-item');
+                currentState.submenuItems[itemName] = {
                     left: item.style.left || '',
                     top: item.style.top || '',
                     transform: item.style.transform || ''
@@ -1011,6 +1297,7 @@
             // Save current state to undo stack
             const currentState = {
                 menuItems: {},
+                submenuItems: {},
                 menuToggle: {
                     left: menuToggle.style.left || '',
                     top: menuToggle.style.top || '',
@@ -1021,6 +1308,15 @@
             document.querySelectorAll('.menu-item').forEach(item => {
                 const itemName = item.getAttribute('data-item');
                 currentState.menuItems[itemName] = {
+                    left: item.style.left || '',
+                    top: item.style.top || '',
+                    transform: item.style.transform || ''
+                };
+            });
+            
+            document.querySelectorAll('.submenu-item').forEach(item => {
+                const itemName = item.getAttribute('data-item');
+                currentState.submenuItems[itemName] = {
                     left: item.style.left || '',
                     top: item.style.top || '',
                     transform: item.style.transform || ''
@@ -1069,7 +1365,18 @@
             search: { left: -402, top: 307 },
             settings: { left: -356, top: 345 },
             profile: { left: -339, top: 404 },
-            help: { left: -358, top: 461 }
+            help: { left: -358, top: 461 },
+            // Submenu items
+            'living-room': { left: -470, top: 220 },
+            'kitchen': { left: -445, top: 235 },
+            'bedroom': { left: -420, top: 250 },
+            'bathroom': { left: -395, top: 265 },
+            'garage': { left: -370, top: 280 },
+            'office': { left: -345, top: 295 },
+            'garden': { left: -330, top: 320 },
+            'basement': { left: -325, top: 345 },
+            'attic': { left: -330, top: 370 },
+            'security': { left: -345, top: 385 }
         };
         
         // Responsive positioning to keep menu in viewport
@@ -1078,14 +1385,24 @@
             const container = document.getElementById('pieMenu');
             const containerRect = container.getBoundingClientRect();
             
-            // Get all menu elements (trigger + items)
-            const allMenuElements = [menuToggle, ...document.querySelectorAll('.menu-item')];
+            // Get all menu elements (trigger + items + submenu items)
+            const allMenuElements = [menuToggle, ...document.querySelectorAll('.menu-item'), ...document.querySelectorAll('.submenu-item')];
             
-            // First, try to restore original positions
+            // First, try to restore original positions for all elements
             menuToggle.style.left = originalPositions.menuTrigger.left + 'px';
             menuToggle.style.top = originalPositions.menuTrigger.top + 'px';
             
+            // Restore main menu items
             document.querySelectorAll('.menu-item').forEach(item => {
+                const itemName = item.getAttribute('data-item');
+                if (originalPositions[itemName]) {
+                    item.style.left = originalPositions[itemName].left + 'px';
+                    item.style.top = originalPositions[itemName].top + 'px';
+                }
+            });
+            
+            // Restore submenu items
+            document.querySelectorAll('.submenu-item').forEach(item => {
                 const itemName = item.getAttribute('data-item');
                 if (originalPositions[itemName]) {
                     item.style.left = originalPositions[itemName].left + 'px';
@@ -1133,7 +1450,7 @@
                     adjustY = viewportHeight - padding - maxViewportY;
                 }
                 
-                // Apply adjustments if needed
+                // Apply adjustments if needed to all menu elements
                 if (Math.abs(adjustX) > 2 || Math.abs(adjustY) > 2) {
                     allMenuElements.forEach(element => {
                         const currentLeft = parseInt(element.style.left) || 0;
