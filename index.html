@@ -3,76 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Drawing App - Stylus Only</title>
+    <title>Quarter Pie Menu</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-    <style>
-        .drawing-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            cursor: crosshair;
-            z-index: 10;
-            touch-action: none; /* Prevent default touch behaviors */
-        }
-        .pdf-page-container {
-            position: relative;
-            margin: 0 auto;
-        }
-
-        .selected-size {
-            border: 1px solid currentColor !important;
-            border-radius: 50% !important;
-            width: 16px !important;
-            height: 16px !important;
-            min-width: 16px !important;
-            min-height: 16px !important;
-            max-width: 16px !important;
-            max-height: 16px !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            padding: 0 !important;
-        }
-
-        
-        /* Page transition effects */
-        .page-transition {
-            transition: opacity 0.3s ease-in-out;
-        }
-        .page-fade-out {
-            opacity: 0;
-        }
-        .page-fade-in {
-            opacity: 1;
-        }
-
-        /* Page thumbnail modal */
-        .page-thumbnail-modal {
-            transform: translateX(100%);
-            transition: transform 0.3s ease-in-out;
-        }
-        .page-thumbnail-modal.open {
-            transform: translateX(0);
-        }
-        .page-thumbnail {
-            transition: all 0.2s ease;
-        }
-        .page-thumbnail:hover {
-            transform: scale(1.05);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-        }
-        .page-thumbnail.current {
-            border-color: #5D5CDE !important;
-            box-shadow: 0 0 0 2px #5D5CDE;
-        }
-
-
-    </style>
     <script>
         tailwind.config = {
-            darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
@@ -82,210 +16,249 @@
             }
         }
     </script>
+    <style>
+        .menu-item {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: move;
+            z-index: 10;
+            position: relative;
+            background-color: rgba(255, 255, 255, 0.7) !important;
+        }
+        
+        .dark .menu-item {
+            background-color: rgba(55, 65, 81, 0.7) !important;
+        }
+        
+        .menu-item:hover {
+            transform: scale(1.1);
+        }
+        
+        .menu-active .menu-item {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+        }
+        
+        .menu-item {
+            opacity: 0;
+            transform: scale(0.8);
+            pointer-events: none;
+        }
+        
+        .menu-item.dragging {
+            z-index: 1000;
+            transition: none;
+            transform: scale(1.2);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+        
+        .menu-item.selected {
+            border-color: #3B82F6 !important;
+            box-shadow: 0 0 0 2px #3B82F6;
+        }
+        
+        #menuToggle.selected {
+            box-shadow: 0 0 0 2px #3B82F6;
+        }
+        
+        .selection-mode .menu-item {
+            cursor: pointer;
+        }
+        
+        .group-dragging {
+            cursor: move !important;
+        }
+        
+        @keyframes ripple {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1.4);
+                opacity: 0;
+            }
+        }
+        
+        .ripple {
+            animation: ripple 0.6s ease-out;
+        }
+    </style>
 </head>
-<body class="bg-white dark:bg-gray-900 min-h-screen">
+<body class="bg-white dark:bg-gray-900 min-h-screen flex items-center justify-center p-4">
+    
+    <div class="relative">
 
-
-    <!-- Header -->
-    <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
-        <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">PDF Drawing App</h1>
-                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Stylus input only - Supports MPP stylus & Samsung S-Pen</p>
+        
+        <!-- Menu Container -->
+        <div id="pieMenu" class="relative w-80 h-80 mx-auto">
+            
+            <!-- Center Button -->
+            <button id="menuToggle" class="absolute w-10 h-10 text-white rounded-full shadow-lg flex items-center justify-center text-sm font-bold transition-all duration-300 z-20" style="left: -442px; top: 401px; background-color: rgba(93, 92, 222, 0.7);">
+                <span id="menuIcon">☰</span>
+            </button>
+            
+            <!-- Menu Items arranged in quarter circle (90 degrees) -->
+            <div id="menuItems" class="absolute inset-0">
+                
+                <!-- Item 1 - Home -->
+                <button class="menu-item absolute w-10 h-10 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full shadow-lg flex items-center justify-center border-2 border-gray-200 dark:border-gray-600 hover:border-primary dark:hover:border-primary" 
+                        style="left: -456px; top: 287px;"
+                        data-item="home">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/>
+                    </svg>
+                </button>
+                
+                <!-- Item 2 - Search -->
+                <button class="menu-item absolute w-10 h-10 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full shadow-lg flex items-center justify-center border-2 border-gray-200 dark:border-gray-600 hover:border-primary dark:hover:border-primary" 
+                        style="left: -402px; top: 307px;"
+                        data-item="search">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+                
+                <!-- Item 3 - Settings -->
+                <button class="menu-item absolute w-10 h-10 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full shadow-lg flex items-center justify-center border-2 border-gray-200 dark:border-gray-600 hover:border-primary dark:hover:border-primary" 
+                        style="left: -356px; top: 345px;"
+                        data-item="settings">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+                
+                <!-- Item 4 - Profile -->
+                <button class="menu-item absolute w-10 h-10 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full shadow-lg flex items-center justify-center border-2 border-gray-200 dark:border-gray-600 hover:border-primary dark:hover:border-primary" 
+                        style="left: -339px; top: 404px;"
+                        data-item="profile">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+                
+                <!-- Item 5 - Help -->
+                <button class="menu-item absolute w-10 h-10 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full shadow-lg flex items-center justify-center border-2 border-gray-200 dark:border-gray-600 hover:border-primary dark:hover:border-primary" 
+                        style="left: -358px; top: 461px;"
+                        data-item="help">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+                
             </div>
             
-            <!-- File Upload and Theme Toggle -->
-            <div class="flex flex-col sm:flex-row gap-3 items-center">
-                <!-- Theme Toggle -->
-                <div class="flex items-center gap-2">
-                    <i data-lucide="sun" class="w-4 h-4 text-gray-600 dark:text-gray-400"></i>
-                    <label class="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" id="themeToggle" class="sr-only peer">
-                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-600"></div>
-                    </label>
-                    <i data-lucide="moon" class="w-4 h-4 text-gray-600 dark:text-gray-400"></i>
+            <!-- Ripple Effect -->
+            <div id="rippleEffect" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-primary/20 rounded-full pointer-events-none opacity-0"></div>
+            
+            <!-- Draggable Ring -->
+            <div id="dragRing" class="absolute pointer-events-none opacity-0 transition-opacity duration-300" style="width: 100px; height: 100px; border: 1px solid #ff6b6b; border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%); cursor: move; z-index: 1;">
+                <!-- Center Cross -->
+                <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none" style="width: 60px; height: 60px;">
+                    <!-- Horizontal line -->
+                    <div id="crossHorizontal" class="absolute top-1/2 left-0 w-full h-px transform -translate-y-1/2" style="background-color: #ff6b6b;"></div>
+                    <!-- Vertical line -->
+                    <div id="crossVertical" class="absolute top-0 left-1/2 w-px h-full transform -translate-x-1/2" style="background-color: #ff6b6b;"></div>
                 </div>
-                
-                <div class="w-px h-6 bg-gray-300 dark:bg-gray-600 hidden sm:block"></div>
-                
-                <input type="file" id="pdfUpload" accept=".pdf" class="hidden">
-                <button onclick="document.getElementById('pdfUpload').click()" 
-                        class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-base">
-                    Upload PDF
-                </button>
-                <button id="downloadBtn" onclick="downloadPDF()" 
-                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-base" 
-                        disabled>
-                    Download
-                </button>
             </div>
+            
         </div>
-    </header>
+        
+        <!-- Undo/Redo Controls -->
+        <div class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 flex space-x-2">
+            <button id="undoBtn" class="w-10 h-10 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg shadow-lg flex items-center justify-center transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0L3 9.414 8.293 4.121a1 1 0 011.414 1.414L6.414 9H17a1 1 0 110 2H6.414l3.293 3.293a1 1 0 010 1.414z" clip-rule="evenodd"/>
+                </svg>
+            </button>
+            <button id="redoBtn" class="w-10 h-10 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg shadow-lg flex items-center justify-center transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l5.293 5.293-5.293 5.293a1 1 0 01-1.414-1.414L13.586 11H3a1 1 0 110-2h10.586l-3.293-3.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                </svg>
+            </button>
+        </div>
 
-    <!-- Main Content -->
-    <div id="mainContent" class="max-w-7xl mx-auto">
-        <!-- Initial Upload Area -->
-        <div id="uploadArea" class="p-4">
-            <div class="text-center">
-                <div class="bg-gray-50 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-12">
-                    <div class="text-gray-400 dark:text-gray-500">
-                        <svg class="mx-auto h-12 w-12 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+        <!-- Hamburger Menu Toggle -->
+        <div class="fixed top-4 right-4 z-50">
+            <button id="infoToggle" class="w-10 h-10 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg shadow-lg flex items-center justify-center transition-all duration-300">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Position Data Panel (Hidden by default) -->
+        <div id="positionPanel" class="fixed top-0 right-0 h-full w-80 bg-white dark:bg-gray-800 shadow-xl transform translate-x-full transition-transform duration-300 ease-in-out z-40 overflow-y-auto">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Icon Positions</h3>
+                    <button id="closePanel" class="w-8 h-8 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg flex items-center justify-center transition-colors">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
                         </svg>
-                        <p class="text-lg font-medium">No PDF loaded</p>
-                        <p class="text-sm mt-2">Upload a PDF file to start drawing with your stylus</p>
-                        <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                            <p class="text-sm text-blue-700 dark:text-blue-300">
-                                <strong>Note:</strong> This app supports MPP stylus and Samsung S-Pen. Mouse and finger input are disabled for drawing.
-                            </p>
-                        </div>
-                    </div>
+                    </button>
                 </div>
-            </div>
-        </div>
-
-        <!-- PDF Viewer Area (Full Screen) -->
-        <div id="pdfViewer" class="hidden fixed inset-0 bg-white">
-            <!-- Settings Modal -->
-            <div id="settingsModal" class="fixed bottom-8 left-2 z-40 px-3 py-2 hidden" style="background: none !important; border: none !important; box-shadow: none !important;">
-                <!-- Pen Settings -->
-                <div id="penSettings" class="hidden">
-                    <div class="flex items-center gap-1">
-                        <!-- Brush Sizes as Numbers -->
-                        <button onclick="setBrushSize(1)" class="brush-size-dot text-xs font-thin text-gray-300" data-size="1" style="background: none !important; padding: 2px 4px;">1</button>
-                        <button onclick="setBrushSize(2)" class="brush-size-dot selected-size text-xs font-thin text-gray-300" data-size="2" style="background: none !important; padding: 2px 4px;">2</button>
-                        <button onclick="setBrushSize(4)" class="brush-size-dot text-xs font-thin text-gray-300" data-size="4" style="background: none !important; padding: 2px 4px;">4</button>
-                        <button onclick="setBrushSize(6)" class="brush-size-dot text-xs font-thin text-gray-300" data-size="6" style="background: none !important; padding: 2px 4px;">6</button>
-                        <button onclick="setBrushSize(8)" class="brush-size-dot text-xs font-thin text-gray-300" data-size="8" style="background: none !important; padding: 2px 4px;">8</button>
-                        <button onclick="setBrushSize(11)" class="brush-size-dot text-xs font-thin text-gray-300" data-size="11" style="background: none !important; padding: 2px 4px;">11</button>
-                        <button onclick="setBrushSize(14)" class="brush-size-dot text-xs font-thin text-gray-300" data-size="14" style="background: none !important; padding: 2px 4px;">14</button>
-                        <button onclick="setBrushSize(16)" class="brush-size-dot text-xs font-thin text-gray-300" data-size="16" style="background: none !important; padding: 2px 4px;">16</button>
-                        <button onclick="setBrushSize(18)" class="brush-size-dot text-xs font-thin text-gray-300" data-size="18" style="background: none !important; padding: 2px 4px;">18</button>
-                        <button onclick="setBrushSize(20)" class="brush-size-dot text-xs font-thin text-gray-300" data-size="20" style="background: none !important; padding: 2px 4px;">20</button>
-                        
-                        <div class="w-px h-4 bg-gray-600 mx-1"></div>
-                        
-                        <!-- Pressure Switch -->
-                        <div class="flex items-center gap-1">
-                            <i data-lucide="zap" class="w-2.5 h-2.5 text-gray-300" style="stroke-width: 1;"></i>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="pressureSwitch" class="sr-only peer" checked>
-                                <div class="w-6 h-3 bg-gray-400 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1px] after:left-[1px] after:bg-white after:rounded-full after:h-2.5 after:w-2.5 after:transition-all peer-checked:bg-black"></div>
-                            </label>
+                
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Drag icons to reposition them in the menu</p>
+                
+                <!-- Ring Tool -->
+                <div class="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <h4 class="text-sm font-semibold text-gray-800 dark:text-white mb-3">Guide Ring</h4>
+                    <div class="space-y-3">
+                        <button id="toggleRing" class="w-full px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm rounded transition-colors">
+                            Show Ring
+                        </button>
+                        <div class="space-y-2">
+                            <label class="text-xs text-gray-600 dark:text-gray-400">Size: <span id="ringSize">100</span>px</label>
+                            <input type="range" id="ringSizeSlider" min="24" max="800" value="100" class="w-full">
+                        </div>
+                        <div class="flex space-x-2">
+                            <input type="color" id="ringColor" value="#ff6b6b" class="w-8 h-8 rounded border">
+                            <button id="centerRing" class="flex-1 px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white text-xs rounded transition-colors">
+                                Center Ring
+                            </button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Color Settings -->
-                <div id="colorSettings" class="hidden">
-                    <div class="grid grid-cols-10 gap-1">
-                        <button onclick="setColor('#000000')" class="w-4 h-4 rounded bg-black border border-gray-300"></button>
-                        <button onclick="setColor('#FFFFFF')" class="w-4 h-4 rounded bg-white border border-gray-400"></button>
-                        <button onclick="setColor('#6B7280')" class="w-4 h-4 rounded bg-gray-500 border border-gray-300"></button>
-                        <button onclick="setColor('#EF4444')" class="w-4 h-4 rounded bg-red-500 border border-gray-300"></button>
-                        <button onclick="setColor('#F97316')" class="w-4 h-4 rounded bg-orange-500 border border-gray-300"></button>
-                        <button onclick="setColor('#F59E0B')" class="w-4 h-4 rounded bg-yellow-500 border border-gray-300"></button>
-                        <button onclick="setColor('#84CC16')" class="w-4 h-4 rounded bg-lime-500 border border-gray-300"></button>
-                        <button onclick="setColor('#10B981')" class="w-4 h-4 rounded bg-emerald-500 border border-gray-300"></button>
-                        <button onclick="setColor('#06B6D4')" class="w-4 h-4 rounded bg-cyan-500 border border-gray-300"></button>
-                        <button onclick="setColor('#3B82F6')" class="w-4 h-4 rounded bg-blue-500 border border-gray-300"></button>
-                        
-                        <button onclick="setColor('#6366F1')" class="w-4 h-4 rounded bg-indigo-500 border border-gray-300"></button>
-                        <button onclick="setColor('#8B5CF6')" class="w-4 h-4 rounded bg-violet-500 border border-gray-300"></button>
-                        <button onclick="setColor('#A855F7')" class="w-4 h-4 rounded bg-purple-500 border border-gray-300"></button>
-                        <button onclick="setColor('#EC4899')" class="w-4 h-4 rounded bg-pink-500 border border-gray-300"></button>
-                        <button onclick="setColor('#F43F5E')" class="w-4 h-4 rounded bg-rose-500 border border-gray-300"></button>
-                        <button onclick="setColor('#DC2626')" class="w-4 h-4 rounded bg-red-600 border border-gray-300"></button>
-                        <button onclick="setColor('#059669')" class="w-4 h-4 rounded bg-emerald-600 border border-gray-300"></button>
-                        <button onclick="setColor('#2563EB')" class="w-4 h-4 rounded bg-blue-600 border border-gray-300"></button>
-                        <button onclick="setColor('#7C3AED')" class="w-4 h-4 rounded bg-violet-600 border border-gray-300"></button>
-                        <button onclick="setColor('#92400E')" class="w-4 h-4 rounded bg-yellow-800 border border-gray-300"></button>
-                    </div>
-                </div>
-
-
-            </div>
-
-            <!-- Page Navigation -->
-            <div id="pageNavigation" class="fixed top-4 right-4 z-50 rounded-full px-3 py-1.5 flex items-center gap-2">
-                <button onclick="changePage(-1)" id="prevPageBtn" 
-                        class="w-6 h-6 rounded-full flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">
-                    <i data-lucide="chevron-left" class="w-3 h-3 text-gray-300"></i>
-                </button>
-                
-                <button onclick="openPageThumbnailModal()" class="flex items-center gap-1 px-1">
-                    <span id="currentPageNum" class="text-xs font-medium text-gray-300">1</span>
-                    <span class="text-xs text-gray-300">/</span>
-                    <span id="totalPagesNum" class="text-xs text-gray-300">1</span>
-                </button>
-                
-                <button onclick="changePage(1)" id="nextPageBtn"
-                        class="w-6 h-6 rounded-full flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">
-                    <i data-lucide="chevron-right" class="w-3 h-3 text-gray-300"></i>
-                </button>
-            </div>
-
-            <!-- Bottom Toolbar -->
-            <div id="floatingToolbar" class="fixed bottom-2 left-2 z-50 flex items-center gap-1">
-                <!-- Tool Selection -->
-                <button id="penTool" onclick="setTool('pen')" 
-                        class="w-5 h-5 rounded-full flex items-center justify-center">
-                    <i data-lucide="pen-tool" class="w-2.5 h-2.5 text-gray-300" style="stroke-width: 1;"></i>
-                </button>
-                <button id="eraserTool" onclick="setTool('eraser')" 
-                        class="w-5 h-5 rounded-full flex items-center justify-center">
-                    <i data-lucide="eraser" class="w-2.5 h-2.5 text-gray-300" style="stroke-width: 1;"></i>
-                </button>
-                <button id="colorTool" 
-                        class="w-5 h-5 rounded-full flex items-center justify-center">
-                    <div id="colorIndicator" class="w-3 h-3 rounded-full border border-gray-500" style="background-color: #000000;"></div>
-                </button>
-                
-                <!-- Actions -->
-                <button onclick="openPresentationMode()" 
-                        class="w-5 h-5 rounded-full flex items-center justify-center">
-                    <i data-lucide="cast" class="w-2.5 h-2.5 text-gray-300" style="stroke-width: 1;"></i>
-                </button>
-                <button onclick="toggleFullscreen()" id="fullscreenBtn"
-                        class="w-5 h-5 rounded-full flex items-center justify-center">
-                    <i data-lucide="maximize" class="w-2.5 h-2.5 text-gray-300" style="stroke-width: 1;"></i>
-                </button>
-                <button onclick="clearCanvas()" 
-                        class="w-5 h-5 rounded-full flex items-center justify-center">
-                    <i data-lucide="trash-2" class="w-2.5 h-2.5 text-gray-300" style="stroke-width: 1;"></i>
-                </button>
-            </div>
-
-            <!-- Page Thumbnail Modal -->
-            <div id="pageThumbnailModal" class="page-thumbnail-modal fixed inset-y-0 right-0 w-80 bg-gray-800 shadow-2xl z-[70] border-l border-gray-700">
-                <div class="h-full flex flex-col">
-                    <!-- Header -->
-                    <div class="flex items-center justify-between p-4 border-b border-gray-700">
-                        <h3 class="text-lg font-semibold text-gray-100">Pages</h3>
-                        <button onclick="closePageThumbnailModal()" class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-700 transition-colors">
-                            <i data-lucide="x" class="w-4 h-4 text-gray-300"></i>
+                <!-- Selection Tool -->
+                <div class="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <h4 class="text-sm font-semibold text-gray-800 dark:text-white mb-3">Selection Tool</h4>
+                    <div class="space-y-3">
+                        <button id="toggleSelectionMode" class="w-full px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded transition-colors">
+                            Enable Group Drag
+                        </button>
+                        <button id="selectAllItems" class="w-full px-3 py-2 bg-green-500 hover:bg-green-600 text-white text-sm rounded transition-colors" disabled>
+                            Select All Items
+                        </button>
+                        <button id="clearSelection" class="w-full px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white text-sm rounded transition-colors" disabled>
+                            Clear Selection
                         </button>
                     </div>
-                    
-                    <!-- Thumbnails Container -->
-                    <div id="thumbnailContainer" class="flex-1 overflow-y-auto p-4 space-y-3">
-                        <!-- Thumbnails will be generated here -->
-                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-2" id="selectionStatus">
+                        Click "Enable Group Drag" to start
+                    </p>
                 </div>
+                
+                <div id="positionData" class="space-y-2 text-sm font-mono mb-6">
+                    <!-- Position data will be populated here -->
+                </div>
+                
+                <button id="copyPositions" class="w-full px-4 py-2 bg-primary text-white rounded hover:bg-primary/90 transition-colors">
+                    Copy All Positions
+                </button>
             </div>
-
-            <!-- Modal Backdrop -->
-            <div id="modalBackdrop" class="fixed inset-0 bg-black bg-opacity-50 z-[65] hidden" onclick="closePageThumbnailModal()"></div>
-
-
-
-            <!-- PDF Content -->
-            <div id="pdfContent" class="w-full h-full flex items-center justify-center overflow-auto"></div>
         </div>
+
+        <!-- Overlay for mobile -->
+        <div id="panelOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-30 opacity-0 pointer-events-none transition-opacity duration-300"></div>
+        
+
+        
     </div>
 
     <script>
-        // Dark mode detection
+        // Dark mode detection and handling
         if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
             document.documentElement.classList.add('dark');
         }
@@ -297,1883 +270,1034 @@
             }
         });
 
-        // Initialize PDF.js
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        // Menu functionality
+        let menuOpen = false;
+        let menuDragging = false;
+        let menuDragStartX, menuDragStartY;
+        let clickStartTime = 0;
+        const menuToggle = document.getElementById('menuToggle');
+        const menuItems = document.getElementById('menuItems');
+        const menuIcon = document.getElementById('menuIcon');
+        const rippleEffect = document.getElementById('rippleEffect');
+        const selectedText = document.getElementById('selectedText');
 
-        // Application state
-        let pdfDoc = null;
-        let pdfArrayBuffer = null; // Store PDF data for presentation window
-        let currentPage = 1;
-        let totalPages = 0;
-        let currentTool = 'pen';
-        let currentColor = '#000000';
-        let currentBrushSize = 2;
-        let currentEraserSize = 25;
-        let pressureEnabled = true;
-        let isDrawing = false;
-        let drawingData = {}; // Store drawing data for each page with scale info
-        let originalPageDimensions = {}; // Store original PDF page dimensions
-        
-        // Presentation mode state
-        let presentationWindow = null;
-        
-        // Stylus eraser button state
-        let originalTool = 'pen'; // Track the original tool before eraser button press
-        let isEraserButtonPressed = false;
-
-        // Double-click detection
-        let lastClickTime = 0;
-        let lastClickTarget = null;
-        const DOUBLE_CLICK_DELAY = 300; // milliseconds
-
-        // Drawing state
-        let lastX = 0;
-        let lastY = 0;
-
-        // File upload handler
-        document.getElementById('pdfUpload').addEventListener('change', handleFileUpload);
-
-        // Settings event listeners
-        function setupSettingsListeners() {
-            // Pressure switch
-            const pressureSwitch = document.getElementById('pressureSwitch');
-            pressureSwitch.addEventListener('change', function() {
-                pressureEnabled = this.checked;
-            });
-
-            // Theme toggle switch
-            const themeToggle = document.getElementById('themeToggle');
+        // Toggle menu function
+        function toggleMenu() {
+            menuOpen = !menuOpen;
             
-            // Set initial state based on current theme
-            themeToggle.checked = document.documentElement.classList.contains('dark');
-            
-            themeToggle.addEventListener('change', function() {
-                if (this.checked) {
-                    document.documentElement.classList.add('dark');
-                } else {
-                    document.documentElement.classList.remove('dark');
-                }
-            });
-
-            // Tool buttons with double-click detection
-            document.getElementById('penTool').addEventListener('pointerdown', handleToolDoubleClick);
-            document.getElementById('eraserTool').addEventListener('pointerdown', handleToolDoubleClick);
-            document.getElementById('colorTool').addEventListener('pointerdown', handleColorSingleClick);
-        }
-
-        // Brush size selection
-        function setBrushSize(size) {
-            currentBrushSize = size;
-            
-            // Update visual selection
-            document.querySelectorAll('.brush-size-dot').forEach(btn => {
-                btn.classList.remove('selected-size');
-            });
-            document.querySelector(`[data-size="${size}"]`).classList.add('selected-size');
-            
-            // Close modal after selection
-            hideSettingsModal();
-        }
-
-
-
-        // Handle double-click on tool buttons
-        function handleToolDoubleClick(e) {
-            if (e.pointerType !== 'pen') return;
-            
-            const currentTime = Date.now();
-            const target = e.currentTarget;
-            
-            if (lastClickTarget === target && (currentTime - lastClickTime) < DOUBLE_CLICK_DELAY) {
-                // Double-click detected
-                e.preventDefault();
-                // Only show settings for pen tool, eraser tool has dynamic sizing now
-                if (target.id === 'penTool') {
-                    showSettingsModal('pen');
-                } else {
-                    // For eraser, just set the tool (no settings needed)
-                    setTool('eraser');
-                }
+            if (menuOpen) {
+                menuItems.classList.add('menu-active');
+                menuIcon.textContent = '✕';
+                const currentTransform = menuToggle.style.transform || '';
+                menuToggle.style.transform = currentTransform + ' rotate(180deg)';
+                
+                // Synchronized animation for menu items
+                const items = document.querySelectorAll('.menu-item');
+                items.forEach((item) => {
+                    item.style.transitionDelay = '0ms';
+                });
             } else {
-                // Single click - set tool
-                setTimeout(() => {
-                    if (Date.now() - currentTime >= DOUBLE_CLICK_DELAY) {
-                        const toolType = target.id === 'penTool' ? 'pen' : 'eraser';
-                        setTool(toolType);
-                    }
-                }, DOUBLE_CLICK_DELAY);
+                menuItems.classList.remove('menu-active');
+                menuIcon.textContent = '☰';
+                const currentTransform = menuToggle.style.transform || '';
+                menuToggle.style.transform = currentTransform.replace(' rotate(180deg)', '');
             }
-            
-            lastClickTime = currentTime;
-            lastClickTarget = target;
         }
 
-        // Handle single-click on color button
-        function handleColorSingleClick(e) {
-            if (e.pointerType !== 'pen') return;
+        // Menu trigger drag functionality
+        menuToggle.addEventListener('mousedown', startMenuDrag);
+        menuToggle.addEventListener('touchstart', startMenuDrag, { passive: false });
+
+        function startMenuDrag(e) {
+            clickStartTime = Date.now();
+            menuDragging = false;
             
-            // Immediately show color picker on single tap
+            // Handle group dragging if in selection mode and menu trigger is selected
+            if (selectionMode && selectedItems.has(menuToggle)) {
+                startGroupDrag(e, menuToggle);
+                return;
+            }
+            
+            const clientX = e.type === 'mousedown' ? e.clientX : e.touches[0].clientX;
+            const clientY = e.type === 'mousedown' ? e.clientY : e.touches[0].clientY;
+            
+            const rect = menuToggle.getBoundingClientRect();
+            menuDragStartX = clientX - rect.left - rect.width/2;
+            menuDragStartY = clientY - rect.top - rect.height/2;
+            
+            // Add global event listeners
+            document.addEventListener('mousemove', dragMenuTrigger);
+            document.addEventListener('mouseup', endMenuDrag);
+            document.addEventListener('touchmove', dragMenuTrigger, { passive: false });
+            document.addEventListener('touchend', endMenuDrag);
+        }
+
+        function dragMenuTrigger(e) {
             e.preventDefault();
-            showSettingsModal('color');
-        }
-
-        // Modal management
-        function showSettingsModal(toolType) {
-            const modal = document.getElementById('settingsModal');
-            const penSettings = document.getElementById('penSettings');
-            const colorSettings = document.getElementById('colorSettings');
             
-            // Hide all settings panels
-            penSettings.classList.add('hidden');
-            colorSettings.classList.add('hidden');
+            const clientX = e.type === 'mousemove' ? e.clientX : e.touches[0].clientX;
+            const clientY = e.type === 'mousemove' ? e.clientY : e.touches[0].clientY;
             
-            // Show the appropriate settings panel
-            if (toolType === 'pen') {
-                penSettings.classList.remove('hidden');
-            } else if (toolType === 'color') {
-                colorSettings.classList.remove('hidden');
+            // Check if this is actually a drag (moved more than 5px)
+            const dragDistance = Math.sqrt(
+                Math.pow(clientX - (menuToggle.getBoundingClientRect().left + menuToggle.getBoundingClientRect().width/2), 2) +
+                Math.pow(clientY - (menuToggle.getBoundingClientRect().top + menuToggle.getBoundingClientRect().height/2), 2)
+            );
+            
+            if (dragDistance > 5) {
+                menuDragging = true;
+                menuToggle.style.cursor = 'grabbing';
             }
             
-            // Show the modal
-            modal.classList.remove('hidden');
+            if (!menuDragging) return;
+            
+            const container = document.getElementById('pieMenu');
+            const containerRect = container.getBoundingClientRect();
+            
+            // Calculate new position relative to container
+            let newX = clientX - containerRect.left - menuDragStartX;
+            let newY = clientY - containerRect.top - menuDragStartY;
+            
+            // No boundary constraints - allow dragging anywhere
+            
+            // Update position
+            menuToggle.style.left = newX + 'px';
+            menuToggle.style.top = newY + 'px';
+            menuToggle.style.transform = menuToggle.style.transform.replace('translate(-50%, -50%)', '');
+            if (!menuToggle.style.transform.includes('translate(-50%, -50%)')) {
+                menuToggle.style.transform = 'translate(-50%, -50%) ' + (menuToggle.style.transform || '');
+            }
         }
 
-        function hideSettingsModal() {
-            const modal = document.getElementById('settingsModal');
-            modal.classList.add('hidden');
+        function endMenuDrag(e) {
+            const clickDuration = Date.now() - clickStartTime;
+            
+            // Remove global event listeners
+            document.removeEventListener('mousemove', dragMenuTrigger);
+            document.removeEventListener('mouseup', endMenuDrag);
+            document.removeEventListener('touchmove', dragMenuTrigger);
+            document.removeEventListener('touchend', endMenuDrag);
+            
+            menuToggle.style.cursor = '';
+            
+            // If it was a quick click (not a drag)
+            if (!menuDragging && clickDuration < 200) {
+                // In selection mode, toggle selection instead of menu
+                if (selectionMode) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleItemSelection(menuToggle);
+                } else {
+                    toggleMenu();
+                }
+            } else if (menuDragging) {
+                // Save state after drag operation
+                saveState();
+            }
+            
+            menuDragging = false;
         }
 
-        // Click outside modal to close
-        document.addEventListener('pointerdown', function(e) {
-            if (e.pointerType !== 'pen') return;
+        // Selection Tool functionality
+        let selectionMode = false;
+        let selectedItems = new Set();
+        let groupDragOffsets = new Map();
+        let isGroupDragging = false;
+
+        const toggleSelectionModeBtn = document.getElementById('toggleSelectionMode');
+        const selectAllItemsBtn = document.getElementById('selectAllItems');
+        const clearSelectionBtn = document.getElementById('clearSelection');
+        const selectionStatus = document.getElementById('selectionStatus');
+
+        function updateSelectionUI() {
+            const selectedCount = selectedItems.size;
             
-            const modal = document.getElementById('settingsModal');
-            const toolbar = document.getElementById('floatingToolbar');
+            if (selectionMode) {
+                toggleSelectionModeBtn.textContent = 'Disable Group Drag';
+                toggleSelectionModeBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+                toggleSelectionModeBtn.classList.add('bg-red-500', 'hover:bg-red-600');
+                
+                selectAllItemsBtn.disabled = false;
+                clearSelectionBtn.disabled = selectedCount === 0;
+                
+                if (selectedCount === 0) {
+                    selectionStatus.textContent = 'Click items to select them';
+                } else if (selectedCount === 1) {
+                    selectionStatus.textContent = '1 item selected - drag to move all';
+                } else {
+                    selectionStatus.textContent = `${selectedCount} items selected - drag to move all`;
+                }
+                
+                menuItems.classList.add('selection-mode');
+            } else {
+                toggleSelectionModeBtn.textContent = 'Enable Group Drag';
+                toggleSelectionModeBtn.classList.remove('bg-red-500', 'hover:bg-red-600');
+                toggleSelectionModeBtn.classList.add('bg-blue-500', 'hover:bg-blue-600');
+                
+                selectAllItemsBtn.disabled = true;
+                clearSelectionBtn.disabled = true;
+                selectionStatus.textContent = 'Click "Enable Group Drag" to start';
+                
+                menuItems.classList.remove('selection-mode');
+                // Clear selections without calling updateSelectionUI again
+                selectedItems.clear();
+                document.querySelectorAll('.menu-item').forEach(item => {
+                    item.classList.remove('selected');
+                });
+            }
+        }
+
+        function clearSelection() {
+            selectedItems.clear();
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            menuToggle.classList.remove('selected');
+            updateSelectionUI();
+        }
+
+        function selectAllItems() {
+            clearSelection();
+            // Select all menu items
+            document.querySelectorAll('.menu-item').forEach(item => {
+                selectedItems.add(item);
+                item.classList.add('selected');
+            });
+            // Select the menu trigger
+            selectedItems.add(menuToggle);
+            menuToggle.classList.add('selected');
+            updateSelectionUI();
+        }
+
+        function toggleItemSelection(item) {
+            if (selectedItems.has(item)) {
+                selectedItems.delete(item);
+                item.classList.remove('selected');
+            } else {
+                selectedItems.add(item);
+                item.classList.add('selected');
+            }
+            updateSelectionUI();
+        }
+
+        function startGroupDrag(e, triggerItem) {
+            if (selectedItems.size === 0) return;
             
-            if (!modal.contains(e.target) && !toolbar.contains(e.target) && !modal.classList.contains('hidden')) {
-                hideSettingsModal();
+            e.preventDefault();
+            isGroupDragging = true;
+            
+            const clientX = e.type === 'mousedown' ? e.clientX : e.touches[0].clientX;
+            const clientY = e.type === 'mousedown' ? e.clientY : e.touches[0].clientY;
+            
+            // Calculate offsets for all selected items relative to trigger item
+            groupDragOffsets.clear();
+            const triggerRect = triggerItem.getBoundingClientRect();
+            
+            selectedItems.forEach(item => {
+                const itemRect = item.getBoundingClientRect();
+                groupDragOffsets.set(item, {
+                    x: itemRect.left - triggerRect.left,
+                    y: itemRect.top - triggerRect.top
+                });
+                item.classList.add('dragging');
+            });
+            
+            // Store initial mouse offset
+            startX = clientX - triggerRect.left;
+            startY = clientY - triggerRect.top;
+            
+            document.body.classList.add('group-dragging');
+            
+            // Add global event listeners
+            document.addEventListener('mousemove', groupDrag);
+            document.addEventListener('mouseup', endGroupDrag);
+            document.addEventListener('touchmove', groupDrag, { passive: false });
+            document.addEventListener('touchend', endGroupDrag);
+        }
+
+        function groupDrag(e) {
+            if (!isGroupDragging) return;
+            
+            e.preventDefault();
+            
+            const clientX = e.type === 'mousemove' ? e.clientX : e.touches[0].clientX;
+            const clientY = e.type === 'mousemove' ? e.clientY : e.touches[0].clientY;
+            
+            const container = document.getElementById('pieMenu');
+            const containerRect = container.getBoundingClientRect();
+            
+            // Calculate new position for trigger item
+            let baseX = clientX - containerRect.left - startX;
+            let baseY = clientY - containerRect.top - startY;
+            
+            // Move all selected items
+            selectedItems.forEach(item => {
+                const offset = groupDragOffsets.get(item);
+                let newX = baseX + offset.x;
+                let newY = baseY + offset.y;
+                
+                // No boundary constraints - allow dragging anywhere
+                
+                // Update position
+                item.style.left = newX + 'px';
+                item.style.top = newY + 'px';
+                item.style.right = 'auto';
+                item.style.transform = 'none';
+            });
+            
+            // Update position display in real-time
+            updatePositionDisplay();
+        }
+
+        function endGroupDrag(e) {
+            if (!isGroupDragging) return;
+            
+            isGroupDragging = false;
+            
+            selectedItems.forEach(item => {
+                item.classList.remove('dragging');
+            });
+            
+            document.body.classList.remove('group-dragging');
+            
+            // Remove global event listeners
+            document.removeEventListener('mousemove', groupDrag);
+            document.removeEventListener('mouseup', endGroupDrag);
+            document.removeEventListener('touchmove', groupDrag);
+            document.removeEventListener('touchend', endGroupDrag);
+            
+            updatePositionDisplay();
+            
+            // Save state after group drag operation
+            saveState();
+        }
+
+        // Event listeners for selection tool
+        toggleSelectionModeBtn.addEventListener('click', () => {
+            selectionMode = !selectionMode;
+            updateSelectionUI();
+        });
+
+        selectAllItemsBtn.addEventListener('click', selectAllItems);
+        clearSelectionBtn.addEventListener('click', clearSelection);
+
+        // Handle menu item clicks with selection functionality
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                if (selectionMode) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleItemSelection(item);
+                    return;
+                }
+                
+                // Original click functionality
+                const itemName = e.currentTarget.getAttribute('data-item');
+                selectedText.textContent = itemName.charAt(0).toUpperCase() + itemName.slice(1);
+                
+                // Add ripple effect
+                rippleEffect.classList.remove('ripple');
+                rippleEffect.style.opacity = '1';
+                void rippleEffect.offsetWidth; // Trigger reflow
+                rippleEffect.classList.add('ripple');
+                
+                setTimeout(() => {
+                    rippleEffect.style.opacity = '0';
+                }, 600);
+                
+                // Close menu after selection
+                setTimeout(() => {
+                    menuToggle.click();
+                }, 200);
+            });
+            
+            // Add hover effects for better feedback
+            item.addEventListener('mouseenter', () => {
+                if (menuOpen) {
+                    item.style.transform += ' translateZ(10px)';
+                }
+            });
+            
+            item.addEventListener('mouseleave', () => {
+                if (menuOpen) {
+                    item.style.transform = item.style.transform.replace(' translateZ(10px)', '');
+                }
+            });
+        });
+
+        // Initialize selection UI
+        updateSelectionUI();
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (menuOpen && !document.getElementById('pieMenu').contains(e.target)) {
+                menuToggle.click();
             }
         });
 
         // Keyboard navigation
-        document.addEventListener('keydown', function(e) {
-            if (!pdfDoc) return;
-            
-            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-                e.preventDefault();
-                changePage(-1);
-            } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-                e.preventDefault();
-                changePage(1);
-            } else if (e.key === 'Escape') {
-                e.preventDefault();
-                closePDF();
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && menuOpen) {
+                menuToggle.click();
             }
         });
 
-        async function handleFileUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+        // Drag and Drop functionality
+        let draggedElement = null;
+        let startX, startY;
+        let isDragging = false;
 
-            try {
-                const arrayBuffer = await file.arrayBuffer();
-                pdfArrayBuffer = arrayBuffer.slice(); // Store a copy for presentation window
-                pdfDoc = await pdfjsLib.getDocument(arrayBuffer).promise;
-                totalPages = pdfDoc.numPages;
-                currentPage = 1;
-                drawingData = {}; // Reset drawing data
-                
-                // Hide upload area and header, show PDF viewer
-                document.getElementById('uploadArea').style.display = 'none';
-                document.querySelector('header').style.display = 'none';
-                document.getElementById('pdfViewer').classList.remove('hidden');
-                
-                await renderPage(currentPage);
-                document.getElementById('downloadBtn').disabled = false;
-                
-                // Update page navigation UI
-                updatePageNavigation();
-            } catch (error) {
-                console.error('Error loading PDF:', error);
-                showCustomAlert('Error loading PDF file. Please try again.');
-            }
-        }
-
-        async function renderPage(pageNum, withTransition = false, direction = 1) {
-            try {
-                const page = await pdfDoc.getPage(pageNum);
-                const container = document.getElementById('pdfContent');
-                
-                if (withTransition) {
-                    await performFadeTransition(pageNum, direction);
-                    return;
-                }
-                
-                // Calculate scale to fit the screen width (with small margin to prevent scrollbars)
-                const containerWidth = window.innerWidth - 20; // Small margin to prevent overflow
-                const viewport = page.getViewport({ scale: 1 });
-                
-                // Ultra-High-DPI rendering: Scale to fill the width, then render at 4x resolution for maximum quality
-                const displayScale = containerWidth / viewport.width;
-                const renderScale = displayScale * 4; // 4x resolution for ultra-high quality
-                const scaledViewport = page.getViewport({ scale: renderScale });
-                
-                // Calculate display dimensions (what user sees)
-                const displayWidth = Math.floor(containerWidth);
-                const displayHeight = Math.floor(viewport.height * displayScale);
-
-                // Create page container with display dimensions
-                const pageContainer = document.createElement('div');
-                pageContainer.className = 'pdf-page-container';
-                pageContainer.style.width = displayWidth + 'px';
-                pageContainer.style.height = displayHeight + 'px';
-
-                // Create and setup PDF canvas with high resolution
-                const pdfCanvas = document.createElement('canvas');
-                pdfCanvas.width = scaledViewport.width;  // High resolution (2x)
-                pdfCanvas.height = scaledViewport.height; // High resolution (2x)
-                pdfCanvas.style.width = displayWidth + 'px';  // Display size
-                pdfCanvas.style.height = displayHeight + 'px'; // Display size
-                pdfCanvas.style.display = 'block';
-
-                // Create and setup drawing canvas with NORMAL resolution for performance
-                const drawingCanvas = document.createElement('canvas');
-                drawingCanvas.className = 'drawing-canvas';
-                drawingCanvas.width = displayWidth;   // Normal resolution for smooth drawing
-                drawingCanvas.height = displayHeight; // Normal resolution for smooth drawing
-                drawingCanvas.style.width = displayWidth + 'px';  // Display size
-                drawingCanvas.style.height = displayHeight + 'px'; // Display size
-
-                // Setup drawing event listeners
-                setupDrawingEvents(drawingCanvas);
-
-                // Clear container and add new elements
-                container.innerHTML = '';
-                pageContainer.appendChild(pdfCanvas);
-                pageContainer.appendChild(drawingCanvas);
-                container.appendChild(pageContainer);
-
-                // Store original page dimensions for first render or if not stored
-                if (!originalPageDimensions[pageNum]) {
-                    originalPageDimensions[pageNum] = {
-                        width: viewport.width,
-                        height: viewport.height
-                    };
-                }
-
-                // Render PDF page
-                const renderContext = {
-                    canvasContext: pdfCanvas.getContext('2d'),
-                    viewport: scaledViewport
-                };
-                await page.render(renderContext).promise;
-
-                // Restore drawing data for this page with proper scaling
-                if (drawingData[pageNum]) {
-                    const ctx = drawingCanvas.getContext('2d');
-                    const img = new Image();
-                    img.onload = function() {
-                        // Calculate scaling factors based on canvas size changes (use drawing canvas dimensions)
-                        const scaleX = drawingCanvas.width / drawingData[pageNum].canvasWidth;
-                        const scaleY = drawingCanvas.height / drawingData[pageNum].canvasHeight;
-                        
-                        // Scale and draw the image to fit the new canvas size
-                        ctx.save();
-                        ctx.scale(scaleX, scaleY);
-                        ctx.drawImage(img, 0, 0);
-                        ctx.restore();
-                    };
-                    img.src = drawingData[pageNum].imageData;
-                }
-
-                // Reset any transition styles
-                container.style.transition = '';
-                container.style.transform = '';
-
-            } catch (error) {
-                console.error('Error rendering page:', error);
-                // Reset styles on error
-                const container = document.getElementById('pdfContent');
-                container.style.transition = '';
-                container.style.transform = '';
-            }
-        }
-
-        async function performFadeTransition(targetPageNum, direction) {
-            const container = document.getElementById('pdfContent');
-            const currentPageElement = container.firstElementChild;
+        function updatePositionDisplay() {
+            const positionDataDiv = document.getElementById('positionData');
+            const menuContainer = document.getElementById('pieMenu');
+            const containerRect = menuContainer.getBoundingClientRect();
             
-            // Calculate scale for consistent sizing with ultra-high quality
-            const containerWidth = window.innerWidth - 20;
-            const targetPage = await pdfDoc.getPage(targetPageNum);
-            const viewport = targetPage.getViewport({ scale: 1 });
+            let positionText = '';
             
-            // Ultra-High-DPI rendering: Same 4x scaling as main render
-            const displayScale = containerWidth / viewport.width;
-            const renderScale = displayScale * 4; // 4x resolution for ultra-high quality
-            const scaledViewport = targetPage.getViewport({ scale: renderScale });
+            // Add menu trigger position first
+            const triggerRect = menuToggle.getBoundingClientRect();
+            const centerX = containerRect.width / 2;
+            const centerY = containerRect.height / 2;
+            const triggerRelativeX = triggerRect.left - containerRect.left + triggerRect.width/2 - centerX;
+            const triggerRelativeY = triggerRect.top - containerRect.top + triggerRect.height/2 - centerY;
+            const triggerAbsoluteX = triggerRect.left - containerRect.left;
+            const triggerAbsoluteY = triggerRect.top - containerRect.top;
             
-            // Calculate display dimensions (what user sees)
-            const displayWidth = Math.floor(containerWidth);
-            const displayHeight = Math.floor(viewport.height * displayScale);
-
-            // Create new page container
-            const newPageContainer = document.createElement('div');
-            newPageContainer.className = 'pdf-page-container';
-            newPageContainer.style.cssText = `
-                width: ${displayWidth}px;
-                height: ${displayHeight}px;
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                opacity: 0;
-                transition: opacity 0.4s ease-in-out;
+            positionText += `
+                <div class="bg-white dark:bg-gray-700 p-3 rounded border">
+                    <strong class="text-primary">menuTrigger:</strong><br>
+                    <span class="text-gray-600 dark:text-gray-300">Absolute: (${Math.round(triggerAbsoluteX)}, ${Math.round(triggerAbsoluteY)})</span><br>
+                    <span class="text-gray-600 dark:text-gray-300">From Center: (${Math.round(triggerRelativeX)}, ${Math.round(triggerRelativeY)})</span>
+                </div>
             `;
-
-            // Create PDF canvas with ultra-high resolution
-            const pdfCanvas = document.createElement('canvas');
-            pdfCanvas.width = scaledViewport.width;  // Ultra-high resolution (4x)
-            pdfCanvas.height = scaledViewport.height; // Ultra-high resolution (4x)
-            pdfCanvas.style.width = displayWidth + 'px';  // Display size
-            pdfCanvas.style.height = displayHeight + 'px'; // Display size
-            pdfCanvas.style.display = 'block';
-
-            // Create drawing canvas with NORMAL resolution for performance
-            const drawingCanvas = document.createElement('canvas');
-            drawingCanvas.className = 'drawing-canvas';
-            drawingCanvas.width = displayWidth;   // Normal resolution for smooth drawing
-            drawingCanvas.height = displayHeight; // Normal resolution for smooth drawing
-            drawingCanvas.style.width = displayWidth + 'px';  // Display size
-            drawingCanvas.style.height = displayHeight + 'px'; // Display size
-
-            newPageContainer.appendChild(pdfCanvas);
-            newPageContainer.appendChild(drawingCanvas);
-
-            // Render the new page
-            const renderContext = {
-                canvasContext: pdfCanvas.getContext('2d'),
-                viewport: scaledViewport
-            };
-            await targetPage.render(renderContext).promise;
-
-            // Restore drawing data for new page
-            if (drawingData[targetPageNum]) {
-                const ctx = drawingCanvas.getContext('2d');
-                const img = new Image();
-                img.onload = function() {
-                    // Calculate scaling factors based on canvas size changes (use drawing canvas dimensions)
-                    const scaleX = drawingCanvas.width / drawingData[targetPageNum].canvasWidth;
-                    const scaleY = drawingCanvas.height / drawingData[targetPageNum].canvasHeight;
-                    
-                    ctx.save();
-                    ctx.scale(scaleX, scaleY);
-                    ctx.drawImage(img, 0, 0);
-                    ctx.restore();
-                };
-                img.src = drawingData[targetPageNum].imageData;
-            }
-
-            // Position current page absolutely and prepare for fade out
-            if (currentPageElement) {
-                currentPageElement.style.cssText = `
-                    position: absolute;
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
-                    opacity: 1;
-                    transition: opacity 0.5s ease-in-out;
+            
+            // Add menu items
+            document.querySelectorAll('.menu-item').forEach(item => {
+                const itemName = item.getAttribute('data-item');
+                const rect = item.getBoundingClientRect();
+                
+                // Calculate position relative to container center
+                const relativeX = rect.left - containerRect.left + rect.width/2 - centerX;
+                const relativeY = rect.top - containerRect.top + rect.height/2 - centerY;
+                
+                // Also show absolute position within container
+                const absoluteX = rect.left - containerRect.left;
+                const absoluteY = rect.top - containerRect.top;
+                
+                positionText += `
+                    <div class="bg-white dark:bg-gray-700 p-3 rounded border">
+                        <strong class="text-primary">${itemName}:</strong><br>
+                        <span class="text-gray-600 dark:text-gray-300">Absolute: (${Math.round(absoluteX)}, ${Math.round(absoluteY)})</span><br>
+                        <span class="text-gray-600 dark:text-gray-300">From Center: (${Math.round(relativeX)}, ${Math.round(relativeY)})</span>
+                    </div>
                 `;
-            }
-
-            // Add new page to container (behind current page)
-            container.appendChild(newPageContainer);
-
-            // Force reflow
-            newPageContainer.offsetHeight;
-
-            // Start fade transition
-            if (currentPageElement) {
-                currentPageElement.style.opacity = '0';
-            }
-            newPageContainer.style.opacity = '1';
-
-            // Wait for fade animation to complete
-            await new Promise(resolve => setTimeout(resolve, 400));
-
-            // Clean up: remove old page and reset container
-            container.innerHTML = '';
-            
-            // Reset new page styles to normal positioning
-            newPageContainer.style.cssText = `
-                width: ${displayWidth}px;
-                height: ${displayHeight}px;
-                position: relative;
-                margin: 0 auto;
-                opacity: 1;
-            `;
-            
-            container.appendChild(newPageContainer);
-
-            // Setup drawing events for new page
-            setupDrawingEvents(drawingCanvas);
-
-            console.log('Fade transition complete'); // Debug log
-        }
-
-        function setupDrawingEvents(canvas) {
-            const ctx = canvas.getContext('2d');
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            
-            // Enhanced ink quality settings
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
-            
-            // Stroke smoothing variables
-            let points = [];
-            let pressureHistory = [];
-            const maxHistoryLength = 5;
-            
-            // Speed-based eraser variables
-            let lastMoveTime = 0;
-            let lastMoveX = 0;
-            let lastMoveY = 0;
-            let currentSpeed = 0;
-            let dynamicEraserSize = 12; // Start at minimum size
-            const minEraserSize = 12;
-            const maxEraserSize = 130;
-            const speedSmoothingFactor = 0.3; // How quickly size responds to speed changes
-
-            // Create eraser indicator
-            const eraserIndicator = document.createElement('div');
-            eraserIndicator.id = 'eraserIndicator';
-            eraserIndicator.style.cssText = `
-                position: absolute;
-                border: 2px dashed #666;
-                border-radius: 50%;
-                pointer-events: none;
-                z-index: 15;
-                display: none;
-                background: rgba(255, 255, 255, 0.1);
-            `;
-            document.body.appendChild(eraserIndicator);
-
-
-
-            // Pointer events for stylus detection
-            canvas.addEventListener('pointerdown', startDrawing);
-            canvas.addEventListener('pointermove', draw);
-            canvas.addEventListener('pointerup', stopDrawing);
-            canvas.addEventListener('pointercancel', stopDrawing);
-            
-            // Only stop drawing on pointerout if we're actually drawing and the pointer leaves the document
-            canvas.addEventListener('pointerout', (e) => {
-                // Only stop if we're actually drawing and the pointer is leaving the entire viewport
-                if (isDrawing && (e.clientX < 0 || e.clientY < 0 || 
-                    e.clientX > window.innerWidth || e.clientY > window.innerHeight)) {
-                    stopDrawing(e);
-                }
             });
-
-            // Prevent default touch and mouse behaviors to avoid conflicts
-            canvas.addEventListener('touchstart', e => e.preventDefault());
-            canvas.addEventListener('touchmove', e => e.preventDefault());
-            canvas.addEventListener('touchend', e => e.preventDefault());
-            canvas.addEventListener('mousedown', e => e.preventDefault());
-            canvas.addEventListener('mousemove', e => e.preventDefault());
-            canvas.addEventListener('mouseup', e => e.preventDefault());
             
-            // Samsung S-Pen specific: Handle context menu event (S-Pen button press)
-            canvas.addEventListener('contextmenu', handleSPenContextMenu);
-            document.addEventListener('contextmenu', handleSPenContextMenu);
+            positionDataDiv.innerHTML = positionText;
+        }
+
+        // Add drag event listeners to all menu items
+        document.querySelectorAll('.menu-item').forEach(item => {
+            // Mouse events
+            item.addEventListener('mousedown', startDrag);
             
-            // Additional S-Pen button detection methods
-            canvas.addEventListener('keydown', handleSPenKeyEvents);
-            canvas.addEventListener('keyup', handleSPenKeyEvents);
-            document.addEventListener('keydown', handleSPenKeyEvents);
-            document.addEventListener('keyup', handleSPenKeyEvents);
+            // Touch events for mobile
+            item.addEventListener('touchstart', startDrag, { passive: false });
+        });
+
+        function startDrag(e) {
+            if (!menuOpen) return; // Only allow dragging when menu is open
             
-            // Alternative pointer button detection
-            canvas.addEventListener('pointerenter', handleSPenPointerEvents);
-            canvas.addEventListener('pointerleave', handleSPenPointerEvents);
+            const item = e.target.closest('.menu-item');
             
-            // Touch events for S-Pen detection
-            canvas.addEventListener('touchstart', handleSPenTouchEvents);
-            canvas.addEventListener('touchend', handleSPenTouchEvents);
-            
-            // Mouse events as fallback
-            canvas.addEventListener('mousedown', handleSPenMouseEvents);
-            canvas.addEventListener('mouseup', handleSPenMouseEvents);
-            canvas.addEventListener('auxclick', handleSPenMouseEvents);
-
-            function startDrawing(e) {
-                // Only allow pen input (Microsoft Pen Protocol stylus)
-                if (e.pointerType !== 'pen') {
-                    return;
-                }
-
-
-
-                // Enhanced eraser detection for multiple stylus types
-                // MPP Stylus: button 2 (right click) or button 5 (eraser), buttons bitmask bit 2 = 4
-                // Samsung S-Pen: Various patterns - button 2, 5, or different bitmasks
-                // Some S-Pens: Use eraser tip detection or specific button combinations
-                const eraserButtonPressed = 
-                    e.button === 2 ||           // Standard right-click/barrel button
-                    e.button === 5 ||           // Standard eraser button
-                    e.button === 1 ||           // Some S-Pens use button 1 for eraser
-                    (e.buttons & 2) !== 0 ||    // Right button bitmask
-                    (e.buttons & 4) !== 0 ||    // Middle/barrel button bitmask
-                    (e.buttons & 32) !== 0 ||   // Eraser button bitmask (some devices)
-                    
-                    // Samsung S-Pen specific: Check for eraser tip by pressure patterns
-                    (e.pressure === 0 && e.pointerType === 'pen') ||
-                    
-                    // Samsung S-Pen: Some models send tangential pressure for eraser
-                    (e.tangentialPressure && e.tangentialPressure !== 0);
-                
-                if (eraserButtonPressed && !isEraserButtonPressed) {
-                    // Store original tool and switch to eraser
-                    originalTool = currentTool;
-                    isEraserButtonPressed = true;
-                    if (currentTool !== 'eraser') {
-                        setTool('eraser');
-                    }
-                } else if (!eraserButtonPressed && isEraserButtonPressed) {
-                    // Restore original tool when eraser button is released
-                    isEraserButtonPressed = false;
-                    setTool(originalTool);
-                }
-
-                isDrawing = true;
-                const rect = canvas.getBoundingClientRect();
-                
-                // Calculate coordinates accounting for high-DPI scaling
-                const displayX = e.clientX - rect.left;
-                const displayY = e.clientY - rect.top;
-                const scaleX = canvas.width / rect.width;
-                const scaleY = canvas.height / rect.height;
-                
-                lastX = displayX * scaleX;
-                lastY = displayY * scaleY;
-                
-                // Reset stroke history for new stroke
-                points = [];
-                pressureHistory = [];
-                
-                // Reset speed tracking for new stroke
-                lastMoveTime = Date.now();
-                lastMoveX = lastX;
-                lastMoveY = lastY;
-                currentSpeed = 0;
-                if (currentTool === 'eraser') {
-                    dynamicEraserSize = minEraserSize; // Start with minimum size
-                }
-                
-                // Add initial point
-                const pressure = e.pressure || 0.5;
-                points.push({ x: lastX, y: lastY, pressure: pressure });
-                pressureHistory.push(pressure);
-                
-                // Show eraser indicator if using eraser tool
-                if (currentTool === 'eraser') {
-                    showEraserIndicator(e.clientX, e.clientY);
-                }
-                
-                // Update pressure indicator
-                updatePressureIndicator(pressure);
-            }
-
-            function draw(e) {
-                // Only allow pen input
-                if (e.pointerType !== 'pen' || !isDrawing) {
-                    return;
-                }
-                
-                const rect = canvas.getBoundingClientRect();
-                
-                // Calculate coordinates accounting for high-DPI scaling
-                const displayX = e.clientX - rect.left;
-                const displayY = e.clientY - rect.top;
-                const scaleX = canvas.width / rect.width;
-                const scaleY = canvas.height / rect.height;
-                
-                const currentX = displayX * scaleX;
-                const currentY = displayY * scaleY;
-
-                // Calculate speed for dynamic eraser sizing (only for eraser tool)
-                if (currentTool === 'eraser') {
-                    const currentTime = Date.now();
-                    const deltaTime = Math.max(currentTime - lastMoveTime, 1); // Prevent division by zero
-                    const deltaX = currentX - lastMoveX;
-                    const deltaY = currentY - lastMoveY;
-                    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-                    
-                    // Calculate speed in pixels per millisecond, then convert to pixels per second
-                    const instantSpeed = (distance / deltaTime) * 1000;
-                    
-                    // Smooth the speed to avoid jittery size changes
-                    currentSpeed = currentSpeed * (1 - speedSmoothingFactor) + instantSpeed * speedSmoothingFactor;
-                    
-                    // Map speed to eraser size range (12-80)
-                    // Speed range: 0-2000 pixels/second (adjust based on testing)
-                    const maxSpeed = 2000; // pixels per second
-                    const speedRatio = Math.min(currentSpeed / maxSpeed, 1.0);
-                    dynamicEraserSize = minEraserSize + (maxEraserSize - minEraserSize) * speedRatio;
-                    
-                    // Update tracking variables for next calculation
-                    lastMoveTime = currentTime;
-                    lastMoveX = currentX;
-                    lastMoveY = currentY;
-                    
-                    // Update eraser indicator with dynamic size
-                    updateEraserIndicator(e.clientX, e.clientY);
-                } else {
-                    // Update eraser indicator position for static eraser
-                    if (currentTool === 'eraser') {
-                        updateEraserIndicator(e.clientX, e.clientY);
-                    }
-                }
-
-                // Get pressure value
-                const pressure = e.pressure || 0.5;
-                
-                // Add current point to history for smoothing
-                points.push({ x: currentX, y: currentY, pressure: pressure });
-                pressureHistory.push(pressure);
-                
-                // Keep history within limits
-                if (points.length > maxHistoryLength) {
-                    points.shift();
-                    pressureHistory.shift();
-                }
-
-                // Use appropriate size based on tool (scale up for high-DPI)
-                const scaleFactor = Math.min(scaleX, scaleY);
-                let toolSize;
-                if (currentTool === 'eraser') {
-                    // Use dynamic eraser size based on speed
-                    toolSize = dynamicEraserSize * scaleFactor;
-                } else {
-                    // Use static brush size for pen
-                    toolSize = currentBrushSize * scaleFactor;
-                }
-                
-                if (currentTool === 'eraser') {
-                    // Eraser: Use destination-out to remove pixels
-                    ctx.globalCompositeOperation = 'destination-out';
-                    ctx.lineCap = 'round';
-                    ctx.lineJoin = 'round';
-                    ctx.lineWidth = toolSize;
-                    
-                    // Draw eraser stroke - color doesn't matter for destination-out, but set it anyway
-                    ctx.strokeStyle = 'rgba(0,0,0,1)';
-                    
-                    ctx.beginPath();
-                    ctx.moveTo(lastX, lastY);
-                    ctx.lineTo(currentX, currentY);
-                    ctx.stroke();
-                    
-                    // Reset composite operation for next draw
-                    ctx.globalCompositeOperation = 'source-over';
-                } else {
-                    // Pen: Enhanced ink rendering with smoothing and pressure
-                    ctx.globalCompositeOperation = 'source-over';
-                    drawSmoothStroke(ctx, points, pressureHistory, toolSize);
-                }
-
-                // Update presentation window in real-time
-                updatePresentationWindowRealtime(lastX, lastY, currentX, currentY, ctx.lineWidth, currentTool, currentColor);
-
-                lastX = currentX;
-                lastY = currentY;
-                
-                // Update pressure indicator (but only for pen tool)
-                if (currentTool === 'pen') {
-                    updatePressureIndicator(pressure);
-                }
-            }
-            
-            // Advanced smooth stroke rendering function
-            function drawSmoothStroke(ctx, points, pressureHistory, baseSize) {
-                if (points.length < 2) return;
-                
-                // Smooth pressure calculation
-                const avgPressure = pressureHistory.reduce((sum, p) => sum + p, 0) / pressureHistory.length;
-                const smoothPressure = pressureEnabled ? avgPressure : 0.7;
-                
-                // Calculate dynamic line width with pressure (increased sensitivity)
-                const pressureMultiplier = pressureEnabled ? (0.2 + (smoothPressure * 2.5)) : 1.0;
-                const dynamicWidth = baseSize * pressureMultiplier;
-                
-                // Use solid, opaque color - no transparency
-                ctx.strokeStyle = currentColor;
-                ctx.lineWidth = dynamicWidth;
-                
-                // Smooth curve drawing using quadratic curves
-                if (points.length >= 3) {
-                    const p0 = points[points.length - 3];
-                    const p1 = points[points.length - 2];
-                    const p2 = points[points.length - 1];
-                    
-                    // Calculate control point for smooth curve
-                    const midPoint1 = { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 };
-                    const midPoint2 = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
-                    
-                    ctx.beginPath();
-                    ctx.moveTo(midPoint1.x, midPoint1.y);
-                    ctx.quadraticCurveTo(p1.x, p1.y, midPoint2.x, midPoint2.y);
-                    ctx.stroke();
-                } else if (points.length === 2) {
-                    // Fallback for first stroke segment
-                    const p1 = points[0];
-                    const p2 = points[1];
-                    
-                    ctx.beginPath();
-                    ctx.moveTo(p1.x, p1.y);
-                    ctx.lineTo(p2.x, p2.y);
-                    ctx.stroke();
-                }
-            }
-            
-            // Helper function to convert hex color to rgba
-            function hexToRgba(hex, alpha) {
-                const r = parseInt(hex.slice(1, 3), 16);
-                const g = parseInt(hex.slice(3, 5), 16);
-                const b = parseInt(hex.slice(5, 7), 16);
-                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-            }
-
-            function stopDrawing(e) {
-                // Only process pen input
-                if (e.pointerType !== 'pen') return;
-                
-                if (isDrawing) {
-                    isDrawing = false;
-                    // Save drawing data for current page with canvas dimensions
-                    drawingData[currentPage] = {
-                        imageData: canvas.toDataURL(),
-                        canvasWidth: canvas.width,
-                        canvasHeight: canvas.height
-                    };
-                    
-                    // Hide eraser indicator
-                    hideEraserIndicator();
-                    
-                    // Reset pressure indicator
-                    updatePressureIndicator(0);
-                }
-            }
-
-            function showEraserIndicator(clientX, clientY) {
-                const indicator = document.getElementById('eraserIndicator');
-                if (indicator) {
-                    // Use dynamic eraser size for speed-based feature
-                    const size = currentTool === 'eraser' ? dynamicEraserSize : currentEraserSize;
-                    indicator.style.width = size + 'px';
-                    indicator.style.height = size + 'px';
-                    indicator.style.left = (clientX - size/2) + 'px';
-                    indicator.style.top = (clientY - size/2) + 'px';
-                    indicator.style.display = 'block';
-                }
-            }
-
-            function updateEraserIndicator(clientX, clientY) {
-                const indicator = document.getElementById('eraserIndicator');
-                if (indicator && indicator.style.display === 'block') {
-                    // Use dynamic eraser size for speed-based feature  
-                    const size = currentTool === 'eraser' ? dynamicEraserSize : currentEraserSize;
-                    indicator.style.width = size + 'px';
-                    indicator.style.height = size + 'px';
-                    indicator.style.left = (clientX - size/2) + 'px';
-                    indicator.style.top = (clientY - size/2) + 'px';
-                }
-            }
-
-            function hideEraserIndicator() {
-                const indicator = document.getElementById('eraserIndicator');
-                if (indicator) {
-                    indicator.style.display = 'none';
-                }
-            }
-        }
-
-
-
-
-
-        // Samsung S-Pen Context Menu Handler (Galaxy Tab S7 eraser button)
-        function handleSPenContextMenu(e) {
-            // Always prevent context menu in PDF viewer area
-            const pdfViewer = document.getElementById('pdfViewer');
-            const isPdfViewerActive = pdfViewer && !pdfViewer.classList.contains('hidden');
-            
-            if (isPdfViewerActive) {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                
-                // Check if this is likely S-Pen related
-                const isPenRelated = e.pointerType === 'pen' || 
-                                   (e.target && (
-                                       e.target.classList.contains('drawing-canvas') ||
-                                       e.target.closest('.pdf-page-container') ||
-                                       e.target.closest('#pdfContent')
-                                   )) ||
-                                   // Galaxy Tab S7 specific: Context menu with empty pointerType
-                                   (!e.pointerType && e.type === 'contextmenu');
-                
-                if (isPenRelated) {
-                    // Toggle eraser mode when S-Pen button is pressed
-                    if (!isEraserButtonPressed) {
-                        originalTool = currentTool;
-                        isEraserButtonPressed = true;
-                        if (currentTool !== 'eraser') {
-                            setTool('eraser');
-                        }
-                    } else {
-                        isEraserButtonPressed = false;
-                        setTool(originalTool);
-                    }
-                }
-                
-                return false;
-            }
-        }
-
-        // Global context menu blocking for S-Pen
-        function blockAllContextMenus(e) {
-            // Block all context menus when PDF viewer is active
-            if (document.getElementById('pdfViewer') && !document.getElementById('pdfViewer').classList.contains('hidden')) {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                return false;
-            }
-        }
-
-        // Additional S-Pen button detection event handlers
-        function handleSPenKeyEvents(e) {
-            // Some S-Pens trigger key events for button press
-            // Common keys: F18, F19, F20, or custom key codes
-            const isPenButtonKey = 
-                e.key === 'F18' || e.key === 'F19' || e.key === 'F20' ||
-                e.keyCode === 131 || e.keyCode === 132 || // Samsung specific
-                e.code === 'StylusButton' || e.code === 'Eraser' ||
-                (e.keyCode >= 229 && e.keyCode <= 235); // Range for stylus keys
-                
-            if (isPenButtonKey) {
-                if (e.type === 'keydown' && !isEraserButtonPressed) {
-                    originalTool = currentTool;
-                    isEraserButtonPressed = true;
-                    if (currentTool !== 'eraser') {
-                        setTool('eraser');
-                    }
-                } else if (e.type === 'keyup' && isEraserButtonPressed) {
-                    isEraserButtonPressed = false;
-                    setTool(originalTool);
-                }
-                
-                e.preventDefault();
-                e.stopPropagation();
-            }
-        }
-
-        function handleSPenPointerEvents(e) {
-            // Placeholder for additional S-Pen pointer event handling if needed
-        }
-
-        function handleSPenTouchEvents(e) {
-            // Some S-Pens report as touch with specific touchType
-            if (e.touches.length > 0) {
-                const touch = e.touches[0];
-                if (touch.touchType === 'stylus') {
-                    // Handle stylus touch events if needed
-                }
-            }
-        }
-
-        function handleSPenMouseEvents(e) {
-            // Some S-Pens fall back to mouse events
-            const isPenButton = 
-                e.button === 1 || e.button === 2 || // Middle/right mouse buttons
-                e.which === 2 || e.which === 3 || // Alternative button detection
-                (e.type === 'auxclick'); // Auxiliary click (middle/right button)
-                
-            if (isPenButton) {
-                if ((e.type === 'mousedown' || e.type === 'auxclick') && !isEraserButtonPressed) {
-                    originalTool = currentTool;
-                    isEraserButtonPressed = true;
-                    if (currentTool !== 'eraser') {
-                        setTool('eraser');
-                    }
-                } else if (e.type === 'mouseup' && isEraserButtonPressed) {
-                    isEraserButtonPressed = false;
-                    setTool(originalTool);
-                }
-                
-                e.preventDefault();
-                e.stopPropagation();
-            }
-        }
-
-        function updatePressureIndicator(pressure) {
-            const indicator = document.getElementById('pressureIndicator');
-            if (indicator) {
-                const percentage = Math.round(pressure * 100);
-                indicator.textContent = `Pressure: ${percentage}%`;
-            }
-        }
-
-        function changePage(direction) {
-            const newPage = currentPage + direction;
-            if (newPage >= 1 && newPage <= totalPages) {
-                currentPage = newPage;
-                
-                // Update page navigation UI
-                updatePageNavigation();
-                
-                // Start transitions in both windows simultaneously
-                renderPage(currentPage, true, direction); // Main window fade transition
-                
-                // Trigger presentation window fade transition if open
-                if (presentationWindow && !presentationWindow.closed) {
-                    triggerPresentationFadeTransition(currentPage, direction);
-                }
-            }
-        }
-
-        // Update page navigation UI
-        function updatePageNavigation() {
-            // Update page numbers
-            document.getElementById('currentPageNum').textContent = currentPage;
-            document.getElementById('totalPagesNum').textContent = totalPages;
-            
-            // Update button states
-            const prevBtn = document.getElementById('prevPageBtn');
-            const nextBtn = document.getElementById('nextPageBtn');
-            
-            // Disable previous button if on first page
-            if (currentPage <= 1) {
-                prevBtn.disabled = true;
-                prevBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            } else {
-                prevBtn.disabled = false;
-                prevBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-            }
-            
-            // Disable next button if on last page
-            if (currentPage >= totalPages) {
-                nextBtn.disabled = true;
-                nextBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            } else {
-                nextBtn.disabled = false;
-                nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-            }
-            
-            // Update thumbnail selection if modal is open
-            updateThumbnailSelection();
-        }
-
-        // Page Thumbnail Modal Functions
-        async function openPageThumbnailModal() {
-            if (!pdfDoc) return;
-
-            const modal = document.getElementById('pageThumbnailModal');
-            const backdrop = document.getElementById('modalBackdrop');
-            const container = document.getElementById('thumbnailContainer');
-
-            // Show backdrop
-            backdrop.classList.remove('hidden');
-
-            // Always regenerate thumbnails for better quality (force refresh)
-            await generatePageThumbnails();
-
-            // Update current page selection
-            updateThumbnailSelection();
-
-            // Show modal with slide animation
-            setTimeout(() => {
-                modal.classList.add('open');
-            }, 10);
-
-            // Scroll to current page
-            scrollToCurrentThumbnail();
-        }
-
-        function closePageThumbnailModal() {
-            const modal = document.getElementById('pageThumbnailModal');
-            const backdrop = document.getElementById('modalBackdrop');
-
-            // Hide modal with slide animation
-            modal.classList.remove('open');
-
-            // Hide backdrop after animation
-            setTimeout(() => {
-                backdrop.classList.add('hidden');
-            }, 300);
-        }
-
-        async function generatePageThumbnails() {
-            const container = document.getElementById('thumbnailContainer');
-            container.innerHTML = '<div class="text-center py-8"><div class="text-gray-500 dark:text-gray-400">Generating thumbnails...</div></div>';
-
-            const thumbnails = [];
-
-            for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
-                try {
-                    const page = await pdfDoc.getPage(pageNum);
-                    // Ultra-high quality thumbnails - scale to fit width of ~400px for crisp display
-                    const targetWidth = 400;
-                    const viewport = page.getViewport({ scale: 1 });
-                    const scale = targetWidth / viewport.width;
-                    const scaledViewport = page.getViewport({ scale });
-
-                    // Create thumbnail container
-                    const thumbnailDiv = document.createElement('div');
-                    thumbnailDiv.className = 'page-thumbnail bg-white dark:bg-gray-700 rounded-lg border-2 border-gray-200 dark:border-gray-600 overflow-hidden cursor-pointer';
-                    thumbnailDiv.setAttribute('data-page', pageNum);
-                    thumbnailDiv.onclick = () => goToPage(pageNum);
-
-                    // Create canvas for PDF with higher resolution
-                    const canvas = document.createElement('canvas');
-                    canvas.width = scaledViewport.width;
-                    canvas.height = scaledViewport.height;
-                    canvas.className = 'w-full h-auto';
-
-                    // Create canvas for drawings overlay with higher resolution
-                    const drawingCanvas = document.createElement('canvas');
-                    drawingCanvas.width = scaledViewport.width;
-                    drawingCanvas.height = scaledViewport.height;
-                    drawingCanvas.className = 'absolute top-0 left-0 w-full h-auto';
-
-                    // Container for canvases
-                    const canvasContainer = document.createElement('div');
-                    canvasContainer.className = 'relative';
-                    canvasContainer.appendChild(canvas);
-                    canvasContainer.appendChild(drawingCanvas);
-
-                    // Page number label
-                    const pageLabel = document.createElement('div');
-                    pageLabel.className = 'p-2 text-xs text-center text-gray-600 dark:text-gray-400 border-t border-gray-200 dark:border-gray-600';
-                    pageLabel.textContent = `Page ${pageNum}`;
-
-                    thumbnailDiv.appendChild(canvasContainer);
-                    thumbnailDiv.appendChild(pageLabel);
-
-                    // Render PDF page with higher quality
-                    const renderContext = {
-                        canvasContext: canvas.getContext('2d'),
-                        viewport: scaledViewport
-                    };
-                    await page.render(renderContext).promise;
-
-                    // Render drawings if they exist with proper scaling
-                    if (drawingData[pageNum]) {
-                        const ctx = drawingCanvas.getContext('2d');
-                        const img = new Image();
-                        img.onload = function() {
-                            const scaleX = scaledViewport.width / drawingData[pageNum].canvasWidth;
-                            const scaleY = scaledViewport.height / drawingData[pageNum].canvasHeight;
-                            
-                            ctx.save();
-                            ctx.scale(scaleX, scaleY);
-                            ctx.drawImage(img, 0, 0);
-                            ctx.restore();
-                        };
-                        img.src = drawingData[pageNum].imageData;
-                    }
-
-                    thumbnails.push(thumbnailDiv);
-
-                } catch (error) {
-                    console.error(`Error generating thumbnail for page ${pageNum}:`, error);
-                }
-            }
-
-            // Clear loading message and add all thumbnails
-            container.innerHTML = '';
-            thumbnails.forEach(thumb => container.appendChild(thumb));
-
-            // Initialize icons for the thumbnails
-            initializeLucideIcons();
-        }
-
-        function updateThumbnailSelection() {
-            const thumbnails = document.querySelectorAll('.page-thumbnail');
-            thumbnails.forEach(thumb => {
-                const pageNum = parseInt(thumb.getAttribute('data-page'));
-                if (pageNum === currentPage) {
-                    thumb.classList.add('current');
-                } else {
-                    thumb.classList.remove('current');
-                }
-            });
-        }
-
-        function scrollToCurrentThumbnail() {
-            const container = document.getElementById('thumbnailContainer');
-            const currentThumbnail = container.querySelector(`[data-page="${currentPage}"]`);
-            
-            if (currentThumbnail) {
-                // Scroll to center the current thumbnail
-                const containerHeight = container.clientHeight;
-                const thumbnailTop = currentThumbnail.offsetTop;
-                const thumbnailHeight = currentThumbnail.offsetHeight;
-                
-                const scrollPosition = thumbnailTop - (containerHeight / 2) + (thumbnailHeight / 2);
-                container.scrollTo({
-                    top: Math.max(0, scrollPosition),
-                    behavior: 'smooth'
-                });
-            }
-        }
-
-        function goToPage(pageNum) {
-            if (pageNum >= 1 && pageNum <= totalPages && pageNum !== currentPage) {
-                const direction = pageNum > currentPage ? 1 : -1;
-                currentPage = pageNum;
-                
-                // Update page navigation UI
-                updatePageNavigation();
-                
-                // Start transitions in both windows
-                renderPage(currentPage, true, direction);
-                
-                // Trigger presentation window fade transition if open
-                if (presentationWindow && !presentationWindow.closed) {
-                    triggerPresentationFadeTransition(currentPage, direction);
-                }
-                
-                // Close the modal
-                closePageThumbnailModal();
-            }
-        }
-
-        // Presentation Mode Functions
-        function openPresentationMode() {
-            if (!pdfDoc || !pdfArrayBuffer) {
-                showCustomAlert('Please load a PDF first before opening presentation mode.');
+            // Handle group dragging if in selection mode and item is selected
+            if (selectionMode && selectedItems.has(item)) {
+                startGroupDrag(e, item);
                 return;
             }
-
-            // Check if presentation window is already open
-            if (presentationWindow && !presentationWindow.closed) {
-                showConfirmDialog('Close the presentation window?', () => {
-                    presentationWindow.close();
-                    presentationWindow = null;
-                });
+            
+            // Don't allow individual dragging in selection mode unless item is selected
+            if (selectionMode) {
                 return;
             }
-
-            // Open new presentation window
-            const windowFeatures = 'width=1280,height=720,resizable=yes,scrollbars=no,status=no,menubar=no,toolbar=no';
-            presentationWindow = window.open('about:blank', 'PDFPresentation', windowFeatures);
             
-            if (presentationWindow) {
-                // Handle presentation window close
-                presentationWindow.addEventListener('beforeunload', () => {
-                    presentationWindow = null;
-                });
+            // Original individual drag functionality
+            e.preventDefault();
+            draggedElement = item;
+            isDragging = true;
+            
+            draggedElement.classList.add('dragging');
+            
+            const clientX = e.type === 'mousedown' ? e.clientX : e.touches[0].clientX;
+            const clientY = e.type === 'mousedown' ? e.clientY : e.touches[0].clientY;
+            
+            const rect = draggedElement.getBoundingClientRect();
+            startX = clientX - rect.left;
+            startY = clientY - rect.top;
+            
+            // Add global event listeners
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', endDrag);
+            document.addEventListener('touchmove', drag, { passive: false });
+            document.addEventListener('touchend', endDrag);
+        }
+
+        function drag(e) {
+            if (!isDragging || !draggedElement) return;
+            
+            e.preventDefault();
+            
+            const clientX = e.type === 'mousemove' ? e.clientX : e.touches[0].clientX;
+            const clientY = e.type === 'mousemove' ? e.clientY : e.touches[0].clientY;
+            
+            const container = document.getElementById('pieMenu');
+            const containerRect = container.getBoundingClientRect();
+            
+            // Calculate new position relative to container
+            let newX = clientX - containerRect.left - startX;
+            let newY = clientY - containerRect.top - startY;
+            
+            // No boundary constraints - allow dragging anywhere
+            
+            // Update position
+            draggedElement.style.left = newX + 'px';
+            draggedElement.style.top = newY + 'px';
+            draggedElement.style.right = 'auto';
+            draggedElement.style.transform = 'none';
+            
+            // Update position display in real-time
+            updatePositionDisplay();
+        }
+
+        function endDrag(e) {
+            if (!isDragging) return;
+            
+            isDragging = false;
+            
+            if (draggedElement) {
+                draggedElement.classList.remove('dragging');
+                draggedElement = null;
+            }
+            
+            // Remove global event listeners
+            document.removeEventListener('mousemove', drag);
+            document.removeEventListener('mouseup', endDrag);
+            document.removeEventListener('touchmove', drag);
+            document.removeEventListener('touchend', endDrag);
+            
+            updatePositionDisplay();
+            
+            // Save state after drag operation
+            saveState();
+        }
+
+        // Copy positions functionality
+        document.getElementById('copyPositions').addEventListener('click', () => {
+            const menuContainer = document.getElementById('pieMenu');
+            const containerRect = menuContainer.getBoundingClientRect();
+            
+            let positionsData = {};
+            
+            // Add menu trigger position first
+            const triggerRect = menuToggle.getBoundingClientRect();
+            const triggerAbsoluteX = triggerRect.left - containerRect.left;
+            const triggerAbsoluteY = triggerRect.top - containerRect.top;
+            
+            positionsData.menuTrigger = {
+                left: Math.round(triggerAbsoluteX),
+                top: Math.round(triggerAbsoluteY)
+            };
+            
+            // Add menu items
+            document.querySelectorAll('.menu-item').forEach(item => {
+                const itemName = item.getAttribute('data-item');
+                const rect = item.getBoundingClientRect();
                 
-                // Create and inject presentation HTML
-                const presentationHTML = createPresentationHTML();
-                presentationWindow.document.write(presentationHTML);
-                presentationWindow.document.close();
+                const absoluteX = rect.left - containerRect.left;
+                const absoluteY = rect.top - containerRect.top;
                 
-                // Use a different approach - wait for the window's load event
-                presentationWindow.addEventListener('load', () => {
-                    // Additional wait to ensure PDF.js is loaded
-                    setTimeout(() => {
-                        initializePresentationWindow();
-                    }, 300);
-                });
-                
-                // Backup initialization in case load event doesn't fire
-                setTimeout(() => {
-                    if (presentationWindow && !presentationWindow.closed) {
-                        initializePresentationWindow();
-                    }
-                }, 1000);
-                
+                positionsData[itemName] = {
+                    left: Math.round(absoluteX),
+                    top: Math.round(absoluteY)
+                };
+            });
+            
+            const jsonData = JSON.stringify(positionsData, null, 2);
+            
+            // Create a temporary textarea to copy the data
+            const textarea = document.createElement('textarea');
+            textarea.value = jsonData;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            
+            // Show feedback
+            const button = document.getElementById('copyPositions');
+            const originalText = button.textContent;
+            button.textContent = 'Copied!';
+            button.classList.add('bg-green-500');
+            button.classList.remove('bg-primary');
+            
+            setTimeout(() => {
+                button.textContent = originalText;
+                button.classList.remove('bg-green-500');
+                button.classList.add('bg-primary');
+            }, 2000);
+        });
+
+        // Initialize position display
+        setTimeout(updatePositionDisplay, 100);
+
+        // Info Panel functionality
+        let panelOpen = false;
+        const infoToggle = document.getElementById('infoToggle');
+        const positionPanel = document.getElementById('positionPanel');
+        const closePanel = document.getElementById('closePanel');
+        const panelOverlay = document.getElementById('panelOverlay');
+
+        function openPanel() {
+            panelOpen = true;
+            positionPanel.classList.remove('translate-x-full');
+            positionPanel.classList.add('translate-x-0');
+            panelOverlay.classList.remove('opacity-0', 'pointer-events-none');
+            panelOverlay.classList.add('opacity-100');
+        }
+
+        function closePanelFunc() {
+            panelOpen = false;
+            positionPanel.classList.remove('translate-x-0');
+            positionPanel.classList.add('translate-x-full');
+            panelOverlay.classList.remove('opacity-100');
+            panelOverlay.classList.add('opacity-0', 'pointer-events-none');
+        }
+
+        // Event listeners for panel
+        infoToggle.addEventListener('click', () => {
+            if (panelOpen) {
+                closePanelFunc();
             } else {
-                showCustomAlert('Unable to open presentation window. Please allow popups for this site.');
+                openPanel();
             }
-        }
+        });
 
-        // Initialize presentation window with PDF data
-        function initializePresentationWindow() {
-            if (!presentationWindow || presentationWindow.closed) return;
+        closePanel.addEventListener('click', closePanelFunc);
+        panelOverlay.addEventListener('click', closePanelFunc);
+
+        // Close panel on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && panelOpen) {
+                closePanelFunc();
+            }
+        });
+
+        // Undo/Redo functionality
+        let undoStack = [];
+        let redoStack = [];
+        let maxHistorySize = 50;
+        let isUndoRedoOperation = false;
+
+        const undoBtn = document.getElementById('undoBtn');
+        const redoBtn = document.getElementById('redoBtn');
+
+        // Save current state
+        function saveState() {
+            if (isUndoRedoOperation) return;
             
-            try {
-                // Use postMessage for more reliable cross-window communication
-                const initData = {
-                    type: 'INIT_PDF',
-                    pdfArrayBuffer: pdfArrayBuffer,
-                    currentPage: currentPage,
-                    totalPages: totalPages,
-                    drawingData: drawingData
+            const state = {
+                menuItems: {},
+                menuToggle: {
+                    left: menuToggle.style.left || '',
+                    top: menuToggle.style.top || '',
+                    transform: menuToggle.style.transform || 'translate(-50%, -50%)'
+                }
+            };
+            
+            // Save menu item positions
+            document.querySelectorAll('.menu-item').forEach(item => {
+                const itemName = item.getAttribute('data-item');
+                state.menuItems[itemName] = {
+                    left: item.style.left || '',
+                    top: item.style.top || '',
+                    transform: item.style.transform || ''
                 };
-                
-                presentationWindow.postMessage(initData, '*');
-                
-            } catch (error) {
-                console.error('Error initializing presentation window:', error);
-                // Fallback to direct property assignment
-                try {
-                    presentationWindow.pdfArrayBuffer = pdfArrayBuffer;
-                    presentationWindow.currentPage = currentPage;
-                    presentationWindow.totalPages = totalPages;
-                    presentationWindow.drawingData = drawingData;
-                    
-                    presentationWindow.eval(`
-                        if (typeof initializePDF === 'function') {
-                            initializePDF();
-                        }
-                    `);
-                } catch (fallbackError) {
-                    console.error('Fallback initialization also failed:', fallbackError);
-                }
-            }
-        }
-
-        function createPresentationHTML() {
-            return '<!DOCTYPE html>' +
-                '<html lang="en">' +
-                '<head>' +
-                    '<meta charset="UTF-8">' +
-                    '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
-                    '<title>PDF Presentation</title>' +
-                    '<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"><\/script>' +
-                    '<style>' +
-                        'body {' +
-                            'margin: 0;' +
-                            'padding: 0;' +
-                            'background: #000;' +
-                            'display: flex;' +
-                            'justify-content: center;' +
-                            'align-items: center;' +
-                            'min-height: 100vh;' +
-                            'overflow: hidden;' +
-                        '}' +
-                        '#presentationContent {' +
-                            'display: flex;' +
-                            'justify-content: center;' +
-                            'align-items: center;' +
-                            'width: 100%;' +
-                            'height: 100vh;' +
-                        '}' +
-                        '.pdf-page-container {' +
-                            'position: relative;' +
-                        '}' +
-                        '.presentation-canvas {' +
-                            'position: absolute;' +
-                            'top: 0;' +
-                            'left: 0;' +
-                        '}' +
-                        '#fullscreenBtn {' +
-                            'position: fixed;' +
-                            'top: 20px;' +
-                            'right: 20px;' +
-                            'z-index: 1000;' +
-                            'background: rgba(255, 255, 255, 0.9);' +
-                            'border: none;' +
-                            'border-radius: 8px;' +
-                            'padding: 12px 16px;' +
-                            'cursor: pointer;' +
-                            'font-size: 14px;' +
-                            'font-weight: 600;' +
-                            'color: #374151;' +
-                            'box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);' +
-                            'transition: all 0.2s ease;' +
-                            'display: flex;' +
-                            'align-items: center;' +
-                            'gap: 8px;' +
-                        '}' +
-                        '#fullscreenBtn:hover {' +
-                            'background: rgba(255, 255, 255, 1);' +
-                            'transform: translateY(-1px);' +
-                            'box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);' +
-                        '}' +
-                        '#fullscreenBtn:active {' +
-                            'transform: translateY(0);' +
-                        '}' +
-                        '#fullscreenBtn svg {' +
-                            'width: 16px;' +
-                            'height: 16px;' +
-                        '}' +
-                        '.fullscreen-hidden {' +
-                            'opacity: 0;' +
-                            'pointer-events: none;' +
-                            'transform: translateY(-10px);' +
-                        '}' +
-                    '</style>' +
-                '</head>' +
-                '<body>' +
-                    '<button id="fullscreenBtn" onclick="enterFullscreen()">' +
-                        '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
-                            '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>' +
-                        '</svg>' +
-                        'Fullscreen' +
-                    '</button>' +
-                    '<div id="presentationContent"></div>' +
-                    '<script>' +
-                        'pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";' +
-                        'window.addEventListener("resize", () => {' +
-                            'if (window.currentRenderFunction) {' +
-                                'window.currentRenderFunction();' +
-                            '}' +
-                        '});' +
-                        'window.addEventListener("message", async function(event) {' +
-                            'if (event.data && event.data.type === "INIT_PDF") {' +
-                                'try {' +
-                                    'window.pdfArrayBuffer = event.data.pdfArrayBuffer;' +
-                                    'window.currentPage = event.data.currentPage;' +
-                                    'window.totalPages = event.data.totalPages;' +
-                                    'window.drawingData = event.data.drawingData;' +
-                                    'if (window.pdfArrayBuffer) {' +
-                                        'window.presentationPdfDoc = await pdfjsLib.getDocument(window.pdfArrayBuffer).promise;' +
-                                        'window.renderPresentationPage(window.currentPage);' +
-                                    '}' +
-                                '} catch (error) {' +
-                                    'console.error("Error handling postMessage:", error);' +
-                                '}' +
-                            '} else if (event.data && event.data.type === "FADE_TRANSITION") {' +
-                                'try {' +
-                                    'window.drawingData = event.data.drawingData;' +
-                                    'window.performPresentationFadeTransition(event.data.targetPageNum, event.data.direction);' +
-                                '} catch (error) {' +
-                                    'console.error("Error handling fade transition:", error);' +
-                                '}' +
-                            '}' +
-                        '});' +
-                        'window.initializePDF = async function() {' +
-                            'try {' +
-                                'if (window.pdfArrayBuffer) {' +
-                                    'window.presentationPdfDoc = await pdfjsLib.getDocument(window.pdfArrayBuffer).promise;' +
-                                    'window.renderPresentationPage(window.currentPage || 1);' +
-                                '}' +
-                            '} catch (error) {' +
-                                'console.error("Error in initializePDF:", error);' +
-                            '}' +
-                        '};' +
-                        'window.renderPresentationPage = async function(pageNum) {' +
-                            'if (!window.presentationPdfDoc) return;' +
-                            'try {' +
-                                'const page = await window.presentationPdfDoc.getPage(pageNum);' +
-                                'const container = document.getElementById("presentationContent");' +
-                                'const windowWidth = window.innerWidth;' +
-                                'const windowHeight = window.innerHeight;' +
-                                'const viewport = page.getViewport({ scale: 1 });' +
-                                'const scaleX = windowWidth / viewport.width;' +
-                                'const scaleY = (windowHeight - 10) / viewport.height;' +
-                                'const scale = scaleX;' +
-                                'const scaledViewport = page.getViewport({ scale });' +
-                                'const pageContainer = document.createElement("div");' +
-                                'pageContainer.className = "pdf-page-container";' +
-                                'pageContainer.style.width = scaledViewport.width + "px";' +
-                                'pageContainer.style.height = scaledViewport.height + "px";' +
-                                'const pdfCanvas = document.createElement("canvas");' +
-                                'pdfCanvas.width = scaledViewport.width;' +
-                                'pdfCanvas.height = scaledViewport.height;' +
-                                'pdfCanvas.style.display = "block";' +
-                                'const drawingCanvas = document.createElement("canvas");' +
-                                'drawingCanvas.className = "presentation-canvas";' +
-                                'drawingCanvas.width = scaledViewport.width;' +
-                                'drawingCanvas.height = scaledViewport.height;' +
-                                'container.innerHTML = "";' +
-                                'pageContainer.appendChild(pdfCanvas);' +
-                                'pageContainer.appendChild(drawingCanvas);' +
-                                'container.appendChild(pageContainer);' +
-                                'const renderContext = {' +
-                                    'canvasContext: pdfCanvas.getContext("2d"),' +
-                                    'viewport: scaledViewport' +
-                                '};' +
-                                'await page.render(renderContext).promise;' +
-                                'if (window.drawingData && window.drawingData[pageNum]) {' +
-                                    'const ctx = drawingCanvas.getContext("2d");' +
-                                    'const img = new Image();' +
-                                    'img.onload = function() {' +
-                                        'const scaleX = scaledViewport.width / window.drawingData[pageNum].canvasWidth;' +
-                                        'const scaleY = scaledViewport.height / window.drawingData[pageNum].canvasHeight;' +
-                                        'ctx.save();' +
-                                        'ctx.scale(scaleX, scaleY);' +
-                                        'ctx.drawImage(img, 0, 0);' +
-                                        'ctx.restore();' +
-                                    '};' +
-                                    'img.src = window.drawingData[pageNum].imageData;' +
-                                '}' +
-                                'window.currentRenderFunction = () => window.renderPresentationPage(pageNum);' +
-                            '} catch (error) {' +
-                                'console.error("Error rendering presentation page:", error);' +
-                            '}' +
-                        '};' +
-                        'window.performPresentationFadeTransition = async function(targetPageNum, direction) {' +
-                            'if (!window.presentationPdfDoc) return;' +
-                            'try {' +
-                                'const container = document.getElementById("presentationContent");' +
-                                'const currentPageElement = container.firstElementChild;' +
-                                'const windowWidth = window.innerWidth;' +
-                                'const windowHeight = window.innerHeight;' +
-                                'const targetPage = await window.presentationPdfDoc.getPage(targetPageNum);' +
-                                'const viewport = targetPage.getViewport({ scale: 1 });' +
-                                'const scaleX = windowWidth / viewport.width;' +
-                                'const scaleY = (windowHeight - 10) / viewport.height;' +
-                                'const scale = scaleX;' +
-                                'const scaledViewport = targetPage.getViewport({ scale });' +
-                                'const newPageContainer = document.createElement("div");' +
-                                'newPageContainer.className = "pdf-page-container";' +
-                                'newPageContainer.style.cssText = `width: ${scaledViewport.width}px; height: ${scaledViewport.height}px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0; transition: opacity 0.5s ease-in-out;`;' +
-                                'const pdfCanvas = document.createElement("canvas");' +
-                                'pdfCanvas.width = scaledViewport.width;' +
-                                'pdfCanvas.height = scaledViewport.height;' +
-                                'pdfCanvas.style.display = "block";' +
-                                'const drawingCanvas = document.createElement("canvas");' +
-                                'drawingCanvas.className = "presentation-canvas";' +
-                                'drawingCanvas.width = scaledViewport.width;' +
-                                'drawingCanvas.height = scaledViewport.height;' +
-                                'newPageContainer.appendChild(pdfCanvas);' +
-                                'newPageContainer.appendChild(drawingCanvas);' +
-                                'const renderContext = { canvasContext: pdfCanvas.getContext("2d"), viewport: scaledViewport };' +
-                                'await targetPage.render(renderContext).promise;' +
-                                'if (window.drawingData && window.drawingData[targetPageNum]) {' +
-                                    'const ctx = drawingCanvas.getContext("2d");' +
-                                    'const img = new Image();' +
-                                    'img.onload = function() {' +
-                                        'const scaleX = scaledViewport.width / window.drawingData[targetPageNum].canvasWidth;' +
-                                        'const scaleY = scaledViewport.height / window.drawingData[targetPageNum].canvasHeight;' +
-                                        'ctx.save();' +
-                                        'ctx.scale(scaleX, scaleY);' +
-                                        'ctx.drawImage(img, 0, 0);' +
-                                        'ctx.restore();' +
-                                    '};' +
-                                    'img.src = window.drawingData[targetPageNum].imageData;' +
-                                '}' +
-                                'if (currentPageElement) {' +
-                                    'currentPageElement.style.cssText = `position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 1; transition: opacity 0.5s ease-in-out;`;' +
-                                '}' +
-                                'container.appendChild(newPageContainer);' +
-                                'newPageContainer.offsetHeight;' +
-                                'if (currentPageElement) {' +
-                                    'currentPageElement.style.opacity = "0";' +
-                                '}' +
-                                'newPageContainer.style.opacity = "1";' +
-                                'await new Promise(resolve => setTimeout(resolve, 500));' +
-                                'container.innerHTML = "";' +
-                                'newPageContainer.style.cssText = `width: ${scaledViewport.width}px; height: ${scaledViewport.height}px; position: relative; opacity: 1;`;' +
-                                'container.appendChild(newPageContainer);' +
-                                'window.currentRenderFunction = () => window.renderPresentationPage(targetPageNum);' +
-                            '} catch (error) {' +
-                                'console.error("Error in presentation fade transition:", error);' +
-                            '}' +
-                        '};' +
-                        'function enterFullscreen() {' +
-                            'const btn = document.getElementById("fullscreenBtn");' +
-                            'if (document.documentElement.requestFullscreen) {' +
-                                'document.documentElement.requestFullscreen().then(() => {' +
-                                    'btn.classList.add("fullscreen-hidden");' +
-                                '}).catch(err => {' +
-                                    'console.error("Error entering fullscreen:", err);' +
-                                '});' +
-                            '} else if (document.documentElement.webkitRequestFullscreen) {' +
-                                'document.documentElement.webkitRequestFullscreen();' +
-                                'btn.classList.add("fullscreen-hidden");' +
-                            '} else if (document.documentElement.msRequestFullscreen) {' +
-                                'document.documentElement.msRequestFullscreen();' +
-                                'btn.classList.add("fullscreen-hidden");' +
-                            '}' +
-                        '}' +
-                        'document.addEventListener("fullscreenchange", handleFullscreenChange);' +
-                        'document.addEventListener("webkitfullscreenchange", handleFullscreenChange);' +
-                        'document.addEventListener("msfullscreenchange", handleFullscreenChange);' +
-                        'function handleFullscreenChange() {' +
-                            'const btn = document.getElementById("fullscreenBtn");' +
-                            'const isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);' +
-                            'if (isFullscreen) {' +
-                                'btn.classList.add("fullscreen-hidden");' +
-                            '} else {' +
-                                'btn.classList.remove("fullscreen-hidden");' +
-                            '}' +
-                            'setTimeout(() => {' +
-                                'if (window.currentRenderFunction) {' +
-                                    'window.currentRenderFunction();' +
-                                '}' +
-                            '}, 100);' +
-                        '}' +
-                    '<\/script>' +
-                '</body>' +
-                '</html>';
-        }
-
-        async function renderPresentationPage(pageNum) {
-            if (!presentationWindow || presentationWindow.closed || !pdfDoc) return;
-
-            try {
-                const page = await pdfDoc.getPage(pageNum);
-                const container = presentationWindow.document.getElementById('presentationContent');
-                
-                // Calculate scale to fit the presentation window
-                const windowWidth = presentationWindow.innerWidth;
-                const windowHeight = presentationWindow.innerHeight;
-                const viewport = page.getViewport({ scale: 1 });
-                
-                // Scale to fit both width and height with some padding
-                const scaleX = (windowWidth - 40) / viewport.width;
-                const scaleY = (windowHeight - 40) / viewport.height;
-                const scale = Math.min(scaleX, scaleY);
-                
-                const scaledViewport = page.getViewport({ scale });
-
-                // Create page container
-                const pageContainer = presentationWindow.document.createElement('div');
-                pageContainer.className = 'pdf-page-container';
-                pageContainer.style.width = scaledViewport.width + 'px';
-                pageContainer.style.height = scaledViewport.height + 'px';
-
-                // Create and setup PDF canvas
-                const pdfCanvas = presentationWindow.document.createElement('canvas');
-                pdfCanvas.width = scaledViewport.width;
-                pdfCanvas.height = scaledViewport.height;
-                pdfCanvas.style.display = 'block';
-
-                // Create and setup presentation canvas for drawings
-                const drawingCanvas = presentationWindow.document.createElement('canvas');
-                drawingCanvas.className = 'presentation-canvas';
-                drawingCanvas.width = scaledViewport.width;
-                drawingCanvas.height = scaledViewport.height;
-
-                // Clear container and add new elements
-                container.innerHTML = '';
-                pageContainer.appendChild(pdfCanvas);
-                pageContainer.appendChild(drawingCanvas);
-                container.appendChild(pageContainer);
-
-                // Render PDF page
-                const renderContext = {
-                    canvasContext: pdfCanvas.getContext('2d'),
-                    viewport: scaledViewport
-                };
-                await page.render(renderContext).promise;
-
-                // Restore drawing data for this page with proper scaling
-                if (drawingData[pageNum]) {
-                    const ctx = drawingCanvas.getContext('2d');
-                    const img = new Image();
-                    img.onload = function() {
-                        // Calculate scaling factors based on canvas size changes
-                        const scaleX = scaledViewport.width / drawingData[pageNum].canvasWidth;
-                        const scaleY = scaledViewport.height / drawingData[pageNum].canvasHeight;
-                        
-                        // Scale and draw the image to fit the new canvas size
-                        ctx.save();
-                        ctx.scale(scaleX, scaleY);
-                        ctx.drawImage(img, 0, 0);
-                        ctx.restore();
-                    };
-                    img.src = drawingData[pageNum].imageData;
-                }
-
-                // Store render function for window resize
-                presentationWindow.currentRenderFunction = () => renderPresentationPage(pageNum);
-
-            } catch (error) {
-                console.error('Error rendering presentation page:', error);
-            }
-        }
-
-        function updatePresentationWindow() {
-            if (presentationWindow && !presentationWindow.closed) {
-                try {
-                    // Update drawing data in presentation window
-                    presentationWindow.drawingData = drawingData;
-                    presentationWindow.currentPage = currentPage;
-                    
-                    // Call the presentation window's render function
-                    presentationWindow.renderPresentationPage(currentPage);
-                } catch (error) {
-                    console.error('Error updating presentation window:', error);
-                }
-            }
-        }
-
-        // Trigger fade transition in presentation window
-        function triggerPresentationFadeTransition(targetPageNum, direction) {
-            if (!presentationWindow || presentationWindow.closed) return;
-
-            try {
-                // Send message to presentation window to start fade transition
-                presentationWindow.postMessage({
-                    type: 'FADE_TRANSITION',
-                    targetPageNum: targetPageNum,
-                    direction: direction,
-                    drawingData: drawingData
-                }, '*');
-            } catch (error) {
-                console.error('Error triggering presentation fade transition:', error);
-                // Fallback to direct update
-                updatePresentationWindow();
-            }
-        }
-
-        // Real-time presentation window update for drawing
-        function updatePresentationWindowRealtime(fromX, fromY, toX, toY, lineWidth, tool, color) {
-            if (!presentationWindow || presentationWindow.closed) return;
-
-            try {
-                const container = presentationWindow.document.getElementById('presentationContent');
-                const drawingCanvas = container.querySelector('.presentation-canvas');
-                if (!drawingCanvas) return;
-
-                const ctx = drawingCanvas.getContext('2d');
-                const mainCanvas = document.querySelector('.drawing-canvas');
-                
-                if (!mainCanvas) return;
-
-                // Calculate scaling factors between main canvas and presentation canvas
-                const scaleX = drawingCanvas.width / mainCanvas.width;
-                const scaleY = drawingCanvas.height / mainCanvas.height;
-
-                // Apply the same drawing properties
-                ctx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over';
-                ctx.strokeStyle = color;
-                ctx.lineWidth = lineWidth * Math.min(scaleX, scaleY); // Scale line width proportionally
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-
-                // Draw the line with scaled coordinates
-                ctx.beginPath();
-                ctx.moveTo(fromX * scaleX, fromY * scaleY);
-                ctx.lineTo(toX * scaleX, toY * scaleY);
-                ctx.stroke();
-
-            } catch (error) {
-                console.error('Error updating presentation window in real-time:', error);
-            }
-        }
-
-        function closePDF() {
-            // Show upload area and header, hide PDF viewer
-            document.getElementById('uploadArea').style.display = 'block';
-            document.querySelector('header').style.display = 'block';
-            document.getElementById('pdfViewer').classList.add('hidden');
+            });
             
-            // Reset state
-            pdfDoc = null;
-            currentPage = 1;
-            totalPages = 0;
-            drawingData = {};
-            document.getElementById('downloadBtn').disabled = true;
-            document.getElementById('pdfUpload').value = '';
-        }
-
-        function setTool(tool) {
-            currentTool = tool;
-
-            // Update cursor
-            const canvas = document.querySelector('.drawing-canvas');
-            if (canvas) {
-                canvas.style.cursor = tool === 'eraser' ? 'grab' : 'crosshair';
-            }
-        }
-
-        function setColor(color) {
-            currentColor = color;
+            // Add to undo stack
+            undoStack.push(state);
             
-            // Update color indicator
-            const colorIndicator = document.getElementById('colorIndicator');
-            if (colorIndicator) {
-                colorIndicator.style.backgroundColor = color;
+            // Limit stack size
+            if (undoStack.length > maxHistorySize) {
+                undoStack.shift();
             }
             
-            // Close modal after selection
-            hideSettingsModal();
+            // Clear redo stack when new action is performed
+            redoStack = [];
+            
+            updateUndoRedoButtons();
         }
 
-        function clearCanvas() {
-            showConfirmDialog('Are you sure you want to clear all drawings on this page?', () => {
-                const canvas = document.querySelector('.drawing-canvas');
-                if (canvas) {
-                    const ctx = canvas.getContext('2d');
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    delete drawingData[currentPage];
-                    
-                    // Clear presentation window canvas in real-time
-                    clearPresentationCanvas();
+        // Restore state
+        function restoreState(state) {
+            if (!state) return;
+            
+            isUndoRedoOperation = true;
+            
+            // Restore menu trigger position
+            menuToggle.style.left = state.menuToggle.left;
+            menuToggle.style.top = state.menuToggle.top;
+            menuToggle.style.transform = state.menuToggle.transform;
+            
+            // Restore menu item positions
+            document.querySelectorAll('.menu-item').forEach(item => {
+                const itemName = item.getAttribute('data-item');
+                if (state.menuItems[itemName]) {
+                    item.style.left = state.menuItems[itemName].left;
+                    item.style.top = state.menuItems[itemName].top;
+                    item.style.transform = state.menuItems[itemName].transform;
                 }
             });
-        }
-
-        // Clear presentation window canvas
-        function clearPresentationCanvas() {
-            if (!presentationWindow || presentationWindow.closed) return;
-
-            try {
-                const container = presentationWindow.document.getElementById('presentationContent');
-                const drawingCanvas = container.querySelector('.presentation-canvas');
-                if (drawingCanvas) {
-                    const ctx = drawingCanvas.getContext('2d');
-                    ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-                }
-            } catch (error) {
-                console.error('Error clearing presentation canvas:', error);
-            }
-        }
-
-        async function downloadPDF() {
-            if (!pdfDoc) return;
-
-            try {
-                if (drawingData[currentPage]) {
-                    const link = document.createElement('a');
-                    link.download = `pdf-drawing-page-${currentPage}.png`;
-                    link.href = drawingData[currentPage].imageData;
-                    link.click();
-                } else {
-                    showCustomAlert('No drawings found on current page to download.');
-                }
-                
-            } catch (error) {
-                console.error('Error downloading:', error);
-                showCustomAlert('Error downloading the file.');
-            }
-        }
-
-        // Fullscreen functionality for Android devices
-        function toggleFullscreen() {
-            if (!document.fullscreenElement) {
-                // Enter fullscreen
-                const element = document.documentElement;
-                if (element.requestFullscreen) {
-                    element.requestFullscreen();
-                } else if (element.webkitRequestFullscreen) {
-                    // Safari
-                    element.webkitRequestFullscreen();
-                } else if (element.msRequestFullscreen) {
-                    // IE/Edge
-                    element.msRequestFullscreen();
-                } else if (element.mozRequestFullScreen) {
-                    // Firefox
-                    element.mozRequestFullScreen();
-                }
-                
-                // Update icon to minimize
-                updateFullscreenIcon(true);
-            } else {
-                // Exit fullscreen
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                } else if (document.webkitExitFullscreen) {
-                    document.webkitExitFullscreen();
-                } else if (document.msExitFullscreen) {
-                    document.msExitFullscreen();
-                } else if (document.mozCancelFullScreen) {
-                    document.mozCancelFullScreen();
-                }
-                
-                // Update icon to maximize
-                updateFullscreenIcon(false);
-            }
-        }
-
-        function updateFullscreenIcon(isFullscreen) {
-            const icon = document.querySelector('#fullscreenBtn i');
-            if (icon) {
-                if (isFullscreen) {
-                    icon.setAttribute('data-lucide', 'minimize');
-                } else {
-                    icon.setAttribute('data-lucide', 'maximize');
-                }
-                // Reinitialize icons to update the display
-                initializeLucideIcons();
-            }
-        }
-
-        // Listen for fullscreen changes to update the icon
-        document.addEventListener('fullscreenchange', () => {
-            updateFullscreenIcon(!!document.fullscreenElement);
-        });
-        document.addEventListener('webkitfullscreenchange', () => {
-            updateFullscreenIcon(!!document.webkitFullscreenElement);
-        });
-        document.addEventListener('msfullscreenchange', () => {
-            updateFullscreenIcon(!!document.msFullscreenElement);
-        });
-        document.addEventListener('mozfullscreenchange', () => {
-            updateFullscreenIcon(!!document.mozFullScreenElement);
-        });
-
-        // Custom dialog functions (replacing alert/confirm)
-        function showCustomAlert(message) {
-            const modal = document.createElement('div');
-            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
-            modal.innerHTML = `
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-sm w-full">
-                    <p class="text-gray-700 dark:text-gray-300 mb-4">${message}</p>
-                    <div class="flex justify-end">
-                        <button class="px-4 py-2 bg-primary text-white hover:bg-primary/90 rounded text-base" onclick="this.closest('.fixed').remove()">OK</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-        }
-
-        function showConfirmDialog(message, onConfirm) {
-            const modal = document.createElement('div');
-            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
-            modal.innerHTML = `
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-sm w-full">
-                    <p class="text-gray-700 dark:text-gray-300 mb-4">${message}</p>
-                    <div class="flex justify-end space-x-3">
-                        <button class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-base" onclick="this.closest('.fixed').remove()">Cancel</button>
-                        <button class="px-4 py-2 bg-red-500 text-white hover:bg-red-600 rounded text-base" onclick="this.closest('.fixed').remove(); (${onConfirm})()">Confirm</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-        }
-
-        // Initialize Lucide icons
-        function initializeLucideIcons() {
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            } else {
-                // Retry after a short delay if Lucide isn't loaded yet
-                setTimeout(initializeLucideIcons, 100);
-            }
-        }
-        
-
-
-        // Initialize icons when DOM is ready
-        document.addEventListener('DOMContentLoaded', () => {
-            initializeLucideIcons();
-            setupSettingsListeners();
             
-            // Add global context menu blocking for S-Pen
-            document.addEventListener('contextmenu', blockAllContextMenus, true);
+            updatePositionDisplay();
+            isUndoRedoOperation = false;
+        }
+
+        // Undo operation
+        function undo() {
+            if (undoStack.length === 0) return;
+            
+            // Save current state to redo stack
+            const currentState = {
+                menuItems: {},
+                menuToggle: {
+                    left: menuToggle.style.left || '',
+                    top: menuToggle.style.top || '',
+                    transform: menuToggle.style.transform || 'translate(-50%, -50%)'
+                }
+            };
+            
+            document.querySelectorAll('.menu-item').forEach(item => {
+                const itemName = item.getAttribute('data-item');
+                currentState.menuItems[itemName] = {
+                    left: item.style.left || '',
+                    top: item.style.top || '',
+                    transform: item.style.transform || ''
+                };
+            });
+            
+            redoStack.push(currentState);
+            
+            // Restore previous state
+            const previousState = undoStack.pop();
+            restoreState(previousState);
+            
+            updateUndoRedoButtons();
+        }
+
+        // Redo operation
+        function redo() {
+            if (redoStack.length === 0) return;
+            
+            // Save current state to undo stack
+            const currentState = {
+                menuItems: {},
+                menuToggle: {
+                    left: menuToggle.style.left || '',
+                    top: menuToggle.style.top || '',
+                    transform: menuToggle.style.transform || 'translate(-50%, -50%)'
+                }
+            };
+            
+            document.querySelectorAll('.menu-item').forEach(item => {
+                const itemName = item.getAttribute('data-item');
+                currentState.menuItems[itemName] = {
+                    left: item.style.left || '',
+                    top: item.style.top || '',
+                    transform: item.style.transform || ''
+                };
+            });
+            
+            undoStack.push(currentState);
+            
+            // Restore next state
+            const nextState = redoStack.pop();
+            restoreState(nextState);
+            
+            updateUndoRedoButtons();
+        }
+
+        // Update button states
+        function updateUndoRedoButtons() {
+            undoBtn.disabled = undoStack.length === 0;
+            redoBtn.disabled = redoStack.length === 0;
+        }
+
+        // Event listeners for undo/redo buttons
+        undoBtn.addEventListener('click', undo);
+        redoBtn.addEventListener('click', redo);
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+                e.preventDefault();
+                undo();
+            } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+                e.preventDefault();
+                redo();
+            }
         });
-        
-        // Also initialize when PDF viewer is shown
-        const originalRenderPage = renderPage;
-        renderPage = async function(pageNum, withTransition = false) {
-            await originalRenderPage(pageNum, withTransition);
-            initializeLucideIcons();
+
+        // Save initial state
+        setTimeout(() => {
+            saveState();
+        }, 100);
+
+        // Store original positions for restoration
+        const originalPositions = {
+            menuTrigger: { left: -442, top: 401 },
+            home: { left: -456, top: 287 },
+            search: { left: -402, top: 307 },
+            settings: { left: -356, top: 345 },
+            profile: { left: -339, top: 404 },
+            help: { left: -358, top: 461 }
         };
-
-        // Handle window resize for responsive behavior with debouncing
+        
+        // Responsive positioning to keep menu in viewport
         let resizeTimeout;
-        window.addEventListener('resize', () => {
-            if (pdfDoc) {
-                // Clear existing timeout
-                clearTimeout(resizeTimeout);
+        function adjustMenuPosition() {
+            const container = document.getElementById('pieMenu');
+            const containerRect = container.getBoundingClientRect();
+            
+            // Get all menu elements (trigger + items)
+            const allMenuElements = [menuToggle, ...document.querySelectorAll('.menu-item')];
+            
+            // First, try to restore original positions
+            menuToggle.style.left = originalPositions.menuTrigger.left + 'px';
+            menuToggle.style.top = originalPositions.menuTrigger.top + 'px';
+            
+            document.querySelectorAll('.menu-item').forEach(item => {
+                const itemName = item.getAttribute('data-item');
+                if (originalPositions[itemName]) {
+                    item.style.left = originalPositions[itemName].left + 'px';
+                    item.style.top = originalPositions[itemName].top + 'px';
+                }
+            });
+            
+            // Wait a frame for positions to update, then check if adjustments are needed
+            requestAnimationFrame(() => {
+                // Find the bounding box of all menu elements in viewport coordinates
+                let minViewportX = Infinity, minViewportY = Infinity, maxViewportX = -Infinity, maxViewportY = -Infinity;
                 
-                // Set new timeout to prevent excessive re-rendering
-                resizeTimeout = setTimeout(() => {
-                    renderPage(currentPage);
-                }, 250); // Wait 250ms after resize stops
+                allMenuElements.forEach(element => {
+                    const rect = element.getBoundingClientRect();
+                    
+                    minViewportX = Math.min(minViewportX, rect.left);
+                    minViewportY = Math.min(minViewportY, rect.top);
+                    maxViewportX = Math.max(maxViewportX, rect.right);
+                    maxViewportY = Math.max(maxViewportY, rect.bottom);
+                });
+                
+                // Calculate needed adjustments to keep menu in viewport
+                let adjustX = 0, adjustY = 0;
+                const padding = 10; // 10px padding from viewport edges
+                
+                // Check if menu extends beyond left edge of viewport
+                if (minViewportX < padding) {
+                    adjustX = padding - minViewportX;
+                }
+                
+                // Check if menu extends beyond top edge of viewport  
+                if (minViewportY < padding) {
+                    adjustY = padding - minViewportY;
+                }
+                
+                // Check if menu extends beyond right edge of viewport
+                const viewportWidth = window.innerWidth;
+                if (maxViewportX > viewportWidth - padding) {
+                    adjustX = viewportWidth - padding - maxViewportX;
+                }
+                
+                // Check if menu extends beyond bottom edge of viewport
+                const viewportHeight = window.innerHeight;
+                if (maxViewportY > viewportHeight - padding) {
+                    adjustY = viewportHeight - padding - maxViewportY;
+                }
+                
+                // Apply adjustments if needed
+                if (Math.abs(adjustX) > 2 || Math.abs(adjustY) > 2) {
+                    allMenuElements.forEach(element => {
+                        const currentLeft = parseInt(element.style.left) || 0;
+                        const currentTop = parseInt(element.style.top) || 0;
+                        
+                        element.style.left = (currentLeft + adjustX) + 'px';
+                        element.style.top = (currentTop + adjustY) + 'px';
+                    });
+                }
+                
+                // Update position display after adjustment
+                updatePositionDisplay();
+            });
+        }
+
+        // Debounced resize handler to prevent excessive adjustments
+        function debouncedAdjustMenuPosition() {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                adjustMenuPosition();
+            }, 150); // Wait 150ms after resize stops
+        }
+
+        // Add resize event listener with debouncing
+        window.addEventListener('resize', debouncedAdjustMenuPosition);
+        
+        // Initial adjustment on load (only once)
+        setTimeout(() => {
+            adjustMenuPosition();
+        }, 200);
+
+        // Ring functionality
+        let ringVisible = false;
+        let ringDragging = false;
+        let ringStartX, ringStartY;
+
+        const toggleRingBtn = document.getElementById('toggleRing');
+        const ringSizeSlider = document.getElementById('ringSizeSlider');
+        const ringSize = document.getElementById('ringSize');
+        const ringColor = document.getElementById('ringColor');
+        const centerRingBtn = document.getElementById('centerRing');
+        const dragRing = document.getElementById('dragRing');
+
+        // Toggle ring visibility
+        toggleRingBtn.addEventListener('click', () => {
+            ringVisible = !ringVisible;
+            
+            if (ringVisible) {
+                dragRing.style.opacity = '1';
+                dragRing.style.pointerEvents = 'auto';
+                toggleRingBtn.textContent = 'Hide Ring';
+                toggleRingBtn.classList.remove('bg-orange-500', 'hover:bg-orange-600');
+                toggleRingBtn.classList.add('bg-red-500', 'hover:bg-red-600');
+            } else {
+                dragRing.style.opacity = '0';
+                dragRing.style.pointerEvents = 'none';
+                toggleRingBtn.textContent = 'Show Ring';
+                toggleRingBtn.classList.remove('bg-red-500', 'hover:bg-red-600');
+                toggleRingBtn.classList.add('bg-orange-500', 'hover:bg-orange-600');
             }
         });
+
+        // Update ring size
+        ringSizeSlider.addEventListener('input', (e) => {
+            const size = e.target.value;
+            ringSize.textContent = size;
+            dragRing.style.width = size + 'px';
+            dragRing.style.height = size + 'px';
+        });
+
+        // Update ring color
+        ringColor.addEventListener('change', (e) => {
+            const newColor = e.target.value;
+            dragRing.style.borderColor = newColor;
+            
+            // Update cross color to match ring
+            const crossHorizontal = document.getElementById('crossHorizontal');
+            const crossVertical = document.getElementById('crossVertical');
+            crossHorizontal.style.backgroundColor = newColor;
+            crossVertical.style.backgroundColor = newColor;
+        });
+
+        // Center ring
+        centerRingBtn.addEventListener('click', () => {
+            const container = document.getElementById('pieMenu');
+            const containerRect = container.getBoundingClientRect();
+            
+            dragRing.style.top = '50%';
+            dragRing.style.left = '50%';
+            dragRing.style.transform = 'translate(-50%, -50%)';
+        });
+
+        // Ring drag functionality
+        dragRing.addEventListener('mousedown', startRingDrag);
+        dragRing.addEventListener('touchstart', startRingDrag, { passive: false });
+
+        function startRingDrag(e) {
+            if (!ringVisible) return;
+            
+            const clientX = e.type === 'mousedown' ? e.clientX : e.touches[0].clientX;
+            const clientY = e.type === 'mousedown' ? e.clientY : e.touches[0].clientY;
+            
+            const rect = dragRing.getBoundingClientRect();
+            
+            // Calculate distance from click point to ring center
+            const centerX = rect.left + rect.width/2;
+            const centerY = rect.top + rect.height/2;
+            const distanceFromCenter = Math.sqrt(
+                Math.pow(clientX - centerX, 2) + Math.pow(clientY - centerY, 2)
+            );
+            
+            // Get current ring size
+            const currentSize = parseInt(dragRing.style.width) || 100;
+            const radius = currentSize / 2;
+            const borderThickness = 8; // 8px click area around the border
+            
+            // Only allow dragging if click is on the ring border (not inside)
+            if (distanceFromCenter < radius - borderThickness || distanceFromCenter > radius + borderThickness) {
+                return; // Click is not on the ring border
+            }
+            
+            e.preventDefault();
+            e.stopPropagation();
+            ringDragging = true;
+            
+            const container = document.getElementById('pieMenu');
+            const containerRect = container.getBoundingClientRect();
+            
+            // Calculate offset from click point to ring's current position (center)
+            ringStartX = clientX - (rect.left + rect.width/2);
+            ringStartY = clientY - (rect.top + rect.height/2);
+            
+            dragRing.style.cursor = 'grabbing';
+            
+            // Add global event listeners
+            document.addEventListener('mousemove', dragRingMove);
+            document.addEventListener('mouseup', endRingDrag);
+            document.addEventListener('touchmove', dragRingMove, { passive: false });
+            document.addEventListener('touchend', endRingDrag);
+        }
+
+        function dragRingMove(e) {
+            if (!ringDragging) return;
+            
+            e.preventDefault();
+            
+            const clientX = e.type === 'mousemove' ? e.clientX : e.touches[0].clientX;
+            const clientY = e.type === 'mousemove' ? e.clientY : e.touches[0].clientY;
+            
+            const container = document.getElementById('pieMenu');
+            const containerRect = container.getBoundingClientRect();
+            
+            // Calculate new center position relative to container
+            let newCenterX = clientX - containerRect.left - ringStartX;
+            let newCenterY = clientY - containerRect.top - ringStartY;
+            
+            // Update position (the ring uses center positioning)
+            dragRing.style.left = newCenterX + 'px';
+            dragRing.style.top = newCenterY + 'px';
+            dragRing.style.transform = 'translate(-50%, -50%)';
+        }
+
+        function endRingDrag(e) {
+            if (!ringDragging) return;
+            
+            ringDragging = false;
+            dragRing.style.cursor = 'move';
+            
+            // Remove global event listeners
+            document.removeEventListener('mousemove', dragRingMove);
+            document.removeEventListener('mouseup', endRingDrag);
+            document.removeEventListener('touchmove', dragRingMove);
+            document.removeEventListener('touchend', endRingDrag);
+        }
     </script>
 </body>
 </html>
