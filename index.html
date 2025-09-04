@@ -318,11 +318,7 @@
                 return;
             }
             
-            // Open menu immediately on touch/mouse down (except for selection mode)
-            if (!selectionMode && !menuOpen) {
-                toggleMenu();
-            }
-            
+            // Always setup basic position tracking for drag detection
             const clientX = e.type === 'mousedown' ? e.clientX : e.touches[0].clientX;
             const clientY = e.type === 'mousedown' ? e.clientY : e.touches[0].clientY;
             
@@ -330,7 +326,14 @@
             menuDragStartX = clientX - rect.left - rect.width/2;
             menuDragStartY = clientY - rect.top - rect.height/2;
             
-            // Add global event listeners
+            if (!selectionMode) {
+                // In normal mode, add minimal listeners for click/tap detection
+                document.addEventListener('mouseup', endMenuDrag);
+                document.addEventListener('touchend', endMenuDrag);
+                return;
+            }
+            
+            // In selection mode, add full drag functionality
             document.addEventListener('mousemove', dragMenuTrigger);
             document.addEventListener('mouseup', endMenuDrag);
             document.addEventListener('touchmove', dragMenuTrigger, { passive: false });
@@ -385,14 +388,17 @@
             
             menuToggle.style.cursor = '';
             
-            // If it was a quick click (not a drag)
-            if (!menuDragging && clickDuration < 200) {
+            // If it was a quick click/tap (not a drag) and duration was reasonable
+            if (!menuDragging && clickDuration < 500) {
+                // Prevent default touch behavior to avoid conflicts
+                e.preventDefault();
+                
                 // In selection mode, toggle selection instead of menu
                 if (selectionMode) {
-                    e.preventDefault();
                     e.stopPropagation();
                     toggleItemSelection(menuToggle);
                 } else {
+                    // Open/close menu for both mouse and touch
                     toggleMenu();
                 }
             } else if (menuDragging) {
@@ -400,6 +406,7 @@
                 saveState();
             }
             
+            // Reset drag state
             menuDragging = false;
         }
 
