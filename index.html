@@ -764,12 +764,12 @@
                     return;
                 }
                 
-                // Check if this is the home item
+                // Check if this is the home item - single click does nothing in normal mode
                 const itemName = e.currentTarget.getAttribute('data-item');
                 if (itemName === 'home') {
                     e.preventDefault();
                     e.stopPropagation();
-                    toggleHomeSubmenu();
+                    // Single click on home item does nothing - submenu opens on double click only
                     return;
                 }
                 
@@ -816,7 +816,10 @@
                     return;
                 }
                 
-                // Submenu item click functionality
+                // Submenu item click functionality - close all menus immediately
+                e.preventDefault();
+                e.stopPropagation();
+                
                 const itemName = e.currentTarget.getAttribute('data-item');
                 console.log('Submenu item clicked:', itemName);
                 
@@ -830,13 +833,8 @@
                     rippleEffect.style.opacity = '0';
                 }, 600);
                 
-                // Close submenu and main menu after selection
-                setTimeout(() => {
-                    toggleHomeSubmenu();
-                    setTimeout(() => {
-                        menuToggle.click();
-                    }, 100);
-                }, 200);
+                // Close submenu and main menu immediately
+                closeAllMenus();
             });
             
             // Add hover effects for submenu items
@@ -856,10 +854,109 @@
         // Initialize selection UI
         updateSelectionUI();
 
-        // Close menu when clicking outside
+        // Double click/touch functionality for home item (pen submenu)
+        let touchTime = 0;
+        let touchCount = 0;
+        const doubleTapDelay = 300; // Maximum time between touches for double tap
+        
+        // Find the home item
+        const homeItem = document.querySelector('[data-item="home"]');
+        
+        // Add double click listener for desktop
+        homeItem.addEventListener('dblclick', (e) => {
+            if (selectionMode) return; // Don't open submenu in selection mode
+            
+            e.preventDefault();
+            e.stopPropagation();
+            toggleHomeSubmenu();
+        });
+        
+        // Add touch listeners for mobile double tap
+        homeItem.addEventListener('touchend', (e) => {
+            if (selectionMode) return; // Don't open submenu in selection mode
+            
+            const currentTime = new Date().getTime();
+            const tapLength = currentTime - touchTime;
+            
+            if (tapLength < doubleTapDelay && tapLength > 0) {
+                // Double tap detected
+                e.preventDefault();
+                e.stopPropagation();
+                touchCount = 0; // Reset count
+                toggleHomeSubmenu();
+            } else {
+                // Single tap - just record the time
+                touchTime = currentTime;
+                touchCount++;
+                
+                // Reset count after delay if no second tap
+                setTimeout(() => {
+                    touchCount = 0;
+                }, doubleTapDelay);
+            }
+        });
+
+        // Function to close all menus
+        function closeAllMenus() {
+            // Close submenu if open
+            if (homeSubmenuOpen) {
+                homeSubmenuOpen = false;
+                homeSubmenu.classList.remove('submenu-active');
+                homeSubmenu.style.opacity = '0';
+                homeSubmenu.style.pointerEvents = 'none';
+            }
+            
+            // Close main menu if open
+            if (menuOpen) {
+                menuOpen = false;
+                menuItems.classList.remove('menu-active');
+                menuIcon.textContent = '☰';
+            }
+        }
+
+        // Close menu when clicking/touching anywhere outside menu area
         document.addEventListener('click', (e) => {
-            if (menuOpen && !document.getElementById('pieMenu').contains(e.target)) {
-                menuToggle.click();
+            // Don't close if clicking on panel or panel controls
+            if (panelOpen && (positionPanel.contains(e.target) || infoToggle.contains(e.target))) {
+                return;
+            }
+            
+            // Don't close if in selection mode (to avoid interfering with selection)
+            if (selectionMode) {
+                return;
+            }
+            
+            // Don't close if clicking on undo/redo buttons
+            if (undoBtn.contains(e.target) || redoBtn.contains(e.target)) {
+                return;
+            }
+            
+            // Close all menus if clicking outside the pie menu area
+            if (!document.getElementById('pieMenu').contains(e.target)) {
+                closeAllMenus();
+            }
+        });
+
+        // Also handle touch events for mobile
+        document.addEventListener('touchend', (e) => {
+            // Don't close if touching on panel or panel controls
+            if (panelOpen && (positionPanel.contains(e.target) || infoToggle.contains(e.target))) {
+                return;
+            }
+            
+            // Don't close if in selection mode
+            if (selectionMode) {
+                return;
+            }
+            
+            // Don't close if touching undo/redo buttons
+            if (undoBtn.contains(e.target) || redoBtn.contains(e.target)) {
+                return;
+            }
+            
+            // Close all menus if touching outside the pie menu area
+            if (!document.getElementById('pieMenu').contains(e.target)) {
+                closeAllMenus();
             }
         });
 
