@@ -140,7 +140,7 @@
         <div id="pieMenu" class="relative w-80 h-80 mx-auto">
             
             <!-- Center Button -->
-            <button id="menuToggle" class="absolute w-10 h-10 text-white rounded-full shadow-lg flex items-center justify-center text-sm font-bold transition-all duration-300 z-20" style="left: -431px; top: 393px; background-color: rgba(93, 92, 222, 0.7);">
+            <button id="menuToggle" class="absolute w-10 h-10 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-black dark:text-gray-200 rounded-full shadow-lg flex items-center justify-center text-sm font-bold transition-all duration-300 z-20 border-2 border-gray-200 dark:border-gray-600 hover:border-primary dark:hover:border-primary" style="left: -431px; top: 393px;">
                 <span id="menuIcon">☰</span>
             </button>
             
@@ -379,6 +379,7 @@
                 .menu-item { background-color: #ffffff !important; color: #000000 !important; }
                 .submenu-item { background-color: #ffffff !important; color: #000000 !important; }
                 .submenu-item div { background-color: #000000 !important; }
+                #menuToggle { background-color: #ffffff !important; color: #000000 !important; }
                 #positionPanel { background-color: #ffffff !important; }
                 #undoBtn, #redoBtn, #infoToggle, #closePanel { background-color: #e5e7eb !important; color: #374151 !important; }
                 .bg-gray-50 { background-color: #f9fafb !important; }
@@ -396,6 +397,7 @@
                 .menu-item { background-color: #374151 !important; color: #e5e7eb !important; }
                 .submenu-item { background-color: #374151 !important; color: #e5e7eb !important; }
                 .submenu-item div { background-color: #e5e7eb !important; }
+                #menuToggle { background-color: #374151 !important; color: #e5e7eb !important; }
                 #positionPanel { background-color: #1f2937 !important; }
                 #undoBtn, #redoBtn, #infoToggle, #closePanel { background-color: #374151 !important; color: #e5e7eb !important; }
                 .bg-gray-50 { background-color: #374151 !important; }
@@ -740,10 +742,10 @@
                 homeSubmenu.style.opacity = '1';
                 homeSubmenu.style.pointerEvents = 'auto';
                 
-                // Synchronized animation for submenu items
+                // Synchronized animation for submenu items (same as main menu)
                 const submenuItems = document.querySelectorAll('.submenu-item');
-                submenuItems.forEach((item, index) => {
-                    item.style.transitionDelay = (index * 50) + 'ms';
+                submenuItems.forEach((item) => {
+                    item.style.transitionDelay = '0ms';
                 });
             } else {
                 homeSubmenu.classList.remove('submenu-active');
