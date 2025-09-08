@@ -99,7 +99,7 @@
         <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-gray-900 dark:text-white">PDF Drawing App</h1>
-                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Stylus input only - Supports MPP stylus | Speed-responsive eraser</p>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Stylus-only drawing | 2-finger swipe navigation | MPP stylus with pressure & speed-responsive eraser</p>
             </div>
             
             <!-- File Upload and Theme Toggle -->
@@ -138,10 +138,10 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
                         </svg>
                         <p class="text-lg font-medium">No PDF loaded</p>
-                        <p class="text-sm mt-2">Upload a PDF file to start drawing with your stylus</p>
+                        <p class="text-sm mt-2">Upload a PDF file to start drawing with stylus</p>
                         <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                             <p class="text-sm text-blue-700 dark:text-blue-300">
-                                <strong>Note:</strong> This app supports MPP stylus with speed-responsive eraser sizing.
+                                <strong>Note:</strong> Stylus-only drawing | Supports MPP stylus with pressure sensitivity and speed-responsive eraser.
                             </p>
                         </div>
                     </div>
@@ -583,7 +583,7 @@
 
         // Handle double-click on tool buttons
         function handleToolDoubleClick(e) {
-            if (e.pointerType !== 'pen') return;
+            if (e.pointerType !== 'pen' && e.pointerType !== 'touch') return;
             
             const currentTime = Date.now();
             const target = e.currentTarget;
@@ -609,7 +609,7 @@
 
         // Handle single-click on color button
         function handleColorSingleClick(e) {
-            if (e.pointerType !== 'pen') return;
+            if (e.pointerType !== 'pen' && e.pointerType !== 'touch') return;
             
             // Immediately show color picker on single tap
             e.preventDefault();
@@ -678,7 +678,7 @@
 
         // Click outside modal to close
         document.addEventListener('pointerdown', function(e) {
-            if (e.pointerType !== 'pen') return;
+            if (e.pointerType !== 'pen' && e.pointerType !== 'touch') return;
             
             const modal = document.getElementById('settingsModal');
             const toolbar = document.getElementById('floatingToolbar');
@@ -986,6 +986,14 @@
             let pressureHistory = [];
             const maxHistoryLength = 5;
 
+            // 2-finger gesture variables
+            let gestureStartTouches = [];
+            let gestureCurrentTouches = [];
+            let isGestureActive = false;
+            let gestureStartTime = 0;
+            const SWIPE_MIN_DISTANCE = 20; // Minimum swipe distance in pixels (very easy to trigger)
+            const SWIPE_MAX_TIME = 2000; // Maximum time for swipe gesture in ms (very generous timing)
+
             // Create eraser indicator
             const eraserIndicator = document.createElement('div');
             eraserIndicator.id = 'eraserIndicator';
@@ -1015,17 +1023,140 @@
                 }
             });
 
-            // Prevent default touch and mouse behaviors to avoid conflicts
-            canvas.addEventListener('touchstart', e => e.preventDefault());
-            canvas.addEventListener('touchmove', e => e.preventDefault());
-            canvas.addEventListener('touchend', e => e.preventDefault());
+            // Prevent default mouse behaviors to avoid conflicts (allow touch for finger input)
             canvas.addEventListener('mousedown', e => e.preventDefault());
             canvas.addEventListener('mousemove', e => e.preventDefault());
             canvas.addEventListener('mouseup', e => e.preventDefault());
 
+            // 2-finger gesture detection with touch events
+            canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+            canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+            canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+            function handleTouchStart(e) {
+                if (e.touches.length === 2) {
+                    // 2-finger gesture detected - prevent drawing and start gesture tracking
+                    e.preventDefault();
+                    isGestureActive = true;
+                    gestureStartTime = Date.now();
+                    
+                    // Store initial touch positions
+                    gestureStartTouches = Array.from(e.touches).map(touch => ({
+                        x: touch.clientX,
+                        y: touch.clientY
+                    }));
+                    
+                    // Stop any ongoing drawing
+                    if (isDrawing) {
+                        isDrawing = false;
+                        hideEraserIndicator();
+                        updatePressureIndicator(0);
+                        resetSpeedTracking();
+                    }
+                } else if (e.touches.length === 1 && !isGestureActive) {
+                    // Allow single touch drawing to continue normally
+                    // (the pointerdown handler will take care of this)
+                }
+            }
+
+            function handleTouchMove(e) {
+                if (isGestureActive && e.touches.length === 2) {
+                    // Prevent scrolling/zooming while gesture is active
+                    e.preventDefault();
+                    
+                    // Update current touch positions for gesture calculation
+                    gestureCurrentTouches = Array.from(e.touches).map(touch => ({
+                        x: touch.clientX,
+                        y: touch.clientY
+                    }));
+                } else if (e.touches.length !== 2) {
+                    // Reset gesture if touch count changes
+                    isGestureActive = false;
+                    gestureStartTouches = [];
+                    gestureCurrentTouches = [];
+                }
+            }
+
+            function handleTouchEnd(e) {
+                if (isGestureActive) {
+                    // 2-finger gesture completed (even if not both fingers up simultaneously)
+                    e.preventDefault();
+                    
+                    const gestureEndTime = Date.now();
+                    const gestureTime = gestureEndTime - gestureStartTime;
+                    
+                    console.log('Touch end - fingers remaining:', e.touches.length);
+                    
+                    // Much more forgiving conditions - check if we have any gesture data
+                    if (gestureTime <= SWIPE_MAX_TIME && gestureStartTouches.length >= 2) {
+                        
+                        // Use the last known positions if we don't have current positions
+                        let endTouches = gestureCurrentTouches;
+                        if (endTouches.length < 2 && gestureStartTouches.length >= 2) {
+                            // If we lost tracking, try to estimate from remaining touches
+                            if (e.touches.length > 0) {
+                                console.log('Using fallback position estimation');
+                                // Use current touch positions as approximation
+                                endTouches = Array.from(e.touches).map(touch => ({
+                                    x: touch.clientX,
+                                    y: touch.clientY
+                                }));
+                                // Duplicate if only one finger left
+                                while (endTouches.length < 2) {
+                                    endTouches.push(endTouches[0]);
+                                }
+                            } else {
+                                // Use start positions as fallback (no movement detected)
+                                endTouches = [...gestureStartTouches];
+                            }
+                        }
+                        
+                        if (endTouches.length >= 2) {
+                            // Calculate average movement 
+                            const avgStartX = (gestureStartTouches[0].x + gestureStartTouches[1].x) / 2;
+                            const avgEndX = (endTouches[0].x + endTouches[1].x) / 2;
+                            
+                            const deltaX = avgEndX - avgStartX;
+                            const absX = Math.abs(deltaX);
+                            
+                            console.log(`Gesture: start=${avgStartX}, end=${avgEndX}, deltaX=${deltaX}, distance=${absX}`);
+                            
+                            // Very generous distance check
+                            if (absX >= SWIPE_MIN_DISTANCE) {
+                                if (deltaX > 0) {
+                                    console.log('Swipe right detected - going to previous page');
+                                    changePage(-1);
+                                } else {
+                                    console.log('Swipe left detected - going to next page');
+                                    changePage(1);
+                                }
+                            } else {
+                                console.log('Swipe distance too small:', absX);
+                            }
+                        }
+                    } else {
+                        console.log('Gesture conditions not met:', { 
+                            gestureTime, 
+                            startTouches: gestureStartTouches.length, 
+                            currentTouches: gestureCurrentTouches.length 
+                        });
+                    }
+                    
+                    // Always reset gesture state when any touch ends during an active gesture
+                    isGestureActive = false;
+                    gestureStartTouches = [];
+                    gestureCurrentTouches = [];
+                }
+            }
+
             function startDrawing(e) {
-                // Only allow pen input (Microsoft Pen Protocol stylus)
+                // Only allow pen/stylus input for drawing
                 if (e.pointerType !== 'pen') {
+                    return;
+                }
+
+                // Prevent drawing if 2-finger gesture is active
+                if (isGestureActive) {
                     return;
                 }
 
@@ -1085,8 +1216,13 @@
             }
 
             function draw(e) {
-                // Only allow pen input
+                // Only allow pen/stylus input for drawing
                 if (e.pointerType !== 'pen' || !isDrawing) {
+                    return;
+                }
+
+                // Prevent drawing if 2-finger gesture is active
+                if (isGestureActive) {
                     return;
                 }
                 
@@ -1235,7 +1371,7 @@
             }
 
             function stopDrawing(e) {
-                // Only process pen input
+                // Only allow pen/stylus input for drawing
                 if (e.pointerType !== 'pen') return;
                 
                 if (isDrawing) {
