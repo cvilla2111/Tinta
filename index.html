@@ -1,279 +1,123 @@
 <!DOCTYPE html><html lang="en"><head><meta name="x-poe-datastore-behavior" content="local_only"><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Presentation App - Working Multi-Monitor</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+    <meta charset="utf-8">
+    <meta name="color-scheme" content="dark light">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Multi-Screen Window Management API Demo</title>
     <style>
-        .slide-content {
-            min-height: 400px;
+        @media (prefers-color-scheme: dark) {
+            :root {
+                color: #fff;
+                background-color: #000;
+            }
         }
-        .presenter-slide {
-            aspect-ratio: 16/9;
+        body {
+            font-family: system-ui, sans-serif;
+            margin: 2em;
         }
-        .slide-thumbnail {
-            aspect-ratio: 16/9;
-            transition: all 0.2s ease;
+
+        h1 {
+            color: #373fff;
         }
-        .slide-thumbnail:hover {
+
+        footer {
+            position: absolute;
+            bottom: 2em;
+            font-size: 0.8rem;
+        }
+
+        a {
+            color: red;
+        }
+
+        input {
+            font-size: inherit;
+            display: block;
+            margin-top: 1rem;
+        }
+
+        input:after {
+            content: attr(data-value);
+            font-size: 1rem;
+            position: relative;
+            right: -1rem;
+        }
+
+        label {
+            margin-left: 1rem;
+        }
+
+        button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        button img {
+            border-radius: 8px;
+            transition: transform 0.2s;
+        }
+
+        button img:hover {
             transform: scale(1.05);
-        }
-        .slide-thumbnail.active {
-            ring-width: 3px;
-            ring-color: #5D5CDE;
         }
     </style>
 <script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script></head>
-<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-    <!-- Main Container -->
-    <div id="mainApp" class="min-h-screen">
-        <!-- Header -->
-        <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex justify-between items-center h-16">
-                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Presentation App</h1>
-                    <div class="flex space-x-3">
-                        <button id="addSlideBtn" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
-                            Add Slide
-                        </button>
-                        <button id="startPresentationBtn" class="px-6 py-2 bg-[#5D5CDE] text-white rounded-lg hover:bg-[#4A4BC9] transition-colors font-medium">
-                            Start Presentation
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </header>
-
-        <!-- Edit Mode -->
-        <div id="editMode" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                <!-- Slide Thumbnails -->
-                <div class="lg:col-span-1">
-                    <h3 class="text-lg font-semibold mb-4">Slides</h3>
-                    <div id="slideThumbnails" class="space-y-3">
-                        <!-- Thumbnails will be populated here -->
-                    </div>
-                </div>
-
-                <!-- Slide Editor -->
-                <div class="lg:col-span-3">
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium mb-2">Slide Title</label>
-                            <input id="slideTitle" type="text" class="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#5D5CDE] focus:border-transparent bg-white dark:bg-gray-700" placeholder="Enter slide title">
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium mb-2">Slide Content (Markdown)</label>
-                            <textarea id="slideContent" rows="15" class="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#5D5CDE] focus:border-transparent bg-white dark:bg-gray-700 font-mono" placeholder="Enter your content in Markdown format..."></textarea>
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium mb-2">Speaker Notes</label>
-                            <textarea id="speakerNotes" rows="4" class="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#5D5CDE] focus:border-transparent bg-white dark:bg-gray-700" placeholder="Add speaker notes (only visible in presenter view)..."></textarea>
-                        </div>
-                        <div class="flex space-x-3">
-                            <button id="updateSlideBtn" class="px-4 py-2 bg-[#5D5CDE] text-white rounded-lg hover:bg-[#4A4BC9] transition-colors">
-                                Update Slide
-                            </button>
-                            <button id="deleteSlideBtn" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
-                                Delete Slide
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+<body>
+    <h1>Multi-Screen Window Management API Demo 🐘</h1>
+    <ul>
+        <li>
+            Click <strong>Elmer</strong>, the patchwork elephant, to start the
+            Elmer-inspired trading desk demo.
+        </li>
+        <li>
+            You will see a permission prompt for
+            <strong>window management</strong> and potentially another for
+            <strong>popup</strong> windows. Grant both.
+        </li>
+        <li>Focus any of the windows and click again to toggle fullscreen.</li>
+        <li>Plug or unplug an additional screen and see how the demo adapts.</li>
+        <li>
+            Play with the sliders below (closing one popup closes all other popups,
+            too).
+        </li>
+    </ul>
+    <button type="button" id="elmerBtn">
+        <div style="width: 316px; height: 316px; background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #feca57, #ff9ff3, #54a0ff); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 48px; color: white; font-weight: bold;">
+            🐘 ELMER
         </div>
-
-        <!-- Presenter Mode -->
-        <div id="presenterMode" class="hidden min-h-screen bg-gray-900 text-white">
-            <div class="h-screen flex">
-                <!-- Left Panel - Current and Next Slides -->
-                <div class="w-2/3 p-6 flex flex-col">
-                    <div class="mb-4">
-                        <h2 class="text-lg font-semibold mb-2">Current Slide</h2>
-                        <div class="bg-white rounded-lg presenter-slide overflow-hidden">
-                            <div id="presenterCurrentSlide" class="h-full p-8 text-gray-900 slide-content">
-                                <!-- Current slide content -->
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="flex-1">
-                        <h3 class="text-lg font-semibold mb-2">Next Slide</h3>
-                        <div class="bg-gray-700 rounded-lg presenter-slide overflow-hidden">
-                            <div id="presenterNextSlide" class="h-full p-8 text-white slide-content text-sm">
-                                <!-- Next slide content -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Right Panel - Controls and Notes -->
-                <div class="w-1/3 p-6 bg-gray-800 flex flex-col">
-                    <!-- Controls -->
-                    <div class="mb-6">
-                        <h3 class="text-lg font-semibold mb-4">Controls</h3>
-                        <div class="flex space-x-3 mb-4">
-                            <button id="prevSlideBtn" class="flex-1 px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors">
-                                Previous
-                            </button>
-                            <button id="nextSlideBtn" class="flex-1 px-4 py-2 bg-[#5D5CDE] rounded-lg hover:bg-[#4A4BC9] transition-colors">
-                                Next
-                            </button>
-                        </div>
-                        <div class="text-center text-sm text-gray-400 mb-4">
-                            Slide <span id="currentSlideNumber">1</span> of <span id="totalSlides">1</span>
-                        </div>
-                        <button id="endPresentationBtn" class="w-full px-4 py-2 bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
-                            End Presentation
-                        </button>
-                    </div>
-
-                    <!-- Speaker Notes -->
-                    <div class="flex-1">
-                        <h3 class="text-lg font-semibold mb-2">Speaker Notes</h3>
-                        <div id="presenterNotes" class="bg-gray-700 rounded-lg p-4 h-32 overflow-y-auto text-sm">
-                            <!-- Speaker notes -->
-                        </div>
-                    </div>
-
-                    <!-- Slide Overview -->
-                    <div class="mt-6">
-                        <h3 class="text-lg font-semibold mb-2">Slide Overview</h3>
-                        <div id="slideOverview" class="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
-                            <!-- Slide thumbnails -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    </button>
+    <label><input type="range" min="1" max="5" id="rows" value="2"> Rows</label>
+    <label><input type="range" min="1" max="5" id="cols" value="2"> Columns</label>
+    <footer>
+        Multi-Screen Window Management API Demo - 
+        <a href="https://googlechrome.github.io/samples/window-management/">Original</a>
+    </footer>
 
     <script>
-        // Dark mode detection
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            document.documentElement.classList.add('dark');
-        }
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
-            if (event.matches) {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
-        });
-
-        // Application State
-        let slides = [
-            {
-                id: 1,
-                title: "Welcome to Presentation App",
-                content: "# Welcome!\n\nThis is your first slide. You can:\n\n- Edit content in **Markdown**\n- Add speaker notes\n- Start presentations with dual-monitor support\n- Navigate with keyboard shortcuts",
-                notes: "Welcome the audience and introduce the presentation app features."
-            }
-        ];
-        
-        let currentSlideIndex = 0;
-        let presentationWindow = null;
-        let isPresentationMode = false;
-
-        // Google's approach - using their working implementation
+        let ROWS;
+        let COLS;
         const WINDOW_CHROME_Y = 51;
         const WINDOW_CHROME_X = 1;
+
+        let popups = [];
+        let popupMonitor = null;
         let cachedScreens = null;
 
-        // DOM Elements
-        const editMode = document.getElementById('editMode');
-        const presenterMode = document.getElementById('presenterMode');
-        const slideThumbnails = document.getElementById('slideThumbnails');
-        const slideTitle = document.getElementById('slideTitle');
-        const slideContent = document.getElementById('slideContent');
-        const speakerNotes = document.getElementById('speakerNotes');
-
-        // Custom Modal Functions
-        function showAlert(message) {
-            const modal = document.createElement('div');
-            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-            modal.innerHTML = `
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-sm w-full mx-4">
-                    <p class="text-gray-700 dark:text-gray-300 mb-4">${message}</p>
-                    <div class="flex justify-end">
-                        <button class="px-4 py-2 bg-[#5D5CDE] text-white hover:bg-[#4A4BC9] rounded" onclick="this.closest('.fixed').remove()">OK</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-        }
-
-        function showConfirmDialog(message, onConfirm) {
-            const modal = document.createElement('div');
-            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-            
-            const confirmButton = document.createElement('button');
-            confirmButton.className = 'px-4 py-2 bg-red-500 text-white hover:bg-red-600 rounded';
-            confirmButton.textContent = 'Confirm';
-            confirmButton.onclick = () => {
-                modal.remove();
-                onConfirm();
-            };
-            
-            const cancelButton = document.createElement('button');
-            cancelButton.className = 'px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded';
-            cancelButton.textContent = 'Cancel';
-            cancelButton.onclick = () => modal.remove();
-            
-            const buttonContainer = document.createElement('div');
-            buttonContainer.className = 'flex justify-end space-x-3';
-            buttonContainer.appendChild(cancelButton);
-            buttonContainer.appendChild(confirmButton);
-            
-            const content = document.createElement('div');
-            content.className = 'bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-sm w-full mx-4';
-            content.innerHTML = `<p class="text-gray-700 dark:text-gray-300 mb-4">${message}</p>`;
-            content.appendChild(buttonContainer);
-            
-            modal.appendChild(content);
-            document.body.appendChild(modal);
-        }
-
-        // Google's exact getScreensInfo approach - ONLY called on user interaction
-        const getScreensInfo = async () => {
-            if ("getScreenDetails" in window) {
-                if (cachedScreens) {
-                    return cachedScreens.screens;
+        document.querySelectorAll("input").forEach(input => {
+            const onInputChange = () => {
+                input.dataset.value = input.value;
+                if (input.id === "rows") {
+                    ROWS = parseInt(input.value, 10);
                 } else {
-                    try {
-                        console.log('🔐 Requesting screen details with user activation...');
-                        cachedScreens = await window.getScreenDetails();
-                        console.log('✅ Got screen details:', cachedScreens.screens.map(s => ({
-                            label: s.label,
-                            availLeft: s.availLeft,
-                            availTop: s.availTop,
-                            availWidth: s.availWidth,
-                            availHeight: s.availHeight,
-                            isPrimary: s.isPrimary,
-                            isInternal: s.isInternal
-                        })));
-                        
-                        cachedScreens.addEventListener("screenschange", async e => {
-                            console.log("screenschange", e);
-                            if (presentationWindow && !presentationWindow.closed) {
-                                presentationWindow.close();
-                                openPresentationWindowWithAPI();
-                            }
-                        });
-                        
-                        return cachedScreens.screens;
-                    } catch (error) {
-                        console.error('getScreenDetails failed:', error);
-                        return [window.screen];
-                    }
+                    COLS = parseInt(input.value, 10);
                 }
-            }
-            console.log('Window Management API not available');
-            return [window.screen];
-        };
+            };
+            input.addEventListener("input", onInputChange);
+            onInputChange();
+        });
 
-        // Google's exact createPopup approach adapted for presentation
-        const createPresentationWindow = (screenX, screenY, width, height) => {
+        const createPopup = (screenX, screenY, width, height) => {
             const features = [
                 `left=${screenX}`,
                 `top=${screenY}`,
@@ -287,373 +131,298 @@
                 `scrollbars=no`
             ].join(",");
             
-            console.log(`Creating presentation window with features: ${features}`);
+            console.log(`Creating popup with features: ${features}`);
             
-            // Use data URL like Google does instead of empty string
-            const slideHTML = generateSlideHTML();
-            const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(slideHTML);
-            
-            const popup = window.open(dataUrl, 'presentation', features);
+            // Create popup with trading desk content
+            const popup = window.open("", Math.random().toString(), features);
             
             if (popup) {
-                console.log('✅ Presentation window created successfully');
+                // Add trading desk content to the popup
+                const currency = Math.random()
+                    .toString(36)
+                    .replace(/[^a-z]+/g, "")
+                    .substr(0, 3)
+                    .toUpperCase();
+                const price = new Intl.NumberFormat("en-US", {
+                    style: "currency",
+                    currency: "USD"
+                }).format(Math.random() * 20000);
+                const percent = new Intl.NumberFormat("en-US", {
+                    style: "percent"
+                }).format(Math.random() * 1000);
                 
-                // Check actual position after creation
+                const hue = Math.floor(Math.random() * 360);
+                const color = `hsl(${hue}deg 100% 50%)`;
+                const colorFill = `hsl(${hue}deg 100% 40%)`;
+                const colorBackground = `hsl(${hue + 180}deg 100% 50%)`;
+                
+                popup.document.write(`
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="utf-8" />
+                        <meta name="color-scheme" content="dark light" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1" />
+                        <title>${currency}</title>
+                        <style>
+                            @media (prefers-color-scheme: dark) {
+                                :root {
+                                    color: #fff;
+                                    background-color: #000;
+                                }
+                            }
+                            * {
+                                box-sizing: border-box;
+                            }
+                            html, body {
+                                background-color: ${colorBackground};
+                            }
+                            body {
+                                display: flex;
+                                flex-direction: column;
+                                font-family: system-ui, sans-serif;
+                                font-size: 100%;
+                                margin: 0;
+                                padding: 1rem;
+                                height: 100vh;
+                                width: 100%;
+                                overflow: hidden;
+                            }
+                            h1 {
+                                color: #000;
+                                background-color: rgba(255, 255, 255, 0.5);
+                                padding: 1rem;
+                                margin: 0 0 1rem 0;
+                                border-radius: 8px;
+                            }
+                            div {
+                                flex-grow: 1;
+                                position: relative;
+                            }
+                            .sparkline {
+                                stroke: ${color};
+                                fill: ${colorFill};
+                            }
+                            .down, .up {
+                                color: transparent;
+                            }
+                            .down {
+                                text-shadow: 0 0 0 red;
+                            }
+                            .up {
+                                text-shadow: 0 0 0 lime;
+                            }
+                            svg {
+                                width: 100%;
+                                height: 100%;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>${currency} (🗓 ${price} ${Math.random() < 0.5 ? "<span class=down>▼</span>" : "<span class=up>▲</span>"} ${percent})</h1>
+                        <div id="chart"></div>
+                        <script>
+                            // Simple sparkline generator
+                            const values = Array.from({ length: 25 }, () => Math.floor(Math.random() * 40));
+                            const chart = document.getElementById('chart');
+                            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                            svg.setAttribute('class', 'sparkline');
+                            svg.setAttribute('stroke-width', '3');
+                            svg.setAttribute('width', '100%');
+                            svg.setAttribute('height', '100%');
+                            svg.setAttribute('viewBox', '0 0 100 40');
+                            
+                            const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+                            const points = values.map((value, index) => 
+                                \`\${(index / (values.length - 1)) * 100},\${40 - value}\`
+                            ).join(' ');
+                            polyline.setAttribute('points', points);
+                            polyline.setAttribute('fill', 'none');
+                            
+                            svg.appendChild(polyline);
+                            chart.appendChild(svg);
+                        <\/script>
+                    </body>
+                    </html>
+                `);
+                popup.document.close();
+                
+                // Log actual position after creation
                 setTimeout(() => {
                     const actualX = popup.screenX || popup.screenLeft;
                     const actualY = popup.screenY || popup.screenTop;
-                    console.log(`Window actual position: x=${actualX}, y=${actualY}, intended: x=${screenX}, y=${screenY}`);
-                    
-                    const onCorrectScreen = actualX >= screenX - 100 && actualX <= screenX + 100;
-                    if (onCorrectScreen) {
-                        showAlert('✅ Presentation opened on second monitor! Press F11 for fullscreen.');
-                    } else {
-                        showAlert('⚠️ Window opened but may not be on target monitor. Try Win+Shift+→ to move it.');
-                    }
-                }, 200);
+                    console.log(`Popup actual position: x=${actualX}, y=${actualY}, intended: x=${screenX}, y=${screenY}`);
+                }, 100);
             }
             
             return popup;
         };
 
-        // Google's exact positioning logic adapted for presentation
-        const openPresentationWindowWithAPI = async () => {
-            console.log('🚀 Starting Google API approach...');
-            
+        const getScreensInfo = async () => {
+            if ("getScreenDetails" in window) {
+                if (cachedScreens) {
+                    return cachedScreens.screens;
+                } else {
+                    try {
+                        cachedScreens = await window.getScreenDetails();
+                        console.log('Screens detected:', cachedScreens.screens.map(s => ({
+                            label: s.label,
+                            availLeft: s.availLeft,
+                            availTop: s.availTop,
+                            availWidth: s.availWidth,
+                            availHeight: s.availHeight,
+                            isPrimary: s.isPrimary,
+                            isInternal: s.isInternal
+                        })));
+                        
+                        cachedScreens.addEventListener("screenschange", async e => {
+                            console.log("screenschange", e);
+                            closeAllPopups();
+                            await elmerify();
+                        });
+                        cachedScreens.addEventListener("currentscreenchange", async e => {
+                            console.log("currentscreenchange", e);
+                        });
+                        return cachedScreens.screens;
+                    } catch (error) {
+                        console.error('getScreenDetails failed:', error);
+                        return [window.screen];
+                    }
+                }
+            }
+            console.log('Window Management API not available, using fallback');
+            return [window.screen];
+        };
+
+        const onPopupClose = e => {
+            e.preventDefault();
+            closeAllPopups();
+            return e.returnValue = "This string must be non-empty";
+        };
+
+        const closeAllPopups = () => {
+            popups.forEach(popup => {
+                popup.removeEventListener("beforeunload", onPopupClose);
+                popup.close();
+            });
+            popups = [];  
+            clearInterval(popupMonitor);
+        };
+
+        const checkPopupClose = () => {
+            popups.forEach(popup => {
+                if (popup.closed) {
+                    closeAllPopups();
+                    return;
+                }
+            });
+        }
+
+        const onPopupClick = async e => {
+            const body = e.target.closest("body");
+            popups.forEach(popup => {
+                if (e.view === popup) {
+                    return;
+                }
+                popup.document.exitFullscreen();
+            });
             try {
-                const screens = await getScreensInfo();
+                if (e.view.document.fullscreenElement) {
+                    return await e.view.document.exitFullscreen();
+                }
+                const screensInterface = await e.view.getScreenDetails();
+                let otherScreen = screensInterface.screens.filter(
+                    screen => screen !== screensInterface.currentScreen
+                )[0];
+                if (!otherScreen) {
+                    otherScreen = screensInterface.screens[0];
+                }
+                await body.requestFullscreen({
+                    screen: otherScreen
+                });
+            } catch (err) {
+                console.error(err.name, err.message);
+            }
+        };
+
+        const elmerify = async () => {
+            console.log('Starting elmerify...');
+            
+            // For now, don't run in an iframe, but pop out to a new window.
+            if (window.self !== window.top) {
+                window.open(location.href);
+                return;
+            }
+            
+            const screens = await getScreensInfo();
+            console.log(`Using ${screens.length} screen(s)`);
+
+            popups = [];
+            screens.forEach((screen, numScreen) => {
+                console.log(`Setting up screen ${numScreen}:`, {
+                    label: screen.label || 'Unknown',
+                    availLeft: screen.availLeft,
+                    availTop: screen.availTop,
+                    availWidth: screen.availWidth,
+                    availHeight: screen.availHeight
+                });
                 
-                if (screens.length > 1) {
-                    // Find secondary screen (like Google does)
-                    const currentScreen = cachedScreens ? cachedScreens.currentScreen : screens[0];
-                    let targetScreen = screens.find(screen => 
-                        screen !== currentScreen && 
-                        !screen.isInternal && 
-                        !screen.isPrimary
-                    );
-                    
-                    if (!targetScreen) {
-                        targetScreen = screens.find(screen => screen !== currentScreen);
-                    }
-                    
-                    if (!targetScreen && screens.length > 1) {
-                        targetScreen = screens[1];
-                    }
-                    
-                    if (targetScreen) {
-                        console.log('🎯 Target screen:', targetScreen.label || 'Unknown');
+                let width = Math.floor((screen.availWidth - COLS * WINDOW_CHROME_X) / COLS);
+                let height = Math.floor((screen.availHeight - ROWS * WINDOW_CHROME_Y) / ROWS);
+                
+                loop: for (let i = 0; i < COLS; i++) {
+                    for (let j = 0; j < ROWS; j++) {
+                        let screenX = i * width + screen.availLeft + i * WINDOW_CHROME_X;
+                        let screenY = j * height + screen.availTop + j * WINDOW_CHROME_Y;
                         
-                        // Use Google's positioning calculation
-                        let width = Math.floor(targetScreen.availWidth - WINDOW_CHROME_X);
-                        let height = Math.floor(targetScreen.availHeight - WINDOW_CHROME_Y);
-                        let screenX = targetScreen.availLeft;
-                        let screenY = targetScreen.availTop;
+                        console.log(`Creating popup at: x=${screenX}, y=${screenY}, w=${width}, h=${height}`);
                         
-                        console.log(`Positioning: x=${screenX}, y=${screenY}, w=${width}, h=${height}`);
-                        
-                        presentationWindow = createPresentationWindow(screenX, screenY, width, height);
-                        
-                        if (!presentationWindow) {
-                            showAlert("Please allow popup windows to use multi-monitor features!");
-                            return false;
+                        const popup = createPopup(screenX, screenY, width, height);
+                        if (!popup) {
+                            popups.forEach(popup => popup.close());
+                            alert("It looks like you are blocking popup windows. Please allow them as outlined at https://goo.gle/allow-popups.");
+                            break loop;
                         }
-                        
-                        return true;
+                        popup.addEventListener("beforeunload", onPopupClose);
+                        popup.addEventListener("click", onPopupClick);
+                        popups.push(popup);
                     }
-                }
-                
-                console.log('⚠️ Single screen or no suitable target found');
-                return false;
-                
-            } catch (error) {
-                console.error('API approach failed:', error);
-                return false;
-            }
-        };
-
-        // Initialize App
-        function init() {
-            renderSlideThumbnails();
-            loadSlide(0);
-            setupEventListeners();
-            
-            console.log('🚀 App initialized. Window Management API will be called on user interaction.');
-        }
-
-        // Event Listeners
-        function setupEventListeners() {
-            document.getElementById('addSlideBtn').addEventListener('click', addSlide);
-            document.getElementById('updateSlideBtn').addEventListener('click', updateCurrentSlide);
-            document.getElementById('deleteSlideBtn').addEventListener('click', deleteCurrentSlide);
-            document.getElementById('startPresentationBtn').addEventListener('click', startPresentation);
-            document.getElementById('prevSlideBtn').addEventListener('click', () => navigateSlide(-1));
-            document.getElementById('nextSlideBtn').addEventListener('click', () => navigateSlide(1));
-            document.getElementById('endPresentationBtn').addEventListener('click', endPresentation);
-
-            // Keyboard shortcuts
-            document.addEventListener('keydown', handleKeydown);
-        }
-
-        function handleKeydown(e) {
-            if (isPresentationMode) {
-                switch(e.key) {
-                    case 'ArrowRight':
-                    case ' ':
-                        e.preventDefault();
-                        navigateSlide(1);
-                        break;
-                    case 'ArrowLeft':
-                        e.preventDefault();
-                        navigateSlide(-1);
-                        break;
-                    case 'Escape':
-                        e.preventDefault();
-                        endPresentation();
-                        break;
-                }
-            }
-        }
-
-        // Slide Management
-        function addSlide() {
-            const newSlide = {
-                id: Date.now(),
-                title: "New Slide",
-                content: "# New Slide\n\nAdd your content here...",
-                notes: ""
-            };
-            slides.push(newSlide);
-            renderSlideThumbnails();
-            loadSlide(slides.length - 1);
-        }
-
-        function updateCurrentSlide() {
-            if (slides[currentSlideIndex]) {
-                slides[currentSlideIndex].title = slideTitle.value;
-                slides[currentSlideIndex].content = slideContent.value;
-                slides[currentSlideIndex].notes = speakerNotes.value;
-                renderSlideThumbnails();
-                if (isPresentationMode) {
-                    updatePresenterView();
-                    updatePresentationWindow();
-                }
-            }
-        }
-
-        function deleteCurrentSlide() {
-            if (slides.length <= 1) {
-                showAlert('Cannot delete the last slide.');
-                return;
-            }
-            
-            showConfirmDialog('Are you sure you want to delete this slide?', () => {
-                slides.splice(currentSlideIndex, 1);
-                if (currentSlideIndex >= slides.length) {
-                    currentSlideIndex = slides.length - 1;
-                }
-                renderSlideThumbnails();
-                loadSlide(currentSlideIndex);
-                if (isPresentationMode) {
-                    updatePresenterView();
-                    updatePresentationWindow();
-                }
-            });
-        }
-
-        function loadSlide(index) {
-            if (index >= 0 && index < slides.length) {
-                currentSlideIndex = index;
-                const slide = slides[index];
-                slideTitle.value = slide.title;
-                slideContent.value = slide.content;
-                speakerNotes.value = slide.notes;
-                renderSlideThumbnails();
-            }
-        }
-
-        function renderSlideThumbnails() {
-            slideThumbnails.innerHTML = slides.map((slide, index) => `
-                <div class="slide-thumbnail bg-white dark:bg-gray-700 rounded-lg p-3 cursor-pointer border-2 border-transparent ${index === currentSlideIndex ? 'active ring-2 ring-[#5D5CDE]' : ''}" onclick="loadSlide(${index})">
-                    <div class="text-xs font-medium mb-1 truncate">${slide.title}</div>
-                    <div class="text-xs text-gray-600 dark:text-gray-400 line-clamp-3">${slide.content.substring(0, 100)}...</div>
-                    <div class="text-xs text-gray-500 mt-1">Slide ${index + 1}</div>
-                </div>
-            `).join('');
-        }
-
-        // Presentation Mode
-        function startPresentation() {
-            if (!slides.length) {
-                showAlert('No slides to present.');
-                return;
-            }
-
-            console.log('👆 User clicked Start Presentation - has user activation');
-
-            isPresentationMode = true;
-            editMode.classList.add('hidden');
-            presenterMode.classList.remove('hidden');
-            
-            // Try Google's approach first - now with proper user activation
-            openPresentationWindowWithAPI().then(success => {
-                if (!success) {
-                    // Fallback to basic window
-                    openBasicPresentationWindow();
                 }
             });
             
-            updatePresenterView();
-        }
-
-        function openBasicPresentationWindow() {
-            console.log('📱 Using basic window approach');
-            const slideHTML = generateSlideHTML();
-            const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(slideHTML);
-            
-            presentationWindow = window.open(dataUrl, 'presentation', 'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no,scrollbars=no');
-            
-            if (presentationWindow) {
-                showAlert('✅ Presentation window opened! Use Win+Shift+→ to move to second monitor, then F11 for fullscreen.');
-            } else {
-                showAlert('Please allow popups to open the presentation window.');
-            }
-        }
-
-        function updatePresentationWindow() {
-            if (presentationWindow && !presentationWindow.closed) {
-                try {
-                    const currentSlide = slides[currentSlideIndex];
-                    if (presentationWindow.updateSlide) {
-                        presentationWindow.updateSlide(currentSlide.content);
-                    }
-                } catch (error) {
-                    console.log('Could not update presentation window:', error);
-                }
-            }
-        }
-
-        function generateSlideHTML() {
-            const currentSlide = slides[currentSlideIndex];
-            return `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Presentation - ${currentSlide.title}</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"><\/script>
-    <style>
-        body { 
-            margin: 0; 
-            padding: 0; 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #000;
-            color: #fff;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-        }
-        .slide {
-            width: 90%;
-            height: 90%;
-            padding: 60px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 20px;
-            overflow-y: auto;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-        }
-        .slide h1 { font-size: 3.5rem; margin-bottom: 1rem; }
-        .slide h2 { font-size: 2.5rem; margin-bottom: 0.8rem; }
-        .slide h3 { font-size: 2rem; margin-bottom: 0.6rem; }
-        .slide p { font-size: 1.5rem; line-height: 1.6; margin-bottom: 1rem; }
-        .slide li { font-size: 1.5rem; line-height: 1.6; margin-bottom: 0.5rem; }
-        .slide ul, .slide ol { margin-bottom: 1.5rem; }
-        .slide code { background: rgba(255,255,255,0.1); padding: 0.2rem 0.4rem; border-radius: 4px; }
-        .slide pre { background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; overflow-x: auto; }
-        .slide blockquote { border-left: 4px solid rgba(255,255,255,0.3); padding-left: 1rem; margin: 1rem 0; font-style: italic; }
-    </style>
-</head>
-<body>
-    <div class="slide" id="presentationSlide"></div>
-    <script>
-        window.updateSlide = function(content) {
-            document.getElementById('presentationSlide').innerHTML = marked.parse(content);
+            // Workaround for beforeunload event listener not being called; see crbug.com/1153004.
+            popupMonitor = setInterval(checkPopupClose, 500);
         };
-        
-        // Initial slide
-        window.updateSlide('${currentSlide.content.replace(/'/g, "\\'")}');
-    <\/script>
-</body>
-</html>`;
-        }
 
-        function updatePresenterView() {
-            const currentSlide = slides[currentSlideIndex];
-            const nextSlide = slides[currentSlideIndex + 1];
-
-            // Update current slide
-            document.getElementById('presenterCurrentSlide').innerHTML = marked.parse(currentSlide.content);
+        const init = async () => {
+            console.log('Initializing Google Window Management Demo...');
             
-            // Update next slide
-            const nextSlideElement = document.getElementById('presenterNextSlide');
-            if (nextSlide) {
-                nextSlideElement.innerHTML = marked.parse(nextSlide.content);
+            document.getElementById("elmerBtn").addEventListener("click", async () => {
+                console.log('Elmer clicked!');
+                closeAllPopups();
+                await elmerify();
+            });
+
+            window.addEventListener("beforeunload", () => {
+                closeAllPopups();
+            });
+            
+            // Check if API is available on load
+            if ("getScreenDetails" in window) {
+                console.log('✅ Window Management API is available');
             } else {
-                nextSlideElement.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400">End of presentation</div>';
+                console.log('❌ Window Management API is NOT available');
             }
-
-            // Update speaker notes
-            document.getElementById('presenterNotes').innerText = currentSlide.notes || 'No notes for this slide.';
-
-            // Update slide counter
-            document.getElementById('currentSlideNumber').textContent = currentSlideIndex + 1;
-            document.getElementById('totalSlides').textContent = slides.length;
-
-            // Update slide overview
-            renderSlideOverview();
-
-            // Update presentation window
-            updatePresentationWindow();
-        }
-
-        function renderSlideOverview() {
-            const overview = document.getElementById('slideOverview');
-            overview.innerHTML = slides.map((slide, index) => `
-                <div class="bg-gray-600 rounded p-2 cursor-pointer hover:bg-gray-500 transition-colors text-xs ${index === currentSlideIndex ? 'ring-2 ring-[#5D5CDE]' : ''}" onclick="goToSlide(${index})">
-                    <div class="font-medium truncate">${slide.title}</div>
-                    <div class="text-gray-300">${index + 1}</div>
-                </div>
-            `).join('');
-        }
-
-        function navigateSlide(direction) {
-            const newIndex = currentSlideIndex + direction;
-            if (newIndex >= 0 && newIndex < slides.length) {
-                currentSlideIndex = newIndex;
-                updatePresenterView();
-            }
-        }
-
-        function goToSlide(index) {
-            if (index >= 0 && index < slides.length) {
-                currentSlideIndex = index;
-                updatePresenterView();
-            }
-        }
-
-        function endPresentation() {
-            isPresentationMode = false;
-            presenterMode.classList.add('hidden');
-            editMode.classList.remove('hidden');
             
-            if (presentationWindow && !presentationWindow.closed) {
-                presentationWindow.close();
-            }
-            presentationWindow = null;
-        }
+            console.log('Current screen info:', {
+                width: window.screen.width,
+                height: window.screen.height,
+                availWidth: window.screen.availWidth,
+                availHeight: window.screen.availHeight,
+                isExtended: window.screen.isExtended
+            });
+        };
 
-        // Initialize the app
         init();
     </script>
 
