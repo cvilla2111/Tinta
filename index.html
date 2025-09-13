@@ -241,10 +241,27 @@
                 this.strokeColor = '#000000';
                 this.penSize = 2;
                 this.eraserSize = 10;
+                this.baseEraserSize = 10; // User-set eraser size
+                this.dynamicEraserSize = 10; // Current dynamic size
                 this.strokeOpacity = 1;
                 this.pressureSensitive = false;
                 this.isEraserButtonPressed = false;
                 this.highQualityInk = true;
+                
+                // Dynamic eraser properties
+                this.lastMoveTime = 0;
+                this.lastMovePoint = null;
+                this.currentSpeed = 0;
+                this.targetEraserSize = 10;
+                this.speedSmoothingFactor = 0.05; // How fast size decreases (slower)
+                this.speedThreshold = 120; // Minimum speed to start growing (pixels/second)
+                this.speedMultiplier = 1.2; // How much speed affects size
+                
+                // Visual cursor smoothing
+                this.visualCursorSize = 10; // Smoothed cursor size for display
+                this.lastCursorUpdate = 0;
+                this.cursorUpdateInterval = 16; // Update cursor every ~16ms (60fps)
+                this.cursorAnimationId = null; // For smooth cursor animations
                 
                 // Pressure sensitivity properties
                 this.currentPressure = 0.5;
@@ -371,7 +388,9 @@
                 });
 
                 document.getElementById('eraserSizeSlider').addEventListener('input', (e) => {
-                    this.eraserSize = parseInt(e.target.value);
+                    this.baseEraserSize = parseInt(e.target.value);
+                    this.eraserSize = this.baseEraserSize;
+                    this.dynamicEraserSize = this.baseEraserSize;
                     this.updatePreview('eraser');
                     this.updateEraserCursor();
                 });
@@ -569,7 +588,13 @@
                 this.checkEraserButton(e);
                 
                 if (this.currentTool === 'eraser') {
+                    this.updateEraserSpeed(e);
+                    // Update cursor position immediately, not just during drawing
                     this.positionEraserCursor(e.clientX, e.clientY);
+                    // Force immediate cursor size update during drawing
+                    if (this.isDrawing) {
+                        this.updateEraserCursorImmediate();
+                    }
                 }
                 this.draw(e);
             }
@@ -747,6 +772,15 @@
             setTool(tool) {
                 this.currentTool = tool;
                 
+                // Reset dynamic eraser properties when switching tools
+                if (tool === 'eraser') {
+                    this.dynamicEraserSize = this.baseEraserSize;
+                    this.targetEraserSize = this.baseEraserSize;
+                    this.lastMoveTime = 0;
+                    this.lastMovePoint = null;
+                    this.currentSpeed = 0;
+                }
+                
                 // Update active state
                 document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
                     btn.classList.toggle('active', btn.dataset.tool === tool);
@@ -786,6 +820,15 @@
                     
                     this.annotationCtx.globalAlpha = this.strokeOpacity;
                 } else if (this.currentTool === 'eraser') {
+                    // Reset eraser size to base size at start of new stroke
+                    this.dynamicEraserSize = this.baseEraserSize;
+                    this.targetEraserSize = this.baseEraserSize;
+                    this.eraserSize = this.baseEraserSize;
+                    this.visualCursorSize = this.baseEraserSize; // Reset visual cursor too
+                    this.lastMoveTime = 0;
+                    this.lastMovePoint = null;
+                    this.currentSpeed = 0;
+                    
                     this.annotationCtx.globalCompositeOperation = 'destination-out';
                     this.annotationCtx.lineWidth = this.eraserSize;
                     this.annotationCtx.globalAlpha = 1;
@@ -807,7 +850,8 @@
                         this.drawFastLine(x, y);
                     }
                 } else if (this.currentTool === 'eraser') {
-                    // For eraser, always use simple line drawing
+                    // For eraser, update size dynamically and use simple line drawing
+                    this.annotationCtx.lineWidth = this.eraserSize;
                     this.annotationCtx.lineTo(x, y);
                     this.annotationCtx.stroke();
                 }
@@ -1023,10 +1067,129 @@
                 preview.style.height = size + 'px';
             }
 
+            updateEraserSpeed(e) {
+                const currentTime = Date.now();
+                const currentPoint = { x: e.clientX, y: e.clientY };
+                
+                if (this.lastMoveTime && this.lastMovePoint) {
+                    const timeDelta = Math.max(1, currentTime - this.lastMoveTime); // Avoid division by zero
+                    const dx = currentPoint.x - this.lastMovePoint.x;
+                    const dy = currentPoint.y - this.lastMovePoint.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    // Calculate speed in pixels per millisecond, then convert to a more usable scale
+                    const rawSpeed = distance / timeDelta;
+                    this.currentSpeed = rawSpeed * 1000; // Convert to pixels per second
+                    
+                    // Apply threshold - only start growing if speed exceeds threshold
+                    if (this.currentSpeed > this.speedThreshold) {
+                        // Calculate target eraser size based on speed above threshold
+                        // Map speed range (threshold-600 pixels/second) to size range (baseSize-150px)
+                        const minSize = 8;
+                        const maxSize = 150;
+                        const maxSpeed = 800; // Adjust this to change sensitivity
+                        
+                        // Calculate speed factor only for speed above threshold
+                        const effectiveSpeed = Math.max(0, this.currentSpeed - this.speedThreshold);
+                        const effectiveMaxSpeed = maxSpeed - this.speedThreshold;
+                        const speedFactor = Math.min(effectiveSpeed / effectiveMaxSpeed, 1);
+                        
+                        this.targetEraserSize = this.baseEraserSize + (maxSize - this.baseEraserSize) * speedFactor;
+                    } else {
+                        // Below threshold - target size is base size
+                        this.targetEraserSize = this.baseEraserSize;
+                    }
+                    
+                    // Apply speed-based dynamic sizing
+                    this.updateDynamicEraserSize();
+                } else {
+                    // Initialize for first movement
+                    this.targetEraserSize = this.baseEraserSize;
+                    this.dynamicEraserSize = this.baseEraserSize;
+                }
+                
+                this.lastMoveTime = currentTime;
+                this.lastMovePoint = currentPoint;
+            }
+
+            updateDynamicEraserSize() {
+                // Fast increase when speed goes up, slow decrease when speed goes down
+                if (this.targetEraserSize > this.dynamicEraserSize) {
+                    // Quick increase - immediate response to speed increase
+                    this.dynamicEraserSize = this.targetEraserSize;
+                } else {
+                    // Slow decrease - gradual shrinking when speed decreases
+                    const diff = this.targetEraserSize - this.dynamicEraserSize;
+                    this.dynamicEraserSize += diff * this.speedSmoothingFactor;
+                }
+                
+                // Clamp the size to reasonable bounds
+                this.dynamicEraserSize = Math.max(8, Math.min(150, this.dynamicEraserSize));
+                
+                // Update the actual eraser size used for drawing
+                this.eraserSize = Math.round(this.dynamicEraserSize);
+                
+                // Update visual cursor with rate limiting
+                this.updateEraserCursorSmooth();
+            }
+
+            updateEraserCursorSmooth() {
+                // Cancel previous animation frame if it exists
+                if (this.cursorAnimationId) {
+                    cancelAnimationFrame(this.cursorAnimationId);
+                }
+                
+                // Start smooth cursor animation
+                this.animateCursorSize();
+            }
+
+            animateCursorSize() {
+                const targetVisualSize = this.dynamicEraserSize;
+                const sizeDiff = targetVisualSize - this.visualCursorSize;
+                
+                // Apply ultra-smooth transition with very small steps
+                if (Math.abs(sizeDiff) > 0.1) {
+                    this.visualCursorSize += sizeDiff * 0.08; // Much smaller steps for smoother animation
+                    
+                    // Update the actual cursor element with sub-pixel precision
+                    const cursor = this.elements.eraserCursor;
+                    if (this.currentTool === 'eraser') {
+                        // Use precise decimal values, only round for display
+                        const size = this.visualCursorSize.toFixed(1) + 'px';
+                        cursor.style.width = size;
+                        cursor.style.height = size;
+                    }
+                    
+                    // Continue animation on next frame
+                    this.cursorAnimationId = requestAnimationFrame(() => this.animateCursorSize());
+                } else {
+                    // Snap to target when very close
+                    this.visualCursorSize = targetVisualSize;
+                    const cursor = this.elements.eraserCursor;
+                    if (this.currentTool === 'eraser') {
+                        const size = this.visualCursorSize.toFixed(1) + 'px';
+                        cursor.style.width = size;
+                        cursor.style.height = size;
+                    }
+                    this.cursorAnimationId = null;
+                }
+            }
+
+            updateEraserCursorImmediate() {
+                // Immediate cursor update during drawing for better sync
+                this.visualCursorSize = this.dynamicEraserSize;
+                const cursor = this.elements.eraserCursor;
+                if (this.currentTool === 'eraser') {
+                    cursor.style.width = Math.round(this.visualCursorSize) + 'px';
+                    cursor.style.height = Math.round(this.visualCursorSize) + 'px';
+                }
+            }
+
             updateEraserCursor() {
                 const cursor = this.elements.eraserCursor;
-                cursor.style.width = this.eraserSize + 'px';
-                cursor.style.height = this.eraserSize + 'px';
+                const size = this.currentTool === 'eraser' ? this.dynamicEraserSize : this.eraserSize;
+                cursor.style.width = size + 'px';
+                cursor.style.height = size + 'px';
             }
 
             positionEraserCursor(x, y) {
