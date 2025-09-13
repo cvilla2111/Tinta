@@ -134,6 +134,20 @@
                     </div>
                 </div>
 
+                <!-- Ink Quality Toggle -->
+                <div class="mb-4">
+                    <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Ink Quality</h3>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600 dark:text-gray-400">High Quality</span>
+                        <button id="inkQualityToggle" class="relative inline-flex h-6 w-11 items-center rounded-full bg-primary transition-colors focus:outline-none">
+                            <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-5"></span>
+                        </button>
+                    </div>
+                    <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        <span id="inkQualityStatus">Smooth drawing, higher latency</span>
+                    </div>
+                </div>
+
                 <!-- Pressure Sensitivity -->
                 <div class="mb-4">
                     <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Pressure</h3>
@@ -230,6 +244,7 @@
                 this.strokeOpacity = 1;
                 this.pressureSensitive = false;
                 this.isEraserButtonPressed = false;
+                this.highQualityInk = true;
                 
                 // Pressure sensitivity properties
                 this.currentPressure = 0.5;
@@ -367,6 +382,10 @@
 
                 document.getElementById('pressureToggle').addEventListener('click', () => {
                     this.togglePressureSensitivity();
+                });
+
+                document.getElementById('inkQualityToggle').addEventListener('click', () => {
+                    this.toggleInkQuality();
                 });
             }
 
@@ -660,8 +679,8 @@
             }
 
             setCanvasDimensions(width, height) {
-                // Account for device pixel ratio for crisp rendering
-                const devicePixelRatio = this.devicePixelRatio;
+                // Use reduced device pixel ratio for fast mode
+                const devicePixelRatio = this.highQualityInk ? this.devicePixelRatio : 1;
                 
                 [this.elements.pdfCanvas, this.elements.annotationCanvas].forEach(canvas => {
                     // Set the display size (CSS pixels)
@@ -684,10 +703,11 @@
 
             saveCurrentPageAnnotations() {
                 if (this.elements.annotationCanvas.width > 0 && this.elements.annotationCanvas.height > 0) {
+                    const devicePixelRatio = this.highQualityInk ? this.devicePixelRatio : 1;
                     const imageData = this.annotationCtx.getImageData(
                         0, 0,
-                        this.elements.annotationCanvas.width / this.devicePixelRatio,
-                        this.elements.annotationCanvas.height / this.devicePixelRatio
+                        this.elements.annotationCanvas.width / devicePixelRatio,
+                        this.elements.annotationCanvas.height / devicePixelRatio
                     );
                     this.pageAnnotations.set(this.currentPage, imageData);
                 }
@@ -702,10 +722,11 @@
 
             savePageAnnotations(pageNumber) {
                 if (this.elements.annotationCanvas.width > 0 && this.elements.annotationCanvas.height > 0) {
+                    const devicePixelRatio = this.highQualityInk ? this.devicePixelRatio : 1;
                     const imageData = this.annotationCtx.getImageData(
                         0, 0,
-                        this.elements.annotationCanvas.width / this.devicePixelRatio,
-                        this.elements.annotationCanvas.height / this.devicePixelRatio
+                        this.elements.annotationCanvas.width / devicePixelRatio,
+                        this.elements.annotationCanvas.height / devicePixelRatio
                     );
                     this.pageAnnotations.set(pageNumber, imageData);
                 }
@@ -743,8 +764,10 @@
                 const { x, y } = this.getCanvasCoordinates(e);
                 this.lastPoint = { x, y };
                 
-                // Initialize points array for quadratic interpolation
-                this.points = [{ x, y, pressure: this.currentPressure }];
+                // Initialize points array for quadratic interpolation (only in high quality mode)
+                if (this.highQualityInk) {
+                    this.points = [{ x, y, pressure: this.currentPressure }];
+                }
                 
                 this.annotationCtx.beginPath();
                 this.annotationCtx.moveTo(x, y);
@@ -774,18 +797,40 @@
                 
                 const { x, y } = this.getCanvasCoordinates(e);
                 
-                // Add new point to the points array
-                this.points.push({ x, y, pressure: this.currentPressure });
-                
                 if (this.currentTool === 'pen') {
-                    this.drawSmoothLine();
+                    if (this.highQualityInk) {
+                        // High quality mode with smooth curves
+                        this.points.push({ x, y, pressure: this.currentPressure });
+                        this.drawSmoothLine();
+                    } else {
+                        // Fast mode with simple lines
+                        this.drawFastLine(x, y);
+                    }
                 } else if (this.currentTool === 'eraser') {
-                    // For eraser, use simpler line drawing
+                    // For eraser, always use simple line drawing
                     this.annotationCtx.lineTo(x, y);
                     this.annotationCtx.stroke();
                 }
                 
                 this.lastPoint = { x, y };
+            }
+
+            drawFastLine(x, y) {
+                if (!this.lastPoint) return;
+                
+                // Simple line drawing for better performance
+                if (this.pressureSensitive) {
+                    this.annotationCtx.lineWidth = this.penSize * (0.3 + this.currentPressure * this.pressureMultiplier);
+                }
+                
+                this.annotationCtx.lineTo(x, y);
+                this.annotationCtx.stroke();
+                
+                // For fast mode, start new path for each segment to allow line width changes
+                if (this.pressureSensitive) {
+                    this.annotationCtx.beginPath();
+                    this.annotationCtx.moveTo(x, y);
+                }
             }
 
             drawSmoothLine() {
@@ -834,30 +879,6 @@
                 this.annotationCtx.beginPath();
                 this.annotationCtx.moveTo(midX, midY);
             }
-            
-            drawPressureSensitiveLine(x, y) {
-                if (!this.lastPoint) return;
-                
-                // Calculate distance for smoother lines
-                const dx = x - this.lastPoint.x;
-                const dy = y - this.lastPoint.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                // Only draw if there's enough movement
-                if (distance < 1) return;
-                
-                // Update line width based on pressure
-                const newLineWidth = this.penSize * (0.3 + this.currentPressure * this.pressureMultiplier);
-                this.annotationCtx.lineWidth = newLineWidth;
-                
-                // Draw smooth line segment
-                this.annotationCtx.lineTo(x, y);
-                this.annotationCtx.stroke();
-                
-                // Start new path for next segment to allow for line width changes
-                this.annotationCtx.beginPath();
-                this.annotationCtx.moveTo(x, y);
-            }
 
             stopDrawing() {
                 if (this.isDrawing) {
@@ -876,10 +897,11 @@
             }
 
             saveState() {
+                const devicePixelRatio = this.highQualityInk ? this.devicePixelRatio : 1;
                 const imageData = this.annotationCtx.getImageData(
                     0, 0, 
-                    this.elements.annotationCanvas.width / this.devicePixelRatio, 
-                    this.elements.annotationCanvas.height / this.devicePixelRatio
+                    this.elements.annotationCanvas.width / devicePixelRatio, 
+                    this.elements.annotationCanvas.height / devicePixelRatio
                 );
                 
                 this.undoStack.push(imageData);
@@ -891,10 +913,11 @@
             undo() {
                 if (this.undoStack.length === 0) return;
                 
+                const devicePixelRatio = this.highQualityInk ? this.devicePixelRatio : 1;
                 this.redoStack.push(this.annotationCtx.getImageData(
                     0, 0,
-                    this.elements.annotationCanvas.width / this.devicePixelRatio,
-                    this.elements.annotationCanvas.height / this.devicePixelRatio
+                    this.elements.annotationCanvas.width / devicePixelRatio,
+                    this.elements.annotationCanvas.height / devicePixelRatio
                 ));
                 
                 const previousState = this.undoStack.pop();
@@ -904,10 +927,11 @@
             redo() {
                 if (this.redoStack.length === 0) return;
                 
+                const devicePixelRatio = this.highQualityInk ? this.devicePixelRatio : 1;
                 this.undoStack.push(this.annotationCtx.getImageData(
                     0, 0,
-                    this.elements.annotationCanvas.width / this.devicePixelRatio,
-                    this.elements.annotationCanvas.height / this.devicePixelRatio
+                    this.elements.annotationCanvas.width / devicePixelRatio,
+                    this.elements.annotationCanvas.height / devicePixelRatio
                 ));
                 
                 const nextState = this.redoStack.pop();
@@ -916,10 +940,11 @@
 
             clearAnnotations() {
                 this.saveState();
+                const devicePixelRatio = this.highQualityInk ? this.devicePixelRatio : 1;
                 this.annotationCtx.clearRect(
                     0, 0,
-                    this.elements.annotationCanvas.width / this.devicePixelRatio,
-                    this.elements.annotationCanvas.height / this.devicePixelRatio
+                    this.elements.annotationCanvas.width / devicePixelRatio,
+                    this.elements.annotationCanvas.height / devicePixelRatio
                 );
                 // Also remove the current page annotations from storage
                 this.pageAnnotations.delete(this.currentPage);
@@ -1040,6 +1065,30 @@
                 this.updatePressureDisplay();
             }
 
+            toggleInkQuality() {
+                this.highQualityInk = !this.highQualityInk;
+                const toggle = document.getElementById('inkQualityToggle');
+                const slider = toggle.querySelector('span');
+                const status = document.getElementById('inkQualityStatus');
+                
+                toggle.classList.toggle('bg-primary', this.highQualityInk);
+                toggle.classList.toggle('bg-gray-200', !this.highQualityInk);
+                toggle.classList.toggle('dark:bg-gray-600', !this.highQualityInk);
+                
+                slider.classList.toggle('translate-x-5', this.highQualityInk);
+                slider.classList.toggle('translate-x-1', !this.highQualityInk);
+                
+                // Update status text
+                status.textContent = this.highQualityInk ? 
+                    'Smooth drawing, higher latency' : 
+                    'Fast drawing, lower latency';
+                
+                // Re-render current page to apply new quality settings
+                if (this.pdfDoc) {
+                    this.renderPage();
+                }
+            }
+
             updateUI() {
                 this.updatePreview(this.currentTool);
                 this.updateColorSelection();
@@ -1052,7 +1101,4 @@
             new PDFAnnotator();
         });
     </script>
-
-
-
 </body></html>
