@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta name="x-poe-datastore-behavior" content="local_only"><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
+<!DOCTYPE html><html lang="en"><head><meta name="x-poe-datastore-behavior" content="local_only"><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;"><meta name="x-poe-datastore-behavior" content="local_only"><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
     <meta name="x-poe-datastore-behavior" content="local_only">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
     <meta charset="UTF-8">
@@ -25,7 +25,7 @@
             top: 0;
             left: 0;
             pointer-events: auto;
-            cursor: none;
+            cursor: crosshair;
         }
         .pdf-container { position: relative; overflow: auto; }
         .toolbar {
@@ -71,7 +71,7 @@
             border: none;
         }
     </style>
-<script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script><script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script></head>
+<script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script><script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script><script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script></head>
 <body class="bg-white text-gray-900 transition-colors duration-200">
     <!-- Home Screen -->
     <div id="homeScreen" class="min-h-screen flex items-center justify-center p-8">
@@ -231,10 +231,6 @@
                 this.pressureSensitive = false;
                 this.isEraserButtonPressed = false;
                 
-                // Cursor management
-                this.cursorTimeout = null;
-                this.cursorVisible = false;
-                
                 // Pressure sensitivity properties
                 this.currentPressure = 0.5;
                 this.lastPoint = null;
@@ -274,8 +270,6 @@
                 this.generateColorPalette();
                 this.bindEvents();
                 this.updateUI();
-                // Ensure cursor is hidden by default
-                this.hideCursor();
             }
 
             setupElements() {
@@ -520,9 +514,6 @@
             }
 
             handleMouseMove(e) {
-                // Show cursor when mouse moves (indicates mouse/trackpad usage)
-                this.showCursor();
-                
                 if (this.currentTool === 'eraser') {
                     this.positionEraserCursor(e.clientX, e.clientY);
                 }
@@ -549,15 +540,6 @@
                 // Only allow drawing with stylus/pen and mouse, not finger touch
                 if (e.pointerType === 'touch') {
                     return; // Ignore finger touch for drawing
-                }
-                
-                // Handle cursor visibility based on input type
-                if (e.pointerType === 'pen') {
-                    // Hide cursor for stylus/pen input
-                    this.hideCursor();
-                } else if (e.pointerType === 'mouse') {
-                    // Show cursor for mouse input
-                    this.showCursor();
                 }
                 
                 // Update pressure information
@@ -749,8 +731,8 @@
                     btn.classList.toggle('active', btn.dataset.tool === tool);
                 });
                 
-                // Always hide cursor by default (will show on mouse movement)
-                this.hideCursor();
+                // Update cursor
+                this.elements.annotationCanvas.style.cursor = tool === 'pen' ? 'crosshair' : 'none';
                 this.updateEraserCursor();
             }
 
@@ -1058,36 +1040,6 @@
                 this.updatePressureDisplay();
             }
 
-            showCursor() {
-                // Show crosshair cursor for mouse/trackpad usage
-                if (!this.cursorVisible) {
-                    this.cursorVisible = true;
-                    if (this.currentTool === 'pen') {
-                        this.elements.annotationCanvas.style.cursor = 'crosshair';
-                    }
-                }
-                
-                // Clear existing timeout
-                if (this.cursorTimeout) {
-                    clearTimeout(this.cursorTimeout);
-                }
-                
-                // Hide cursor after 2 seconds of no mouse movement
-                this.cursorTimeout = setTimeout(() => {
-                    this.hideCursor();
-                }, 2000);
-            }
-            
-            hideCursor() {
-                this.cursorVisible = false;
-                this.elements.annotationCanvas.style.cursor = 'none';
-                
-                if (this.cursorTimeout) {
-                    clearTimeout(this.cursorTimeout);
-                    this.cursorTimeout = null;
-                }
-            }
-
             updateUI() {
                 this.updatePreview(this.currentTool);
                 this.updateColorSelection();
@@ -1100,6 +1052,7 @@
             new PDFAnnotator();
         });
     </script>
+
 
 
 </body></html>
