@@ -91,7 +91,7 @@
                 
                 <button id="loadPdfBtn" class="inline-flex items-center px-8 py-4 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors shadow-lg">
                     <i data-lucide="upload" class="w-5 h-5 mr-3"></i>
-                    Load PDF 2
+                    Load PDF
                 </button>
                 
                 <input type="file" id="pdfInput" accept=".pdf" class="hidden">
@@ -549,6 +549,15 @@
                 // Only allow drawing with stylus/pen and mouse, not finger touch
                 if (e.pointerType === 'touch') {
                     return; // Ignore finger touch for drawing
+                }
+                
+                // Handle cursor visibility based on input type
+                if (e.pointerType === 'pen') {
+                    // Hide cursor for stylus/pen input
+                    this.hideCursor();
+                } else if (e.pointerType === 'mouse') {
+                    // Show cursor for mouse input
+                    this.showCursor();
                 }
                 
                 // Update pressure information
