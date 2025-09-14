@@ -506,8 +506,8 @@
                 document.getElementById('pressure-toggle').addEventListener('change', (e) => this.togglePressure(e));
                 
                 // Pressure steppers
-                document.getElementById('decrease-low').addEventListener('click', () => this.changeLowPressure(-1));
-                document.getElementById('increase-low').addEventListener('click', () => this.changeLowPressure(1));
+                document.getElementById('decrease-low').addEventListener('click', () => this.changeLowPressure(-0.1));
+                document.getElementById('increase-low').addEventListener('click', () => this.changeLowPressure(0.1));
                 document.getElementById('decrease-high').addEventListener('click', () => this.changeHighPressure(-1));
                 document.getElementById('increase-high').addEventListener('click', () => this.changeHighPressure(1));
                 
@@ -682,7 +682,8 @@
             changeLowPressure(delta) {
                 const newSize = Math.max(0.2, Math.min(this.highPressureStroke - 1, this.lowPressureStroke + delta));
                 if (newSize !== this.lowPressureStroke) {
-                    this.lowPressureStroke = newSize;
+                    // Round to 1 decimal place to avoid floating point precision issues
+                    this.lowPressureStroke = Math.round(newSize * 10) / 10;
                     document.getElementById('low-value').textContent = this.lowPressureStroke;
                     this.updatePressurePreviews();
                 }
