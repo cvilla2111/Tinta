@@ -522,6 +522,9 @@
                         this.handleOutsideClick(e);
                     }
                 });
+
+                // Add swipe-to-left gesture to close panel
+                this.setupPanelSwipe();
             }
 
             getPosition(e) {
@@ -772,6 +775,69 @@
                 }
             }
 
+            setupPanelSwipe() {
+                const panel = document.getElementById('panel');
+                let touchStartX = 0;
+                let touchStartY = 0;
+                let touchEndX = 0;
+                let touchEndY = 0;
+                let isSwiping = false;
+
+                panel.addEventListener('touchstart', (e) => {
+                    if (!panel.classList.contains('open')) return;
+                    
+                    const touch = e.touches[0];
+                    touchStartX = touch.clientX;
+                    touchStartY = touch.clientY;
+                    isSwiping = true;
+                }, { passive: true });
+
+                panel.addEventListener('touchmove', (e) => {
+                    if (!isSwiping || !panel.classList.contains('open')) return;
+                    
+                    const touch = e.touches[0];
+                    touchEndX = touch.clientX;
+                    touchEndY = touch.clientY;
+                    
+                    // Calculate swipe distance
+                    const deltaX = touchEndX - touchStartX;
+                    const deltaY = Math.abs(touchEndY - touchStartY);
+                    
+                    // Check if it's a horizontal swipe (more horizontal than vertical)
+                    if (Math.abs(deltaX) > deltaY && Math.abs(deltaX) > 10) {
+                        // Prevent scrolling when swiping horizontally
+                        e.preventDefault();
+                    }
+                }, { passive: false });
+
+                panel.addEventListener('touchend', (e) => {
+                    if (!isSwiping || !panel.classList.contains('open')) {
+                        isSwiping = false;
+                        return;
+                    }
+                    
+                    const deltaX = touchEndX - touchStartX;
+                    const deltaY = Math.abs(touchEndY - touchStartY);
+                    const swipeDistance = Math.abs(deltaX);
+                    const swipeThreshold = 50; // Minimum swipe distance
+                    
+                    // Check for left swipe (negative deltaX) with sufficient distance and more horizontal than vertical
+                    if (deltaX < -swipeThreshold && swipeDistance > deltaY) {
+                        this.closePanel();
+                    }
+                    
+                    isSwiping = false;
+                }, { passive: true });
+            }
+
+            closePanel() {
+                const panel = document.getElementById('panel');
+                const settings = document.getElementById('settings');
+                
+                panel.classList.remove('open');
+                setTimeout(() => settings.classList.remove('hidden'), 300);
+            }
+
             handleOutsideClick(e) {
                 const panel = document.getElementById('panel');
                 const settings = document.getElementById('settings');
@@ -779,8 +845,7 @@
                 if (panel.classList.contains('open') && 
                     !panel.contains(e.target) && 
                     !settings.contains(e.target)) {
-                    panel.classList.remove('open');
-                    setTimeout(() => settings.classList.remove('hidden'), 300);
+                    this.closePanel();
                 }
             }
         }
