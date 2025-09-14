@@ -359,7 +359,7 @@
                 <div class="setting-label">Low Pressure Stroke</div>
                 <div class="stepper">
                     <button class="stepper-btn" id="decrease-low">−</button>
-                    <div class="stepper-value" id="low-value">1</div>
+                    <div class="stepper-value" id="low-value">0.2</div>
                     <button class="stepper-btn" id="increase-low">+</button>
                     <div class="preview">
                         <div class="preview-dot" id="low-dot"></div>
@@ -371,7 +371,7 @@
                 <div class="setting-label">High Pressure Stroke</div>
                 <div class="stepper">
                     <button class="stepper-btn" id="decrease-high">−</button>
-                    <div class="stepper-value" id="high-value">8</div>
+                    <div class="stepper-value" id="high-value">10</div>
                     <button class="stepper-btn" id="increase-high">+</button>
                     <div class="preview">
                         <div class="preview-dot" id="high-dot"></div>
@@ -429,8 +429,8 @@
                 this.strokeSize = 2;
                 this.smoothDrawing = true;
                 this.pressureEnabled = true;
-                this.lowPressureStroke = 1;
-                this.highPressureStroke = 8;
+                this.lowPressureStroke = 0.2;
+                this.highPressureStroke = 10;
                 this.pressureCurve = 'logarithmic';
                 this.pressureSensitivity = 1.0;
                 this.points = [];
