@@ -321,12 +321,12 @@
     <div class="container">
         <!-- Settings Panel -->
         <div class="panel" id="panel">
-            <div class="setting" id="stroke-size-setting">
+            <div class="setting disabled" id="stroke-size-setting">
                 <div class="setting-label">Stroke Size</div>
                 <div class="stepper">
-                    <button class="stepper-btn" id="decrease">−</button>
+                    <button class="stepper-btn" id="decrease" disabled>−</button>
                     <div class="stepper-value" id="value">2</div>
-                    <button class="stepper-btn" id="increase">+</button>
+                    <button class="stepper-btn" id="increase" disabled>+</button>
                     <div class="preview">
                         <div class="preview-dot" id="dot"></div>
                     </div>
@@ -347,15 +347,15 @@
             <div class="setting">
                 <div class="setting-label">Pen Pressure</div>
                 <div class="toggle-container">
-                    <input type="checkbox" id="pressure-toggle" class="toggle-input">
+                    <input type="checkbox" id="pressure-toggle" class="toggle-input" checked="">
                     <label for="pressure-toggle" class="toggle-label">
                         <span class="toggle-slider"></span>
                     </label>
-                    <span class="toggle-text" id="pressure-text">Disabled</span>
+                    <span class="toggle-text" id="pressure-text">Enabled</span>
                 </div>
             </div>
             
-            <div class="setting" id="pressure-settings" style="display: none;">
+            <div class="setting" id="pressure-settings" style="display: block;">
                 <div class="setting-label">Low Pressure Stroke</div>
                 <div class="stepper">
                     <button class="stepper-btn" id="decrease-low">−</button>
@@ -367,7 +367,7 @@
                 </div>
             </div>
             
-            <div class="setting" id="pressure-settings-high" style="display: none;">
+            <div class="setting" id="pressure-settings-high" style="display: block;">
                 <div class="setting-label">High Pressure Stroke</div>
                 <div class="stepper">
                     <button class="stepper-btn" id="decrease-high">−</button>
@@ -379,19 +379,19 @@
                 </div>
             </div>
             
-            <div class="setting" id="pressure-curve-setting" style="display: none;">
+            <div class="setting" id="pressure-curve-setting" style="display: block;">
                 <div class="setting-label">Pressure Curve</div>
                 <div class="curve-selector">
                     <select id="curve-type" class="curve-select">
                         <option value="linear">Linear</option>
                         <option value="exponential">Exponential</option>
-                        <option value="logarithmic">Logarithmic</option>
+                        <option value="logarithmic" selected="">Logarithmic</option>
                         <option value="custom">Custom</option>
                     </select>
                 </div>
             </div>
             
-            <div class="setting" id="pressure-sensitivity-setting" style="display: none;">
+            <div class="setting" id="pressure-sensitivity-setting" style="display: block;">
                 <div class="setting-label">Sensitivity: <span id="sensitivity-value">1.0</span></div>
                 <div class="slider-container">
                     <input type="range" id="sensitivity-slider" class="sensitivity-slider" min="0.1" max="3.0" step="0.1" value="1.0">
@@ -428,10 +428,10 @@
                 this.isDrawing = false;
                 this.strokeSize = 2;
                 this.smoothDrawing = true;
-                this.pressureEnabled = false;
+                this.pressureEnabled = true;
                 this.lowPressureStroke = 1;
                 this.highPressureStroke = 8;
-                this.pressureCurve = 'linear';
+                this.pressureCurve = 'logarithmic';
                 this.pressureSensitivity = 1.0;
                 this.points = [];
                 this.init();
@@ -680,7 +680,7 @@
             }
 
             changeLowPressure(delta) {
-                const newSize = Math.max(1, Math.min(this.highPressureStroke - 1, this.lowPressureStroke + delta));
+                const newSize = Math.max(0.2, Math.min(this.highPressureStroke - 1, this.lowPressureStroke + delta));
                 if (newSize !== this.lowPressureStroke) {
                     this.lowPressureStroke = newSize;
                     document.getElementById('low-value').textContent = this.lowPressureStroke;
