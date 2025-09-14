@@ -1,1267 +1,791 @@
-<!DOCTYPE html><html lang="en"><head><meta name="x-poe-datastore-behavior" content="local_only"><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;"><meta name="x-poe-datastore-behavior" content="local_only"><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
+<!DOCTYPE html>
+<html lang="en">
+<head>
     <meta name="x-poe-datastore-behavior" content="local_only">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Annotator</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: { primary: '#5D5CDE' }
-                }
-            }
-        }
-    </script>
+    <title>Stylus Annotation</title>
     <style>
-        .aspect-16-9 { aspect-ratio: 16 / 9; }
-        .lucide { stroke-width: 0.5px; }
-        .drawing-canvas {
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: white;
+            overflow: hidden;
+            touch-action: none;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        /* Container */
+        .container {
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+        }
+
+        /* Canvas */
+        #canvas {
+            display: block;
+            background: white;
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        /* Buttons */
+        .btn {
+            position: absolute;
+            top: 20px;
+            width: 40px;
+            height: 40px;
+            background: white;
+            border: 1px solid #000;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            background: #000;
+        }
+
+        .btn:hover .icon {
+            fill: white;
+        }
+
+        .btn-settings {
+            left: 20px;
+        }
+
+        .btn-settings.hidden {
+            display: none;
+        }
+
+        .btn-clear {
+            right: 20px;
+        }
+
+        .icon {
+            width: 18px;
+            height: 18px;
+            fill: #000;
+            transition: fill 0.2s ease;
+        }
+
+        /* Settings Panel */
+        .panel {
             position: absolute;
             top: 0;
             left: 0;
-            pointer-events: auto;
-            cursor: crosshair;
+            width: 300px;
+            height: 100vh;
+            background: white;
+            border-right: 1px solid #000;
+            z-index: 5;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+            padding: 20px;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
         }
-        .pdf-container { position: relative; overflow: auto; }
-        .toolbar {
-            backdrop-filter: blur(10px);
-            background: rgba(255, 255, 255, 0.9);
+
+        .panel.open {
+            transform: translateX(0);
         }
-        .dark .toolbar { background: rgba(30, 30, 30, 0.9); }
-        .eraser-cursor {
-            position: fixed;
-            border: 2px dashed #666;
+
+        .setting {
+            margin-bottom: 30px;
+        }
+
+        .setting-label {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #000;
+        }
+
+        /* Stepper Controls */
+        .stepper {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .stepper-btn {
+            width: 30px;
+            height: 30px;
+            background: white;
+            border: 1px solid #000;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .stepper-btn:hover {
+            background: #000;
+            color: white;
+        }
+
+        .stepper-btn:disabled {
+            background: #f5f5f5;
+            color: #ccc;
+            cursor: not-allowed;
+            border-color: #e0e0e0;
+        }
+
+        .stepper-btn:disabled:hover {
+            background: #f5f5f5;
+            color: #ccc;
+        }
+
+        .setting.disabled {
+            opacity: 0.5;
+        }
+
+        .setting.disabled .stepper-value {
+            color: #ccc;
+        }
+
+        .setting.disabled .preview-dot {
+            background: #ccc;
+        }
+
+        .stepper-value {
+            font-size: 16px;
+            font-weight: 600;
+            min-width: 30px;
+            text-align: center;
+        }
+
+        .preview {
+            width: 40px;
+            height: 40px;
+            border: 1px solid #000;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 10px;
+        }
+
+        .preview-dot {
+            background: #000;
             border-radius: 50%;
-            pointer-events: none;
-            z-index: 1000;
-            transform: translate(-50%, -50%);
+            transition: all 0.2s ease;
+        }
+
+        /* Toggle Switch */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .toggle-input {
             display: none;
         }
-        .dark .eraser-cursor { border-color: #999; }
-        .tool-btn {
-            @apply text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100;
-        }
-        .tool-btn.active {
-            @apply bg-primary text-white hover:bg-primary/90;
-        }
-        input[type="range"] {
-            -webkit-appearance: none;
-            appearance: none;
-        }
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            height: 16px;
-            width: 16px;
-            border-radius: 50%;
-            background: #5D5CDE;
+
+        .toggle-label {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: #ccc;
+            border-radius: 12px;
             cursor: pointer;
+            transition: background 0.2s ease;
         }
-        input[type="range"]::-moz-range-thumb {
-            height: 16px;
-            width: 16px;
+
+        .toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
             border-radius: 50%;
-            background: #5D5CDE;
+            transition: transform 0.2s ease;
+        }
+
+        .toggle-input:checked + .toggle-label {
+            background: #000;
+        }
+
+        .toggle-input:checked + .toggle-label .toggle-slider {
+            transform: translateX(26px);
+        }
+
+        .toggle-text {
+            font-size: 14px;
+            font-weight: 500;
+            color: #000;
+            user-select: none;
+        }
+
+        /* Curve Selector */
+        .curve-selector {
+            width: 100%;
+        }
+
+        .curve-select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #000;
+            border-radius: 4px;
+            background: white;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .curve-select:hover {
+            background: #f5f5f5;
+        }
+
+        .curve-select:focus {
+            outline: none;
+            border-color: #000;
+            box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Sensitivity Slider */
+        .slider-container {
+            width: 100%;
+        }
+
+        .sensitivity-slider {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .sensitivity-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #000;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .sensitivity-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        .sensitivity-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #000;
+            border-radius: 50%;
             cursor: pointer;
             border: none;
+            transition: all 0.2s ease;
+        }
+
+        .sensitivity-slider::-moz-range-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #666;
+            user-select: none;
         }
     </style>
-<script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script><script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script><script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script></head>
-<body class="bg-white text-gray-900 transition-colors duration-200">
-    <!-- Home Screen -->
-    <div id="homeScreen" class="min-h-screen flex items-center justify-center p-8">
-        <div class="max-w-4xl w-full aspect-16-9 bg-gray-50 dark:bg-gray-800 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-600 flex flex-col items-center justify-center relative">
-            <!-- Dark Mode Toggle -->
-            <button id="themeToggle" class="absolute top-6 right-6 p-2 rounded-lg bg-white dark:bg-gray-700 shadow-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
-                <i data-lucide="sun" class="w-5 h-5 dark:hidden"></i>
-                <i data-lucide="moon" class="w-5 h-5 hidden dark:block"></i>
-            </button>
-
-            <div class="text-center">
-                <div class="mb-8">
-                    <i data-lucide="file-text" class="w-16 h-16 mx-auto text-gray-400 dark:text-gray-500 mb-4"></i>
-                    <h1 class="text-3xl font-bold text-gray-700 dark:text-gray-200 mb-2">PDF Annotator</h1>
-                    <p class="text-gray-500 dark:text-gray-400">Load a PDF file to start annotating</p>
-                </div>
-                
-                <button id="loadPdfBtn" class="inline-flex items-center px-8 py-4 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors shadow-lg">
-                    <i data-lucide="upload" class="w-5 h-5 mr-3"></i>
-                    Load PDF
-                </button>
-                
-                <input type="file" id="pdfInput" accept=".pdf" class="hidden">
-            </div>
-        </div>
-    </div>
-
-    <!-- PDF Viewer Screen -->
-    <div id="pdfScreen" class="hidden h-screen bg-gray-100 dark:bg-gray-900 overflow-hidden">
-        <!-- PDF Container -->
-        <div class="pdf-container h-full w-full">
-            <div id="pdfViewerContainer" class="w-full h-full relative bg-white dark:bg-gray-800 overflow-hidden">
-                <canvas id="pdfCanvas" class="block w-full h-full"></canvas>
-                <canvas id="annotationCanvas" class="drawing-canvas"></canvas>
-            </div>
-        </div>
-
-        <!-- Settings Modal -->
-        <div id="settingsModal" class="hidden fixed bottom-20 left-6 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-600 p-4 w-64">
-            <!-- Pen Settings -->
-            <div id="penSettings">
-                <!-- Color Palette -->
-                <div class="mb-4">
-                    <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Color</h3>
-                    <div class="grid grid-cols-8 gap-2" id="colorPalette">
-                        <!-- Colors will be generated dynamically -->
-                    </div>
-                </div>
-                
-                <!-- Pen Size -->
-                <div class="mb-4">
-                    <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Pen Size</h3>
-                    <div class="flex items-center space-x-2">
-                        <span class="text-xs text-gray-500 dark:text-gray-400">1</span>
-                        <input type="range" id="penSizeSlider" min="1" max="20" value="2" class="flex-1 h-2 bg-gray-200 dark:bg-gray-600 rounded-lg cursor-pointer">
-                        <span class="text-xs text-gray-500 dark:text-gray-400">20</span>
-                    </div>
-                    <div class="flex justify-center mt-2">
-                        <div id="penSizePreview" class="bg-gray-800 dark:bg-gray-200 rounded-full"></div>
-                    </div>
-                </div>
-
-                <!-- Ink Quality Toggle -->
-                <div class="mb-4">
-                    <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Ink Quality</h3>
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm text-gray-600 dark:text-gray-400">High Quality</span>
-                        <button id="inkQualityToggle" class="relative inline-flex h-6 w-11 items-center rounded-full bg-primary transition-colors focus:outline-none">
-                            <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-5"></span>
-                        </button>
-                    </div>
-                    <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        <span id="inkQualityStatus">Smooth drawing, higher latency</span>
-                    </div>
-                </div>
-
-                <!-- Pressure Sensitivity -->
-                <div class="mb-4">
-                    <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Pressure</h3>
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm text-gray-600 dark:text-gray-400">Pressure Sensitivity</span>
-                        <button id="pressureToggle" class="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-200 dark:bg-gray-600 transition-colors focus:outline-none">
-                            <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-1"></span>
-                        </button>
-                    </div>
-                    <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        <span id="pressureStatus">Disabled</span>
-                        <span id="pressureValue" class="ml-2"></span>
-                    </div>
-                </div>
-
-                <!-- Opacity -->
-                <div>
-                    <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Opacity</h3>
-                    <div class="flex items-center space-x-2">
-                        <span class="text-xs text-gray-500 dark:text-gray-400">10%</span>
-                        <input type="range" id="opacitySlider" min="0.1" max="1" step="0.1" value="1" class="flex-1 h-2 bg-gray-200 dark:bg-gray-600 rounded-lg cursor-pointer">
-                        <span class="text-xs text-gray-500 dark:text-gray-400">100%</span>
+    <script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Settings Panel -->
+        <div class="panel" id="panel">
+            <div class="setting" id="stroke-size-setting">
+                <div class="setting-label">Stroke Size</div>
+                <div class="stepper">
+                    <button class="stepper-btn" id="decrease">−</button>
+                    <div class="stepper-value" id="value">2</div>
+                    <button class="stepper-btn" id="increase">+</button>
+                    <div class="preview">
+                        <div class="preview-dot" id="dot"></div>
                     </div>
                 </div>
             </div>
-
-            <!-- Eraser Settings -->
-            <div id="eraserSettings" class="hidden">
-                <!-- Eraser Size -->
-                <div>
-                    <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Eraser Size</h3>
-                    <div class="flex items-center space-x-2">
-                        <span class="text-xs text-gray-500 dark:text-gray-400">5</span>
-                        <input type="range" id="eraserSizeSlider" min="5" max="90" value="10" class="flex-1 h-2 bg-gray-200 dark:bg-gray-600 rounded-lg cursor-pointer">
-                        <span class="text-xs text-gray-500 dark:text-gray-400">90</span>
+            
+            <div class="setting">
+                <div class="setting-label">Smooth Drawing (QI)</div>
+                <div class="toggle-container">
+                    <input type="checkbox" id="qi-toggle" class="toggle-input" checked="">
+                    <label for="qi-toggle" class="toggle-label">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-text">Enabled</span>
+                </div>
+            </div>
+            
+            <div class="setting">
+                <div class="setting-label">Pen Pressure</div>
+                <div class="toggle-container">
+                    <input type="checkbox" id="pressure-toggle" class="toggle-input">
+                    <label for="pressure-toggle" class="toggle-label">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-text" id="pressure-text">Disabled</span>
+                </div>
+            </div>
+            
+            <div class="setting" id="pressure-settings" style="display: none;">
+                <div class="setting-label">Low Pressure Stroke</div>
+                <div class="stepper">
+                    <button class="stepper-btn" id="decrease-low">−</button>
+                    <div class="stepper-value" id="low-value">1</div>
+                    <button class="stepper-btn" id="increase-low">+</button>
+                    <div class="preview">
+                        <div class="preview-dot" id="low-dot"></div>
                     </div>
-                    <div class="flex justify-center mt-2">
-                        <div id="eraserSizePreview" class="border-2 border-gray-400 dark:border-gray-500 rounded-full bg-transparent"></div>
+                </div>
+            </div>
+            
+            <div class="setting" id="pressure-settings-high" style="display: none;">
+                <div class="setting-label">High Pressure Stroke</div>
+                <div class="stepper">
+                    <button class="stepper-btn" id="decrease-high">−</button>
+                    <div class="stepper-value" id="high-value">8</div>
+                    <button class="stepper-btn" id="increase-high">+</button>
+                    <div class="preview">
+                        <div class="preview-dot" id="high-dot"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="setting" id="pressure-curve-setting" style="display: none;">
+                <div class="setting-label">Pressure Curve</div>
+                <div class="curve-selector">
+                    <select id="curve-type" class="curve-select">
+                        <option value="linear">Linear</option>
+                        <option value="exponential">Exponential</option>
+                        <option value="logarithmic">Logarithmic</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="setting" id="pressure-sensitivity-setting" style="display: none;">
+                <div class="setting-label">Sensitivity: <span id="sensitivity-value">1.0</span></div>
+                <div class="slider-container">
+                    <input type="range" id="sensitivity-slider" class="sensitivity-slider" min="0.1" max="3.0" step="0.1" value="1.0">
+                    <div class="slider-labels">
+                        <span>Gentle</span>
+                        <span>Responsive</span>
                     </div>
                 </div>
             </div>
         </div>
-
-        <!-- Floating Toolbar -->
-        <div id="toolbar" class="toolbar fixed bottom-6 left-6 flex items-center space-x-0.5 px-2 py-1 rounded-full border border-gray-200 dark:border-gray-600 shadow-lg">
-            <button id="penTool" class="tool-btn active p-1 rounded-lg transition-colors" data-tool="pen">
-                <i data-lucide="pen-tool" class="w-5 h-5"></i>
-            </button>
-            <button id="eraserTool" class="tool-btn p-1 rounded-lg transition-colors" data-tool="eraser">
-                <i data-lucide="eraser" class="w-5 h-5"></i>
-            </button>
-            <div class="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1"></div>
-            <button id="undoBtn" class="tool-btn p-1 rounded-lg transition-colors">
-                <i data-lucide="undo" class="w-5 h-5"></i>
-            </button>
-            <button id="redoBtn" class="tool-btn p-1 rounded-lg transition-colors">
-                <i data-lucide="redo" class="w-5 h-5"></i>
-            </button>
-            <button id="clearBtn" class="tool-btn p-1 rounded-lg transition-colors">
-                <i data-lucide="trash-2" class="w-5 h-5"></i>
-            </button>
-        </div>
-
-        <!-- Eraser Cursor -->
-        <div id="eraserCursor" class="eraser-cursor"></div>
+        
+        <!-- Control Buttons -->
+        <button class="btn btn-settings" id="settings">
+            <svg class="icon" viewBox="0 0 24 24">
+                <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"></path>
+            </svg>
+        </button>
+        
+        <button class="btn btn-clear" id="clear">
+            <svg class="icon" viewBox="0 0 24 24">
+                <path d="M3 6h18l-1.5 14H4.5L3 6zm5-4h8v2H8V2zm0 6v8h2V8H8zm6 0v8h2V8h-2z"></path>
+            </svg>
+        </button>
+        
+        <!-- Drawing Canvas -->
+        <canvas id="canvas"></canvas>
     </div>
 
     <script>
-        // Initialize Lucide icons and theme
-        lucide.createIcons();
-        
-        // Dark mode detection
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            document.documentElement.classList.add('dark');
-        }
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
-            document.documentElement.classList.toggle('dark', event.matches);
-        });
-
-        class PDFAnnotator {
+        class StylusApp {
             constructor() {
-                // Core properties
-                this.pdfDoc = null;
-                this.currentPage = 1;
-                this.totalPages = 0;
-                
-                // Drawing state
+                this.canvas = document.getElementById('canvas');
+                this.ctx = this.canvas.getContext('2d');
                 this.isDrawing = false;
-                this.currentTool = 'pen';
-                this.previousTool = 'pen';
-                this.strokeColor = '#000000';
-                this.penSize = 2;
-                this.eraserSize = 10;
-                this.baseEraserSize = 10; // User-set eraser size
-                this.dynamicEraserSize = 10; // Current dynamic size
-                this.strokeOpacity = 1;
-                this.pressureSensitive = false;
-                this.isEraserButtonPressed = false;
-                this.highQualityInk = true;
-                
-                // Dynamic eraser properties
-                this.lastMoveTime = 0;
-                this.lastMovePoint = null;
-                this.currentSpeed = 0;
-                this.targetEraserSize = 10;
-                this.speedSmoothingFactor = 0.05; // How fast size decreases (slower)
-                this.speedThreshold = 120; // Minimum speed to start growing (pixels/second)
-                this.speedMultiplier = 1.2; // How much speed affects size
-                
-                // Visual cursor smoothing
-                this.visualCursorSize = 10; // Smoothed cursor size for display
-                this.lastCursorUpdate = 0;
-                this.cursorUpdateInterval = 16; // Update cursor every ~16ms (60fps)
-                this.cursorAnimationId = null; // For smooth cursor animations
-                
-                // Pressure sensitivity properties
-                this.currentPressure = 0.5;
-                this.lastPoint = null;
-                this.pressureMultiplier = 3; // How much pressure affects line width
-                
-                // Quadratic interpolation properties
-                this.points = []; // Store multiple points for smooth curves
-                this.smoothing = 0.5; // Smoothing factor (0 = no smoothing, 1 = maximum smoothing)
-                
-                // History management
-                this.undoStack = [];
-                this.redoStack = [];
-                
-                // Page-specific annotations storage
-                this.pageAnnotations = new Map(); // Store annotations per page
-                
-                // Device pixel ratio for crisp rendering
-                this.devicePixelRatio = window.devicePixelRatio || 1;
-                
-                // Constants
-                this.MAX_UNDO_STATES = 20;
-                this.DOUBLE_TAP_DELAY = 300;
-                
-                // Color palette
-                this.colors = [
-                    '#000000', '#ef4444', '#3b82f6', '#22c55e',
-                    '#eab308', '#a855f7', '#ec4899', '#f97316',
-                    '#6b7280', '#6366f1', '#14b8a6', '#84cc16',
-                    '#f59e0b', '#f43f5e', '#06b6d4', '#ffffff'
-                ];
-                
+                this.strokeSize = 2;
+                this.smoothDrawing = true;
+                this.pressureEnabled = false;
+                this.lowPressureStroke = 1;
+                this.highPressureStroke = 8;
+                this.pressureCurve = 'linear';
+                this.pressureSensitivity = 1.0;
+                this.points = [];
                 this.init();
             }
 
             init() {
-                this.setupElements();
-                this.generateColorPalette();
-                this.bindEvents();
-                this.updateUI();
+                this.setupCanvas();
+                this.setupEvents();
+                this.updatePreview();
+                this.updatePressurePreviews();
             }
 
-            setupElements() {
-                // Cache DOM elements
-                this.elements = {
-                    homeScreen: document.getElementById('homeScreen'),
-                    pdfScreen: document.getElementById('pdfScreen'),
-                    pdfCanvas: document.getElementById('pdfCanvas'),
-                    annotationCanvas: document.getElementById('annotationCanvas'),
-                    settingsModal: document.getElementById('settingsModal'),
-                    eraserCursor: document.getElementById('eraserCursor'),
-                    toolbar: document.getElementById('toolbar')
+            setupCanvas() {
+                this.resizeCanvas();
+                this.ctx.lineCap = 'round';
+                this.ctx.lineJoin = 'round';
+                this.ctx.strokeStyle = '#000';
+                this.ctx.fillStyle = '#000';
+                window.addEventListener('resize', () => this.resizeCanvas());
+            }
+
+            resizeCanvas() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+                this.ctx.lineCap = 'round';
+                this.ctx.lineJoin = 'round';
+                this.ctx.strokeStyle = '#000';
+                this.ctx.fillStyle = '#000';
+                this.ctx.lineWidth = this.strokeSize;
+            }
+
+            setupEvents() {
+                // Mouse events (fallback)
+                this.canvas.addEventListener('mousedown', (e) => this.startDrawing(e));
+                this.canvas.addEventListener('mousemove', (e) => this.draw(e));
+                this.canvas.addEventListener('mouseup', () => this.stopDrawing());
+                this.canvas.addEventListener('mouseout', () => this.stopDrawing());
+
+                // Pointer events (stylus/pen)
+                this.canvas.addEventListener('pointerdown', (e) => {
+                    if (e.pointerType === 'pen') {
+                        e.preventDefault();
+                        this.startDrawing(e);
+                    }
+                });
+
+                this.canvas.addEventListener('pointermove', (e) => {
+                    if (e.pointerType === 'pen') {
+                        e.preventDefault();
+                        this.draw(e);
+                    }
+                });
+
+                this.canvas.addEventListener('pointerup', (e) => {
+                    if (e.pointerType === 'pen') {
+                        e.preventDefault();
+                        this.stopDrawing();
+                    }
+                });
+
+                // Block touch events to prevent finger drawing
+                ['touchstart', 'touchmove', 'touchend'].forEach(event => {
+                    this.canvas.addEventListener(event, (e) => e.preventDefault());
+                });
+
+                // UI controls
+                document.getElementById('clear').addEventListener('click', () => this.clear());
+                document.getElementById('settings').addEventListener('click', () => this.togglePanel());
+                document.getElementById('decrease').addEventListener('click', () => this.changeSize(-1));
+                document.getElementById('increase').addEventListener('click', () => this.changeSize(1));
+                document.getElementById('qi-toggle').addEventListener('change', (e) => this.toggleSmoothing(e));
+                document.getElementById('pressure-toggle').addEventListener('change', (e) => this.togglePressure(e));
+                
+                // Pressure steppers
+                document.getElementById('decrease-low').addEventListener('click', () => this.changeLowPressure(-1));
+                document.getElementById('increase-low').addEventListener('click', () => this.changeLowPressure(1));
+                document.getElementById('decrease-high').addEventListener('click', () => this.changeHighPressure(-1));
+                document.getElementById('increase-high').addEventListener('click', () => this.changeHighPressure(1));
+                
+                // Pressure curve and sensitivity controls
+                document.getElementById('curve-type').addEventListener('change', (e) => this.changeCurveType(e));
+                document.getElementById('sensitivity-slider').addEventListener('input', (e) => this.changeSensitivity(e));
+
+                // Close panel when clicking outside
+                document.addEventListener('click', (e) => this.handleOutsideClick(e));
+                document.addEventListener('pointerdown', (e) => {
+                    if (e.pointerType === 'pen') {
+                        this.handleOutsideClick(e);
+                    }
+                });
+            }
+
+            getPosition(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                return {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top,
+                    pressure: e.pressure || 0.5
                 };
+            }
+
+            applyPressureCurve(pressure) {
+                // Apply sensitivity adjustment
+                let adjustedPressure = pressure * this.pressureSensitivity;
+                adjustedPressure = Math.max(0, Math.min(1, adjustedPressure)); // Clamp to 0-1
                 
-                // Setup canvas contexts
-                this.pdfCtx = this.elements.pdfCanvas.getContext('2d');
-                this.annotationCtx = this.elements.annotationCanvas.getContext('2d');
-                
-                // Apply initial optimization settings
-                this.optimizeCanvasContext(this.annotationCtx);
-            }
-
-            optimizeCanvasContext(ctx) {
-                // Apply better rendering settings for smoother, crisper lines
-                ctx.imageSmoothingEnabled = true;
-                ctx.imageSmoothingQuality = 'high';
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-            }
-
-            generateColorPalette() {
-                const palette = document.getElementById('colorPalette');
-                palette.innerHTML = this.colors.map(color => 
-                    `<button class="color-btn w-6 h-6 rounded-full border-2 border-gray-300 hover:border-gray-500" 
-                             style="background-color: ${color}" 
-                             data-color="${color}"></button>`
-                ).join('');
-            }
-
-            bindEvents() {
-                // Theme toggle
-                document.getElementById('themeToggle').addEventListener('click', () => {
-                    document.documentElement.classList.toggle('dark');
-                });
-
-                // File loading
-                document.getElementById('loadPdfBtn').addEventListener('click', () => {
-                    document.getElementById('pdfInput').click();
-                });
-
-                document.getElementById('pdfInput').addEventListener('change', (e) => {
-                    if (e.target.files[0]) this.loadPDF(e.target.files[0]);
-                });
-
-                // Keyboard navigation
-                document.addEventListener('keydown', this.handleKeydown.bind(this));
-
-                // Tool events
-                this.elements.toolbar.addEventListener('click', this.handleToolbarClick.bind(this));
-
-                // Settings events
-                this.bindSettingsEvents();
-
-                // Drawing events
-                this.bindDrawingEvents();
-
-                // Modal events
-                this.bindModalEvents();
-            }
-
-            bindSettingsEvents() {
-                // Color selection
-                document.getElementById('colorPalette').addEventListener('click', (e) => {
-                    if (e.target.classList.contains('color-btn')) {
-                        this.setColor(e.target.dataset.color);
-                        this.hideSettingsModal();
-                    }
-                });
-
-                // Sliders
-                document.getElementById('penSizeSlider').addEventListener('input', (e) => {
-                    this.penSize = parseInt(e.target.value);
-                    this.updatePreview('pen');
-                });
-
-                document.getElementById('eraserSizeSlider').addEventListener('input', (e) => {
-                    this.baseEraserSize = parseInt(e.target.value);
-                    this.eraserSize = this.baseEraserSize;
-                    this.dynamicEraserSize = this.baseEraserSize;
-                    this.updatePreview('eraser');
-                    this.updateEraserCursor();
-                });
-
-                document.getElementById('opacitySlider').addEventListener('input', (e) => {
-                    this.strokeOpacity = parseFloat(e.target.value);
-                });
-
-                document.getElementById('pressureToggle').addEventListener('click', () => {
-                    this.togglePressureSensitivity();
-                });
-
-                document.getElementById('inkQualityToggle').addEventListener('click', () => {
-                    this.toggleInkQuality();
-                });
-            }
-
-            bindDrawingEvents() {
-                const canvas = this.elements.annotationCanvas;
-                
-                // Pointer events (supports mouse, stylus/pen, but excludes finger touch)
-                canvas.addEventListener('pointerdown', this.handlePointerStart.bind(this));
-                canvas.addEventListener('pointermove', this.handlePointerMove.bind(this));
-                canvas.addEventListener('pointerup', this.handlePointerEnd.bind(this));
-                canvas.addEventListener('pointerout', this.handlePointerEnd.bind(this));
-                canvas.addEventListener('pointerenter', this.showEraserCursor.bind(this));
-                canvas.addEventListener('pointerleave', this.hideEraserCursor.bind(this));
-
-                // Fallback mouse events for older browsers
-                canvas.addEventListener('mousedown', this.startDrawing.bind(this));
-                canvas.addEventListener('mousemove', this.handleMouseMove.bind(this));
-                canvas.addEventListener('mouseup', this.stopDrawing.bind(this));
-                canvas.addEventListener('mouseout', this.stopDrawing.bind(this));
-                canvas.addEventListener('mouseenter', this.showEraserCursor.bind(this));
-                canvas.addEventListener('mouseleave', this.hideEraserCursor.bind(this));
-
-                // Prevent default touch behavior to avoid scrolling during drawing
-                canvas.addEventListener('touchstart', (e) => e.preventDefault());
-                canvas.addEventListener('touchmove', (e) => e.preventDefault());
-                canvas.addEventListener('touchend', (e) => e.preventDefault());
-            }
-
-            bindModalEvents() {
-                // Double tap on tool buttons to open settings
-                let lastTapTime = 0;
-                let lastTappedTool = null;
-                let tapTimeout = null;
-                
-                // Handle tool button clicks (both single and double tap)
-                document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        e.stopPropagation(); // Prevent toolbar click handler
-                        
-                        const tool = btn.dataset.tool;
-                        const currentTime = Date.now();
-                        const timeSinceLastTap = currentTime - lastTapTime;
-                        
-                        if (timeSinceLastTap < this.DOUBLE_TAP_DELAY && 
-                            timeSinceLastTap > 0 && 
-                            lastTappedTool === tool) {
-                            // Double tap detected on same tool
-                            clearTimeout(tapTimeout);
-                            this.setTool(tool); // Ensure tool is selected
-                            this.toggleSettingsModal();
-                            lastTapTime = 0; // Reset to prevent triple tap
-                            lastTappedTool = null;
-                        } else {
-                            // First tap or different tool
-                            this.setTool(tool);
-                            lastTapTime = currentTime;
-                            lastTappedTool = tool;
-                            
-                            // Clear any existing timeout
-                            clearTimeout(tapTimeout);
-                            
-                            // Set timeout to reset if no second tap comes
-                            tapTimeout = setTimeout(() => {
-                                lastTapTime = 0;
-                                lastTappedTool = null;
-                            }, this.DOUBLE_TAP_DELAY);
-                        }
-                    });
-                });
-
-                // Close modal on outside click/touch
-                document.addEventListener('click', (e) => {
-                    if (!this.elements.settingsModal.contains(e.target) && 
-                        !this.elements.toolbar.contains(e.target)) {
-                        this.hideSettingsModal();
-                    }
-                });
-
-                // Close modal on outside touch (stylus, finger)
-                document.addEventListener('touchstart', (e) => {
-                    if (!this.elements.settingsModal.classList.contains('hidden') &&
-                        !this.elements.settingsModal.contains(e.target) && 
-                        !this.elements.toolbar.contains(e.target)) {
-                        this.hideSettingsModal();
-                    }
-                });
-
-                // Also handle touchend for better touch responsiveness
-                document.addEventListener('touchend', (e) => {
-                    if (!this.elements.settingsModal.classList.contains('hidden') &&
-                        !this.elements.settingsModal.contains(e.target) && 
-                        !this.elements.toolbar.contains(e.target)) {
-                        this.hideSettingsModal();
-                    }
-                });
-            }
-
-            handleKeydown(e) {
-                if (this.elements.pdfScreen.classList.contains('hidden')) return;
-                
-                switch (e.key) {
-                    case 'ArrowLeft':
-                        if (this.currentPage > 1) {
-                            this.navigateToPage(this.currentPage - 1);
-                        }
-                        break;
-                    case 'ArrowRight':
-                        if (this.currentPage < this.totalPages) {
-                            this.navigateToPage(this.currentPage + 1);
-                        }
-                        break;
-                    case 'Escape':
-                        this.showHomeScreen();
-                        break;
+                switch (this.pressureCurve) {
+                    case 'linear':
+                        return adjustedPressure;
+                    case 'exponential':
+                        // More sensitive to light pressure
+                        return Math.pow(adjustedPressure, 0.5);
+                    case 'logarithmic':
+                        // More sensitive to heavy pressure
+                        return Math.pow(adjustedPressure, 2);
+                    case 'custom':
+                        // Custom S-curve for more natural feel
+                        return adjustedPressure * adjustedPressure * (3 - 2 * adjustedPressure);
+                    default:
+                        return adjustedPressure;
                 }
             }
 
-            navigateToPage(newPage) {
-                if (newPage < 1 || newPage > this.totalPages) return;
-                
-                // Save annotations for current page before switching
-                this.savePageAnnotations(this.currentPage);
-                
-                // Update to new page
-                this.currentPage = newPage;
-                
-                // Render the new page
-                this.renderPage();
-            }
-
-            handleToolbarClick(e) {
-                const toolBtn = e.target.closest('.tool-btn');
-                if (!toolBtn) return;
-
-                // Only handle non-tool buttons here (undo, redo, clear)
-                // Tool buttons are handled in bindModalEvents
-                if (!toolBtn.dataset.tool) {
-                    const action = toolBtn.id;
-                    switch (action) {
-                        case 'undoBtn': this.undo(); break;
-                        case 'redoBtn': this.redo(); break;
-                        case 'clearBtn': this.clearAnnotations(); break;
-                    }
-                }
-            }
-
-            handleMouseMove(e) {
-                if (this.currentTool === 'eraser') {
-                    this.positionEraserCursor(e.clientX, e.clientY);
-                }
-                this.draw(e);
-            }
-
-            handlePointerStart(e) {
-                // Only allow drawing with stylus/pen and mouse, not finger touch
-                if (e.pointerType === 'touch') {
-                    return; // Ignore finger touch for drawing
+            getCurrentStrokeSize(pressure) {
+                if (!this.pressureEnabled) {
+                    return this.strokeSize;
                 }
                 
-                // Store pressure information
-                this.currentPressure = e.pressure || 0.5;
-                this.updatePressureDisplay();
+                // Apply pressure curve transformation
+                const transformedPressure = this.applyPressureCurve(pressure);
                 
-                // Check for eraser button press (stylus eraser)
-                this.checkEraserButton(e);
-                
-                this.startDrawing(e);
-            }
-
-            handlePointerMove(e) {
-                // Only allow drawing with stylus/pen and mouse, not finger touch
-                if (e.pointerType === 'touch') {
-                    return; // Ignore finger touch for drawing
-                }
-                
-                // Update pressure information
-                this.currentPressure = e.pressure || 0.5;
-                this.updatePressureDisplay();
-                
-                // Check for eraser button during move
-                this.checkEraserButton(e);
-                
-                if (this.currentTool === 'eraser') {
-                    this.updateEraserSpeed(e);
-                    // Update cursor position immediately, not just during drawing
-                    this.positionEraserCursor(e.clientX, e.clientY);
-                    // Force immediate cursor size update during drawing
-                    if (this.isDrawing) {
-                        this.updateEraserCursorImmediate();
-                    }
-                }
-                this.draw(e);
-            }
-
-            handlePointerEnd(e) {
-                // Only allow drawing with stylus/pen and mouse, not finger touch
-                if (e.pointerType === 'touch') {
-                    return; // Ignore finger touch for drawing
-                }
-                
-                // Reset pressure
-                this.currentPressure = 0.5;
-                this.updatePressureDisplay();
-                
-                // Check if eraser button was released
-                this.checkEraserButton(e);
-                
-                this.stopDrawing();
-            }
-
-            updatePressureDisplay() {
-                const pressureValue = document.getElementById('pressureValue');
-                if (pressureValue && this.pressureSensitive) {
-                    pressureValue.textContent = `(${(this.currentPressure * 100).toFixed(0)}%)`;
-                } else if (pressureValue) {
-                    pressureValue.textContent = '';
-                }
-            }
-
-            checkEraserButton(e) {
-                // Detect eraser button press on stylus
-                // buttons: 32 = eraser button, 2 = secondary button (also used for eraser on some styluses)
-                const eraserPressed = (e.buttons & 32) !== 0 || (e.pointerType === 'pen' && (e.buttons & 2) !== 0);
-                
-                if (eraserPressed && !this.isEraserButtonPressed) {
-                    // Eraser button just pressed
-                    this.isEraserButtonPressed = true;
-                    if (this.currentTool !== 'eraser') {
-                        this.previousTool = this.currentTool;
-                        this.setTool('eraser');
-                        // Show eraser cursor when switching to eraser via stylus button
-                        this.showEraserCursor();
-                        this.positionEraserCursor(e.clientX, e.clientY);
-                    }
-                } else if (!eraserPressed && this.isEraserButtonPressed) {
-                    // Eraser button just released
-                    this.isEraserButtonPressed = false;
-                    if (this.currentTool === 'eraser' && this.previousTool) {
-                        // Hide eraser cursor when switching away from eraser
-                        this.hideEraserCursor();
-                        this.setTool(this.previousTool);
-                    }
-                }
-                
-                // Update eraser cursor position if eraser is active
-                if (this.currentTool === 'eraser' && this.isEraserButtonPressed) {
-                    this.positionEraserCursor(e.clientX, e.clientY);
-                }
-            }
-
-            async loadPDF(file) {
-                try {
-                    const arrayBuffer = await file.arrayBuffer();
-                    this.pdfDoc = await pdfjsLib.getDocument(arrayBuffer).promise;
-                    this.totalPages = this.pdfDoc.numPages;
-                    this.currentPage = 1;
-                    
-                    this.showPdfScreen();
-                    await new Promise(resolve => requestAnimationFrame(resolve));
-                    await this.renderPage();
-                } catch (error) {
-                    console.error('Error loading PDF:', error);
-                }
-            }
-
-            async renderPage() {
-                const page = await this.pdfDoc.getPage(this.currentPage);
-                
-                // Use fixed scale instead of dynamic scaling
-                const scale = this.fixedScale || this.calculateInitialScale(page);
-                this.fixedScale = scale; // Store for consistency
-                
-                const viewport = page.getViewport({ scale });
-                
-                // Set canvas dimensions with device pixel ratio support
-                this.setCanvasDimensions(viewport.width, viewport.height);
-                
-                // Render PDF to the PDF canvas with proper scaling
-                await page.render({
-                    canvasContext: this.pdfCtx,
-                    viewport: viewport
-                }).promise;
-                
-                // Clear annotations canvas first
-                this.annotationCtx.clearRect(
-                    0, 0,
-                    viewport.width,
-                    viewport.height
-                );
-                
-                // Restore annotations for current page
-                this.restoreCurrentPageAnnotations();
-                
-                // Reset undo/redo stacks for the new page
-                this.undoStack = [];
-                this.redoStack = [];
-            }
-
-            setCanvasDimensions(width, height) {
-                // Use reduced device pixel ratio for fast mode
-                const devicePixelRatio = this.highQualityInk ? this.devicePixelRatio : 1;
-                
-                [this.elements.pdfCanvas, this.elements.annotationCanvas].forEach(canvas => {
-                    // Set the display size (CSS pixels)
-                    canvas.style.width = width + 'px';
-                    canvas.style.height = height + 'px';
-                    canvas.style.display = 'block';
-                    
-                    // Set the internal canvas size accounting for device pixel ratio
-                    canvas.width = width * devicePixelRatio;
-                    canvas.height = height * devicePixelRatio;
-                    
-                    // Get context and scale it
-                    const ctx = canvas.getContext('2d');
-                    ctx.scale(devicePixelRatio, devicePixelRatio);
-                    
-                    // Apply optimization settings
-                    this.optimizeCanvasContext(ctx);
-                });
-            }
-
-            saveCurrentPageAnnotations() {
-                if (this.elements.annotationCanvas.width > 0 && this.elements.annotationCanvas.height > 0) {
-                    const devicePixelRatio = this.highQualityInk ? this.devicePixelRatio : 1;
-                    const imageData = this.annotationCtx.getImageData(
-                        0, 0,
-                        this.elements.annotationCanvas.width / devicePixelRatio,
-                        this.elements.annotationCanvas.height / devicePixelRatio
-                    );
-                    this.pageAnnotations.set(this.currentPage, imageData);
-                }
-            }
-
-            restoreCurrentPageAnnotations() {
-                const savedAnnotations = this.pageAnnotations.get(this.currentPage);
-                if (savedAnnotations) {
-                    this.annotationCtx.putImageData(savedAnnotations, 0, 0);
-                }
-            }
-
-            savePageAnnotations(pageNumber) {
-                if (this.elements.annotationCanvas.width > 0 && this.elements.annotationCanvas.height > 0) {
-                    const devicePixelRatio = this.highQualityInk ? this.devicePixelRatio : 1;
-                    const imageData = this.annotationCtx.getImageData(
-                        0, 0,
-                        this.elements.annotationCanvas.width / devicePixelRatio,
-                        this.elements.annotationCanvas.height / devicePixelRatio
-                    );
-                    this.pageAnnotations.set(pageNumber, imageData);
-                }
-            }
-
-            calculateInitialScale(page) {
-                // Calculate scale only once when first loading
-                const container = document.getElementById('pdfViewerContainer');
-                const containerWidth = container.clientWidth;
-                const baseViewport = page.getViewport({ scale: 1 });
-                
-                // Use a reasonable default scale that fits most screens
-                const fitScale = containerWidth / baseViewport.width;
-                // Cap the scale to prevent too large or too small rendering
-                return Math.min(Math.max(fitScale, 0.5), 2.0);
-            }
-
-            setTool(tool) {
-                this.currentTool = tool;
-                
-                // Reset dynamic eraser properties when switching tools
-                if (tool === 'eraser') {
-                    this.dynamicEraserSize = this.baseEraserSize;
-                    this.targetEraserSize = this.baseEraserSize;
-                    this.lastMoveTime = 0;
-                    this.lastMovePoint = null;
-                    this.currentSpeed = 0;
-                }
-                
-                // Update active state
-                document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
-                    btn.classList.toggle('active', btn.dataset.tool === tool);
-                });
-                
-                // Update cursor
-                this.elements.annotationCanvas.style.cursor = tool === 'pen' ? 'crosshair' : 'none';
-                this.updateEraserCursor();
+                // Map transformed pressure to stroke size range
+                const range = this.highPressureStroke - this.lowPressureStroke;
+                return this.lowPressureStroke + (transformedPressure * range);
             }
 
             startDrawing(e) {
                 this.isDrawing = true;
-                this.saveState();
+                const pos = this.getPosition(e);
+                this.points = [pos];
                 
-                const { x, y } = this.getCanvasCoordinates(e);
-                this.lastPoint = { x, y };
+                // Set stroke size based on pressure
+                const strokeSize = this.getCurrentStrokeSize(pos.pressure);
+                this.ctx.lineWidth = strokeSize;
                 
-                // Initialize points array for quadratic interpolation (only in high quality mode)
-                if (this.highQualityInk) {
-                    this.points = [{ x, y, pressure: this.currentPressure }];
-                }
-                
-                this.annotationCtx.beginPath();
-                this.annotationCtx.moveTo(x, y);
-                
-                // Set tool properties
-                if (this.currentTool === 'pen') {
-                    this.annotationCtx.globalCompositeOperation = 'source-over';
-                    this.annotationCtx.strokeStyle = this.strokeColor;
-                    
-                    // Apply pressure sensitivity to line width if enabled
-                    if (this.pressureSensitive) {
-                        this.annotationCtx.lineWidth = this.penSize * (0.3 + this.currentPressure * this.pressureMultiplier);
-                    } else {
-                        this.annotationCtx.lineWidth = this.penSize;
-                    }
-                    
-                    this.annotationCtx.globalAlpha = this.strokeOpacity;
-                } else if (this.currentTool === 'eraser') {
-                    // Reset eraser size to base size at start of new stroke
-                    this.dynamicEraserSize = this.baseEraserSize;
-                    this.targetEraserSize = this.baseEraserSize;
-                    this.eraserSize = this.baseEraserSize;
-                    this.visualCursorSize = this.baseEraserSize; // Reset visual cursor too
-                    this.lastMoveTime = 0;
-                    this.lastMovePoint = null;
-                    this.currentSpeed = 0;
-                    
-                    this.annotationCtx.globalCompositeOperation = 'destination-out';
-                    this.annotationCtx.lineWidth = this.eraserSize;
-                    this.annotationCtx.globalAlpha = 1;
-                }
+                // Draw initial dot
+                this.ctx.beginPath();
+                this.ctx.arc(pos.x, pos.y, strokeSize / 2, 0, 2 * Math.PI);
+                this.ctx.fill();
             }
 
             draw(e) {
                 if (!this.isDrawing) return;
                 
-                const { x, y } = this.getCanvasCoordinates(e);
+                const pos = this.getPosition(e);
+                this.points.push(pos);
                 
-                if (this.currentTool === 'pen') {
-                    if (this.highQualityInk) {
-                        // High quality mode with smooth curves
-                        this.points.push({ x, y, pressure: this.currentPressure });
-                        this.drawSmoothLine();
-                    } else {
-                        // Fast mode with simple lines
-                        this.drawFastLine(x, y);
-                    }
-                } else if (this.currentTool === 'eraser') {
-                    // For eraser, update size dynamically and use simple line drawing
-                    this.annotationCtx.lineWidth = this.eraserSize;
-                    this.annotationCtx.lineTo(x, y);
-                    this.annotationCtx.stroke();
-                }
+                // Update stroke size based on pressure
+                const strokeSize = this.getCurrentStrokeSize(pos.pressure);
+                this.ctx.lineWidth = strokeSize;
                 
-                this.lastPoint = { x, y };
-            }
-
-            drawFastLine(x, y) {
-                if (!this.lastPoint) return;
-                
-                // Simple line drawing for better performance
-                if (this.pressureSensitive) {
-                    this.annotationCtx.lineWidth = this.penSize * (0.3 + this.currentPressure * this.pressureMultiplier);
-                }
-                
-                this.annotationCtx.lineTo(x, y);
-                this.annotationCtx.stroke();
-                
-                // For fast mode, start new path for each segment to allow line width changes
-                if (this.pressureSensitive) {
-                    this.annotationCtx.beginPath();
-                    this.annotationCtx.moveTo(x, y);
-                }
-            }
-
-            drawSmoothLine() {
-                const pointsLength = this.points.length;
-                
-                // Need at least 2 points to draw
-                if (pointsLength < 2) return;
-                
-                // For the first segment, just draw a line
-                if (pointsLength === 2) {
-                    const [p0, p1] = this.points;
+                if (this.points.length < 3 || !this.smoothDrawing) {
+                    // Draw straight line for first segment or when QI is disabled
+                    const prevPoint = this.points[this.points.length - 2];
+                    const prevStrokeSize = this.getCurrentStrokeSize(prevPoint.pressure);
                     
-                    if (this.pressureSensitive) {
-                        this.annotationCtx.lineWidth = this.penSize * (0.3 + p1.pressure * this.pressureMultiplier);
-                    }
+                    // Use average stroke size for the line segment
+                    this.ctx.lineWidth = (strokeSize + prevStrokeSize) / 2;
                     
-                    this.annotationCtx.lineTo(p1.x, p1.y);
-                    this.annotationCtx.stroke();
-                    return;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(prevPoint.x, prevPoint.y);
+                    this.ctx.lineTo(pos.x, pos.y);
+                    this.ctx.stroke();
+                } else {
+                    // Use quadratic curves for smooth drawing when QI is enabled
+                    const currentPoint = this.points[this.points.length - 1];
+                    const previousPoint = this.points[this.points.length - 2];
+                    const beforePreviousPoint = this.points[this.points.length - 3];
+                    
+                    const midX = (previousPoint.x + currentPoint.x) / 2;
+                    const midY = (previousPoint.y + currentPoint.y) / 2;
+                    
+                    // Use previous point's pressure for this stroke segment
+                    const prevStrokeSize = this.getCurrentStrokeSize(previousPoint.pressure);
+                    this.ctx.lineWidth = prevStrokeSize;
+                    
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(
+                        (beforePreviousPoint.x + previousPoint.x) / 2,
+                        (beforePreviousPoint.y + previousPoint.y) / 2
+                    );
+                    this.ctx.quadraticCurveTo(
+                        previousPoint.x,
+                        previousPoint.y,
+                        midX,
+                        midY
+                    );
+                    this.ctx.stroke();
                 }
-                
-                // Use quadratic interpolation for smoother curves
-                const p0 = this.points[pointsLength - 3]; // Previous point
-                const p1 = this.points[pointsLength - 2]; // Control point
-                const p2 = this.points[pointsLength - 1]; // Current point
-                
-                // Calculate control point using smoothing factor
-                const cpX = p1.x + (p2.x - p0.x) * this.smoothing * 0.25;
-                const cpY = p1.y + (p2.y - p0.y) * this.smoothing * 0.25;
-                
-                // Calculate midpoint for smooth connection
-                const midX = (p1.x + p2.x) * 0.5;
-                const midY = (p1.y + p2.y) * 0.5;
-                
-                // Set line width based on pressure if enabled
-                if (this.pressureSensitive) {
-                    const avgPressure = (p1.pressure + p2.pressure) * 0.5;
-                    this.annotationCtx.lineWidth = this.penSize * (0.3 + avgPressure * this.pressureMultiplier);
-                }
-                
-                // Draw quadratic curve from previous point to midpoint
-                this.annotationCtx.quadraticCurveTo(cpX, cpY, midX, midY);
-                this.annotationCtx.stroke();
-                
-                // Start new path from the midpoint for the next segment
-                this.annotationCtx.beginPath();
-                this.annotationCtx.moveTo(midX, midY);
             }
 
             stopDrawing() {
-                if (this.isDrawing) {
-                    this.isDrawing = false;
-                    this.lastPoint = null;
-                    this.redoStack = [];
+                if (this.isDrawing && this.points.length >= 2) {
+                    // Complete the final stroke segment
+                    const lastPoint = this.points[this.points.length - 1];
+                    const secondLastPoint = this.points[this.points.length - 2];
+                    
+                    const finalStrokeSize = this.getCurrentStrokeSize(lastPoint.pressure);
+                    this.ctx.lineWidth = finalStrokeSize;
+                    
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(
+                        (secondLastPoint.x + lastPoint.x) / 2,
+                        (secondLastPoint.y + lastPoint.y) / 2
+                    );
+                    this.ctx.lineTo(lastPoint.x, lastPoint.y);
+                    this.ctx.stroke();
+                }
+                
+                this.isDrawing = false;
+                this.points = [];
+                
+                // Reset to default stroke size
+                this.ctx.lineWidth = this.strokeSize;
+            }
+
+            clear() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            }
+
+            togglePanel() {
+                const panel = document.getElementById('panel');
+                const settings = document.getElementById('settings');
+                panel.classList.toggle('open');
+                settings.classList.toggle('hidden');
+            }
+
+            changeSize(delta) {
+                const newSize = Math.max(1, Math.min(20, this.strokeSize + delta));
+                if (newSize !== this.strokeSize) {
+                    this.strokeSize = newSize;
+                    this.ctx.lineWidth = this.strokeSize;
+                    document.getElementById('value').textContent = this.strokeSize;
+                    this.updatePreview();
                 }
             }
 
-            getCanvasCoordinates(e) {
-                const rect = this.elements.annotationCanvas.getBoundingClientRect();
-                return {
-                    x: e.clientX - rect.left,
-                    y: e.clientY - rect.top
-                };
-            }
-
-            saveState() {
-                const devicePixelRatio = this.highQualityInk ? this.devicePixelRatio : 1;
-                const imageData = this.annotationCtx.getImageData(
-                    0, 0, 
-                    this.elements.annotationCanvas.width / devicePixelRatio, 
-                    this.elements.annotationCanvas.height / devicePixelRatio
-                );
-                
-                this.undoStack.push(imageData);
-                if (this.undoStack.length > this.MAX_UNDO_STATES) {
-                    this.undoStack.shift();
+            changeLowPressure(delta) {
+                const newSize = Math.max(1, Math.min(this.highPressureStroke - 1, this.lowPressureStroke + delta));
+                if (newSize !== this.lowPressureStroke) {
+                    this.lowPressureStroke = newSize;
+                    document.getElementById('low-value').textContent = this.lowPressureStroke;
+                    this.updatePressurePreviews();
                 }
             }
 
-            undo() {
-                if (this.undoStack.length === 0) return;
+            changeHighPressure(delta) {
+                const newSize = Math.max(this.lowPressureStroke + 1, Math.min(20, this.highPressureStroke + delta));
+                if (newSize !== this.highPressureStroke) {
+                    this.highPressureStroke = newSize;
+                    document.getElementById('high-value').textContent = this.highPressureStroke;
+                    this.updatePressurePreviews();
+                }
+            }
+
+            updatePreview() {
+                const dot = document.getElementById('dot');
+                const size = Math.min(this.strokeSize * 2, 30);
+                dot.style.width = `${size}px`;
+                dot.style.height = `${size}px`;
+            }
+
+            updatePressurePreviews() {
+                const lowDot = document.getElementById('low-dot');
+                const highDot = document.getElementById('high-dot');
                 
-                const devicePixelRatio = this.highQualityInk ? this.devicePixelRatio : 1;
-                this.redoStack.push(this.annotationCtx.getImageData(
-                    0, 0,
-                    this.elements.annotationCanvas.width / devicePixelRatio,
-                    this.elements.annotationCanvas.height / devicePixelRatio
-                ));
+                const lowSize = Math.min(this.lowPressureStroke * 2, 30);
+                const highSize = Math.min(this.highPressureStroke * 2, 30);
                 
-                const previousState = this.undoStack.pop();
-                this.annotationCtx.putImageData(previousState, 0, 0);
-            }
-
-            redo() {
-                if (this.redoStack.length === 0) return;
+                lowDot.style.width = `${lowSize}px`;
+                lowDot.style.height = `${lowSize}px`;
                 
-                const devicePixelRatio = this.highQualityInk ? this.devicePixelRatio : 1;
-                this.undoStack.push(this.annotationCtx.getImageData(
-                    0, 0,
-                    this.elements.annotationCanvas.width / devicePixelRatio,
-                    this.elements.annotationCanvas.height / devicePixelRatio
-                ));
+                highDot.style.width = `${highSize}px`;
+                highDot.style.height = `${highSize}px`;
+            }
+
+            toggleSmoothing(e) {
+                this.smoothDrawing = e.target.checked;
+                const toggleText = document.querySelector('.toggle-text');
+                toggleText.textContent = this.smoothDrawing ? 'Enabled' : 'Disabled';
+            }
+
+            changeCurveType(e) {
+                this.pressureCurve = e.target.value;
+            }
+
+            changeSensitivity(e) {
+                this.pressureSensitivity = parseFloat(e.target.value);
+                document.getElementById('sensitivity-value').textContent = this.pressureSensitivity.toFixed(1);
+            }
+
+            togglePressure(e) {
+                this.pressureEnabled = e.target.checked;
+                const toggleText = document.getElementById('pressure-text');
+                const pressureSettings = document.getElementById('pressure-settings');
+                const pressureSettingsHigh = document.getElementById('pressure-settings-high');
+                const pressureCurveSetting = document.getElementById('pressure-curve-setting');
+                const pressureSensitivitySetting = document.getElementById('pressure-sensitivity-setting');
+                const strokeSizeSetting = document.getElementById('stroke-size-setting');
+                const decreaseBtn = document.getElementById('decrease');
+                const increaseBtn = document.getElementById('increase');
                 
-                const nextState = this.redoStack.pop();
-                this.annotationCtx.putImageData(nextState, 0, 0);
-            }
-
-            clearAnnotations() {
-                this.saveState();
-                const devicePixelRatio = this.highQualityInk ? this.devicePixelRatio : 1;
-                this.annotationCtx.clearRect(
-                    0, 0,
-                    this.elements.annotationCanvas.width / devicePixelRatio,
-                    this.elements.annotationCanvas.height / devicePixelRatio
-                );
-                // Also remove the current page annotations from storage
-                this.pageAnnotations.delete(this.currentPage);
-                this.redoStack = [];
-            }
-
-            showHomeScreen() {
-                this.elements.homeScreen.classList.remove('hidden');
-                this.elements.pdfScreen.classList.add('hidden');
-            }
-
-            showPdfScreen() {
-                this.elements.homeScreen.classList.add('hidden');
-                this.elements.pdfScreen.classList.remove('hidden');
-            }
-
-            toggleSettingsModal() {
-                const isHidden = this.elements.settingsModal.classList.contains('hidden');
-                if (isHidden) {
-                    this.showSettingsModal();
+                toggleText.textContent = this.pressureEnabled ? 'Enabled' : 'Disabled';
+                
+                if (this.pressureEnabled) {
+                    // Show all pressure settings
+                    pressureSettings.style.display = 'block';
+                    pressureSettingsHigh.style.display = 'block';
+                    pressureCurveSetting.style.display = 'block';
+                    pressureSensitivitySetting.style.display = 'block';
+                    
+                    // Disable and gray out the regular stroke size stepper
+                    strokeSizeSetting.classList.add('disabled');
+                    decreaseBtn.disabled = true;
+                    increaseBtn.disabled = true;
                 } else {
-                    this.hideSettingsModal();
-                }
-            }
-
-            showSettingsModal() {
-                this.elements.settingsModal.classList.remove('hidden');
-                this.updateModalForCurrentTool();
-                this.updatePreview(this.currentTool);
-                this.updateColorSelection();
-            }
-
-            hideSettingsModal() {
-                this.elements.settingsModal.classList.add('hidden');
-            }
-
-            setColor(color) {
-                this.strokeColor = color;
-                this.updateColorSelection();
-            }
-
-            updateColorSelection() {
-                document.querySelectorAll('.color-btn').forEach(btn => {
-                    btn.classList.toggle('ring-2', btn.dataset.color === this.strokeColor);
-                    btn.classList.toggle('ring-primary', btn.dataset.color === this.strokeColor);
-                });
-            }
-
-            updateModalForCurrentTool() {
-                const penSettings = document.getElementById('penSettings');
-                const eraserSettings = document.getElementById('eraserSettings');
-                
-                penSettings.classList.toggle('hidden', this.currentTool !== 'pen');
-                eraserSettings.classList.toggle('hidden', this.currentTool !== 'eraser');
-            }
-
-            updatePreview(tool) {
-                if (tool === 'pen') {
-                    this.updatePenSizePreview();
-                } else if (tool === 'eraser') {
-                    this.updateEraserSizePreview();
-                }
-            }
-
-            updatePenSizePreview() {
-                const preview = document.getElementById('penSizePreview');
-                const size = this.penSize;
-                preview.style.width = size + 'px';
-                preview.style.height = size + 'px';
-            }
-
-            updateEraserSizePreview() {
-                const preview = document.getElementById('eraserSizePreview');
-                const size = this.eraserSize;
-                preview.style.width = size + 'px';
-                preview.style.height = size + 'px';
-            }
-
-            updateEraserSpeed(e) {
-                const currentTime = Date.now();
-                const currentPoint = { x: e.clientX, y: e.clientY };
-                
-                if (this.lastMoveTime && this.lastMovePoint) {
-                    const timeDelta = Math.max(1, currentTime - this.lastMoveTime); // Avoid division by zero
-                    const dx = currentPoint.x - this.lastMovePoint.x;
-                    const dy = currentPoint.y - this.lastMovePoint.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    // Hide all pressure settings
+                    pressureSettings.style.display = 'none';
+                    pressureSettingsHigh.style.display = 'none';
+                    pressureCurveSetting.style.display = 'none';
+                    pressureSensitivitySetting.style.display = 'none';
                     
-                    // Calculate speed in pixels per millisecond, then convert to a more usable scale
-                    const rawSpeed = distance / timeDelta;
-                    this.currentSpeed = rawSpeed * 1000; // Convert to pixels per second
-                    
-                    // Apply threshold - only start growing if speed exceeds threshold
-                    if (this.currentSpeed > this.speedThreshold) {
-                        // Calculate target eraser size based on speed above threshold
-                        // Map speed range (threshold-600 pixels/second) to size range (baseSize-150px)
-                        const minSize = 8;
-                        const maxSize = 150;
-                        const maxSpeed = 800; // Adjust this to change sensitivity
-                        
-                        // Calculate speed factor only for speed above threshold
-                        const effectiveSpeed = Math.max(0, this.currentSpeed - this.speedThreshold);
-                        const effectiveMaxSpeed = maxSpeed - this.speedThreshold;
-                        const speedFactor = Math.min(effectiveSpeed / effectiveMaxSpeed, 1);
-                        
-                        this.targetEraserSize = this.baseEraserSize + (maxSize - this.baseEraserSize) * speedFactor;
-                    } else {
-                        // Below threshold - target size is base size
-                        this.targetEraserSize = this.baseEraserSize;
-                    }
-                    
-                    // Apply speed-based dynamic sizing
-                    this.updateDynamicEraserSize();
-                } else {
-                    // Initialize for first movement
-                    this.targetEraserSize = this.baseEraserSize;
-                    this.dynamicEraserSize = this.baseEraserSize;
-                }
-                
-                this.lastMoveTime = currentTime;
-                this.lastMovePoint = currentPoint;
-            }
-
-            updateDynamicEraserSize() {
-                // Fast increase when speed goes up, slow decrease when speed goes down
-                if (this.targetEraserSize > this.dynamicEraserSize) {
-                    // Quick increase - immediate response to speed increase
-                    this.dynamicEraserSize = this.targetEraserSize;
-                } else {
-                    // Slow decrease - gradual shrinking when speed decreases
-                    const diff = this.targetEraserSize - this.dynamicEraserSize;
-                    this.dynamicEraserSize += diff * this.speedSmoothingFactor;
-                }
-                
-                // Clamp the size to reasonable bounds
-                this.dynamicEraserSize = Math.max(8, Math.min(150, this.dynamicEraserSize));
-                
-                // Update the actual eraser size used for drawing
-                this.eraserSize = Math.round(this.dynamicEraserSize);
-                
-                // Update visual cursor with rate limiting
-                this.updateEraserCursorSmooth();
-            }
-
-            updateEraserCursorSmooth() {
-                // Cancel previous animation frame if it exists
-                if (this.cursorAnimationId) {
-                    cancelAnimationFrame(this.cursorAnimationId);
-                }
-                
-                // Start smooth cursor animation
-                this.animateCursorSize();
-            }
-
-            animateCursorSize() {
-                const targetVisualSize = this.dynamicEraserSize;
-                const sizeDiff = targetVisualSize - this.visualCursorSize;
-                
-                // Apply ultra-smooth transition with very small steps
-                if (Math.abs(sizeDiff) > 0.1) {
-                    this.visualCursorSize += sizeDiff * 0.08; // Much smaller steps for smoother animation
-                    
-                    // Update the actual cursor element with sub-pixel precision
-                    const cursor = this.elements.eraserCursor;
-                    if (this.currentTool === 'eraser') {
-                        // Use precise decimal values, only round for display
-                        const size = this.visualCursorSize.toFixed(1) + 'px';
-                        cursor.style.width = size;
-                        cursor.style.height = size;
-                    }
-                    
-                    // Continue animation on next frame
-                    this.cursorAnimationId = requestAnimationFrame(() => this.animateCursorSize());
-                } else {
-                    // Snap to target when very close
-                    this.visualCursorSize = targetVisualSize;
-                    const cursor = this.elements.eraserCursor;
-                    if (this.currentTool === 'eraser') {
-                        const size = this.visualCursorSize.toFixed(1) + 'px';
-                        cursor.style.width = size;
-                        cursor.style.height = size;
-                    }
-                    this.cursorAnimationId = null;
+                    // Re-enable the regular stroke size stepper
+                    strokeSizeSetting.classList.remove('disabled');
+                    decreaseBtn.disabled = false;
+                    increaseBtn.disabled = false;
                 }
             }
 
-            updateEraserCursorImmediate() {
-                // Immediate cursor update during drawing for better sync
-                this.visualCursorSize = this.dynamicEraserSize;
-                const cursor = this.elements.eraserCursor;
-                if (this.currentTool === 'eraser') {
-                    cursor.style.width = Math.round(this.visualCursorSize) + 'px';
-                    cursor.style.height = Math.round(this.visualCursorSize) + 'px';
+            handleOutsideClick(e) {
+                const panel = document.getElementById('panel');
+                const settings = document.getElementById('settings');
+                
+                if (panel.classList.contains('open') && 
+                    !panel.contains(e.target) && 
+                    !settings.contains(e.target)) {
+                    panel.classList.remove('open');
+                    setTimeout(() => settings.classList.remove('hidden'), 300);
                 }
-            }
-
-            updateEraserCursor() {
-                const cursor = this.elements.eraserCursor;
-                const size = this.currentTool === 'eraser' ? this.dynamicEraserSize : this.eraserSize;
-                cursor.style.width = size + 'px';
-                cursor.style.height = size + 'px';
-            }
-
-            positionEraserCursor(x, y) {
-                const cursor = this.elements.eraserCursor;
-                cursor.style.left = x + 'px';
-                cursor.style.top = y + 'px';
-            }
-
-            showEraserCursor() {
-                if (this.currentTool === 'eraser') {
-                    this.elements.eraserCursor.style.display = 'block';
-                }
-            }
-
-            hideEraserCursor() {
-                this.elements.eraserCursor.style.display = 'none';
-            }
-
-            togglePressureSensitivity() {
-                this.pressureSensitive = !this.pressureSensitive;
-                const toggle = document.getElementById('pressureToggle');
-                const slider = toggle.querySelector('span');
-                const status = document.getElementById('pressureStatus');
-                
-                toggle.classList.toggle('bg-primary', this.pressureSensitive);
-                toggle.classList.toggle('bg-gray-200', !this.pressureSensitive);
-                toggle.classList.toggle('dark:bg-gray-600', !this.pressureSensitive);
-                
-                slider.classList.toggle('translate-x-5', this.pressureSensitive);
-                slider.classList.toggle('translate-x-1', !this.pressureSensitive);
-                
-                // Update status text
-                status.textContent = this.pressureSensitive ? 'Enabled' : 'Disabled';
-                
-                // Update pressure display
-                this.updatePressureDisplay();
-            }
-
-            toggleInkQuality() {
-                this.highQualityInk = !this.highQualityInk;
-                const toggle = document.getElementById('inkQualityToggle');
-                const slider = toggle.querySelector('span');
-                const status = document.getElementById('inkQualityStatus');
-                
-                toggle.classList.toggle('bg-primary', this.highQualityInk);
-                toggle.classList.toggle('bg-gray-200', !this.highQualityInk);
-                toggle.classList.toggle('dark:bg-gray-600', !this.highQualityInk);
-                
-                slider.classList.toggle('translate-x-5', this.highQualityInk);
-                slider.classList.toggle('translate-x-1', !this.highQualityInk);
-                
-                // Update status text
-                status.textContent = this.highQualityInk ? 
-                    'Smooth drawing, higher latency' : 
-                    'Fast drawing, lower latency';
-                
-                // Re-render current page to apply new quality settings
-                if (this.pdfDoc) {
-                    this.renderPage();
-                }
-            }
-
-            updateUI() {
-                this.updatePreview(this.currentTool);
-                this.updateColorSelection();
-                this.updateEraserCursor();
             }
         }
 
-        // Initialize app when DOM is loaded
-        document.addEventListener('DOMContentLoaded', () => {
-            new PDFAnnotator();
-        });
+        // Initialize the app
+        new StylusApp();
     </script>
-</body></html>
+</body>
+</html>
