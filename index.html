@@ -20,14 +20,12 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
-        /* Container */
         .container {
             height: 100vh;
             width: 100vw;
             position: relative;
         }
 
-        /* Canvas */
         #canvas {
             display: block;
             background: white;
@@ -151,18 +149,6 @@
             color: #ccc;
         }
 
-        .setting.disabled {
-            opacity: 0.5;
-        }
-
-        .setting.disabled .stepper-value {
-            color: #ccc;
-        }
-
-        .setting.disabled .preview-dot {
-            background: #ccc;
-        }
-
         .stepper-value {
             font-size: 16px;
             font-weight: 600;
@@ -185,6 +171,18 @@
             background: #000;
             border-radius: 50%;
             transition: all 0.2s ease;
+        }
+
+        .setting.disabled {
+            opacity: 0.5;
+        }
+
+        .setting.disabled .stepper-value {
+            color: #ccc;
+        }
+
+        .setting.disabled .preview-dot {
+            background: #ccc;
         }
 
         /* Toggle Switch */
@@ -235,10 +233,6 @@
         }
 
         /* Curve Selector */
-        .curve-selector {
-            width: 100%;
-        }
-
         .curve-select {
             width: 100%;
             padding: 8px 12px;
@@ -262,10 +256,6 @@
         }
 
         /* Sensitivity Slider */
-        .slider-container {
-            width: 100%;
-        }
-
         .sensitivity-slider {
             width: 100%;
             height: 6px;
@@ -314,6 +304,17 @@
             color: #666;
             user-select: none;
         }
+
+        /* Eraser Preview Circle */
+        #eraser-preview {
+            position: absolute;
+            border: 2px dashed #666;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 15;
+            background: rgba(200, 200, 200, 0.1);
+            transform: translate(-50%, -50%);
+        }
     </style>
     <script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script>
 </head>
@@ -336,7 +337,7 @@
             <div class="setting">
                 <div class="setting-label">Smooth Drawing (QI)</div>
                 <div class="toggle-container">
-                    <input type="checkbox" id="qi-toggle" class="toggle-input" checked="">
+                    <input type="checkbox" id="qi-toggle" class="toggle-input" checked>
                     <label for="qi-toggle" class="toggle-label">
                         <span class="toggle-slider"></span>
                     </label>
@@ -345,9 +346,32 @@
             </div>
             
             <div class="setting">
+                <div class="setting-label">Eraser Mode</div>
+                <div class="toggle-container">
+                    <input type="checkbox" id="eraser-toggle" class="toggle-input">
+                    <label for="eraser-toggle" class="toggle-label">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-text" id="eraser-text">Disabled</span>
+                </div>
+            </div>
+            
+            <div class="setting" id="eraser-settings" style="display: none;">
+                <div class="setting-label">Eraser Size</div>
+                <div class="stepper">
+                    <button class="stepper-btn" id="decrease-eraser">−</button>
+                    <div class="stepper-value" id="eraser-value">5</div>
+                    <button class="stepper-btn" id="increase-eraser">+</button>
+                    <div class="preview">
+                        <div class="preview-dot" id="eraser-dot"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="setting">
                 <div class="setting-label">Pen Pressure</div>
                 <div class="toggle-container">
-                    <input type="checkbox" id="pressure-toggle" class="toggle-input" checked="">
+                    <input type="checkbox" id="pressure-toggle" class="toggle-input" checked>
                     <label for="pressure-toggle" class="toggle-label">
                         <span class="toggle-slider"></span>
                     </label>
@@ -355,7 +379,7 @@
                 </div>
             </div>
             
-            <div class="setting" id="pressure-settings" style="display: block;">
+            <div class="setting" id="pressure-settings">
                 <div class="setting-label">Low Pressure Stroke</div>
                 <div class="stepper">
                     <button class="stepper-btn" id="decrease-low">−</button>
@@ -367,7 +391,7 @@
                 </div>
             </div>
             
-            <div class="setting" id="pressure-settings-high" style="display: block;">
+            <div class="setting" id="pressure-settings-high">
                 <div class="setting-label">High Pressure Stroke</div>
                 <div class="stepper">
                     <button class="stepper-btn" id="decrease-high">−</button>
@@ -379,26 +403,22 @@
                 </div>
             </div>
             
-            <div class="setting" id="pressure-curve-setting" style="display: block;">
+            <div class="setting" id="pressure-curve-setting">
                 <div class="setting-label">Pressure Curve</div>
-                <div class="curve-selector">
-                    <select id="curve-type" class="curve-select">
-                        <option value="linear">Linear</option>
-                        <option value="exponential">Exponential</option>
-                        <option value="logarithmic" selected="">Logarithmic</option>
-                        <option value="custom">Custom</option>
-                    </select>
-                </div>
+                <select id="curve-type" class="curve-select">
+                    <option value="linear">Linear</option>
+                    <option value="exponential">Exponential</option>
+                    <option value="logarithmic" selected>Logarithmic</option>
+                    <option value="custom">Custom</option>
+                </select>
             </div>
             
-            <div class="setting" id="pressure-sensitivity-setting" style="display: block;">
+            <div class="setting" id="pressure-sensitivity-setting">
                 <div class="setting-label">Sensitivity: <span id="sensitivity-value">1.0</span></div>
-                <div class="slider-container">
-                    <input type="range" id="sensitivity-slider" class="sensitivity-slider" min="0.1" max="3.0" step="0.1" value="1.0">
-                    <div class="slider-labels">
-                        <span>Gentle</span>
-                        <span>Responsive</span>
-                    </div>
+                <input type="range" id="sensitivity-slider" class="sensitivity-slider" min="0.1" max="3.0" step="0.1" value="1.0">
+                <div class="slider-labels">
+                    <span>Gentle</span>
+                    <span>Responsive</span>
                 </div>
             </div>
         </div>
@@ -418,6 +438,9 @@
         
         <!-- Drawing Canvas -->
         <canvas id="canvas"></canvas>
+        
+        <!-- Eraser Preview Circle -->
+        <div id="eraser-preview" style="display: none;"></div>
     </div>
 
     <script>
@@ -425,23 +448,30 @@
             constructor() {
                 this.canvas = document.getElementById('canvas');
                 this.ctx = this.canvas.getContext('2d');
+                
+                // Drawing state
                 this.isDrawing = false;
+                this.points = [];
+                
+                // Settings
                 this.strokeSize = 2;
                 this.smoothDrawing = true;
+                this.eraserEnabled = false;
+                this.eraserSize = 5;
                 this.pressureEnabled = true;
                 this.lowPressureStroke = 0.2;
                 this.highPressureStroke = 10;
                 this.pressureCurve = 'logarithmic';
                 this.pressureSensitivity = 1.0;
-                this.points = [];
+                
                 this.init();
             }
 
+            // ===== INITIALIZATION =====
             init() {
                 this.setupCanvas();
                 this.setupEvents();
-                this.updatePreview();
-                this.updatePressurePreviews();
+                this.updatePreviews();
             }
 
             setupCanvas() {
@@ -463,14 +493,22 @@
                 this.ctx.lineWidth = this.strokeSize;
             }
 
+            // ===== EVENT SETUP =====
             setupEvents() {
+                this.setupDrawingEvents();
+                this.setupUIEvents();
+                this.setupPanelSwipe();
+                this.setupEraserPreview();
+            }
+
+            setupDrawingEvents() {
                 // Mouse events (fallback)
                 this.canvas.addEventListener('mousedown', (e) => this.startDrawing(e));
                 this.canvas.addEventListener('mousemove', (e) => this.draw(e));
                 this.canvas.addEventListener('mouseup', () => this.stopDrawing());
                 this.canvas.addEventListener('mouseout', () => this.stopDrawing());
 
-                // Pointer events (stylus/pen)
+                // Stylus events
                 this.canvas.addEventListener('pointerdown', (e) => {
                     if (e.pointerType === 'pen') {
                         e.preventDefault();
@@ -496,37 +534,44 @@
                 ['touchstart', 'touchmove', 'touchend'].forEach(event => {
                     this.canvas.addEventListener(event, (e) => e.preventDefault());
                 });
+            }
 
-                // UI controls
+            setupUIEvents() {
+                // Main controls
                 document.getElementById('clear').addEventListener('click', () => this.clear());
                 document.getElementById('settings').addEventListener('click', () => this.togglePanel());
+                
+                // Basic stroke controls
                 document.getElementById('decrease').addEventListener('click', () => this.changeSize(-1));
                 document.getElementById('increase').addEventListener('click', () => this.changeSize(1));
+                
+                // Toggle controls
                 document.getElementById('qi-toggle').addEventListener('change', (e) => this.toggleSmoothing(e));
+                document.getElementById('eraser-toggle').addEventListener('change', (e) => this.toggleEraser(e));
                 document.getElementById('pressure-toggle').addEventListener('change', (e) => this.togglePressure(e));
                 
-                // Pressure steppers
+                // Eraser controls
+                document.getElementById('decrease-eraser').addEventListener('click', () => this.changeEraserSize(-5));
+                document.getElementById('increase-eraser').addEventListener('click', () => this.changeEraserSize(5));
+                
+                // Pressure controls
                 document.getElementById('decrease-low').addEventListener('click', () => this.changeLowPressure(-0.1));
                 document.getElementById('increase-low').addEventListener('click', () => this.changeLowPressure(0.1));
                 document.getElementById('decrease-high').addEventListener('click', () => this.changeHighPressure(-1));
                 document.getElementById('increase-high').addEventListener('click', () => this.changeHighPressure(1));
-                
-                // Pressure curve and sensitivity controls
                 document.getElementById('curve-type').addEventListener('change', (e) => this.changeCurveType(e));
                 document.getElementById('sensitivity-slider').addEventListener('input', (e) => this.changeSensitivity(e));
 
-                // Close panel when clicking outside
+                // Panel close events
                 document.addEventListener('click', (e) => this.handleOutsideClick(e));
                 document.addEventListener('pointerdown', (e) => {
                     if (e.pointerType === 'pen') {
                         this.handleOutsideClick(e);
                     }
                 });
-
-                // Add swipe-to-left gesture to close panel
-                this.setupPanelSwipe();
             }
 
+            // ===== DRAWING LOGIC =====
             getPosition(e) {
                 const rect = this.canvas.getBoundingClientRect();
                 return {
@@ -537,36 +582,22 @@
             }
 
             applyPressureCurve(pressure) {
-                // Apply sensitivity adjustment
                 let adjustedPressure = pressure * this.pressureSensitivity;
-                adjustedPressure = Math.max(0, Math.min(1, adjustedPressure)); // Clamp to 0-1
+                adjustedPressure = Math.max(0, Math.min(1, adjustedPressure));
                 
                 switch (this.pressureCurve) {
-                    case 'linear':
-                        return adjustedPressure;
-                    case 'exponential':
-                        // More sensitive to light pressure
-                        return Math.pow(adjustedPressure, 0.5);
-                    case 'logarithmic':
-                        // More sensitive to heavy pressure
-                        return Math.pow(adjustedPressure, 2);
-                    case 'custom':
-                        // Custom S-curve for more natural feel
-                        return adjustedPressure * adjustedPressure * (3 - 2 * adjustedPressure);
-                    default:
-                        return adjustedPressure;
+                    case 'linear': return adjustedPressure;
+                    case 'exponential': return Math.pow(adjustedPressure, 0.5);
+                    case 'logarithmic': return Math.pow(adjustedPressure, 2);
+                    case 'custom': return adjustedPressure * adjustedPressure * (3 - 2 * adjustedPressure);
+                    default: return adjustedPressure;
                 }
             }
 
             getCurrentStrokeSize(pressure) {
-                if (!this.pressureEnabled) {
-                    return this.strokeSize;
-                }
+                if (!this.pressureEnabled) return this.strokeSize;
                 
-                // Apply pressure curve transformation
                 const transformedPressure = this.applyPressureCurve(pressure);
-                
-                // Map transformed pressure to stroke size range
                 const range = this.highPressureStroke - this.lowPressureStroke;
                 return this.lowPressureStroke + (transformedPressure * range);
             }
@@ -576,14 +607,23 @@
                 const pos = this.getPosition(e);
                 this.points = [pos];
                 
-                // Set stroke size based on pressure
-                const strokeSize = this.getCurrentStrokeSize(pos.pressure);
-                this.ctx.lineWidth = strokeSize;
-                
-                // Draw initial dot
-                this.ctx.beginPath();
-                this.ctx.arc(pos.x, pos.y, strokeSize / 2, 0, 2 * Math.PI);
-                this.ctx.fill();
+                if (this.eraserEnabled) {
+                    // Eraser mode
+                    this.ctx.globalCompositeOperation = 'destination-out';
+                    this.ctx.lineWidth = this.eraserSize;
+                    this.ctx.beginPath();
+                    this.ctx.arc(pos.x, pos.y, this.eraserSize / 2, 0, 2 * Math.PI);
+                    this.ctx.fill();
+                    this.showEraserPreview(pos.x, pos.y);
+                } else {
+                    // Drawing mode
+                    this.ctx.globalCompositeOperation = 'source-over';
+                    const strokeSize = this.getCurrentStrokeSize(pos.pressure);
+                    this.ctx.lineWidth = strokeSize;
+                    this.ctx.beginPath();
+                    this.ctx.arc(pos.x, pos.y, strokeSize / 2, 0, 2 * Math.PI);
+                    this.ctx.fill();
+                }
             }
 
             draw(e) {
@@ -592,59 +632,61 @@
                 const pos = this.getPosition(e);
                 this.points.push(pos);
                 
-                // Update stroke size based on pressure
-                const strokeSize = this.getCurrentStrokeSize(pos.pressure);
-                this.ctx.lineWidth = strokeSize;
-                
-                if (this.points.length < 3 || !this.smoothDrawing) {
-                    // Draw straight line for first segment or when QI is disabled
+                if (this.eraserEnabled) {
+                    // Eraser mode - simple line erasing
+                    this.ctx.globalCompositeOperation = 'destination-out';
+                    this.ctx.lineWidth = this.eraserSize;
+                    
                     const prevPoint = this.points[this.points.length - 2];
-                    const prevStrokeSize = this.getCurrentStrokeSize(prevPoint.pressure);
-                    
-                    // Use average stroke size for the line segment
-                    this.ctx.lineWidth = (strokeSize + prevStrokeSize) / 2;
-                    
                     this.ctx.beginPath();
                     this.ctx.moveTo(prevPoint.x, prevPoint.y);
                     this.ctx.lineTo(pos.x, pos.y);
                     this.ctx.stroke();
+                    
+                    this.showEraserPreview(pos.x, pos.y);
                 } else {
-                    // Use quadratic curves for smooth drawing when QI is enabled
-                    const currentPoint = this.points[this.points.length - 1];
-                    const previousPoint = this.points[this.points.length - 2];
-                    const beforePreviousPoint = this.points[this.points.length - 3];
+                    // Drawing mode
+                    this.ctx.globalCompositeOperation = 'source-over';
+                    const strokeSize = this.getCurrentStrokeSize(pos.pressure);
+                    this.ctx.lineWidth = strokeSize;
                     
-                    const midX = (previousPoint.x + currentPoint.x) / 2;
-                    const midY = (previousPoint.y + currentPoint.y) / 2;
-                    
-                    // Use previous point's pressure for this stroke segment
-                    const prevStrokeSize = this.getCurrentStrokeSize(previousPoint.pressure);
-                    this.ctx.lineWidth = prevStrokeSize;
-                    
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(
-                        (beforePreviousPoint.x + previousPoint.x) / 2,
-                        (beforePreviousPoint.y + previousPoint.y) / 2
-                    );
-                    this.ctx.quadraticCurveTo(
-                        previousPoint.x,
-                        previousPoint.y,
-                        midX,
-                        midY
-                    );
-                    this.ctx.stroke();
+                    if (this.points.length < 3 || !this.smoothDrawing) {
+                        const prevPoint = this.points[this.points.length - 2];
+                        const prevStrokeSize = this.getCurrentStrokeSize(prevPoint.pressure);
+                        
+                        this.ctx.lineWidth = (strokeSize + prevStrokeSize) / 2;
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(prevPoint.x, prevPoint.y);
+                        this.ctx.lineTo(pos.x, pos.y);
+                        this.ctx.stroke();
+                    } else {
+                        const currentPoint = this.points[this.points.length - 1];
+                        const previousPoint = this.points[this.points.length - 2];
+                        const beforePreviousPoint = this.points[this.points.length - 3];
+                        
+                        const midX = (previousPoint.x + currentPoint.x) / 2;
+                        const midY = (previousPoint.y + currentPoint.y) / 2;
+                        const prevStrokeSize = this.getCurrentStrokeSize(previousPoint.pressure);
+                        
+                        this.ctx.lineWidth = prevStrokeSize;
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(
+                            (beforePreviousPoint.x + previousPoint.x) / 2,
+                            (beforePreviousPoint.y + previousPoint.y) / 2
+                        );
+                        this.ctx.quadraticCurveTo(previousPoint.x, previousPoint.y, midX, midY);
+                        this.ctx.stroke();
+                    }
                 }
             }
 
             stopDrawing() {
                 if (this.isDrawing && this.points.length >= 2) {
-                    // Complete the final stroke segment
                     const lastPoint = this.points[this.points.length - 1];
                     const secondLastPoint = this.points[this.points.length - 2];
-                    
                     const finalStrokeSize = this.getCurrentStrokeSize(lastPoint.pressure);
-                    this.ctx.lineWidth = finalStrokeSize;
                     
+                    this.ctx.lineWidth = finalStrokeSize;
                     this.ctx.beginPath();
                     this.ctx.moveTo(
                         (secondLastPoint.x + lastPoint.x) / 2,
@@ -654,13 +696,15 @@
                     this.ctx.stroke();
                 }
                 
+                // Clear any eraser preview when stopping
+                this.clearEraserPreview();
+                
                 this.isDrawing = false;
                 this.points = [];
-                
-                // Reset to default stroke size
                 this.ctx.lineWidth = this.strokeSize;
             }
 
+            // ===== UI CONTROLS =====
             clear() {
                 this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
             }
@@ -678,17 +722,16 @@
                     this.strokeSize = newSize;
                     this.ctx.lineWidth = this.strokeSize;
                     document.getElementById('value').textContent = this.strokeSize;
-                    this.updatePreview();
+                    this.updatePreviews();
                 }
             }
 
             changeLowPressure(delta) {
                 const newSize = Math.max(0.2, Math.min(this.highPressureStroke - 1, this.lowPressureStroke + delta));
                 if (newSize !== this.lowPressureStroke) {
-                    // Round to 1 decimal place to avoid floating point precision issues
                     this.lowPressureStroke = Math.round(newSize * 10) / 10;
                     document.getElementById('low-value').textContent = this.lowPressureStroke;
-                    this.updatePressurePreviews();
+                    this.updatePreviews();
                 }
             }
 
@@ -697,35 +740,13 @@
                 if (newSize !== this.highPressureStroke) {
                     this.highPressureStroke = newSize;
                     document.getElementById('high-value').textContent = this.highPressureStroke;
-                    this.updatePressurePreviews();
+                    this.updatePreviews();
                 }
-            }
-
-            updatePreview() {
-                const dot = document.getElementById('dot');
-                const size = Math.min(this.strokeSize * 2, 30);
-                dot.style.width = `${size}px`;
-                dot.style.height = `${size}px`;
-            }
-
-            updatePressurePreviews() {
-                const lowDot = document.getElementById('low-dot');
-                const highDot = document.getElementById('high-dot');
-                
-                const lowSize = Math.min(this.lowPressureStroke * 2, 30);
-                const highSize = Math.min(this.highPressureStroke * 2, 30);
-                
-                lowDot.style.width = `${lowSize}px`;
-                lowDot.style.height = `${lowSize}px`;
-                
-                highDot.style.width = `${highSize}px`;
-                highDot.style.height = `${highSize}px`;
             }
 
             toggleSmoothing(e) {
                 this.smoothDrawing = e.target.checked;
-                const toggleText = document.querySelector('.toggle-text');
-                toggleText.textContent = this.smoothDrawing ? 'Enabled' : 'Disabled';
+                document.querySelector('.toggle-text').textContent = this.smoothDrawing ? 'Enabled' : 'Disabled';
             }
 
             changeCurveType(e) {
@@ -737,92 +758,87 @@
                 document.getElementById('sensitivity-value').textContent = this.pressureSensitivity.toFixed(1);
             }
 
-            togglePressure(e) {
-                this.pressureEnabled = e.target.checked;
-                const toggleText = document.getElementById('pressure-text');
-                const pressureSettings = document.getElementById('pressure-settings');
-                const pressureSettingsHigh = document.getElementById('pressure-settings-high');
-                const pressureCurveSetting = document.getElementById('pressure-curve-setting');
-                const pressureSensitivitySetting = document.getElementById('pressure-sensitivity-setting');
-                const strokeSizeSetting = document.getElementById('stroke-size-setting');
-                const decreaseBtn = document.getElementById('decrease');
-                const increaseBtn = document.getElementById('increase');
-                
-                toggleText.textContent = this.pressureEnabled ? 'Enabled' : 'Disabled';
-                
-                if (this.pressureEnabled) {
-                    // Show all pressure settings
-                    pressureSettings.style.display = 'block';
-                    pressureSettingsHigh.style.display = 'block';
-                    pressureCurveSetting.style.display = 'block';
-                    pressureSensitivitySetting.style.display = 'block';
-                    
-                    // Disable and gray out the regular stroke size stepper
-                    strokeSizeSetting.classList.add('disabled');
-                    decreaseBtn.disabled = true;
-                    increaseBtn.disabled = true;
-                } else {
-                    // Hide all pressure settings
-                    pressureSettings.style.display = 'none';
-                    pressureSettingsHigh.style.display = 'none';
-                    pressureCurveSetting.style.display = 'none';
-                    pressureSensitivitySetting.style.display = 'none';
-                    
-                    // Re-enable the regular stroke size stepper
-                    strokeSizeSetting.classList.remove('disabled');
-                    decreaseBtn.disabled = false;
-                    increaseBtn.disabled = false;
+            changeEraserSize(delta) {
+                const newSize = Math.max(5, Math.min(90, this.eraserSize + delta));
+                if (newSize !== this.eraserSize) {
+                    this.eraserSize = newSize;
+                    document.getElementById('eraser-value').textContent = this.eraserSize;
+                    this.updatePreviews();
                 }
             }
 
+            toggleEraser(e) {
+                this.eraserEnabled = e.target.checked;
+                const toggleText = document.getElementById('eraser-text');
+                const eraserSettings = document.getElementById('eraser-settings');
+                
+                toggleText.textContent = this.eraserEnabled ? 'Enabled' : 'Disabled';
+                eraserSettings.style.display = this.eraserEnabled ? 'block' : 'none';
+                
+                // Update cursor style
+                this.canvas.style.cursor = this.eraserEnabled ? 'none' : 'crosshair';
+            }
+
+            togglePressure(e) {
+                this.pressureEnabled = e.target.checked;
+                const toggleText = document.getElementById('pressure-text');
+                const pressureSettings = ['pressure-settings', 'pressure-settings-high', 'pressure-curve-setting', 'pressure-sensitivity-setting'];
+                const strokeSizeSetting = document.getElementById('stroke-size-setting');
+                const strokeButtons = ['decrease', 'increase'];
+                
+                toggleText.textContent = this.pressureEnabled ? 'Enabled' : 'Disabled';
+                
+                pressureSettings.forEach(id => {
+                    document.getElementById(id).style.display = this.pressureEnabled ? 'block' : 'none';
+                });
+                
+                if (this.pressureEnabled) {
+                    strokeSizeSetting.classList.add('disabled');
+                    strokeButtons.forEach(id => document.getElementById(id).disabled = true);
+                } else {
+                    strokeSizeSetting.classList.remove('disabled');
+                    strokeButtons.forEach(id => document.getElementById(id).disabled = false);
+                }
+            }
+
+            // ===== GESTURE HANDLING =====
             setupPanelSwipe() {
                 const panel = document.getElementById('panel');
-                let touchStartX = 0;
-                let touchStartY = 0;
-                let touchEndX = 0;
-                let touchEndY = 0;
+                let touchStart = { x: 0, y: 0 };
+                let touchEnd = { x: 0, y: 0 };
                 let isSwiping = false;
 
                 panel.addEventListener('touchstart', (e) => {
                     if (!panel.classList.contains('open')) return;
-                    
                     const touch = e.touches[0];
-                    touchStartX = touch.clientX;
-                    touchStartY = touch.clientY;
+                    touchStart = { x: touch.clientX, y: touch.clientY };
                     isSwiping = true;
                 }, { passive: true });
 
                 panel.addEventListener('touchmove', (e) => {
                     if (!isSwiping || !panel.classList.contains('open')) return;
-                    
                     const touch = e.touches[0];
-                    touchEndX = touch.clientX;
-                    touchEndY = touch.clientY;
+                    touchEnd = { x: touch.clientX, y: touch.clientY };
                     
-                    // Calculate swipe distance
-                    const deltaX = touchEndX - touchStartX;
-                    const deltaY = Math.abs(touchEndY - touchStartY);
+                    const deltaX = touchEnd.x - touchStart.x;
+                    const deltaY = Math.abs(touchEnd.y - touchStart.y);
                     
-                    // Check if it's a horizontal swipe (more horizontal than vertical)
                     if (Math.abs(deltaX) > deltaY && Math.abs(deltaX) > 10) {
-                        // Prevent scrolling when swiping horizontally
                         e.preventDefault();
                     }
                 }, { passive: false });
 
-                panel.addEventListener('touchend', (e) => {
+                panel.addEventListener('touchend', () => {
                     if (!isSwiping || !panel.classList.contains('open')) {
                         isSwiping = false;
                         return;
                     }
                     
-                    const deltaX = touchEndX - touchStartX;
-                    const deltaY = Math.abs(touchEndY - touchStartY);
+                    const deltaX = touchEnd.x - touchStart.x;
+                    const deltaY = Math.abs(touchEnd.y - touchStart.y);
                     const swipeDistance = Math.abs(deltaX);
-                    const swipeThreshold = 50; // Minimum swipe distance
                     
-                    // Check for left swipe (negative deltaX) with sufficient distance and more horizontal than vertical
-                    if (deltaX < -swipeThreshold && swipeDistance > deltaY) {
+                    if (deltaX < -50 && swipeDistance > deltaY) {
                         this.closePanel();
                     }
                     
@@ -833,7 +849,6 @@
             closePanel() {
                 const panel = document.getElementById('panel');
                 const settings = document.getElementById('settings');
-                
                 panel.classList.remove('open');
                 setTimeout(() => settings.classList.remove('hidden'), 300);
             }
@@ -842,11 +857,71 @@
                 const panel = document.getElementById('panel');
                 const settings = document.getElementById('settings');
                 
-                if (panel.classList.contains('open') && 
-                    !panel.contains(e.target) && 
-                    !settings.contains(e.target)) {
+                if (panel.classList.contains('open') && !panel.contains(e.target) && !settings.contains(e.target)) {
                     this.closePanel();
                 }
+            }
+
+            // ===== ERASER PREVIEW =====
+            setupEraserPreview() {
+                this.eraserPreview = document.getElementById('eraser-preview');
+                
+                // Track mouse/pointer movement for eraser preview
+                document.addEventListener('mousemove', (e) => this.updateEraserPreview(e));
+                document.addEventListener('pointermove', (e) => this.updateEraserPreview(e));
+                
+                // Hide preview when mouse leaves canvas
+                this.canvas.addEventListener('mouseleave', () => this.hideEraserPreview());
+                this.canvas.addEventListener('pointerleave', () => this.hideEraserPreview());
+                
+                // Show preview when mouse enters canvas
+                this.canvas.addEventListener('mouseenter', () => this.showEraserPreviewIfNeeded());
+                this.canvas.addEventListener('pointerenter', () => this.showEraserPreviewIfNeeded());
+            }
+
+            updateEraserPreview(e) {
+                if (!this.eraserEnabled) return;
+                
+                // Get viewport coordinates (not canvas coordinates)
+                this.eraserPreview.style.left = e.clientX + 'px';
+                this.eraserPreview.style.top = e.clientY + 'px';
+                this.eraserPreview.style.width = this.eraserSize + 'px';
+                this.eraserPreview.style.height = this.eraserSize + 'px';
+                this.eraserPreview.style.display = 'block';
+            }
+
+            showEraserPreviewIfNeeded() {
+                if (this.eraserEnabled) {
+                    this.eraserPreview.style.display = 'block';
+                }
+            }
+
+            hideEraserPreview() {
+                this.eraserPreview.style.display = 'none';
+            }
+
+            showEraserPreview(x, y) {
+                // No longer needed - preview handled by setupEraserPreview
+            }
+
+            clearEraserPreview() {
+                // No longer needed - preview handled by setupEraserPreview
+            }
+
+            // ===== UI UPDATES =====
+            updatePreviews() {
+                const dots = [
+                    { element: document.getElementById('dot'), size: this.strokeSize },
+                    { element: document.getElementById('low-dot'), size: this.lowPressureStroke },
+                    { element: document.getElementById('high-dot'), size: this.highPressureStroke },
+                    { element: document.getElementById('eraser-dot'), size: this.eraserSize }
+                ];
+                
+                dots.forEach(({ element, size }) => {
+                    const displaySize = Math.min(size * 2, 30);
+                    element.style.width = `${displaySize}px`;
+                    element.style.height = `${displaySize}px`;
+                });
             }
         }
 
