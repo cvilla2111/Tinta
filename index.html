@@ -378,6 +378,24 @@
                     <span class="toggle-text" id="dynamic-eraser-text">Disabled</span>
                 </div>
             </div>
+            
+            <div class="setting" id="eraser-calibration-x-setting" style="display: none;">
+                <div class="setting-label">Eraser Calibration X</div>
+                <div class="stepper">
+                    <button class="stepper-btn" id="decrease-eraser-offset-x">−</button>
+                    <div class="stepper-value" id="eraser-offset-x-value">0</div>
+                    <button class="stepper-btn" id="increase-eraser-offset-x">+</button>
+                </div>
+            </div>
+            
+            <div class="setting" id="eraser-calibration-y-setting" style="display: none;">
+                <div class="setting-label">Eraser Calibration Y</div>
+                <div class="stepper">
+                    <button class="stepper-btn" id="decrease-eraser-offset-y">−</button>
+                    <div class="stepper-value" id="eraser-offset-y-value">0</div>
+                    <button class="stepper-btn" id="increase-eraser-offset-y">+</button>
+                </div>
+            </div>
 
             <div class="setting">
                 <div class="setting-label">Pen Pressure</div>
@@ -495,6 +513,8 @@
                 this.pressureSensitivity = 1.0;
                 this.penOffsetX = -5;
                 this.penOffsetY = 0;
+                this.eraserOffsetX = 0;
+                this.eraserOffsetY = 0;
                 
                 // Dynamic eraser tracking
                 this.lastPosition = null;
@@ -605,6 +625,12 @@
                 document.getElementById('increase-offset-x').addEventListener('click', () => this.changePenOffsetX(1));
                 document.getElementById('decrease-offset-y').addEventListener('click', () => this.changePenOffsetY(-1));
                 document.getElementById('increase-offset-y').addEventListener('click', () => this.changePenOffsetY(1));
+                
+                // Eraser calibration controls
+                document.getElementById('decrease-eraser-offset-x').addEventListener('click', () => this.changeEraserOffsetX(-1));
+                document.getElementById('increase-eraser-offset-x').addEventListener('click', () => this.changeEraserOffsetX(1));
+                document.getElementById('decrease-eraser-offset-y').addEventListener('click', () => this.changeEraserOffsetY(-1));
+                document.getElementById('increase-eraser-offset-y').addEventListener('click', () => this.changeEraserOffsetY(1));
 
                 // Panel close events
                 document.addEventListener('click', (e) => this.handleOutsideClick(e));
@@ -621,6 +647,15 @@
                 return {
                     x: e.clientX - rect.left + this.penOffsetX,
                     y: e.clientY - rect.top + this.penOffsetY,
+                    pressure: e.pressure || 0.5
+                };
+            }
+
+            getEraserPosition(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                return {
+                    x: e.clientX - rect.left + this.eraserOffsetX,
+                    y: e.clientY - rect.top + this.eraserOffsetY,
                     pressure: e.pressure || 0.5
                 };
             }
@@ -682,15 +717,16 @@
 
             startDrawing(e) {
                 this.isDrawing = true;
-                const pos = this.getPosition(e);
-                this.points = [pos];
-                
-                // Initialize dynamic eraser tracking
-                this.lastPosition = pos;
-                this.lastTime = Date.now();
-                this.currentEraserSize = this.eraserSize;
                 
                 if (this.eraserEnabled) {
+                    const pos = this.getEraserPosition(e);
+                    this.points = [pos];
+                    
+                    // Initialize dynamic eraser tracking
+                    this.lastPosition = pos;
+                    this.lastTime = Date.now();
+                    this.currentEraserSize = this.eraserSize;
+                    
                     // Eraser mode
                     this.ctx.globalCompositeOperation = 'destination-out';
                     const activeEraserSize = this.dynamicEraserEnabled ? this.currentEraserSize : this.eraserSize;
@@ -700,6 +736,9 @@
                     this.ctx.fill();
                     this.showEraserPreview(pos.x, pos.y);
                 } else {
+                    const pos = this.getPosition(e);
+                    this.points = [pos];
+                    
                     // Drawing mode
                     this.ctx.globalCompositeOperation = 'source-over';
                     const strokeSize = this.getCurrentStrokeSize(pos.pressure);
@@ -713,11 +752,11 @@
             draw(e) {
                 if (!this.isDrawing) return;
                 
-                const pos = this.getPosition(e);
-                const currentTime = Date.now();
-                this.points.push(pos);
-                
                 if (this.eraserEnabled) {
+                    const pos = this.getEraserPosition(e);
+                    const currentTime = Date.now();
+                    this.points.push(pos);
+                    
                     // Calculate dynamic eraser size based on speed
                     const activeEraserSize = this.calculateDynamicEraserSize(pos, currentTime);
                     
@@ -737,6 +776,8 @@
                     this.lastPosition = pos;
                     this.lastTime = currentTime;
                 } else {
+                    const pos = this.getPosition(e);
+                    this.points.push(pos);
                     // Drawing mode
                     this.ctx.globalCompositeOperation = 'source-over';
                     const strokeSize = this.getCurrentStrokeSize(pos.pressure);
@@ -864,10 +905,14 @@
                 const toggleText = document.getElementById('eraser-text');
                 const eraserSettings = document.getElementById('eraser-settings');
                 const dynamicEraserSetting = document.getElementById('dynamic-eraser-setting');
+                const eraserCalibrationXSetting = document.getElementById('eraser-calibration-x-setting');
+                const eraserCalibrationYSetting = document.getElementById('eraser-calibration-y-setting');
                 
                 toggleText.textContent = this.eraserEnabled ? 'Enabled' : 'Disabled';
                 eraserSettings.style.display = this.eraserEnabled ? 'block' : 'none';
                 dynamicEraserSetting.style.display = this.eraserEnabled ? 'block' : 'none';
+                eraserCalibrationXSetting.style.display = this.eraserEnabled ? 'block' : 'none';
+                eraserCalibrationYSetting.style.display = this.eraserEnabled ? 'block' : 'none';
                 
                 // Update cursor style
                 this.canvas.style.cursor = this.eraserEnabled ? 'none' : 'crosshair';
@@ -925,6 +970,22 @@
                 if (newOffset !== this.penOffsetY) {
                     this.penOffsetY = newOffset;
                     document.getElementById('offset-y-value').textContent = this.penOffsetY;
+                }
+            }
+
+            changeEraserOffsetX(delta) {
+                const newOffset = Math.max(-50, Math.min(50, this.eraserOffsetX + delta));
+                if (newOffset !== this.eraserOffsetX) {
+                    this.eraserOffsetX = newOffset;
+                    document.getElementById('eraser-offset-x-value').textContent = this.eraserOffsetX;
+                }
+            }
+
+            changeEraserOffsetY(delta) {
+                const newOffset = Math.max(-50, Math.min(50, this.eraserOffsetY + delta));
+                if (newOffset !== this.eraserOffsetY) {
+                    this.eraserOffsetY = newOffset;
+                    document.getElementById('eraser-offset-y-value').textContent = this.eraserOffsetY;
                 }
             }
 
