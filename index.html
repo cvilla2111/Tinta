@@ -308,7 +308,7 @@
         /* Eraser Preview Circle */
         #eraser-preview {
             position: absolute;
-            border: 2px dashed #666;
+            border: 1px dashed #666;
             border-radius: 50%;
             pointer-events: none;
             z-index: 15;
@@ -360,7 +360,7 @@
                 <div class="setting-label">Eraser Size</div>
                 <div class="stepper">
                     <button class="stepper-btn" id="decrease-eraser">−</button>
-                    <div class="stepper-value" id="eraser-value">5</div>
+                    <div class="stepper-value" id="eraser-value">10</div>
                     <button class="stepper-btn" id="increase-eraser">+</button>
                     <div class="preview">
                         <div class="preview-dot" id="eraser-dot"></div>
@@ -457,7 +457,7 @@
                 this.strokeSize = 2;
                 this.smoothDrawing = true;
                 this.eraserEnabled = false;
-                this.eraserSize = 5;
+                this.eraserSize = 10;
                 this.pressureEnabled = true;
                 this.lowPressureStroke = 0.2;
                 this.highPressureStroke = 10;
@@ -866,9 +866,9 @@
             setupEraserPreview() {
                 this.eraserPreview = document.getElementById('eraser-preview');
                 
-                // Track mouse/pointer movement for eraser preview
-                document.addEventListener('mousemove', (e) => this.updateEraserPreview(e));
-                document.addEventListener('pointermove', (e) => this.updateEraserPreview(e));
+                // Track mouse/pointer movement ONLY on canvas
+                this.canvas.addEventListener('mousemove', (e) => this.updateEraserPreview(e));
+                this.canvas.addEventListener('pointermove', (e) => this.updateEraserPreview(e));
                 
                 // Hide preview when mouse leaves canvas
                 this.canvas.addEventListener('mouseleave', () => this.hideEraserPreview());
@@ -882,9 +882,22 @@
             updateEraserPreview(e) {
                 if (!this.eraserEnabled) return;
                 
+                // Check if mouse is over the canvas area
+                const rect = this.canvas.getBoundingClientRect();
+                const isOverCanvas = e.clientX >= rect.left && 
+                                   e.clientX <= rect.right && 
+                                   e.clientY >= rect.top && 
+                                   e.clientY <= rect.bottom;
+                
+                if (!isOverCanvas) {
+                    this.hideEraserPreview();
+                    return;
+                }
+                
                 // Get viewport coordinates (not canvas coordinates)
                 this.eraserPreview.style.left = e.clientX + 'px';
                 this.eraserPreview.style.top = e.clientY + 'px';
+                // Make the content area match eraser size exactly (border adds visual thickness)
                 this.eraserPreview.style.width = this.eraserSize + 'px';
                 this.eraserPreview.style.height = this.eraserSize + 'px';
                 this.eraserPreview.style.display = 'block';
@@ -918,7 +931,8 @@
                 ];
                 
                 dots.forEach(({ element, size }) => {
-                    const displaySize = Math.min(size * 2, 30);
+                    // All dots show actual size since they all represent diameter/lineWidth
+                    const displaySize = Math.min(size, 30);
                     element.style.width = `${displaySize}px`;
                     element.style.height = `${displaySize}px`;
                 });
