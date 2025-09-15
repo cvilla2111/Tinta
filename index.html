@@ -305,6 +305,37 @@
             user-select: none;
         }
 
+        /* Color Picker */
+        .color-picker {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .color-swatch {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .color-swatch:hover {
+            transform: scale(1.1);
+            border-color: #000;
+        }
+
+        .color-swatch.active {
+            border-color: #000;
+            box-shadow: 0 0 0 1px #fff, 0 0 0 3px #000;
+        }
+
+        .color-swatch.active:hover {
+            transform: scale(1.1);
+        }
+
         /* Eraser Preview Circle */
         #eraser-preview {
             position: absolute;
@@ -331,6 +362,20 @@
                     <div class="preview">
                         <div class="preview-dot" id="dot"></div>
                     </div>
+                </div>
+            </div>
+            
+            <div class="setting">
+                <div class="setting-label">Pen Color</div>
+                <div class="color-picker">
+                    <div class="color-swatch active" data-color="#000000" style="background: #000000;"></div>
+                    <div class="color-swatch" data-color="#FF0000" style="background: #FF0000;"></div>
+                    <div class="color-swatch" data-color="#0066FF" style="background: #0066FF;"></div>
+                    <div class="color-swatch" data-color="#00AA00" style="background: #00AA00;"></div>
+                    <div class="color-swatch" data-color="#FFD700" style="background: #FFD700;"></div>
+                    <div class="color-swatch" data-color="#FF6600" style="background: #FF6600;"></div>
+                    <div class="color-swatch" data-color="#9900CC" style="background: #9900CC;"></div>
+                    <div class="color-swatch" data-color="#FFFFFF" style="background: #FFFFFF; border: 1px solid #ccc;"></div>
                 </div>
             </div>
             
@@ -503,6 +548,7 @@
                 // Settings
                 this.strokeSize = 2;
                 this.smoothDrawing = true;
+                this.penColor = '#000000';
                 this.eraserEnabled = false;
                 this.eraserSize = 10;
                 this.dynamicEraserEnabled = false;
@@ -639,6 +685,11 @@
                 document.getElementById('increase-eraser-offset-x').addEventListener('click', () => this.changeEraserOffsetX(1));
                 document.getElementById('decrease-eraser-offset-y').addEventListener('click', () => this.changeEraserOffsetY(-1));
                 document.getElementById('increase-eraser-offset-y').addEventListener('click', () => this.changeEraserOffsetY(1));
+                
+                // Color picker controls
+                document.querySelectorAll('.color-swatch').forEach(swatch => {
+                    swatch.addEventListener('click', (e) => this.selectColor(e.target.dataset.color));
+                });
 
                 // Panel close events
                 document.addEventListener('click', (e) => this.handleOutsideClick(e));
@@ -994,6 +1045,23 @@
                 if (newOffset !== this.eraserOffsetY) {
                     this.eraserOffsetY = newOffset;
                     document.getElementById('eraser-offset-y-value').textContent = this.eraserOffsetY;
+                }
+            }
+
+            selectColor(color) {
+                this.penColor = color;
+                this.ctx.strokeStyle = color;
+                this.ctx.fillStyle = color;
+                
+                // Update UI - remove active class from all swatches
+                document.querySelectorAll('.color-swatch').forEach(swatch => {
+                    swatch.classList.remove('active');
+                });
+                
+                // Add active class to selected swatch
+                const selectedSwatch = document.querySelector(`[data-color="${color}"]`);
+                if (selectedSwatch) {
+                    selectedSwatch.classList.add('active');
                 }
             }
 
