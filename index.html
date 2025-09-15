@@ -421,6 +421,24 @@
                     <span>Responsive</span>
                 </div>
             </div>
+            
+            <div class="setting">
+                <div class="setting-label">Pen Calibration X</div>
+                <div class="stepper">
+                    <button class="stepper-btn" id="decrease-offset-x">−</button>
+                    <div class="stepper-value" id="offset-x-value">0</div>
+                    <button class="stepper-btn" id="increase-offset-x">+</button>
+                </div>
+            </div>
+            
+            <div class="setting">
+                <div class="setting-label">Pen Calibration Y</div>
+                <div class="stepper">
+                    <button class="stepper-btn" id="decrease-offset-y">−</button>
+                    <div class="stepper-value" id="offset-y-value">0</div>
+                    <button class="stepper-btn" id="increase-offset-y">+</button>
+                </div>
+            </div>
         </div>
         
         <!-- Control Buttons -->
@@ -463,6 +481,8 @@
                 this.highPressureStroke = 9;
                 this.pressureCurve = 'logarithmic';
                 this.pressureSensitivity = 1.0;
+                this.penOffsetX = 0;
+                this.penOffsetY = 0;
                 
                 this.init();
             }
@@ -561,6 +581,12 @@
                 document.getElementById('increase-high').addEventListener('click', () => this.changeHighPressure(1));
                 document.getElementById('curve-type').addEventListener('change', (e) => this.changeCurveType(e));
                 document.getElementById('sensitivity-slider').addEventListener('input', (e) => this.changeSensitivity(e));
+                
+                // Pen calibration controls
+                document.getElementById('decrease-offset-x').addEventListener('click', () => this.changePenOffsetX(-1));
+                document.getElementById('increase-offset-x').addEventListener('click', () => this.changePenOffsetX(1));
+                document.getElementById('decrease-offset-y').addEventListener('click', () => this.changePenOffsetY(-1));
+                document.getElementById('increase-offset-y').addEventListener('click', () => this.changePenOffsetY(1));
 
                 // Panel close events
                 document.addEventListener('click', (e) => this.handleOutsideClick(e));
@@ -575,8 +601,8 @@
             getPosition(e) {
                 const rect = this.canvas.getBoundingClientRect();
                 return {
-                    x: e.clientX - rect.left,
-                    y: e.clientY - rect.top,
+                    x: e.clientX - rect.left + this.penOffsetX,
+                    y: e.clientY - rect.top + this.penOffsetY,
                     pressure: e.pressure || 0.5
                 };
             }
@@ -798,6 +824,22 @@
                 } else {
                     strokeSizeSetting.classList.remove('disabled');
                     strokeButtons.forEach(id => document.getElementById(id).disabled = false);
+                }
+            }
+
+            changePenOffsetX(delta) {
+                const newOffset = Math.max(-50, Math.min(50, this.penOffsetX + delta));
+                if (newOffset !== this.penOffsetX) {
+                    this.penOffsetX = newOffset;
+                    document.getElementById('offset-x-value').textContent = this.penOffsetX;
+                }
+            }
+
+            changePenOffsetY(delta) {
+                const newOffset = Math.max(-50, Math.min(50, this.penOffsetY + delta));
+                if (newOffset !== this.penOffsetY) {
+                    this.penOffsetY = newOffset;
+                    document.getElementById('offset-y-value').textContent = this.penOffsetY;
                 }
             }
 
