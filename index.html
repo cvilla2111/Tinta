@@ -876,7 +876,18 @@
             toggleDynamicEraser(e) {
                 this.dynamicEraserEnabled = e.target.checked;
                 const toggleText = document.getElementById('dynamic-eraser-text');
+                const eraserSizeSetting = document.getElementById('eraser-settings');
+                const eraserButtons = ['decrease-eraser', 'increase-eraser'];
+                
                 toggleText.textContent = this.dynamicEraserEnabled ? 'Enabled' : 'Disabled';
+                
+                if (this.dynamicEraserEnabled) {
+                    eraserSizeSetting.classList.add('disabled');
+                    eraserButtons.forEach(id => document.getElementById(id).disabled = true);
+                } else {
+                    eraserSizeSetting.classList.remove('disabled');
+                    eraserButtons.forEach(id => document.getElementById(id).disabled = false);
+                }
             }
 
             togglePressure(e) {
