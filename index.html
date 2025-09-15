@@ -5,7 +5,8 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stylus Annotation</title>
+    <title>PDF Annotation Tool</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -20,17 +21,81 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
+        /* Home Screen */
+        .home-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .home-screen.hidden {
+            display: none;
+        }
+
+        .load-pdf-btn {
+            padding: 20px 40px;
+            background: white;
+            color: #000;
+            border: 2px solid #000;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .load-pdf-btn:hover {
+            background: #000;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .load-pdf-btn:active {
+            transform: translateY(0);
+        }
+
+        /* PDF and Drawing Container */
         .container {
             height: 100vh;
             width: 100vw;
             position: relative;
+            background: white;
+            display: none;
         }
 
-        #canvas {
+        .container.active {
             display: block;
+        }
+
+        /* PDF Canvas (background) */
+        #pdf-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
             background: white;
+            z-index: 1;
+        }
+
+        /* Drawing Canvas (overlay) */
+        #drawing-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
             cursor: crosshair;
             touch-action: none;
+            z-index: 2;
+        }
+
+        /* Hidden file input */
+        #pdf-input {
+            display: none;
         }
 
         /* Buttons */
@@ -350,7 +415,14 @@
     <script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script>
 </head>
 <body>
-    <div class="container">
+    <!-- Home Screen -->
+    <div class="home-screen" id="home-screen">
+        <button class="load-pdf-btn" id="load-pdf-btn">Load PDF</button>
+        <input type="file" id="pdf-input" accept=".pdf">
+    </div>
+
+    <!-- PDF Annotation Interface -->
+    <div class="container" id="container">
         <!-- Settings Panel -->
         <div class="panel" id="panel">
             <div class="setting disabled" id="stroke-size-setting">
@@ -513,6 +585,15 @@
                     <button class="stepper-btn" id="increase-offset-y">+</button>
                 </div>
             </div>
+            
+            <div class="setting">
+                <div class="setting-label">PDF Scale (Quality)</div>
+                <div class="stepper">
+                    <button class="stepper-btn" id="decrease-scale">−</button>
+                    <div class="stepper-value" id="scale-value">Auto</div>
+                    <button class="stepper-btn" id="increase-scale">+</button>
+                </div>
+            </div>
         </div>
         
         <!-- Control Buttons -->
@@ -528,18 +609,49 @@
             </svg>
         </button>
         
-        <!-- Drawing Canvas -->
-        <canvas id="canvas"></canvas>
+        <!-- PDF Canvas (background) -->
+        <canvas id="pdf-canvas"></canvas>
+        
+        <!-- Drawing Canvas (overlay) -->
+        <canvas id="drawing-canvas"></canvas>
         
         <!-- Eraser Preview Circle -->
         <div id="eraser-preview" style="display: none;"></div>
     </div>
 
     <script>
-        class StylusApp {
+        // Set PDF.js worker source
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        class PDFAnnotationApp {
             constructor() {
-                this.canvas = document.getElementById('canvas');
-                this.ctx = this.canvas.getContext('2d');
+                // PDF elements
+                this.pdfCanvas = document.getElementById('pdf-canvas');
+                this.pdfCtx = this.pdfCanvas.getContext('2d');
+                
+                // Drawing elements
+                this.drawingCanvas = document.getElementById('drawing-canvas');
+                this.ctx = this.drawingCanvas.getContext('2d');
+                
+                // Home screen elements
+                this.homeScreen = document.getElementById('home-screen');
+                this.container = document.getElementById('container');
+                this.loadPdfBtn = document.getElementById('load-pdf-btn');
+                this.pdfInput = document.getElementById('pdf-input');
+                
+                // PDF state
+                this.pdfDoc = null;
+                this.currentPage = 1;
+                this.totalPages = 0;
+                this.scale = 1;
+                
+                // PDF scale system
+                this.scaleOptions = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 2.5, 3.0, 4.0];
+                this.currentScaleIndex = -1; // -1 means "Auto" mode
+                this.customScale = null;
+                
+                // Page drawings storage
+                this.pageDrawings = {};
                 
                 // Drawing state
                 this.isDrawing = false;
@@ -577,27 +689,121 @@
 
             // ===== INITIALIZATION =====
             init() {
+                this.setupHomeScreenEvents();
                 this.setupCanvas();
                 this.setupEvents();
                 this.updatePreviews();
+                this.updateScaleDisplay();
+            }
+
+            setupHomeScreenEvents() {
+                // PDF loading events
+                this.loadPdfBtn.addEventListener('click', () => {
+                    this.pdfInput.click();
+                });
+
+                this.pdfInput.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file && file.type === 'application/pdf') {
+                        this.loadPDF(file);
+                    }
+                });
             }
 
             setupCanvas() {
-                this.resizeCanvas();
                 this.ctx.lineCap = 'round';
                 this.ctx.lineJoin = 'round';
-                this.ctx.strokeStyle = '#000';
-                this.ctx.fillStyle = '#000';
-                window.addEventListener('resize', () => this.resizeCanvas());
+                this.ctx.strokeStyle = this.penColor;
+                this.ctx.fillStyle = this.penColor;
+                // No resize listener - PDF size stays fixed
             }
 
-            resizeCanvas() {
-                this.canvas.width = window.innerWidth;
-                this.canvas.height = window.innerHeight;
+            // ===== PDF FUNCTIONALITY =====
+            async loadPDF(file) {
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    this.pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                    this.totalPages = this.pdfDoc.numPages;
+                    this.currentPage = 1;
+                    
+                    // Hide home screen and show annotation interface
+                    this.homeScreen.classList.add('hidden');
+                    this.container.classList.add('active');
+                    
+                    // Render first page
+                    await this.renderCurrentPage();
+                } catch (error) {
+                    console.error('Error loading PDF:', error);
+                }
+            }
+
+            async renderCurrentPage() {
+                if (!this.pdfDoc) return;
+
+                const page = await this.pdfDoc.getPage(this.currentPage);
+                
+                // Always scale to fit screen width for display, but use quality multiplier for rendering
+                const initialViewport = page.getViewport({ scale: 1 });
+                const displayScale = window.innerWidth / initialViewport.width;
+                
+                // Calculate rendering scale based on quality setting
+                let renderingScale;
+                if (this.currentScaleIndex === -1) {
+                    // Auto mode - use display scale
+                    renderingScale = displayScale;
+                } else {
+                    // Fixed scale mode - apply quality multiplier to display scale
+                    renderingScale = displayScale * this.scaleOptions[this.currentScaleIndex];
+                }
+                
+                // Create viewport for rendering (high quality)
+                const renderViewport = page.getViewport({ scale: renderingScale });
+                
+                // Create viewport for display (always fits screen width)
+                const displayViewport = page.getViewport({ scale: displayScale });
+
+                // Set canvas dimensions based on rendering scale (only once per scale change)
+                if (!this.canvasInitialized) {
+                    this.pdfCanvas.width = renderViewport.width;
+                    this.pdfCanvas.height = renderViewport.height;
+                    this.drawingCanvas.width = renderViewport.width;
+                    this.drawingCanvas.height = renderViewport.height;
+                    
+                    // Set display size to always fit screen width
+                    this.pdfCanvas.style.width = displayViewport.width + 'px';
+                    this.pdfCanvas.style.height = displayViewport.height + 'px';
+                    this.drawingCanvas.style.width = displayViewport.width + 'px';
+                    this.drawingCanvas.style.height = displayViewport.height + 'px';
+                    
+                    this.canvasInitialized = true;
+                }
+
+                // Always position to cover full width (left edge at 0)
+                const x = 0;
+                const y = Math.max(0, (window.innerHeight - displayViewport.height) / 2);
+                
+                this.pdfCanvas.style.left = x + 'px';
+                this.pdfCanvas.style.top = y + 'px';
+                this.drawingCanvas.style.left = x + 'px';
+                this.drawingCanvas.style.top = y + 'px';
+
+                // Clear previous content
+                this.pdfCtx.clearRect(0, 0, this.pdfCanvas.width, this.pdfCanvas.height);
+                this.ctx.clearRect(0, 0, this.drawingCanvas.width, this.drawingCanvas.height);
+
+                // Render PDF page
+                const renderContext = {
+                    canvasContext: this.pdfCtx,
+                    viewport: renderViewport
+                };
+                
+                await page.render(renderContext).promise;
+
+                // Setup drawing canvas
                 this.ctx.lineCap = 'round';
                 this.ctx.lineJoin = 'round';
-                this.ctx.strokeStyle = '#000';
-                this.ctx.fillStyle = '#000';
+                this.ctx.strokeStyle = this.penColor;
+                this.ctx.fillStyle = this.penColor;
                 this.ctx.lineWidth = this.strokeSize;
             }
 
@@ -605,19 +811,21 @@
             setupEvents() {
                 this.setupDrawingEvents();
                 this.setupUIEvents();
+                this.setupKeyboardEvents();
                 this.setupPanelSwipe();
                 this.setupEraserPreview();
+                this.setupPageGestures();
             }
 
             setupDrawingEvents() {
                 // Mouse events (fallback)
-                this.canvas.addEventListener('mousedown', (e) => this.startDrawing(e));
-                this.canvas.addEventListener('mousemove', (e) => this.draw(e));
-                this.canvas.addEventListener('mouseup', () => this.stopDrawing());
-                this.canvas.addEventListener('mouseout', () => this.stopDrawing());
+                this.drawingCanvas.addEventListener('mousedown', (e) => this.startDrawing(e));
+                this.drawingCanvas.addEventListener('mousemove', (e) => this.draw(e));
+                this.drawingCanvas.addEventListener('mouseup', () => this.stopDrawing());
+                this.drawingCanvas.addEventListener('mouseout', () => this.stopDrawing());
 
                 // Stylus events
-                this.canvas.addEventListener('pointerdown', (e) => {
+                this.drawingCanvas.addEventListener('pointerdown', (e) => {
                     if (e.pointerType === 'pen') {
                         e.preventDefault();
                         this.handleEraserButtonState(e);
@@ -625,7 +833,7 @@
                     }
                 });
 
-                this.canvas.addEventListener('pointermove', (e) => {
+                this.drawingCanvas.addEventListener('pointermove', (e) => {
                     if (e.pointerType === 'pen') {
                         e.preventDefault();
                         this.handleEraserButtonState(e);
@@ -633,7 +841,7 @@
                     }
                 });
 
-                this.canvas.addEventListener('pointerup', (e) => {
+                this.drawingCanvas.addEventListener('pointerup', (e) => {
                     if (e.pointerType === 'pen') {
                         e.preventDefault();
                         this.handleEraserButtonState(e);
@@ -643,7 +851,33 @@
 
                 // Block touch events to prevent finger drawing
                 ['touchstart', 'touchmove', 'touchend'].forEach(event => {
-                    this.canvas.addEventListener(event, (e) => e.preventDefault());
+                    this.drawingCanvas.addEventListener(event, (e) => e.preventDefault());
+                });
+            }
+
+            setupKeyboardEvents() {
+                // Keyboard navigation for PDF pages
+                document.addEventListener('keydown', (e) => {
+                    if (!this.pdfDoc) return; // Only work when PDF is loaded
+                    
+                    switch(e.key) {
+                        case 'ArrowLeft':
+                            e.preventDefault();
+                            this.previousPage();
+                            break;
+                        case 'ArrowRight':
+                            e.preventDefault();
+                            this.nextPage();
+                            break;
+                        case 'ArrowUp':
+                            e.preventDefault();
+                            this.previousPage();
+                            break;
+                        case 'ArrowDown':
+                            e.preventDefault();
+                            this.nextPage();
+                            break;
+                    }
                 });
             }
 
@@ -686,6 +920,10 @@
                 document.getElementById('decrease-eraser-offset-y').addEventListener('click', () => this.changeEraserOffsetY(-1));
                 document.getElementById('increase-eraser-offset-y').addEventListener('click', () => this.changeEraserOffsetY(1));
                 
+                // PDF scale controls
+                document.getElementById('decrease-scale').addEventListener('click', () => this.changePDFScale(-1));
+                document.getElementById('increase-scale').addEventListener('click', () => this.changePDFScale(1));
+                
                 // Color picker controls
                 document.querySelectorAll('.color-swatch').forEach(swatch => {
                     swatch.addEventListener('click', (e) => this.selectColor(e.target.dataset.color));
@@ -702,21 +940,40 @@
 
             // ===== DRAWING LOGIC =====
             getPosition(e) {
-                const rect = this.canvas.getBoundingClientRect();
+                const rect = this.drawingCanvas.getBoundingClientRect();
+                // Get position relative to display size
+                const displayX = e.clientX - rect.left + this.penOffsetX;
+                const displayY = e.clientY - rect.top + this.penOffsetY;
+                
+                // Scale to match high-resolution canvas
+                const scaleRatio = this.getCanvasScaleRatio();
                 return {
-                    x: e.clientX - rect.left + this.penOffsetX,
-                    y: e.clientY - rect.top + this.penOffsetY,
+                    x: displayX * scaleRatio,
+                    y: displayY * scaleRatio,
                     pressure: e.pressure || 0.5
                 };
             }
 
             getEraserPosition(e) {
-                const rect = this.canvas.getBoundingClientRect();
+                const rect = this.drawingCanvas.getBoundingClientRect();
+                // Get position relative to display size
+                const displayX = e.clientX - rect.left + this.eraserOffsetX;
+                const displayY = e.clientY - rect.top + this.eraserOffsetY;
+                
+                // Scale to match high-resolution canvas
+                const scaleRatio = this.getCanvasScaleRatio();
                 return {
-                    x: e.clientX - rect.left + this.eraserOffsetX,
-                    y: e.clientY - rect.top + this.eraserOffsetY,
+                    x: displayX * scaleRatio,
+                    y: displayY * scaleRatio,
                     pressure: e.pressure || 0.5
                 };
+            }
+
+            getCanvasScaleRatio() {
+                // Calculate the ratio between canvas resolution and display size
+                const canvasWidth = this.drawingCanvas.width;
+                const displayWidth = parseFloat(this.drawingCanvas.style.width);
+                return canvasWidth / displayWidth;
             }
 
             applyPressureCurve(pressure) {
@@ -733,16 +990,24 @@
             }
 
             getCurrentStrokeSize(pressure) {
-                if (!this.pressureEnabled) return this.strokeSize;
+                let size;
+                if (!this.pressureEnabled) {
+                    size = this.strokeSize;
+                } else {
+                    const transformedPressure = this.applyPressureCurve(pressure);
+                    const range = this.highPressureStroke - this.lowPressureStroke;
+                    size = this.lowPressureStroke + (transformedPressure * range);
+                }
                 
-                const transformedPressure = this.applyPressureCurve(pressure);
-                const range = this.highPressureStroke - this.lowPressureStroke;
-                return this.lowPressureStroke + (transformedPressure * range);
+                // Scale the stroke size to match canvas resolution
+                const scaleRatio = this.getCanvasScaleRatio();
+                return size * scaleRatio;
             }
 
             calculateDynamicEraserSize(currentPos, currentTime) {
                 if (!this.dynamicEraserEnabled || !this.lastPosition || !this.lastTime) {
-                    return this.eraserSize;
+                    const scaleRatio = this.getCanvasScaleRatio();
+                    return this.eraserSize * scaleRatio;
                 }
                 
                 const timeDelta = currentTime - this.lastTime;
@@ -756,9 +1021,7 @@
                 const speed = distance / timeDelta; // pixels per millisecond
                 const speedPixelsPerSecond = speed * 1000; // convert to pixels per second
                 
-                // Map speed to eraser size (5px to 90px)
-                // Slow movement (0-100 px/s) = small eraser (5-20px)
-                // Fast movement (100-1000 px/s) = large eraser (20-90px)
+                // Map speed to eraser size (5px to 90px) - base sizes
                 let dynamicSize;
                 if (speedPixelsPerSecond <= 100) {
                     // Slow movement: 5-20px
@@ -768,6 +1031,10 @@
                     const fastSpeed = Math.min(speedPixelsPerSecond - 100, 900);
                     dynamicSize = 20 + (fastSpeed / 900) * 70;
                 }
+                
+                // Scale to match canvas resolution
+                const scaleRatio = this.getCanvasScaleRatio();
+                dynamicSize *= scaleRatio;
                 
                 // Smooth the size change to avoid jitter
                 this.currentEraserSize = this.currentEraserSize * 0.7 + dynamicSize * 0.3;
@@ -898,7 +1165,13 @@
 
             // ===== UI CONTROLS =====
             clear() {
-                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                // Clear current page's drawing canvas
+                this.ctx.clearRect(0, 0, this.drawingCanvas.width, this.drawingCanvas.height);
+                
+                // Remove stored drawing for current page
+                if (this.pdfDoc && this.pageDrawings[this.currentPage]) {
+                    delete this.pageDrawings[this.currentPage];
+                }
             }
 
             togglePanel() {
@@ -974,7 +1247,7 @@
                 eraserCalibrationYSetting.style.display = this.eraserEnabled ? 'block' : 'none';
                 
                 // Update cursor style
-                this.canvas.style.cursor = this.eraserEnabled ? 'none' : 'crosshair';
+                this.drawingCanvas.style.cursor = this.eraserEnabled ? 'none' : 'crosshair';
             }
 
             toggleDynamicEraser(e) {
@@ -1046,6 +1319,60 @@
                     this.eraserOffsetY = newOffset;
                     document.getElementById('eraser-offset-y-value').textContent = this.eraserOffsetY;
                 }
+            }
+
+            async changePDFScale(delta) {
+                if (!this.pdfDoc) return;
+                
+                const oldIndex = this.currentScaleIndex;
+                
+                // Navigate through scale options
+                if (delta > 0) {
+                    // Increase scale
+                    if (this.currentScaleIndex < this.scaleOptions.length - 1) {
+                        this.currentScaleIndex++;
+                    }
+                } else {
+                    // Decrease scale  
+                    if (this.currentScaleIndex > -1) {
+                        this.currentScaleIndex--;
+                    }
+                }
+                
+                // Check if scale actually changed
+                if (oldIndex === this.currentScaleIndex) return;
+                
+                // Save current drawing before scale change
+                this.saveCurrentPageDrawing();
+                
+                // Update scale display
+                this.updateScaleDisplay();
+                
+                // Reset canvas initialization to allow resizing
+                this.canvasInitialized = false;
+                this.fixedScale = null;
+                
+                // Re-render with new scale
+                await this.renderCurrentPage();
+                
+                // Restore drawing with scale adjustment
+                this.restorePageDrawingWithScale();
+            }
+
+            updateScaleDisplay() {
+                const scaleElement = document.getElementById('scale-value');
+                if (this.currentScaleIndex === -1) {
+                    scaleElement.textContent = 'Auto';
+                } else {
+                    scaleElement.textContent = this.scaleOptions[this.currentScaleIndex] + 'x';
+                }
+                
+                // Update button states
+                const decreaseBtn = document.getElementById('decrease-scale');
+                const increaseBtn = document.getElementById('increase-scale');
+                
+                decreaseBtn.disabled = this.currentScaleIndex <= -1;
+                increaseBtn.disabled = this.currentScaleIndex >= this.scaleOptions.length - 1;
             }
 
             selectColor(color) {
@@ -1146,15 +1473,22 @@
             showEraserPreview(x, y) {
                 if (!this.eraserEnabled) return;
                 
-                // Use dynamic size if enabled, otherwise use static size
-                const previewSize = this.dynamicEraserEnabled ? this.currentEraserSize : this.eraserSize;
+                // Get base eraser size (not scaled)
+                const baseEraserSize = this.dynamicEraserEnabled ? 
+                    (this.currentEraserSize / this.getCanvasScaleRatio()) : 
+                    this.eraserSize;
                 
-                // Convert canvas coordinates to viewport coordinates
-                const rect = this.canvas.getBoundingClientRect();
-                this.eraserPreview.style.left = (rect.left + x) + 'px';
-                this.eraserPreview.style.top = (rect.top + y) + 'px';
-                this.eraserPreview.style.width = previewSize + 'px';
-                this.eraserPreview.style.height = previewSize + 'px';
+                // Convert canvas coordinates back to display coordinates
+                const scaleRatio = this.getCanvasScaleRatio();
+                const displayX = x / scaleRatio;
+                const displayY = y / scaleRatio;
+                
+                // Position relative to canvas
+                const rect = this.drawingCanvas.getBoundingClientRect();
+                this.eraserPreview.style.left = (rect.left + displayX) + 'px';
+                this.eraserPreview.style.top = (rect.top + displayY) + 'px';
+                this.eraserPreview.style.width = baseEraserSize + 'px';
+                this.eraserPreview.style.height = baseEraserSize + 'px';
                 this.eraserPreview.style.display = 'block';
             }
 
@@ -1205,6 +1539,152 @@
                 this.toggleDynamicEraser({ target: { checked: dynamicEnabled } });
             }
 
+            // ===== DRAWING PERSISTENCE =====
+            saveCurrentPageDrawing() {
+                if (!this.pdfDoc) return;
+                
+                // Save current drawing canvas as image data
+                const imageData = this.drawingCanvas.toDataURL();
+                this.pageDrawings[this.currentPage] = imageData;
+            }
+
+            restorePageDrawing() {
+                if (!this.pdfDoc) return;
+                
+                // Clear current drawing canvas
+                this.ctx.clearRect(0, 0, this.drawingCanvas.width, this.drawingCanvas.height);
+                
+                // Restore drawing if it exists for this page
+                const savedDrawing = this.pageDrawings[this.currentPage];
+                if (savedDrawing) {
+                    const img = new Image();
+                    img.onload = () => {
+                        this.ctx.drawImage(img, 0, 0);
+                    };
+                    img.src = savedDrawing;
+                }
+            }
+
+            restorePageDrawingWithScale() {
+                // For now, use the same method as regular restore
+                // In the future, this could include scale-aware restoration
+                this.restorePageDrawing();
+            }
+
+            // ===== PAGE NAVIGATION =====
+            async nextPage() {
+                if (!this.pdfDoc || this.currentPage >= this.totalPages) return;
+                
+                // Save current page's drawing before changing pages
+                this.saveCurrentPageDrawing();
+                
+                this.currentPage++;
+                await this.renderCurrentPage();
+                
+                // Restore drawing for the new page
+                this.restorePageDrawing();
+            }
+
+            async previousPage() {
+                if (!this.pdfDoc || this.currentPage <= 1) return;
+                
+                // Save current page's drawing before changing pages
+                this.saveCurrentPageDrawing();
+                
+                this.currentPage--;
+                await this.renderCurrentPage();
+                
+                // Restore drawing for the new page
+                this.restorePageDrawing();
+            }
+
+            // ===== PAGE GESTURES =====
+            setupPageGestures() {
+                if (!this.pdfDoc) return;
+                
+                let touchStart = { x: 0, y: 0 };
+                let touchEnd = { x: 0, y: 0 };
+                let isTwoFingerGesture = false;
+                let gestureStartTime = 0;
+                
+                // Touch start - detect 2-finger gesture
+                this.container.addEventListener('touchstart', (e) => {
+                    if (!this.pdfDoc) return;
+                    
+                    if (e.touches.length === 2) {
+                        // Two fingers detected
+                        isTwoFingerGesture = true;
+                        gestureStartTime = Date.now();
+                        
+                        // Calculate center point between two fingers
+                        const touch1 = e.touches[0];
+                        const touch2 = e.touches[1];
+                        touchStart = {
+                            x: (touch1.clientX + touch2.clientX) / 2,
+                            y: (touch1.clientY + touch2.clientY) / 2
+                        };
+                        
+                        e.preventDefault();
+                    } else {
+                        isTwoFingerGesture = false;
+                    }
+                }, { passive: false });
+                
+                // Touch move - track 2-finger movement
+                this.container.addEventListener('touchmove', (e) => {
+                    if (!this.pdfDoc || !isTwoFingerGesture || e.touches.length !== 2) return;
+                    
+                    // Calculate center point between two fingers
+                    const touch1 = e.touches[0];
+                    const touch2 = e.touches[1];
+                    touchEnd = {
+                        x: (touch1.clientX + touch2.clientX) / 2,
+                        y: (touch1.clientY + touch2.clientY) / 2
+                    };
+                    
+                    e.preventDefault();
+                }, { passive: false });
+                
+                // Touch end - evaluate gesture
+                this.container.addEventListener('touchend', (e) => {
+                    if (!this.pdfDoc || !isTwoFingerGesture) return;
+                    
+                    const gestureTime = Date.now() - gestureStartTime;
+                    const deltaX = touchEnd.x - touchStart.x;
+                    const deltaY = Math.abs(touchEnd.y - touchStart.y);
+                    const swipeDistance = Math.abs(deltaX);
+                    
+                    // Gesture validation criteria
+                    const minSwipeDistance = 80; // minimum distance for swipe
+                    const maxGestureTime = 800; // maximum time for gesture (ms)
+                    const maxVerticalMovement = 100; // maximum vertical movement allowed
+                    
+                    // Check if it's a valid horizontal swipe
+                    if (swipeDistance >= minSwipeDistance && 
+                        gestureTime <= maxGestureTime && 
+                        deltaY <= maxVerticalMovement &&
+                        swipeDistance > deltaY) {
+                        
+                        if (deltaX > 0) {
+                            // Swipe right - previous page
+                            this.previousPage();
+                        } else {
+                            // Swipe left - next page
+                            this.nextPage();
+                        }
+                    }
+                    
+                    // Reset gesture state
+                    isTwoFingerGesture = false;
+                    e.preventDefault();
+                }, { passive: false });
+                
+                // Cancel gesture if fingers lift differently
+                this.container.addEventListener('touchcancel', () => {
+                    isTwoFingerGesture = false;
+                });
+            }
+
             // ===== UI UPDATES =====
             updatePreviews() {
                 const dots = [
@@ -1224,7 +1704,7 @@
         }
 
         // Initialize the app
-        new StylusApp();
+        new PDFAnnotationApp();
     </script>
 </body>
 </html>
