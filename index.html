@@ -367,6 +367,17 @@
                     </div>
                 </div>
             </div>
+            
+            <div class="setting" id="dynamic-eraser-setting" style="display: none;">
+                <div class="setting-label">Dynamic Eraser</div>
+                <div class="toggle-container">
+                    <input type="checkbox" id="dynamic-eraser-toggle" class="toggle-input">
+                    <label for="dynamic-eraser-toggle" class="toggle-label">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-text" id="dynamic-eraser-text">Disabled</span>
+                </div>
+            </div>
 
             <div class="setting">
                 <div class="setting-label">Pen Pressure</div>
@@ -476,6 +487,7 @@
                 this.smoothDrawing = true;
                 this.eraserEnabled = false;
                 this.eraserSize = 10;
+                this.dynamicEraserEnabled = false;
                 this.pressureEnabled = true;
                 this.lowPressureStroke = 0.2;
                 this.highPressureStroke = 9;
@@ -483,6 +495,11 @@
                 this.pressureSensitivity = 1.0;
                 this.penOffsetX = -5;
                 this.penOffsetY = 0;
+                
+                // Dynamic eraser tracking
+                this.lastPosition = null;
+                this.lastTime = 0;
+                this.currentEraserSize = 10;
                 
                 this.init();
             }
@@ -568,6 +585,7 @@
                 // Toggle controls
                 document.getElementById('qi-toggle').addEventListener('change', (e) => this.toggleSmoothing(e));
                 document.getElementById('eraser-toggle').addEventListener('change', (e) => this.toggleEraser(e));
+                document.getElementById('dynamic-eraser-toggle').addEventListener('change', (e) => this.toggleDynamicEraser(e));
                 document.getElementById('pressure-toggle').addEventListener('change', (e) => this.togglePressure(e));
                 
                 // Eraser controls
@@ -628,17 +646,57 @@
                 return this.lowPressureStroke + (transformedPressure * range);
             }
 
+            calculateDynamicEraserSize(currentPos, currentTime) {
+                if (!this.dynamicEraserEnabled || !this.lastPosition || !this.lastTime) {
+                    return this.eraserSize;
+                }
+                
+                const timeDelta = currentTime - this.lastTime;
+                if (timeDelta === 0) return this.currentEraserSize;
+                
+                const distance = Math.sqrt(
+                    Math.pow(currentPos.x - this.lastPosition.x, 2) + 
+                    Math.pow(currentPos.y - this.lastPosition.y, 2)
+                );
+                
+                const speed = distance / timeDelta; // pixels per millisecond
+                const speedPixelsPerSecond = speed * 1000; // convert to pixels per second
+                
+                // Map speed to eraser size (5px to 90px)
+                // Slow movement (0-100 px/s) = small eraser (5-20px)
+                // Fast movement (100-1000 px/s) = large eraser (20-90px)
+                let dynamicSize;
+                if (speedPixelsPerSecond <= 100) {
+                    // Slow movement: 5-20px
+                    dynamicSize = 5 + (speedPixelsPerSecond / 100) * 15;
+                } else {
+                    // Fast movement: 20-90px  
+                    const fastSpeed = Math.min(speedPixelsPerSecond - 100, 900);
+                    dynamicSize = 20 + (fastSpeed / 900) * 70;
+                }
+                
+                // Smooth the size change to avoid jitter
+                this.currentEraserSize = this.currentEraserSize * 0.7 + dynamicSize * 0.3;
+                return Math.round(this.currentEraserSize);
+            }
+
             startDrawing(e) {
                 this.isDrawing = true;
                 const pos = this.getPosition(e);
                 this.points = [pos];
                 
+                // Initialize dynamic eraser tracking
+                this.lastPosition = pos;
+                this.lastTime = Date.now();
+                this.currentEraserSize = this.eraserSize;
+                
                 if (this.eraserEnabled) {
                     // Eraser mode
                     this.ctx.globalCompositeOperation = 'destination-out';
-                    this.ctx.lineWidth = this.eraserSize;
+                    const activeEraserSize = this.dynamicEraserEnabled ? this.currentEraserSize : this.eraserSize;
+                    this.ctx.lineWidth = activeEraserSize;
                     this.ctx.beginPath();
-                    this.ctx.arc(pos.x, pos.y, this.eraserSize / 2, 0, 2 * Math.PI);
+                    this.ctx.arc(pos.x, pos.y, activeEraserSize / 2, 0, 2 * Math.PI);
                     this.ctx.fill();
                     this.showEraserPreview(pos.x, pos.y);
                 } else {
@@ -656,12 +714,16 @@
                 if (!this.isDrawing) return;
                 
                 const pos = this.getPosition(e);
+                const currentTime = Date.now();
                 this.points.push(pos);
                 
                 if (this.eraserEnabled) {
+                    // Calculate dynamic eraser size based on speed
+                    const activeEraserSize = this.calculateDynamicEraserSize(pos, currentTime);
+                    
                     // Eraser mode - simple line erasing
                     this.ctx.globalCompositeOperation = 'destination-out';
-                    this.ctx.lineWidth = this.eraserSize;
+                    this.ctx.lineWidth = activeEraserSize;
                     
                     const prevPoint = this.points[this.points.length - 2];
                     this.ctx.beginPath();
@@ -670,6 +732,10 @@
                     this.ctx.stroke();
                     
                     this.showEraserPreview(pos.x, pos.y);
+                    
+                    // Update tracking for next calculation
+                    this.lastPosition = pos;
+                    this.lastTime = currentTime;
                 } else {
                     // Drawing mode
                     this.ctx.globalCompositeOperation = 'source-over';
@@ -797,12 +863,20 @@
                 this.eraserEnabled = e.target.checked;
                 const toggleText = document.getElementById('eraser-text');
                 const eraserSettings = document.getElementById('eraser-settings');
+                const dynamicEraserSetting = document.getElementById('dynamic-eraser-setting');
                 
                 toggleText.textContent = this.eraserEnabled ? 'Enabled' : 'Disabled';
                 eraserSettings.style.display = this.eraserEnabled ? 'block' : 'none';
+                dynamicEraserSetting.style.display = this.eraserEnabled ? 'block' : 'none';
                 
                 // Update cursor style
                 this.canvas.style.cursor = this.eraserEnabled ? 'none' : 'crosshair';
+            }
+
+            toggleDynamicEraser(e) {
+                this.dynamicEraserEnabled = e.target.checked;
+                const toggleText = document.getElementById('dynamic-eraser-text');
+                toggleText.textContent = this.dynamicEraserEnabled ? 'Enabled' : 'Disabled';
             }
 
             togglePressure(e) {
@@ -924,12 +998,15 @@
             showEraserPreview(x, y) {
                 if (!this.eraserEnabled) return;
                 
+                // Use dynamic size if enabled, otherwise use static size
+                const previewSize = this.dynamicEraserEnabled ? this.currentEraserSize : this.eraserSize;
+                
                 // Convert canvas coordinates to viewport coordinates
                 const rect = this.canvas.getBoundingClientRect();
                 this.eraserPreview.style.left = (rect.left + x) + 'px';
                 this.eraserPreview.style.top = (rect.top + y) + 'px';
-                this.eraserPreview.style.width = this.eraserSize + 'px';
-                this.eraserPreview.style.height = this.eraserSize + 'px';
+                this.eraserPreview.style.width = previewSize + 'px';
+                this.eraserPreview.style.height = previewSize + 'px';
                 this.eraserPreview.style.display = 'block';
             }
 
