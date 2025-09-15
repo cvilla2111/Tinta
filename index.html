@@ -907,34 +907,10 @@
             // ===== ERASER PREVIEW =====
             setupEraserPreview() {
                 this.eraserPreview = document.getElementById('eraser-preview');
-                
-                // Track mouse/pointer movement ONLY on canvas
-                this.canvas.addEventListener('mousemove', (e) => this.updateEraserPreview(e));
-                this.canvas.addEventListener('pointermove', (e) => this.updateEraserPreview(e));
-                
-                // Hide preview when mouse leaves canvas
-                this.canvas.addEventListener('mouseleave', () => this.hideEraserPreview());
-                this.canvas.addEventListener('pointerleave', () => this.hideEraserPreview());
-                
-                // Show preview when mouse enters canvas
-                this.canvas.addEventListener('mouseenter', () => this.showEraserPreviewIfNeeded());
-                this.canvas.addEventListener('pointerenter', () => this.showEraserPreviewIfNeeded());
             }
 
             updateEraserPreview(e) {
-                if (!this.eraserEnabled) return;
-                
-                // Check if mouse is over the canvas area
-                const rect = this.canvas.getBoundingClientRect();
-                const isOverCanvas = e.clientX >= rect.left && 
-                                   e.clientX <= rect.right && 
-                                   e.clientY >= rect.top && 
-                                   e.clientY <= rect.bottom;
-                
-                if (!isOverCanvas) {
-                    this.hideEraserPreview();
-                    return;
-                }
+                if (!this.eraserEnabled || !this.isDrawing) return;
                 
                 // Get viewport coordinates (not canvas coordinates)
                 this.eraserPreview.style.left = e.clientX + 'px';
@@ -945,22 +921,24 @@
                 this.eraserPreview.style.display = 'block';
             }
 
-            showEraserPreviewIfNeeded() {
-                if (this.eraserEnabled) {
-                    this.eraserPreview.style.display = 'block';
-                }
+            showEraserPreview(x, y) {
+                if (!this.eraserEnabled) return;
+                
+                // Convert canvas coordinates to viewport coordinates
+                const rect = this.canvas.getBoundingClientRect();
+                this.eraserPreview.style.left = (rect.left + x) + 'px';
+                this.eraserPreview.style.top = (rect.top + y) + 'px';
+                this.eraserPreview.style.width = this.eraserSize + 'px';
+                this.eraserPreview.style.height = this.eraserSize + 'px';
+                this.eraserPreview.style.display = 'block';
             }
 
             hideEraserPreview() {
                 this.eraserPreview.style.display = 'none';
             }
 
-            showEraserPreview(x, y) {
-                // No longer needed - preview handled by setupEraserPreview
-            }
-
             clearEraserPreview() {
-                // No longer needed - preview handled by setupEraserPreview
+                this.hideEraserPreview();
             }
 
             // ===== UI UPDATES =====
