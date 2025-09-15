@@ -99,13 +99,13 @@
         }
 
         .setting {
-            margin-bottom: 20px;
+            margin-bottom: 12px;
         }
 
         .setting-label {
-            font-size: 12px;
+            font-size: 10px;
             font-weight: 600;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
             color: #000;
         }
 
@@ -113,20 +113,20 @@
         .stepper {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 6px;
         }
 
         .stepper-btn {
-            width: 24px;
-            height: 24px;
+            width: 18px;
+            height: 18px;
             background: white;
             border: 1px solid #000;
-            border-radius: 3px;
+            border-radius: 2px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: bold;
             transition: all 0.2s ease;
             user-select: none;
@@ -150,21 +150,21 @@
         }
 
         .stepper-value {
-            font-size: 14px;
+            font-size: 11px;
             font-weight: 600;
-            min-width: 24px;
+            min-width: 18px;
             text-align: center;
         }
 
         .preview {
-            width: 30px;
-            height: 30px;
+            width: 20px;
+            height: 20px;
             border: 1px solid #000;
-            border-radius: 3px;
+            border-radius: 2px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-left: 8px;
+            margin-left: 5px;
         }
 
         .preview-dot {
@@ -189,7 +189,7 @@
         .toggle-container {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 5px;
         }
 
         .toggle-input {
@@ -198,10 +198,10 @@
 
         .toggle-label {
             position: relative;
-            width: 40px;
-            height: 20px;
+            width: 30px;
+            height: 16px;
             background: #ccc;
-            border-radius: 10px;
+            border-radius: 8px;
             cursor: pointer;
             transition: background 0.2s ease;
         }
@@ -210,8 +210,8 @@
             position: absolute;
             top: 2px;
             left: 2px;
-            width: 16px;
-            height: 16px;
+            width: 12px;
+            height: 12px;
             background: white;
             border-radius: 50%;
             transition: transform 0.2s ease;
@@ -222,11 +222,11 @@
         }
 
         .toggle-input:checked + .toggle-label .toggle-slider {
-            transform: translateX(20px);
+            transform: translateX(14px);
         }
 
         .toggle-text {
-            font-size: 12px;
+            font-size: 10px;
             font-weight: 500;
             color: #000;
             user-select: none;
@@ -235,11 +235,11 @@
         /* Curve Selector */
         .curve-select {
             width: 100%;
-            padding: 6px 8px;
+            padding: 4px 6px;
             border: 1px solid #000;
-            border-radius: 3px;
+            border-radius: 2px;
             background: white;
-            font-size: 12px;
+            font-size: 10px;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s ease;
@@ -521,6 +521,11 @@
                 this.lastTime = 0;
                 this.currentEraserSize = 10;
                 
+                // Eraser button state tracking
+                this.wasInEraserButtonMode = false;
+                this.previousEraserState = false;
+                this.previousDynamicEraserState = false;
+                
                 this.init();
             }
 
@@ -569,6 +574,7 @@
                 this.canvas.addEventListener('pointerdown', (e) => {
                     if (e.pointerType === 'pen') {
                         e.preventDefault();
+                        this.handleEraserButtonState(e);
                         this.startDrawing(e);
                     }
                 });
@@ -576,6 +582,7 @@
                 this.canvas.addEventListener('pointermove', (e) => {
                     if (e.pointerType === 'pen') {
                         e.preventDefault();
+                        this.handleEraserButtonState(e);
                         this.draw(e);
                     }
                 });
@@ -583,6 +590,7 @@
                 this.canvas.addEventListener('pointerup', (e) => {
                     if (e.pointerType === 'pen') {
                         e.preventDefault();
+                        this.handleEraserButtonState(e);
                         this.stopDrawing();
                     }
                 });
@@ -1088,6 +1096,45 @@
 
             clearEraserPreview() {
                 this.hideEraserPreview();
+            }
+
+            // ===== ERASER BUTTON HANDLING =====
+            handleEraserButtonState(e) {
+                // Detect if eraser button is pressed (button 5, which is bit 4 in buttons bitmask)
+                const eraserButtonPressed = (e.buttons & 32) !== 0; // 32 = 2^5 for button 5
+                
+                if (eraserButtonPressed && !this.wasInEraserButtonMode) {
+                    // Eraser button just pressed - switch to dynamic eraser mode
+                    this.wasInEraserButtonMode = true;
+                    
+                    // Save current states
+                    this.previousEraserState = this.eraserEnabled;
+                    this.previousDynamicEraserState = this.dynamicEraserEnabled;
+                    
+                    // Activate eraser mode with dynamic eraser
+                    this.setEraserMode(true, true);
+                    
+                } else if (!eraserButtonPressed && this.wasInEraserButtonMode) {
+                    // Eraser button just released - return to pen mode
+                    this.wasInEraserButtonMode = false;
+                    
+                    // Restore previous states
+                    this.setEraserMode(this.previousEraserState, this.previousDynamicEraserState);
+                }
+            }
+
+            setEraserMode(eraserEnabled, dynamicEnabled) {
+                // Update internal state
+                this.eraserEnabled = eraserEnabled;
+                this.dynamicEraserEnabled = dynamicEnabled;
+                
+                // Update UI toggles
+                document.getElementById('eraser-toggle').checked = eraserEnabled;
+                document.getElementById('dynamic-eraser-toggle').checked = dynamicEnabled;
+                
+                // Trigger the toggle functions to update UI visibility and states
+                this.toggleEraser({ target: { checked: eraserEnabled } });
+                this.toggleDynamicEraser({ target: { checked: dynamicEnabled } });
             }
 
             // ===== UI UPDATES =====
