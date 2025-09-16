@@ -1,13 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta name="x-poe-datastore-behavior" content="local_only">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MPP Stylus Drawing PWA</title>
-    <meta name="description" content="A simple drawing app with MPP stylus support">
-    <meta name="theme-color" content="#ffffff">
-    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIk1QUCBTdHlsdXMgRHJhd2luZyBQV0EiLAogICJzaG9ydF9uYW1lIjogIkRyYXdpbmcgQXBwIiwKICAiZGVzY3JpcHRpb24iOiAiQSBzaW1wbGUgZHJhd2luZyBhcHAgd2l0aCBNUFAgc3R5bHVzIHN1cHBvcnQiLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAiZnVsbHNjcmVlbiIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiI2ZmZmZmZiIsCiAgInRoZW1lX2NvbG9yIjogIiNmZmZmZmYiLAogICJvcmllbnRhdGlvbiI6ICJhbnkiLAogICJpY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUI0Yld4dWN6MGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtY3ZNakF3TUM5emRtY2lJSGRwWkhSb1BTSXlOVFlpSUdobGFXZG9kRDBpTWpVMklqNDhjbVZqZENCM2FXUjBhRDBpTWpVMklpQm9aV2xuYUhROU1qVTJJaUJtYVc5c1BTSjNhR2wwWlNJdlBqd3ZjM1puUGc9PSIsCiAgICAgICJ0eXBlIjogImltYWdlL3N2Zyt4bWwiLAogICAgICAic2l6ZXMiOiAiMjU2eDI1NiIKICAgIH0sCiAgICB7CiAgICAgICJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sO2Jhc2U2NCxQSE4yWnlCNGJXeHVjejBpYUhSMGNEb3ZMM2QzZHk1M015NXZjbWN2TWpBd01DOXpkbWNpSUhkcFpIUm9QU0k0TnpJaUlHaGxhV2RvZEQwaU9EY3lJajQ4Y21WamRDQjNhV1IwYUQwaU9EY3lJaUJvWldsbmFIUTlPRGN5SWlCbWFXeHNQU0ozYUdsMFpTSXZQand2YzNablBnPT0iLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIiwKICAgICAgInNpemVzIjogIjg3Mng4NzIiCiAgICB9CiAgXQp9">
-    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNTYiIGhlaWdodD0iMjU2Ij48cmVjdCB3aWR0aD0iMjU2IiBoZWlnaHQ9MjU2IiBmaWxsPSJ3aGl0ZSIvPjwvc3ZnPg==">
+    <title>Vector Canvas</title>
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlZlY3RvciBDYW52YXMiLAogICJzaG9ydF9uYW1lIjogIkNhbnZhcyIsCiAgInN0YXJ0X3VybCI6ICIvIiwKICAiZGlzcGxheSI6ICJmdWxsc2NyZWVuIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjZmZmZmZmIiwKICAidGhlbWVfY29sb3IiOiAiI2ZmZmZmZiIsCiAgImljb25zIjogWwogICAgewogICAgICAic3JjIjogImRhdGE6aW1hZ2Uvc3ZnK3htbDtiYXNlNjQsUEhOMlp5QjNhV1IwYUQwaU5EZ2lJR2hsYVdkb2REMGlORGdpSUhabGQzZENiM2c5SWpBZ01DQTBPRUEwT0NJZ2VHMXNibk05SW1oMGRIQTZMeTkzZDNjdVpuTXViM0puTHpJd01EQXZjM1puSWo0TkNqeHlaV04wSUhkcFpIUm9QU0kwT0NJZ2FHVnBaMmgwUFNJME9DSWdabWxzYkQwaVkyWm1abVptWmlJdlBnMEtQQzl6ZG1jKyIsCiAgICAgICJzaXplcyI6ICI0OHg0OCIsCiAgICAgICJ0eXBlIjogImltYWdlL3N2Zyt4bWwiCiAgICB9CiAgXQp9">
     <style>
         * {
             margin: 0;
@@ -20,456 +19,331 @@
             overflow: hidden;
             background: white;
             touch-action: none;
-            user-select: none;
-        }
-        
-        .app-container {
-            display: flex;
-            width: 100vw;
-            height: 100vh;
-            position: relative;
-        }
-        
-        .slide-panel {
-            position: fixed;
-            top: 0;
-            left: -360px;
-            width: 360px;
-            height: 100vh;
-            background: white;
-            border-right: 0.5px solid #e0e0e0;
-            z-index: 2000;
-            transition: left 0.3s ease;
-            overflow-y: auto;
-            touch-action: auto;
-            user-select: text;
-        }
-        
-        .slide-panel.open {
-            left: 0;
-        }
-        
-        .panel-content {
-            padding: 20px;
-        }
-        
-        .panel-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(0, 0, 0, 0.2);
-            z-index: 1500;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-        }
-        
-        .panel-overlay.active {
-            opacity: 1;
-            visibility: visible;
-        }
-        
-        .canvas-container {
-            width: 100vw;
-            height: 100vh;
-            position: relative;
         }
         
         #canvas {
             display: block;
-            width: 100%;
+            width: 100vw;
             height: 100vh;
             background: white;
             cursor: crosshair;
-            touch-action: none;
         }
         
-        .controls-left {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            z-index: 3000;
+        .drawing-path {
+            stroke: #000000;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            vector-effect: non-scaling-stroke;
         }
         
-        .controls-right {
+        #clearButton {
             position: fixed;
-            top: 20px;
-            right: 20px;
+            top: 16px;
+            right: 16px;
+            width: 35px;
+            height: 35px;
+            border-radius: 4px;
+            background: white;
+            border: 0.75px solid #000;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             z-index: 1000;
+            transition: all 0.2s ease;
         }
         
-        .control-btn {
-            width: 40px;
-            height: 40px;
-            background: transparent;
-            border: 0.5px solid black;
+        #clearButton:hover {
+            background: #f5f5f5;
+            transform: scale(1.05);
+        }
+        
+        #clearButton:active {
+            transform: scale(0.95);
+        }
+        
+        #menuButton {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            width: 35px;
+            height: 35px;
+            border-radius: 4px;
+            background: white;
+            border: 0.75px solid #000;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1001;
+            transition: all 0.2s ease;
+        }
+        
+        #menuButton:hover {
+            background: #f5f5f5;
+            transform: scale(1.05);
+        }
+        
+        #menuButton:active {
+            transform: scale(0.95);
+        }
+        
+        #slidePanel {
+            position: fixed;
+            top: 0;
+            left: -300px;
+            width: 300px;
+            height: 100vh;
+            background: white;
+            border-right: 0.75px solid #000;
+            z-index: 1000;
+            transition: left 0.3s ease;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+        
+        #slidePanel.open {
+            left: 0;
+        }
+        
+        #slidePanel h3 {
+            margin: 0 0 20px 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 18px;
+            font-weight: 600;
+            color: #000;
+        }
+        
+        #slidePanel .panel-section {
+            margin-bottom: 20px;
+        }
+        
+        #slidePanel .panel-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            color: #000;
+        }
+        
+        .color-palette {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .color-option {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .color-option:hover {
+            transform: scale(1.1);
+        }
+        
+        .color-option.selected {
+            border-color: #000;
+            transform: scale(1.1);
+        }
+        
+        .stroke-stepper {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .stepper-button {
+            width: 30px;
+            height: 30px;
+            border: 0.75px solid #000;
+            background: white;
             border-radius: 4px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
             transition: all 0.2s ease;
-            touch-action: manipulation;
         }
         
-        .control-btn:hover {
-            transform: scale(1.05);
+        .stepper-button:hover {
+            background: #f5f5f5;
         }
         
-        .control-btn:active {
+        .stepper-button:active {
             transform: scale(0.95);
         }
         
-        .control-icon {
-            width: 20px;
-            height: 20px;
-            stroke: black;
-            stroke-width: 0.5;
-            fill: none;
-        }
-        
-        .panel-title {
-            font-family: system-ui, sans-serif;
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 20px;
-            color: #333;
-            text-align: right;
-            margin-right: 20px;
-        }
-        
-        .section-title {
-            font-family: system-ui, sans-serif;
-            font-size: 16px;
-            font-weight: 600;
-            color: #444;
-            margin-bottom: 16px;
-            margin-top: 24px;
-            border-bottom: 1px solid #e0e0e0;
-            padding-bottom: 8px;
-        }
-        
-        .section-title:first-of-type {
-            margin-top: 0;
-        }
-        
-        .setting-group {
-            margin-bottom: 18px;
-        }
-        
-        .setting-label {
-            font-family: system-ui, sans-serif;
+        .stroke-value {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: 14px;
             font-weight: 500;
-            color: #555;
-            margin-bottom: 8px;
-            display: block;
+            min-width: 40px;
+            text-align: center;
         }
         
-        .slider-container {
-            position: relative;
-            margin-bottom: 6px;
-        }
-        
-        .slider {
-            width: 100%;
-            height: 6px;
-            border-radius: 3px;
-            background: #e0e0e0;
-            outline: none;
-            appearance: none;
-            cursor: pointer;
-        }
-        
-        .slider::-webkit-slider-thumb {
-            appearance: none;
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: #333;
-            cursor: pointer;
-            border: 2px solid white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-        
-        .slider::-moz-range-thumb {
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: #333;
-            cursor: pointer;
-            border: 2px solid white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-        
-        .slider-value {
-            font-family: system-ui, sans-serif;
-            font-size: 12px;
-            color: #666;
-            text-align: right;
-        }
-        
-        .checkbox-container {
+        .pressure-toggle {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 12px;
         }
         
-        .checkbox {
+        .pressure-toggle input[type="checkbox"] {
+            display: none;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 40px;
+            height: 20px;
+            background: #ccc;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        
+        .toggle-switch:hover {
+            background: #bbb;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
             width: 16px;
             height: 16px;
-            cursor: pointer;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
         }
         
-        .checkbox-label {
-            font-family: system-ui, sans-serif;
+        input[type="checkbox"]:checked + .toggle-switch {
+            background: #5D5CDE;
+        }
+        
+        input[type="checkbox"]:checked + .toggle-switch .toggle-slider {
+            transform: translateX(20px);
+        }
+        
+        .toggle-label {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: 14px;
-            color: #555;
-            cursor: pointer;
+            font-weight: 500;
+            color: #000;
         }
         
-        .curve-selector, .latency-mode-selector, .prediction-mode-selector {
-            display: flex;
-            gap: 6px;
-            margin-top: 8px;
+        .pressure-controls {
+            transition: all 0.3s ease;
         }
         
-        .curve-btn, .latency-btn, .prediction-btn {
-            flex: 1;
-            padding: 6px 8px;
-            background: transparent;
-            border: 0.5px solid #ccc;
-            border-radius: 4px;
-            font-family: system-ui, sans-serif;
-            font-size: 11px;
-            cursor: pointer;
-            transition: all 0.2s ease;
+        .pressure-controls.hidden {
+            opacity: 0.3;
+            pointer-events: none;
+            transform: translateX(-10px);
         }
         
-        .curve-btn.active, .latency-btn.active, .prediction-btn.active {
-            background: #333;
-            color: white;
-            border-color: #333;
+        .stroke-width-control {
+            transition: all 0.3s ease;
         }
         
-        .curve-btn:hover, .latency-btn:hover, .prediction-btn:hover {
-            border-color: #333;
-        }
-        
-        .setting-description {
-            font-family: system-ui, sans-serif;
-            font-size: 11px;
-            color: #888;
-            margin-top: 4px;
-            line-height: 1.3;
+        .stroke-width-control.hidden {
+            opacity: 0.3;
+            pointer-events: none;
+            transform: translateX(-10px);
         }
     </style>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script>
 </head>
 <body>
-    <div class="app-container">
-        <div class="panel-overlay" id="panelOverlay"></div>
+    <svg id="canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+    
+    <button id="menuButton" onclick="togglePanel()" title="Open menu">
+        <i data-lucide="menu" style="width: 24px; height: 24px; stroke-width: 0.75px;"></i>
+    </button>
+    
+    <button id="clearButton" onclick="clearCanvas()" title="Clear canvas">
+        <i data-lucide="trash" style="width: 24px; height: 24px; stroke-width: 0.75px;"></i>
+    </button>
+    
+    <div id="slidePanel">
+        <h3>Drawing Tools</h3>
         
-        <div class="slide-panel" id="slidePanel">
-            <div class="panel-content">
-                <h2 class="panel-title">Drawing Settings</h2>
-                
-                <div class="section-title">Pressure Settings</div>
-                
-                <div class="setting-group">
-                    <label class="setting-label">Pressure Sensitivity</label>
-                    <div class="slider-container">
-                        <input type="range" class="slider" id="pressureSensitivity" min="0.1" max="3" step="0.1" value="1">
-                    </div>
-                    <div class="slider-value" id="pressureSensitivityValue">1.0x</div>
-                </div>
-                
-                <div class="setting-group">
-                    <label class="setting-label">Minimum Width</label>
-                    <div class="slider-container">
-                        <input type="range" class="slider" id="minWidth" min="0.5" max="5" step="0.1" value="1">
-                    </div>
-                    <div class="slider-value" id="minWidthValue">1.0px</div>
-                </div>
-                
-                <div class="setting-group">
-                    <label class="setting-label">Maximum Width</label>
-                    <div class="slider-container">
-                        <input type="range" class="slider" id="maxWidth" min="5" max="20" step="0.5" value="8">
-                    </div>
-                    <div class="slider-value" id="maxWidthValue">8.0px</div>
-                </div>
-                
-                <div class="setting-group">
-                    <label class="setting-label">Pressure Curve</label>
-                    <div class="curve-selector">
-                        <button class="curve-btn active" data-curve="linear">Linear</button>
-                        <button class="curve-btn" data-curve="ease">Ease</button>
-                        <button class="curve-btn" data-curve="sharp">Sharp</button>
-                    </div>
-                </div>
-                
-                <div class="setting-group">
-                    <div class="checkbox-container">
-                        <input type="checkbox" class="checkbox" id="enablePressure" checked>
-                        <label class="checkbox-label" for="enablePressure">Enable Pressure</label>
-                    </div>
-                </div>
-                
-                <div class="section-title">Smoothing & Latency</div>
-                
-                <div class="setting-group">
-                    <label class="setting-label">Line Smoothing</label>
-                    <div class="slider-container">
-                        <input type="range" class="slider" id="smoothing" min="0" max="10" step="1" value="3">
-                    </div>
-                    <div class="slider-value" id="smoothingValue">3</div>
-                </div>
-                
-                <div class="setting-group">
-                    <label class="setting-label">Latency Reduction Mode</label>
-                    <div class="latency-mode-selector">
-                        <button class="latency-btn" data-mode="standard">Standard</button>
-                        <button class="latency-btn active" data-mode="optimized">Optimized</button>
-                        <button class="latency-btn" data-mode="ultra">Ultra</button>
-                    </div>
-                </div>
-                
-                <div class="section-title">Debouncing Settings</div>
-                
-                <div class="setting-group">
-                    <label class="setting-label">Input Debouncing</label>
-                    <div class="slider-container">
-                        <input type="range" class="slider" id="debounceThreshold" min="0" max="20" step="1" value="5">
-                    </div>
-                    <div class="slider-value" id="debounceThresholdValue">5ms</div>
-                    <div class="setting-description">Filters rapid input events to reduce noise</div>
-                </div>
-                
-                <div class="setting-group">
-                    <label class="setting-label">Movement Threshold</label>
-                    <div class="slider-container">
-                        <input type="range" class="slider" id="movementThreshold" min="0" max="10" step="0.5" value="2">
-                    </div>
-                    <div class="slider-value" id="movementThresholdValue">2.0px</div>
-                    <div class="setting-description">Minimum movement distance to register input</div>
-                </div>
-                
-                <div class="setting-group">
-                    <label class="setting-label">Pressure Debouncing</label>
-                    <div class="slider-container">
-                        <input type="range" class="slider" id="pressureDebounce" min="0" max="10" step="1" value="3">
-                    </div>
-                    <div class="slider-value" id="pressureDebounceValue">3</div>
-                    <div class="setting-description">Smooths pressure variations to reduce jitter</div>
-                </div>
-                
-                <div class="setting-group">
-                    <div class="checkbox-container">
-                        <input type="checkbox" class="checkbox" id="adaptiveDebouncing" checked>
-                        <label class="checkbox-label" for="adaptiveDebouncing">Adaptive Debouncing</label>
-                    </div>
-                    <div class="setting-description">Automatically adjusts debouncing based on drawing speed</div>
-                </div>
-                
-                <div class="section-title">Prediction Settings</div>
-                
-                <div class="setting-group">
-                    <label class="setting-label">Prediction Strength</label>
-                    <div class="slider-container">
-                        <input type="range" class="slider" id="prediction" min="0" max="10" step="1" value="5">
-                    </div>
-                    <div class="slider-value" id="predictionValue">5</div>
-                    <div class="setting-description">How far ahead to predict stylus movement</div>
-                </div>
-                
-                <div class="setting-group">
-                    <label class="setting-label">Prediction Algorithm</label>
-                    <div class="prediction-mode-selector">
-                        <button class="prediction-btn active" data-mode="linear">Linear</button>
-                        <button class="prediction-btn" data-mode="velocity">Velocity</button>
-                        <button class="prediction-btn" data-mode="kalman">Kalman</button>
-                    </div>
-                    <div class="setting-description">Method used for calculating predicted positions</div>
-                </div>
-                
-                <div class="setting-group">
-                    <label class="setting-label">Prediction Confidence</label>
-                    <div class="slider-container">
-                        <input type="range" class="slider" id="predictionConfidence" min="0" max="10" step="1" value="7">
-                    </div>
-                    <div class="slider-value" id="predictionConfidenceValue">7</div>
-                    <div class="setting-description">How much to trust prediction vs actual input</div>
-                </div>
-                
-                <div class="setting-group">
-                    <label class="setting-label">Prediction Smoothing</label>
-                    <div class="slider-container">
-                        <input type="range" class="slider" id="predictionSmoothing" min="0" max="10" step="1" value="4">
-                    </div>
-                    <div class="slider-value" id="predictionSmoothingValue">4</div>
-                    <div class="setting-description">Smooths predicted points to reduce artifacts</div>
-                </div>
-                
-                <div class="setting-group">
-                    <div class="checkbox-container">
-                        <input type="checkbox" class="checkbox" id="enablePrediction" checked>
-                        <label class="checkbox-label" for="enablePrediction">Enable Prediction</label>
-                    </div>
-                </div>
-                
-                <div class="setting-group">
-                    <div class="checkbox-container">
-                        <input type="checkbox" class="checkbox" id="correctionMode">
-                        <label class="checkbox-label" for="correctionMode">Error Correction</label>
-                    </div>
-                    <div class="setting-description">Corrects prediction errors with actual input</div>
-                </div>
-                
-                <div class="section-title">Performance</div>
-                
-                <div class="setting-group">
-                    <div class="checkbox-container">
-                        <input type="checkbox" class="checkbox" id="frameRateBoost" checked>
-                        <label class="checkbox-label" for="frameRateBoost">High Frame Rate Mode</label>
-                    </div>
-                </div>
-                
-                <div class="setting-group">
-                    <div class="checkbox-container">
-                        <input type="checkbox" class="checkbox" id="directRendering" checked>
-                        <label class="checkbox-label" for="directRendering">Direct Canvas Rendering</label>
-                    </div>
-                </div>
+        <div class="panel-section stroke-width-control">
+            <label>Stroke Width</label>
+            <div class="stroke-stepper">
+                <button class="stepper-button" onclick="changeStrokeWidth(-0.5)">−</button>
+                <span class="stroke-value" id="strokeValue">2.0</span>
+                <button class="stepper-button" onclick="changeStrokeWidth(0.5)">+</button>
             </div>
         </div>
         
-        <div class="canvas-container">
-            <div class="controls-left">
-                <button class="control-btn" id="panelToggle" title="Settings">
-                    <svg class="control-icon" id="panelIcon" viewBox="0 0 24 24">
-                        <rect width="18" height="18" x="3" y="3" rx="2"/>
-                        <path d="M9 8h7"/>
-                        <path d="M9 12h7"/>
-                        <path d="M9 16h7"/>
-                    </svg>
-                </button>
+        <div class="panel-section">
+            <label>Pressure Sensitivity</label>
+            <div class="pressure-toggle">
+                <input type="checkbox" id="pressureToggle" checked>
+                <label for="pressureToggle" class="toggle-switch">
+                    <span class="toggle-slider"></span>
+                </label>
+                <span class="toggle-label">Enabled</span>
             </div>
-            
-            <div class="controls-right">
-                <button class="control-btn" id="clearCanvas" title="Clear canvas">
-                    <svg class="control-icon" viewBox="0 0 24 24">
-                        <path d="m3 6 18 0"/>
-                        <path d="m19 6 0 14c0 1-1 2-2 2l-10 0c-1 0-2-1-2-2l0-14"/>
-                        <path d="m8 6 0-2c0-1 1-2 2-2l4 0c0 1 1 2 1 2l0 2"/>
-                        <line x1="10" x2="10" y1="11" y2="17"/>
-                        <line x1="14" x2="14" y1="11" y2="17"/>
-                    </svg>
-                </button>
+        </div>
+        
+        <div class="panel-section pressure-controls">
+            <label>Min Width</label>
+            <div class="stroke-stepper">
+                <button class="stepper-button" onclick="changeMinWidth(-0.1)">−</button>
+                <span class="stroke-value" id="minWidthValue">0.3</span>
+                <button class="stepper-button" onclick="changeMinWidth(0.1)">+</button>
             </div>
-            
-            <canvas id="canvas"></canvas>
+        </div>
+        
+        <div class="panel-section pressure-controls">
+            <label>Max Width</label>
+            <div class="stroke-stepper">
+                <button class="stepper-button" onclick="changeMaxWidth(-0.1)">−</button>
+                <span class="stroke-value" id="maxWidthValue">1.5</span>
+                <button class="stepper-button" onclick="changeMaxWidth(0.1)">+</button>
+            </div>
+        </div>
+        
+        <div class="panel-section pressure-controls">
+            <label>Sensitivity</label>
+            <div class="stroke-stepper">
+                <button class="stepper-button" onclick="changeSensitivity(-0.1)">−</button>
+                <span class="stroke-value" id="sensitivityValue">1.0</span>
+                <button class="stepper-button" onclick="changeSensitivity(0.1)">+</button>
+            </div>
+        </div>
+        
+        <div class="panel-section">
+            <label>Smoothing</label>
+            <div class="stroke-stepper">
+                <button class="stepper-button" onclick="changeSmoothing(-0.1)">−</button>
+                <span class="stroke-value" id="smoothingValue">0.8</span>
+                <button class="stepper-button" onclick="changeSmoothing(0.1)">+</button>
+            </div>
+        </div>
+        
+        <div class="panel-section">
+            <label>Stroke Color</label>
+            <div class="color-palette">
+                <div class="color-option selected" style="background-color: #000000;" data-color="#000000"></div>
+                <div class="color-option" style="background-color: #FF0000;" data-color="#FF0000"></div>
+                <div class="color-option" style="background-color: #00FF00;" data-color="#00FF00"></div>
+                <div class="color-option" style="background-color: #0000FF;" data-color="#0000FF"></div>
+                <div class="color-option" style="background-color: #FFFF00;" data-color="#FFFF00"></div>
+                <div class="color-option" style="background-color: #FFA500;" data-color="#FFA500"></div>
+                <div class="color-option" style="background-color: #800080;" data-color="#800080"></div>
+            </div>
         </div>
     </div>
     
@@ -477,14 +351,14 @@
         // Service Worker Registration
         if ('serviceWorker' in navigator) {
             const swCode = `
-                const CACHE_NAME = 'drawing-pwa-v1';
+                const CACHE_NAME = 'vector-canvas-v1';
                 
                 self.addEventListener('install', (event) => {
-                    self.skipWaiting();
-                });
-                
-                self.addEventListener('activate', (event) => {
-                    event.waitUntil(self.clients.claim());
+                    event.waitUntil(
+                        caches.open(CACHE_NAME).then((cache) => {
+                            return cache.addAll(['/']);
+                        })
+                    );
                 });
                 
                 self.addEventListener('fetch', (event) => {
@@ -499,715 +373,650 @@
             const blob = new Blob([swCode], { type: 'application/javascript' });
             const swUrl = URL.createObjectURL(blob);
             
-            navigator.serviceWorker.register(swUrl).then(() => {
-                console.log('Service Worker registered');
-            }).catch((error) => {
-                console.log('Service Worker registration failed:', error);
-            });
+            navigator.serviceWorker.register(swUrl);
         }
         
-        // Canvas setup
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        
-        // Panel elements
-        const slidePanel = document.getElementById('slidePanel');
-        const panelOverlay = document.getElementById('panelOverlay');
-        const panelToggle = document.getElementById('panelToggle');
-        const panelIcon = document.getElementById('panelIcon');
-        
-        // Icon SVG paths
-        const menuIcon = `
-            <rect width="18" height="18" x="3" y="3" rx="2"/>
-            <path d="M9 8h7"/>
-            <path d="M9 12h7"/>
-            <path d="M9 16h7"/>
-        `;
-        
-        const closeIcon = `
-            <path d="m18 6-12 12"/>
-            <path d="m6 6 12 12"/>
-        `;
-        
-        // Panel functionality
-        function togglePanel() {
-            const isOpen = slidePanel.classList.contains('open');
-            if (isOpen) {
-                slidePanel.classList.remove('open');
-                panelOverlay.classList.remove('active');
-                panelIcon.innerHTML = menuIcon;
-                panelToggle.setAttribute('title', 'Settings');
-            } else {
-                slidePanel.classList.add('open');
-                panelOverlay.classList.add('active');
-                panelIcon.innerHTML = closeIcon;
-                panelToggle.setAttribute('title', 'Close');
-            }
-        }
-        
-        function closePanel() {
-            slidePanel.classList.remove('open');
-            panelOverlay.classList.remove('active');
-            panelIcon.innerHTML = menuIcon;
-            panelToggle.setAttribute('title', 'Settings');
-        }
-        
-        // Panel event listeners
-        panelToggle.addEventListener('click', togglePanel);
-        panelOverlay.addEventListener('click', closePanel);
-        
-        // Drawing settings
-        let drawingSettings = {
-            // Pressure
-            sensitivity: 1.0,
-            minWidth: 1.0,
-            maxWidth: 8.0,
-            curve: 'linear',
-            enabled: true,
-            
-            // Smoothing & Latency
-            smoothing: 3,
-            latencyMode: 'optimized',
-            
-            // Debouncing
-            debounceThreshold: 5,
-            movementThreshold: 2.0,
-            pressureDebounce: 3,
-            adaptiveDebouncing: true,
-            
-            // Prediction
-            prediction: 5,
-            predictionMode: 'linear',
-            predictionConfidence: 7,
-            predictionSmoothing: 4,
-            enablePrediction: true,
-            correctionMode: false,
-            
-            // Performance
-            frameRateBoost: true,
-            directRendering: true
-        };
-        
-        // Buffers and state
-        let smoothingBuffer = [];
-        let predictionBuffer = [];
-        let pressureBuffer = [];
-        let velocityHistory = [];
-        let maxBufferSize = 10;
-        let lastTimestamp = 0;
-        let lastProcessedTime = 0;
-        let lastPosition = { x: 0, y: 0 };
-        let frameRequestId = null;
-        let pendingDrawCalls = [];
-        
-        // Kalman filter state for advanced prediction
-        let kalmanState = {
-            x: 0, y: 0,
-            vx: 0, vy: 0,
-            initialized: false
-        };
-        
-        // Set canvas size with proper pixel ratio handling
-        function resizeCanvas() {
-            const pixelRatio = drawingSettings.frameRateBoost ? 1 : window.devicePixelRatio;
-            canvas.width = window.innerWidth * pixelRatio;
-            canvas.height = window.innerHeight * pixelRatio;
-            canvas.style.width = window.innerWidth + 'px';
-            canvas.style.height = window.innerHeight + 'px';
-            ctx.scale(pixelRatio, pixelRatio);
-            
-            if (drawingSettings.directRendering) {
-                ctx.imageSmoothingEnabled = false;
-                canvas.style.imageRendering = 'pixelated';
-            }
-        }
-        
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
-        
-        // Clear canvas function
-        function clearCanvas() {
-            ctx.fillStyle = 'white';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
-        
-        // Pressure curve functions
-        function applePressureCurve(pressure, curve) {
-            switch(curve) {
-                case 'ease':
-                    return Math.pow(pressure, 0.7);
-                case 'sharp':
-                    return Math.pow(pressure, 1.5);
-                default:
-                    return pressure;
-            }
-        }
-        
-        // Calculate line width from pressure
-        function calculateLineWidth(pressure) {
-            if (!drawingSettings.enabled || pressure === undefined) {
-                return 2;
-            }
-            
-            const adjustedPressure = applePressureCurve(pressure, drawingSettings.curve);
-            const normalizedPressure = Math.max(0, Math.min(1, adjustedPressure * drawingSettings.sensitivity));
-            
-            return drawingSettings.minWidth + 
-                   (normalizedPressure * (drawingSettings.maxWidth - drawingSettings.minWidth));
-        }
-        
-        // Debouncing function
-        function shouldProcessInput(x, y, timestamp) {
-            // Time-based debouncing
-            if (timestamp - lastProcessedTime < drawingSettings.debounceThreshold) {
-                return false;
-            }
-            
-            // Movement threshold debouncing
-            const distance = Math.sqrt(
-                Math.pow(x - lastPosition.x, 2) + 
-                Math.pow(y - lastPosition.y, 2)
-            );
-            
-            if (distance < drawingSettings.movementThreshold) {
-                return false;
-            }
-            
-            // Adaptive debouncing based on velocity
-            if (drawingSettings.adaptiveDebouncing && velocityHistory.length > 2) {
-                const avgVelocity = velocityHistory.reduce((a, b) => a + b, 0) / velocityHistory.length;
-                const adaptiveThreshold = Math.max(1, drawingSettings.debounceThreshold - (avgVelocity * 0.1));
-                
-                if (timestamp - lastProcessedTime < adaptiveThreshold) {
-                    return false;
-                }
-            }
-            
-            return true;
-        }
-        
-        // Pressure debouncing
-        function debouncePressure(pressure) {
-            if (drawingSettings.pressureDebounce === 0) return pressure;
-            
-            pressureBuffer.push(pressure);
-            if (pressureBuffer.length > drawingSettings.pressureDebounce + 1) {
-                pressureBuffer.shift();
-            }
-            
-            // Return weighted average of recent pressure values
-            const weights = pressureBuffer.map((_, i) => i + 1);
-            const totalWeight = weights.reduce((a, b) => a + b, 0);
-            
-            return pressureBuffer.reduce((sum, p, i) => 
-                sum + (p * weights[i] / totalWeight), 0
-            );
-        }
-        
-        // Advanced prediction algorithms
-        function predictNextPoint(buffer, mode) {
-            if (buffer.length < 2 || !drawingSettings.enablePrediction) return null;
-            
-            const strength = drawingSettings.prediction / 10;
-            const confidence = drawingSettings.predictionConfidence / 10;
-            
-            switch (mode) {
-                case 'linear':
-                    return predictLinear(buffer, strength);
-                case 'velocity':
-                    return predictVelocity(buffer, strength, confidence);
-                case 'kalman':
-                    return predictKalman(buffer, strength, confidence);
-                default:
-                    return predictLinear(buffer, strength);
-            }
-        }
-        
-        function predictLinear(buffer, strength) {
-            const recent = buffer.slice(-2);
-            const last = recent[recent.length - 1];
-            const prev = recent[recent.length - 2];
-            
-            const deltaX = last.x - prev.x;
-            const deltaY = last.y - prev.y;
-            
-            return {
-                x: last.x + (deltaX * strength),
-                y: last.y + (deltaY * strength),
-                pressure: last.pressure,
-                isPredicted: true
-            };
-        }
-        
-        function predictVelocity(buffer, strength, confidence) {
-            if (buffer.length < 3) return predictLinear(buffer, strength);
-            
-            const recent = buffer.slice(-3);
-            const velocities = [];
-            
-            for (let i = 1; i < recent.length; i++) {
-                const dt = recent[i].timestamp - recent[i-1].timestamp;
-                if (dt > 0) {
-                    velocities.push({
-                        vx: (recent[i].x - recent[i-1].x) / dt,
-                        vy: (recent[i].y - recent[i-1].y) / dt
-                    });
-                }
-            }
-            
-            if (velocities.length === 0) return predictLinear(buffer, strength);
-            
-            // Average velocity with confidence weighting
-            const avgVx = velocities.reduce((sum, v) => sum + v.vx, 0) / velocities.length;
-            const avgVy = velocities.reduce((sum, v) => sum + v.vy, 0) / velocities.length;
-            
-            const last = recent[recent.length - 1];
-            const predictTime = 16.67; // Assume 60fps
-            
-            return {
-                x: last.x + (avgVx * predictTime * strength * confidence),
-                y: last.y + (avgVy * predictTime * strength * confidence),
-                pressure: last.pressure,
-                isPredicted: true
-            };
-        }
-        
-        function predictKalman(buffer, strength, confidence) {
-            const last = buffer[buffer.length - 1];
-            
-            if (!kalmanState.initialized) {
-                kalmanState.x = last.x;
-                kalmanState.y = last.y;
-                kalmanState.vx = 0;
-                kalmanState.vy = 0;
-                kalmanState.initialized = true;
-                return predictLinear(buffer, strength);
-            }
-            
-            // Simple Kalman filter implementation
-            const dt = 16.67; // Assume 60fps
-            const processNoise = 0.1;
-            const measurementNoise = 1.0;
-            
-            // Predict
-            const predictedX = kalmanState.x + kalmanState.vx * dt;
-            const predictedY = kalmanState.y + kalmanState.vy * dt;
-            
-            // Update
-            const innovationX = last.x - predictedX;
-            const innovationY = last.y - predictedY;
-            
-            const gain = measurementNoise / (measurementNoise + processNoise);
-            
-            kalmanState.x = predictedX + gain * innovationX;
-            kalmanState.y = predictedY + gain * innovationY;
-            kalmanState.vx = kalmanState.vx + (gain * innovationX / dt);
-            kalmanState.vy = kalmanState.vy + (gain * innovationY / dt);
-            
-            return {
-                x: kalmanState.x + (kalmanState.vx * dt * strength * confidence),
-                y: kalmanState.y + (kalmanState.vy * dt * strength * confidence),
-                pressure: last.pressure,
-                isPredicted: true
-            };
-        }
-        
-        // Apply smoothing to coordinates
-        function smoothPoint(x, y, pressure, timestamp) {
-            const point = { x, y, pressure, timestamp };
-            
-            // Add to prediction buffer
-            predictionBuffer.push(point);
-            if (predictionBuffer.length > 5) {
-                predictionBuffer.shift();
-            }
-            
-            if (drawingSettings.smoothing === 0) {
-                return point;
-            }
-            
-            smoothingBuffer.push(point);
-            
-            const bufferSize = Math.min(drawingSettings.smoothing + 1, maxBufferSize);
-            if (smoothingBuffer.length > bufferSize) {
-                smoothingBuffer.shift();
-            }
-            
-            // Apply latency-optimized smoothing
-            if (drawingSettings.latencyMode === 'ultra') {
-                return smoothingBuffer[smoothingBuffer.length - 1];
-            } else if (drawingSettings.latencyMode === 'optimized') {
-                const weights = smoothingBuffer.map((_, i) => Math.pow(i + 1, 1.5));
-                const totalWeight = weights.reduce((a, b) => a + b, 0);
-                
-                let smoothX = 0, smoothY = 0, smoothPressure = 0;
-                
-                smoothingBuffer.forEach((point, i) => {
-                    const weight = weights[i] / totalWeight;
-                    smoothX += point.x * weight;
-                    smoothY += point.y * weight;
-                    smoothPressure += point.pressure * weight;
-                });
-                
-                return { x: smoothX, y: smoothY, pressure: smoothPressure };
-            } else {
-                const totalWeight = smoothingBuffer.length;
-                let smoothX = 0, smoothY = 0, smoothPressure = 0;
-                
-                smoothingBuffer.forEach(point => {
-                    smoothX += point.x;
-                    smoothY += point.y;
-                    smoothPressure += point.pressure;
-                });
-                
-                return {
-                    x: smoothX / totalWeight,
-                    y: smoothY / totalWeight,
-                    pressure: smoothPressure / totalWeight
-                };
-            }
-        }
-        
-        // Smooth predicted points
-        function smoothPrediction(prediction) {
-            if (!prediction || drawingSettings.predictionSmoothing === 0) return prediction;
-            
-            // Simple smoothing for predicted points
-            const smoothingFactor = drawingSettings.predictionSmoothing / 10;
-            if (predictionBuffer.length > 1) {
-                const lastActual = predictionBuffer[predictionBuffer.length - 1];
-                return {
-                    x: prediction.x * (1 - smoothingFactor) + lastActual.x * smoothingFactor,
-                    y: prediction.y * (1 - smoothingFactor) + lastActual.y * smoothingFactor,
-                    pressure: prediction.pressure,
-                    isPredicted: true
-                };
-            }
-            
-            return prediction;
-        }
-        
-        // Optimized drawing function
-        function executeDrawing() {
-            if (pendingDrawCalls.length === 0) return;
-            
-            ctx.beginPath();
-            
-            pendingDrawCalls.forEach(drawCall => {
-                ctx.moveTo(drawCall.fromX, drawCall.fromY);
-                ctx.lineTo(drawCall.toX, drawCall.toY);
-                ctx.lineWidth = drawCall.lineWidth;
-            });
-            
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.strokeStyle = 'black';
-            ctx.stroke();
-            
-            pendingDrawCalls = [];
-            frameRequestId = null;
-        }
-        
-        // Event handlers for all settings
-        function setupEventHandlers() {
-            // Pressure settings
-            document.getElementById('pressureSensitivity').addEventListener('input', (e) => {
-                drawingSettings.sensitivity = parseFloat(e.target.value);
-                document.getElementById('pressureSensitivityValue').textContent = e.target.value + 'x';
-            });
-            
-            document.getElementById('minWidth').addEventListener('input', (e) => {
-                drawingSettings.minWidth = parseFloat(e.target.value);
-                document.getElementById('minWidthValue').textContent = e.target.value + 'px';
-            });
-            
-            document.getElementById('maxWidth').addEventListener('input', (e) => {
-                drawingSettings.maxWidth = parseFloat(e.target.value);
-                document.getElementById('maxWidthValue').textContent = e.target.value + 'px';
-            });
-            
-            document.getElementById('smoothing').addEventListener('input', (e) => {
-                drawingSettings.smoothing = parseInt(e.target.value);
-                document.getElementById('smoothingValue').textContent = e.target.value;
-                smoothingBuffer = [];
-            });
-            
-            document.getElementById('enablePressure').addEventListener('change', (e) => {
-                drawingSettings.enabled = e.target.checked;
-            });
-            
-            // Debouncing settings
-            document.getElementById('debounceThreshold').addEventListener('input', (e) => {
-                drawingSettings.debounceThreshold = parseInt(e.target.value);
-                document.getElementById('debounceThresholdValue').textContent = e.target.value + 'ms';
-            });
-            
-            document.getElementById('movementThreshold').addEventListener('input', (e) => {
-                drawingSettings.movementThreshold = parseFloat(e.target.value);
-                document.getElementById('movementThresholdValue').textContent = e.target.value + 'px';
-            });
-            
-            document.getElementById('pressureDebounce').addEventListener('input', (e) => {
-                drawingSettings.pressureDebounce = parseInt(e.target.value);
-                document.getElementById('pressureDebounceValue').textContent = e.target.value;
-                pressureBuffer = [];
-            });
-            
-            document.getElementById('adaptiveDebouncing').addEventListener('change', (e) => {
-                drawingSettings.adaptiveDebouncing = e.target.checked;
-            });
-            
-            // Prediction settings
-            document.getElementById('prediction').addEventListener('input', (e) => {
-                drawingSettings.prediction = parseInt(e.target.value);
-                document.getElementById('predictionValue').textContent = e.target.value;
-            });
-            
-            document.getElementById('predictionConfidence').addEventListener('input', (e) => {
-                drawingSettings.predictionConfidence = parseInt(e.target.value);
-                document.getElementById('predictionConfidenceValue').textContent = e.target.value;
-            });
-            
-            document.getElementById('predictionSmoothing').addEventListener('input', (e) => {
-                drawingSettings.predictionSmoothing = parseInt(e.target.value);
-                document.getElementById('predictionSmoothingValue').textContent = e.target.value;
-            });
-            
-            document.getElementById('enablePrediction').addEventListener('change', (e) => {
-                drawingSettings.enablePrediction = e.target.checked;
-            });
-            
-            document.getElementById('correctionMode').addEventListener('change', (e) => {
-                drawingSettings.correctionMode = e.target.checked;
-            });
-            
-            // Performance settings
-            document.getElementById('frameRateBoost').addEventListener('change', (e) => {
-                drawingSettings.frameRateBoost = e.target.checked;
-                resizeCanvas();
-            });
-            
-            document.getElementById('directRendering').addEventListener('change', (e) => {
-                drawingSettings.directRendering = e.target.checked;
-                resizeCanvas();
-            });
-            
-            // Button selectors
-            document.querySelectorAll('.curve-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    document.querySelectorAll('.curve-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    drawingSettings.curve = btn.dataset.curve;
-                });
-            });
-            
-            document.querySelectorAll('.latency-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    document.querySelectorAll('.latency-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    drawingSettings.latencyMode = btn.dataset.mode;
-                    smoothingBuffer = [];
-                });
-            });
-            
-            document.querySelectorAll('.prediction-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    document.querySelectorAll('.prediction-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    drawingSettings.predictionMode = btn.dataset.mode;
-                    kalmanState.initialized = false;
-                });
-            });
-        }
-        
-        setupEventHandlers();
-        
-        // Trash button event handler
-        document.getElementById('clearCanvas').addEventListener('click', clearCanvas);
-        
-        // Prevent controls and panel from interfering with drawing
-        document.querySelector('.slide-panel').addEventListener('pointerdown', (e) => {
-            e.stopPropagation();
-        });
-        document.querySelectorAll('.control-btn').forEach(btn => {
-            btn.addEventListener('pointerdown', (e) => {
-                e.stopPropagation();
-            });
-        });
-        
-        // Drawing state
+        // SVG Setup
+        const svg = document.getElementById('canvas');
+        let currentPath = null;
         let isDrawing = false;
-        let lastX = 0;
-        let lastY = 0;
+        let paths = []; // Store all drawing paths
+        let baseViewport = { width: window.innerWidth, height: window.innerHeight };
+        let currentStrokeWidth = 2;
         
-        // Function to check if input is from stylus/pen
-        function isStylusInput(e) {
-            if (e.pointerType === 'pen') return true;
-            if (e.type.includes('mouse')) return true;
-            return false;
+        function calculateStrokeWidth() {
+            // Base stroke width on viewport diagonal for consistent appearance across devices
+            const diagonal = Math.sqrt(window.innerWidth ** 2 + window.innerHeight ** 2);
+            return Math.max(1, diagonal / 500); // Adjust divisor to control thickness
         }
         
-        // Drawing functions
+        function updateAllStrokeWidths() {
+            currentStrokeWidth = calculateStrokeWidth();
+            // Update all existing paths
+            const allPaths = svg.querySelectorAll('.drawing-path');
+            allPaths.forEach(path => {
+                path.setAttribute('stroke-width', currentStrokeWidth);
+            });
+        }
+        
+        function resizeSVG() {
+            svg.setAttribute('width', window.innerWidth);
+            svg.setAttribute('height', window.innerHeight);
+            
+            // Keep the original viewBox but scale content to fit
+            svg.setAttribute('viewBox', `0 0 ${baseViewport.width} ${baseViewport.height}`);
+            svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+            
+            updateAllStrokeWidths();
+        }
+        
+        // Initialize with current viewport as base
+        resizeSVG();
+        window.addEventListener('resize', resizeSVG);
+        
+        // Drawing functionality
+        let currentPoints = []; // Store points for current stroke
+        const SMOOTH_WINDOW = 4; // Number of recent points to keep smooth
+        let isPressureSupported = false;
+        let pressureSensitivityEnabled = true; // User toggle for pressure sensitivity
+        
+        // Pressure settings
+        let minWidthMultiplier = 0.3; // Minimum width as multiplier of base width
+        let maxWidthMultiplier = 1.5; // Maximum width as multiplier of base width  
+        let pressureSensitivity = 1.0; // Sensitivity curve adjustment
+        let smoothingIntensity = 0.8; // Universal smoothing intensity (0 = none, 1 = maximum)
+        
+        function getCoords(e) {
+            const rect = svg.getBoundingClientRect();
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+            const pressure = e.pressure || (e.touches && e.touches[0].force) || 0.5; // Default to 0.5 if no pressure
+            
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top,
+                pressure: Math.max(0.1, Math.min(1.0, pressure)) // Clamp pressure between 0.1 and 1.0
+            };
+        }
+        
+        function getPressureStrokeWidth(pressure) {
+            // Apply sensitivity curve to pressure (0.1 to 1.0)
+            const adjustedPressure = Math.pow(pressure, 1 / pressureSensitivity);
+            
+            // Calculate multiplier between min and max width
+            const range = maxWidthMultiplier - minWidthMultiplier;
+            const pressureMultiplier = minWidthMultiplier + (adjustedPressure * range);
+            
+            const diagonal = Math.sqrt(window.innerWidth ** 2 + window.innerHeight ** 2);
+            return Math.max(1, (diagonal / 500) * baseStrokeWidth * pressureMultiplier);
+        }
+        
+        let currentColor = '#000000'; // Track current drawing color
+        
         function startDrawing(e) {
-            if (e.target.closest('.slide-panel') || e.target.closest('.controls-left') || e.target.closest('.controls-right')) return;
-            if (!isStylusInput(e)) return;
-            
             isDrawing = true;
-            const rect = canvas.getBoundingClientRect();
-            lastX = e.clientX - rect.left;
-            lastY = e.clientY - rect.top;
+            const coords = getCoords(e);
             
-            // Reset all buffers and state
-            smoothingBuffer = [];
-            predictionBuffer = [];
-            pressureBuffer = [];
-            velocityHistory = [];
-            pendingDrawCalls = [];
-            lastPosition = { x: lastX, y: lastY };
-            lastProcessedTime = performance.now();
-            kalmanState.initialized = false;
+            // Reset points array for new stroke
+            currentPoints = [coords];
+            
+            // Create new path element
+            currentPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            currentPath.setAttribute('class', 'drawing-path');
+            
+            // Check both hardware capability AND user toggle
+            const usePressure = isPressureSupported && pressureSensitivityEnabled;
+            
+            if (usePressure) {
+                // For pressure-sensitive drawing, use fill instead of stroke
+                currentPath.setAttribute('fill', currentColor);
+                currentPath.setAttribute('stroke', 'none');
+            } else {
+                // Standard stroke-based drawing
+                currentPath.setAttribute('stroke', currentColor);
+                currentPath.setAttribute('stroke-width', currentStrokeWidth);
+                currentPath.setAttribute('fill', 'none');
+            }
+            
+            currentPath.setAttribute('d', `M ${coords.x} ${coords.y}`);
+            
+            svg.appendChild(currentPath);
+            paths.push({
+                element: currentPath,
+                points: currentPoints
+            });
         }
         
         function draw(e) {
-            if (!isDrawing) return;
-            if (!isStylusInput(e)) return;
+            if (!isDrawing || !currentPath) return;
             
-            e.preventDefault();
+            const coords = getCoords(e);
             
-            const rect = canvas.getBoundingClientRect();
-            const rawX = e.clientX - rect.left;
-            const rawY = e.clientY - rect.top;
-            const rawPressure = e.pressure || 0.5;
-            const timestamp = performance.now();
+            // Add new point
+            currentPoints.push(coords);
             
-            // Apply debouncing
-            if (!shouldProcessInput(rawX, rawY, timestamp)) {
-                return;
+            // Check both hardware capability AND user toggle
+            const usePressure = isPressureSupported && pressureSensitivityEnabled;
+            
+            if (usePressure) {
+                // Use pressure-sensitive variable width stroke
+                updatePressurePath();
+            } else {
+                // Standard drawing without pressure sensitivity
+                updateSmoothPath();
             }
+        }
+        
+        function updatePressurePath() {
+            if (currentPoints.length < 2) return;
             
-            // Update velocity history
-            if (velocityHistory.length > 0) {
-                const dt = timestamp - lastTimestamp;
-                if (dt > 0) {
-                    const velocity = Math.sqrt(
-                        Math.pow(rawX - lastPosition.x, 2) + 
-                        Math.pow(rawY - lastPosition.y, 2)
-                    ) / dt;
-                    velocityHistory.push(velocity);
-                    if (velocityHistory.length > 5) {
-                        velocityHistory.shift();
+            // Calculate variable-width stroke outline
+            const strokeOutline = calculateVariableStroke(currentPoints);
+            
+            if (strokeOutline) {
+                currentPath.setAttribute('d', strokeOutline);
+            }
+        }
+        
+        function calculateVariableStroke(points) {
+            if (points.length < 2) return null;
+            
+            // First, create smooth center line points using smoothing intensity
+            const smoothedPoints = createSmoothPoints(points, smoothingIntensity);
+            
+            const leftEdge = [];
+            const rightEdge = [];
+            
+            for (let i = 0; i < smoothedPoints.length; i++) {
+                const point = smoothedPoints[i];
+                const width = getPressureStrokeWidth(point.pressure) / 2; // Half width for radius
+                
+                let normal;
+                if (i === 0 && smoothedPoints.length > 1) {
+                    // First point: use direction to next point
+                    const next = smoothedPoints[i + 1];
+                    normal = getNormal(point, next);
+                } else if (i === smoothedPoints.length - 1) {
+                    // Last point: use direction from previous point
+                    const prev = smoothedPoints[i - 1];
+                    normal = getNormal(prev, point);
+                } else {
+                    // Middle point: average normals from both directions
+                    const prev = smoothedPoints[i - 1];
+                    const next = smoothedPoints[i + 1];
+                    const normal1 = getNormal(prev, point);
+                    const normal2 = getNormal(point, next);
+                    normal = {
+                        x: (normal1.x + normal2.x) / 2,
+                        y: (normal1.y + normal2.y) / 2
+                    };
+                    // Normalize
+                    const length = Math.sqrt(normal.x * normal.x + normal.y * normal.y);
+                    if (length > 0) {
+                        normal.x /= length;
+                        normal.y /= length;
                     }
                 }
-            } else {
-                velocityHistory.push(0);
+                
+                // Calculate left and right edge points
+                leftEdge.push({
+                    x: point.x + normal.x * width,
+                    y: point.y + normal.y * width
+                });
+                
+                rightEdge.push({
+                    x: point.x - normal.x * width,
+                    y: point.y - normal.y * width
+                });
             }
             
-            // Apply pressure debouncing
-            const debouncedPressure = debouncePressure(rawPressure);
+            // Add round caps to the start and end
+            const firstPoint = smoothedPoints[0];
+            const lastPoint = smoothedPoints[smoothedPoints.length - 1];
+            const firstWidth = getPressureStrokeWidth(firstPoint.pressure) / 2;
+            const lastWidth = getPressureStrokeWidth(lastPoint.pressure) / 2;
             
-            // Apply smoothing
-            const smoothed = smoothPoint(rawX, rawY, debouncedPressure, timestamp);
+            // Build path with round caps
+            let pathData = '';
             
-            // Add prediction if enabled
-            if (drawingSettings.enablePrediction && drawingSettings.prediction > 0) {
-                const predicted = predictNextPoint(predictionBuffer, drawingSettings.predictionMode);
-                if (predicted) {
-                    const smoothedPrediction = smoothPrediction(predicted);
-                    
-                    pendingDrawCalls.push({
-                        fromX: lastX,
-                        fromY: lastY,
-                        toX: smoothedPrediction.x,
-                        toY: smoothedPrediction.y,
-                        lineWidth: calculateLineWidth(smoothedPrediction.pressure),
-                        isPredicted: true
-                    });
+            // Start cap (semicircle)
+            pathData += `M ${leftEdge[0].x} ${leftEdge[0].y}`;
+            pathData += ` A ${firstWidth} ${firstWidth} 0 0 1 ${rightEdge[0].x} ${rightEdge[0].y}`;
+            
+            // Right edge (backward) - from start to end
+            if (rightEdge.length > 2 && smoothingIntensity > 0) {
+                for (let i = 1; i < rightEdge.length - 1; i++) {
+                    const current = rightEdge[i];
+                    const next = rightEdge[i + 1];
+                    const endX = current.x + (next.x - current.x) * smoothingIntensity;
+                    const endY = current.y + (next.y - current.y) * smoothingIntensity;
+                    pathData += ` Q ${current.x} ${current.y} ${endX} ${endY}`;
+                }
+                // Final segment to end
+                const lastRight = rightEdge[rightEdge.length - 1];
+                const secondLastRight = rightEdge[rightEdge.length - 2];
+                pathData += ` Q ${secondLastRight.x} ${secondLastRight.y} ${lastRight.x} ${lastRight.y}`;
+            } else {
+                for (let i = 1; i < rightEdge.length; i++) {
+                    pathData += ` L ${rightEdge[i].x} ${rightEdge[i].y}`;
                 }
             }
             
-            // Add the actual smoothed point
-            pendingDrawCalls.push({
-                fromX: lastX,
-                fromY: lastY,
-                toX: smoothed.x,
-                toY: smoothed.y,
-                lineWidth: calculateLineWidth(smoothed.pressure),
-                isPredicted: false
-            });
+            // End cap (semicircle)
+            pathData += ` A ${lastWidth} ${lastWidth} 0 0 1 ${leftEdge[leftEdge.length - 1].x} ${leftEdge[leftEdge.length - 1].y}`;
             
-            // Execute drawing based on latency mode
-            if (drawingSettings.latencyMode === 'ultra' || !drawingSettings.frameRateBoost) {
-                executeDrawing();
-            } else if (!frameRequestId) {
-                frameRequestId = requestAnimationFrame(executeDrawing);
+            // Left edge (backward) - from end to start
+            if (leftEdge.length > 2 && smoothingIntensity > 0) {
+                for (let i = leftEdge.length - 2; i > 0; i--) {
+                    const current = leftEdge[i];
+                    const next = leftEdge[i - 1];
+                    const endX = current.x + (next.x - current.x) * smoothingIntensity;
+                    const endY = current.y + (next.y - current.y) * smoothingIntensity;
+                    pathData += ` Q ${current.x} ${current.y} ${endX} ${endY}`;
+                }
+            } else {
+                for (let i = leftEdge.length - 2; i >= 0; i--) {
+                    pathData += ` L ${leftEdge[i].x} ${leftEdge[i].y}`;
+                }
             }
             
-            // Update state
-            lastX = smoothed.x;
-            lastY = smoothed.y;
-            lastPosition = { x: rawX, y: rawY };
-            lastTimestamp = timestamp;
-            lastProcessedTime = timestamp;
+            // Close the path
+            pathData += ' Z';
+            
+            return pathData;
         }
         
-        function stopDrawing(e) {
-            if (!isStylusInput(e)) return;
+        function createSmoothPoints(rawPoints, smoothingIntensity) {
+            if (rawPoints.length < 3 || smoothingIntensity === 0) return rawPoints;
+            
+            const smoothedPoints = [];
+            
+            // Add first point as-is
+            smoothedPoints.push(rawPoints[0]);
+            
+            // Create interpolated points along the smooth curve with intensity control
+            for (let i = 1; i < rawPoints.length - 1; i++) {
+                const prev = rawPoints[i - 1];
+                const current = rawPoints[i];
+                const next = rawPoints[i + 1];
+                
+                // Add the current point (possibly smoothed toward average)
+                if (smoothingIntensity > 0 && i > 0 && i < rawPoints.length - 1) {
+                    // Smooth current point toward average of neighbors
+                    const avgX = (prev.x + next.x) / 2;
+                    const avgY = (prev.y + next.y) / 2;
+                    const avgPressure = (prev.pressure + next.pressure) / 2;
+                    
+                    const smoothedPoint = {
+                        x: current.x + (avgX - current.x) * smoothingIntensity * 0.3,
+                        y: current.y + (avgY - current.y) * smoothingIntensity * 0.3,
+                        pressure: current.pressure + (avgPressure - current.pressure) * smoothingIntensity * 0.2
+                    };
+                    smoothedPoints.push(smoothedPoint);
+                } else {
+                    smoothedPoints.push(current);
+                }
+                
+                // Add interpolated point between current and next with smoothing intensity
+                if (i < rawPoints.length - 2) {
+                    const interpolationStrength = 0.5 * smoothingIntensity;
+                    const interpolated = {
+                        x: current.x + (next.x - current.x) * interpolationStrength,
+                        y: current.y + (next.y - current.y) * interpolationStrength,
+                        pressure: current.pressure + (next.pressure - current.pressure) * interpolationStrength
+                    };
+                    smoothedPoints.push(interpolated);
+                }
+            }
+            
+            // Add last point as-is
+            smoothedPoints.push(rawPoints[rawPoints.length - 1]);
+            
+            return smoothedPoints;
+        }
+        
+        function getNormal(p1, p2) {
+            // Get perpendicular normal vector
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            
+            if (length === 0) return { x: 0, y: 1 };
+            
+            // Perpendicular vector (rotate 90 degrees)
+            return {
+                x: -dy / length,
+                y: dx / length
+            };
+        }
+        
+        function updateSmoothPath() {
+            if (currentPoints.length < 2) return;
+            
+            let pathData = `M ${currentPoints[0].x} ${currentPoints[0].y}`;
+            
+            if (currentPoints.length === 2 || smoothingIntensity === 0) {
+                // Just a line for the first segment or when smoothing is disabled
+                for (let i = 1; i < currentPoints.length; i++) {
+                    pathData += ` L ${currentPoints[i].x} ${currentPoints[i].y}`;
+                }
+            } else {
+                // Create smooth curves with intensity control
+                for (let i = 1; i < currentPoints.length - 1; i++) {
+                    const current = currentPoints[i];
+                    const next = currentPoints[i + 1];
+                    
+                    // Control smoothing intensity - higher values make more aggressive smoothing
+                    const smoothFactor = 0.5 * smoothingIntensity;
+                    const endX = current.x + (next.x - current.x) * smoothFactor;
+                    const endY = current.y + (next.y - current.y) * smoothFactor;
+                    
+                    pathData += ` Q ${current.x} ${current.y} ${endX} ${endY}`;
+                }
+                
+                // Add final segment to the last point with smoothing
+                const lastPoint = currentPoints[currentPoints.length - 1];
+                const secondLast = currentPoints[currentPoints.length - 2];
+                
+                if (smoothingIntensity > 0) {
+                    const smoothFactor = 0.5 * smoothingIntensity;
+                    const endX = secondLast.x + (lastPoint.x - secondLast.x) * (1 - smoothFactor);
+                    const endY = secondLast.y + (lastPoint.y - secondLast.y) * (1 - smoothFactor);
+                    pathData += ` Q ${endX} ${endY} ${lastPoint.x} ${lastPoint.y}`;
+                } else {
+                    pathData += ` L ${lastPoint.x} ${lastPoint.y}`;
+                }
+            }
+            
+            currentPath.setAttribute('d', pathData);
+        }
+        
+        function stopDrawing() {
             isDrawing = false;
-            
-            // Flush any remaining draw calls
-            if (frameRequestId) {
-                cancelAnimationFrame(frameRequestId);
-                executeDrawing();
-            }
-            
-            // Clear buffers
-            smoothingBuffer = [];
-            predictionBuffer = [];
-            pressureBuffer = [];
-            velocityHistory = [];
-            pendingDrawCalls = [];
-            kalmanState.initialized = false;
+            currentPath = null;
+            currentPoints = [];
         }
         
-        // Mouse events (for desktop testing)
-        canvas.addEventListener('mousedown', startDrawing);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stopDrawing);
-        canvas.addEventListener('mouseout', stopDrawing);
+        // Export functionality
+        function exportSVG() {
+            const svgData = new XMLSerializer().serializeToString(svg);
+            const blob = new Blob([svgData], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'vector-drawing.svg';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
         
-        // Pointer events (primary method for stylus detection)
+        // Clear canvas
+        function clearCanvas() {
+            svg.innerHTML = '';
+            paths = [];
+        }
+        
+        // Pointer Events (supports pressure-sensitive stylus input)
         if (window.PointerEvent) {
-            canvas.addEventListener('pointerdown', startDrawing);
-            canvas.addEventListener('pointermove', draw);
-            canvas.addEventListener('pointerup', stopDrawing);
-            canvas.addEventListener('pointercancel', stopDrawing);
-            canvas.addEventListener('pointerleave', stopDrawing);
+            svg.addEventListener('pointerdown', (e) => {
+                // Only allow pen and mouse input, disable finger touch
+                if (e.pointerType === 'touch') {
+                    return; // Block finger touch
+                }
+                
+                if (e.pointerType === 'pen') {
+                    isPressureSupported = e.pressure > 0;
+                }
+                svg.setPointerCapture(e.pointerId);
+                startDrawing(e);
+            });
+            svg.addEventListener('pointermove', (e) => {
+                // Only allow pen and mouse input
+                if (e.pointerType === 'touch') {
+                    return; // Block finger touch
+                }
+                draw(e);
+            });
+            svg.addEventListener('pointerup', (e) => {
+                // Only allow pen and mouse input
+                if (e.pointerType === 'touch') {
+                    return; // Block finger touch
+                }
+                stopDrawing();
+            });
+            svg.addEventListener('pointerleave', (e) => {
+                // Only allow pen and mouse input
+                if (e.pointerType === 'touch') {
+                    return; // Block finger touch
+                }
+                stopDrawing();
+            });
+            console.log('Pen and mouse drawing enabled (finger touch disabled)');
+        } else {
+            // Fallback to mouse events only (no touch support)
+            // Mouse events
+            svg.addEventListener('mousedown', startDrawing);
+            svg.addEventListener('mousemove', draw);
+            svg.addEventListener('mouseup', stopDrawing);
+            svg.addEventListener('mouseleave', stopDrawing);
+            
+            console.log('Mouse-only drawing mode (touch disabled)');
         }
         
-        // Prevent context menu
-        canvas.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                exportSVG();
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Backspace') {
+                e.preventDefault();
+                clearCanvas();
+            }
         });
         
-        // Prevent touch events for finger input
+        // Prevent default behaviors
+        document.addEventListener('contextmenu', (e) => e.preventDefault());
+        document.addEventListener('selectstart', (e) => e.preventDefault());
+        
+        // Panel functionality
+        let panelOpen = false;
+        
+        function togglePanel() {
+            const panel = document.getElementById('slidePanel');
+            const menuButton = document.getElementById('menuButton');
+            panelOpen = !panelOpen;
+            
+            if (panelOpen) {
+                panel.classList.add('open');
+                // Hide menu button when panel opens
+                menuButton.style.opacity = '0';
+                menuButton.style.pointerEvents = 'none';
+            } else {
+                panel.classList.remove('open');
+                // Show menu button when panel closes
+                menuButton.style.opacity = '1';
+                menuButton.style.pointerEvents = 'auto';
+            }
+        }
+        
+        // Tool controls
+        let baseStrokeWidth = 2.0;
+        
+        function changeStrokeWidth(delta) {
+            baseStrokeWidth = Math.max(0.5, Math.min(10, baseStrokeWidth + delta));
+            document.getElementById('strokeValue').textContent = baseStrokeWidth.toFixed(1);
+            
+            // Apply the same scaling as the viewport-based calculation
+            const diagonal = Math.sqrt(window.innerWidth ** 2 + window.innerHeight ** 2);
+            currentStrokeWidth = Math.max(1, (diagonal / 500) * baseStrokeWidth);
+        }
+        
+        // Pressure control functions
+        function changeMinWidth(delta) {
+            minWidthMultiplier = Math.max(0.1, Math.min(1.0, minWidthMultiplier + delta));
+            // Ensure min is always less than max
+            if (minWidthMultiplier >= maxWidthMultiplier) {
+                minWidthMultiplier = maxWidthMultiplier - 0.1;
+            }
+            document.getElementById('minWidthValue').textContent = minWidthMultiplier.toFixed(1);
+        }
+        
+        function changeMaxWidth(delta) {
+            maxWidthMultiplier = Math.max(0.2, Math.min(3.0, maxWidthMultiplier + delta));
+            // Ensure max is always greater than min
+            if (maxWidthMultiplier <= minWidthMultiplier) {
+                maxWidthMultiplier = minWidthMultiplier + 0.1;
+            }
+            document.getElementById('maxWidthValue').textContent = maxWidthMultiplier.toFixed(1);
+        }
+        
+        function changeSensitivity(delta) {
+            pressureSensitivity = Math.max(0.1, Math.min(3.0, pressureSensitivity + delta));
+            document.getElementById('sensitivityValue').textContent = pressureSensitivity.toFixed(1);
+        }
+        
+        function changeSmoothing(delta) {
+            smoothingIntensity = Math.max(0.0, Math.min(1.0, smoothingIntensity + delta));
+            document.getElementById('smoothingValue').textContent = smoothingIntensity.toFixed(1);
+        }
+        
+        function updatePressureControlsVisibility() {
+            const pressureControls = document.querySelectorAll('.pressure-controls');
+            const strokeWidthControl = document.querySelector('.stroke-width-control');
+            
+            if (pressureSensitivityEnabled) {
+                // Pressure ON: Show pressure controls, hide stroke width
+                pressureControls.forEach(control => control.classList.remove('hidden'));
+                strokeWidthControl.classList.add('hidden');
+            } else {
+                // Pressure OFF: Hide pressure controls, show stroke width
+                pressureControls.forEach(control => control.classList.add('hidden'));
+                strokeWidthControl.classList.remove('hidden');
+            }
+        }
+        
+        // Pressure sensitivity toggle
+        document.getElementById('pressureToggle').addEventListener('change', (e) => {
+            pressureSensitivityEnabled = e.target.checked;
+            const label = document.querySelector('.toggle-label');
+            label.textContent = pressureSensitivityEnabled ? 'Enabled' : 'Disabled';
+            
+            updatePressureControlsVisibility();
+            
+            console.log(`Pressure sensitivity ${pressureSensitivityEnabled ? 'enabled' : 'disabled'}`);
+        });
+        
+        // Color palette functionality
+        document.querySelectorAll('.color-option').forEach(option => {
+            option.addEventListener('click', (e) => {
+                // Remove selected class from all options
+                document.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('selected'));
+                
+                // Add selected class to clicked option
+                e.target.classList.add('selected');
+                
+                const color = e.target.dataset.color;
+                // Update current color for new strokes
+                currentColor = color;
+                
+                // Update the CSS class for both stroke and fill (covers both drawing modes)
+                const style = document.createElement('style');
+                style.textContent = `.drawing-path { stroke: ${color}; fill: ${color}; }`;
+                document.head.appendChild(style);
+            });
+        });
+        
+        // Close panel when clicking/touching outside
+        document.addEventListener('click', (e) => {
+            const panel = document.getElementById('slidePanel');
+            const menuButton = document.getElementById('menuButton');
+            
+            if (panelOpen && !panel.contains(e.target) && !menuButton.contains(e.target)) {
+                togglePanel();
+            }
+        });
+        
+        // Swipe gesture variables
+        let swipeStartX = 0;
+        let swipeStartY = 0;
+        let swipeStartTime = 0;
+        let isSwipeGesture = false;
+        
+        // Close panel when touching outside (finger/stylus touch)
         document.addEventListener('touchstart', (e) => {
-            if (!e.target.closest('.slide-panel') && !e.target.closest('.controls-left') && !e.target.closest('.controls-right')) {
-                e.preventDefault();
-            }
-        }, { passive: false });
-        
-        document.addEventListener('touchmove', (e) => {
-            if (!e.target.closest('.slide-panel') && !e.target.closest('.controls-left') && !e.target.closest('.controls-right')) {
-                e.preventDefault();
-            }
-        }, { passive: false });
-        
-        // Handle stylus hover
-        canvas.addEventListener('pointermove', (e) => {
-            if (e.pointerType === 'pen' && !isDrawing) {
-                canvas.style.cursor = 'crosshair';
+            const panel = document.getElementById('slidePanel');
+            const menuButton = document.getElementById('menuButton');
+            
+            // Get touch target
+            const touch = e.touches[0];
+            const touchTarget = document.elementFromPoint(touch.clientX, touch.clientY);
+            
+            if (panelOpen) {
+                // Record swipe start position if touching inside panel
+                if (panel.contains(touchTarget)) {
+                    swipeStartX = touch.clientX;
+                    swipeStartY = touch.clientY;
+                    swipeStartTime = Date.now();
+                    isSwipeGesture = true;
+                } else if (!menuButton.contains(touchTarget)) {
+                    // Close panel if touching outside panel and menu button
+                    e.preventDefault(); // Prevent drawing when closing panel
+                    togglePanel();
+                }
             }
         });
+        
+        // Track swipe movement
+        document.addEventListener('touchmove', (e) => {
+            if (isSwipeGesture && panelOpen) {
+                const touch = e.touches[0];
+                const deltaX = touch.clientX - swipeStartX;
+                const deltaY = Math.abs(touch.clientY - swipeStartY);
+                
+                // If moving too much vertically, cancel swipe
+                if (deltaY > 50) {
+                    isSwipeGesture = false;
+                }
+            }
+        });
+        
+        // Handle swipe end
+        document.addEventListener('touchend', (e) => {
+            if (isSwipeGesture && panelOpen) {
+                const endTime = Date.now();
+                const swipeTime = endTime - swipeStartTime;
+                const touch = e.changedTouches[0];
+                const deltaX = touch.clientX - swipeStartX;
+                const deltaY = Math.abs(touch.clientY - swipeStartY);
+                
+                // Swipe left criteria: 
+                // - Moved at least 100px to the left
+                // - Less than 50px vertical movement
+                // - Completed within 500ms
+                if (deltaX < -100 && deltaY < 50 && swipeTime < 500) {
+                    e.preventDefault();
+                    togglePanel();
+                }
+                
+                isSwipeGesture = false;
+            }
+        });
+        
+        // Initialize control visibility (pressure is enabled by default)
+        updatePressureControlsVisibility();
+        
+        // Initialize Lucide icons
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+        
+        // Add some basic info for users
+        console.log('Vector Drawing Canvas');
+        console.log('Ctrl+S: Export as SVG');
+        console.log('Ctrl+Backspace: Clear canvas');
     </script>
 </body>
 </html>
