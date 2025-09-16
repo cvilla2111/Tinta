@@ -1,2390 +1,1213 @@
-<!DOCTYPE html><html lang="en"><head>
-    <meta name="x-poe-datastore-behavior" content="local_only">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self' blob: data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://puc.poecdn.net; upgrade-insecure-requests; block-all-mixed-content;">
+<!DOCTYPE html>
+<html lang="en">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Annotation Tool</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <title>MPP Stylus Drawing PWA</title>
+    <meta name="description" content="A simple drawing app with MPP stylus support">
+    <meta name="theme-color" content="#ffffff">
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIk1QUCBTdHlsdXMgRHJhd2luZyBQV0EiLAogICJzaG9ydF9uYW1lIjogIkRyYXdpbmcgQXBwIiwKICAiZGVzY3JpcHRpb24iOiAiQSBzaW1wbGUgZHJhd2luZyBhcHAgd2l0aCBNUFAgc3R5bHVzIHN1cHBvcnQiLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAiZnVsbHNjcmVlbiIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiI2ZmZmZmZiIsCiAgInRoZW1lX2NvbG9yIjogIiNmZmZmZmYiLAogICJvcmllbnRhdGlvbiI6ICJhbnkiLAogICJpY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUI0Yld4dWN6MGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtY3ZNakF3TUM5emRtY2lJSGRwWkhSb1BTSXlOVFlpSUdobGFXZG9kRDBpTWpVMklqNDhjbVZqZENCM2FXUjBhRDBpTWpVMklpQm9aV2xuYUhROU1qVTJJaUJtYVc5c1BTSjNhR2wwWlNJdlBqd3ZjM1puUGc9PSIsCiAgICAgICJ0eXBlIjogImltYWdlL3N2Zyt4bWwiLAogICAgICAic2l6ZXMiOiAiMjU2eDI1NiIKICAgIH0sCiAgICB7CiAgICAgICJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sO2Jhc2U2NCxQSE4yWnlCNGJXeHVjejBpYUhSMGNEb3ZMM2QzZHk1M015NXZjbWN2TWpBd01DOXpkbWNpSUhkcFpIUm9QU0k0TnpJaUlHaGxhV2RvZEQwaU9EY3lJajQ4Y21WamRDQjNhV1IwYUQwaU9EY3lJaUJvWldsbmFIUTlPRGN5SWlCbWFXeHNQU0ozYUdsMFpTSXZQand2YzNablBnPT0iLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIiwKICAgICAgInNpemVzIjogIjg3Mng4NzIiCiAgICB9CiAgXQp9">
+    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNTYiIGhlaWdodD0iMjU2Ij48cmVjdCB3aWR0aD0iMjU2IiBoZWlnaHQ9MjU2IiBmaWxsPSJ3aGl0ZSIvPjwvc3ZnPg==">
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-
-        body {
-            background: white;
+        
+        html, body {
+            height: 100%;
             overflow: hidden;
+            background: white;
             touch-action: none;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            user-select: none;
         }
-
-        /* Home Screen */
-        .home-screen {
+        
+        .app-container {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        
+        .slide-panel {
+            position: fixed;
+            top: 0;
+            left: -360px;
+            width: 360px;
+            height: 100vh;
+            background: white;
+            border-right: 0.5px solid #e0e0e0;
+            z-index: 2000;
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            touch-action: auto;
+            user-select: text;
+        }
+        
+        .slide-panel.open {
+            left: 0;
+        }
+        
+        .panel-content {
+            padding: 20px;
+        }
+        
+        .panel-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
+            background: rgba(0, 0, 0, 0.2);
+            z-index: 1500;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
         }
-
-        .home-screen.hidden {
-            display: none;
+        
+        .panel-overlay.active {
+            opacity: 1;
+            visibility: visible;
         }
-
-        .load-pdf-btn {
-            padding: 20px 40px;
-            background: white;
-            color: #000;
-            border: 2px solid #000;
-            border-radius: 8px;
-            font-size: 18px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .load-pdf-btn:hover {
-            background: #000;
-            color: white;
-            transform: translateY(-2px);
-        }
-
-        .load-pdf-btn:active {
-            transform: translateY(0);
-        }
-
-        /* PDF and Drawing Container */
-        .container {
-            height: 100vh;
+        
+        .canvas-container {
             width: 100vw;
+            height: 100vh;
             position: relative;
-            background: white;
-            display: none;
         }
-
-        .container.active {
+        
+        #canvas {
             display: block;
-        }
-
-        /* Cast Receiver Mode */
-        .cast-receiver {
-            background: #000;
-            color: #fff;
-        }
-
-        .cast-receiver .panel,
-        .cast-receiver .btn {
-            display: none !important;
-        }
-
-        .cast-receiver #drawing-canvas {
-            pointer-events: none;
-        }
-
-        /* PDF Canvas (background) */
-        #pdf-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
+            width: 100%;
+            height: 100vh;
             background: white;
-            z-index: 1;
-        }
-
-        /* Drawing Canvas (overlay) */
-        #drawing-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
             cursor: crosshair;
             touch-action: none;
-            z-index: 2;
         }
-
-        /* Hidden file input */
-        #pdf-input {
-            display: none;
-        }
-
-        /* Buttons */
-        .btn {
-            position: absolute;
-            top: 20px;
-            width: 40px;
-            height: 40px;
-            background: white;
-            border: 1px solid #000;
-            border-radius: 4px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10;
-            transition: all 0.2s ease;
-        }
-
-        .btn:hover {
-            background: #000;
-        }
-
-        .btn:hover .icon {
-            fill: white;
-        }
-
-        .btn-settings {
-            left: 20px;
-        }
-
-        .btn-settings.hidden {
-            display: none;
-        }
-
-        .btn-cast {
-            right: 70px;
-        }
-
-        .btn-cast.casting {
-            background: #007bff;
-            border-color: #007bff;
-        }
-
-        .btn-cast.casting .icon {
-            fill: white;
-        }
-
-        .btn-clear {
-            right: 20px;
-        }
-
-        .icon {
-            width: 18px;
-            height: 18px;
-            fill: #000;
-            transition: fill 0.2s ease;
-        }
-
-        /* Cast Status */
-        .cast-status {
-            position: absolute;
-            top: 70px;
-            right: 20px;
-            background: rgba(0, 123, 255, 0.9);
-            color: white;
-            padding: 8px 12px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 600;
-            z-index: 15;
-            display: none;
-        }
-
-        .cast-status.visible {
-            display: block;
-        }
-
-        /* Settings Panel */
-        .panel {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 300px;
-            height: 100vh;
-            background: white;
-            border-right: 1px solid #000;
-            z-index: 5;
-            transform: translateX(-100%);
-            transition: transform 0.3s ease;
-            padding: 20px;
-            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
-            overflow-y: auto;
-        }
-
-        .panel.open {
-            transform: translateX(0);
-        }
-
-        .setting {
-            margin-bottom: 12px;
-        }
-
-        .setting-label {
-            font-size: 10px;
-            font-weight: 600;
-            margin-bottom: 4px;
-            color: #000;
-        }
-
-        /* Stepper Controls */
-        .stepper {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .stepper-btn {
-            width: 18px;
-            height: 18px;
-            background: white;
-            border: 1px solid #000;
-            border-radius: 2px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            font-weight: bold;
-            transition: all 0.2s ease;
-            user-select: none;
-        }
-
-        .stepper-btn:hover {
-            background: #000;
-            color: white;
-        }
-
-        .stepper-btn:disabled {
-            background: #f5f5f5;
-            color: #ccc;
-            cursor: not-allowed;
-            border-color: #e0e0e0;
-        }
-
-        .stepper-btn:disabled:hover {
-            background: #f5f5f5;
-            color: #ccc;
-        }
-
-        .stepper-value {
-            font-size: 11px;
-            font-weight: 600;
-            min-width: 18px;
-            text-align: center;
-        }
-
-        .preview {
-            width: 20px;
-            height: 20px;
-            border: 1px solid #000;
-            border-radius: 2px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-left: 5px;
-        }
-
-        .preview-dot {
-            background: #000;
-            border-radius: 50%;
-            transition: all 0.2s ease;
-        }
-
-        .setting.disabled {
-            opacity: 0.5;
-        }
-
-        .setting.disabled .stepper-value {
-            color: #ccc;
-        }
-
-        .setting.disabled .preview-dot {
-            background: #ccc;
-        }
-
-        /* Toggle Switch */
-        .toggle-container {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .toggle-input {
-            display: none;
-        }
-
-        .toggle-label {
-            position: relative;
-            width: 30px;
-            height: 16px;
-            background: #ccc;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background 0.2s ease;
-        }
-
-        .toggle-slider {
-            position: absolute;
-            top: 2px;
-            left: 2px;
-            width: 12px;
-            height: 12px;
-            background: white;
-            border-radius: 50%;
-            transition: transform 0.2s ease;
-        }
-
-        .toggle-input:checked + .toggle-label {
-            background: #000;
-        }
-
-        .toggle-input:checked + .toggle-label .toggle-slider {
-            transform: translateX(14px);
-        }
-
-        .toggle-text {
-            font-size: 10px;
-            font-weight: 500;
-            color: #000;
-            user-select: none;
-        }
-
-        /* Curve Selector */
-        .curve-select {
-            width: 100%;
-            padding: 4px 6px;
-            border: 1px solid #000;
-            border-radius: 2px;
-            background: white;
-            font-size: 10px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .curve-select:hover {
-            background: #f5f5f5;
-        }
-
-        .curve-select:focus {
-            outline: none;
-            border-color: #000;
-            box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Sensitivity Slider */
-        .sensitivity-slider {
-            width: 100%;
-            height: 6px;
-            background: #e0e0e0;
-            border-radius: 3px;
-            outline: none;
-            cursor: pointer;
-            -webkit-appearance: none;
-            appearance: none;
-        }
-
-        .sensitivity-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 20px;
-            height: 20px;
-            background: #000;
-            border-radius: 50%;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .sensitivity-slider::-webkit-slider-thumb:hover {
-            transform: scale(1.1);
-        }
-
-        .sensitivity-slider::-moz-range-thumb {
-            width: 20px;
-            height: 20px;
-            background: #000;
-            border-radius: 50%;
-            cursor: pointer;
-            border: none;
-            transition: all 0.2s ease;
-        }
-
-        .sensitivity-slider::-moz-range-thumb:hover {
-            transform: scale(1.1);
-        }
-
-        .slider-labels {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 8px;
-            font-size: 12px;
-            color: #666;
-            user-select: none;
-        }
-
-        /* Color Picker */
-        .color-picker {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 4px;
-        }
-
-        .color-swatch {
-            width: 20px;
-            height: 20px;
-            border-radius: 3px;
-            cursor: pointer;
-            border: 2px solid transparent;
-            transition: all 0.2s ease;
-            position: relative;
-        }
-
-        .color-swatch:hover {
-            transform: scale(1.1);
-            border-color: #000;
-        }
-
-        .color-swatch.active {
-            border-color: #000;
-            box-shadow: 0 0 0 1px #fff, 0 0 0 3px #000;
-        }
-
-        .color-swatch.active:hover {
-            transform: scale(1.1);
-        }
-
-        /* Eraser Preview Circle */
-        #eraser-preview {
-            position: absolute;
-            border: 1px dashed #666;
-            border-radius: 50%;
-            pointer-events: none;
-            z-index: 15;
-            background: rgba(200, 200, 200, 0.1);
-            transform: translate(-50%, -50%);
-        }
-
-        /* Performance Monitor */
-        .performance-monitor {
+        
+        .controls-left {
             position: fixed;
             top: 20px;
             left: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            color: #00ff00;
-            padding: 8px 12px;
+            z-index: 3000;
+        }
+        
+        .controls-right {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        
+        .control-btn {
+            width: 40px;
+            height: 40px;
+            background: transparent;
+            border: 0.5px solid black;
             border-radius: 4px;
-            font-family: 'Courier New', monospace;
-            font-size: 11px;
-            line-height: 1.3;
-            z-index: 3;
-            min-width: 140px;
-            backdrop-filter: blur(4px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            pointer-events: none;
-            user-select: none;
-        }
-
-        .performance-monitor.hidden {
-            display: none;
-        }
-
-        .cast-receiver .performance-monitor {
-            display: none !important;
-        }
-
-        .perf-line {
+            cursor: pointer;
             display: flex;
-            justify-content: space-between;
-            margin-bottom: 2px;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            touch-action: manipulation;
         }
-
-        .perf-line:last-child {
-            margin-bottom: 0;
+        
+        .control-btn:hover {
+            transform: scale(1.05);
         }
-
-        .perf-label {
+        
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .control-icon {
+            width: 20px;
+            height: 20px;
+            stroke: black;
+            stroke-width: 0.5;
+            fill: none;
+        }
+        
+        .panel-title {
+            font-family: system-ui, sans-serif;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+            text-align: right;
+            margin-right: 20px;
+        }
+        
+        .section-title {
+            font-family: system-ui, sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            color: #444;
+            margin-bottom: 16px;
+            margin-top: 24px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 8px;
+        }
+        
+        .section-title:first-of-type {
+            margin-top: 0;
+        }
+        
+        .setting-group {
+            margin-bottom: 18px;
+        }
+        
+        .setting-label {
+            font-family: system-ui, sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            color: #555;
+            margin-bottom: 8px;
+            display: block;
+        }
+        
+        .slider-container {
+            position: relative;
+            margin-bottom: 6px;
+        }
+        
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #e0e0e0;
+            outline: none;
+            appearance: none;
+            cursor: pointer;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #333;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #333;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .slider-value {
+            font-family: system-ui, sans-serif;
+            font-size: 12px;
+            color: #666;
+            text-align: right;
+        }
+        
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .checkbox {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+        
+        .checkbox-label {
+            font-family: system-ui, sans-serif;
+            font-size: 14px;
+            color: #555;
+            cursor: pointer;
+        }
+        
+        .curve-selector, .latency-mode-selector, .prediction-mode-selector {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        
+        .curve-btn, .latency-btn, .prediction-btn {
+            flex: 1;
+            padding: 6px 8px;
+            background: transparent;
+            border: 0.5px solid #ccc;
+            border-radius: 4px;
+            font-family: system-ui, sans-serif;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .curve-btn.active, .latency-btn.active, .prediction-btn.active {
+            background: #333;
+            color: white;
+            border-color: #333;
+        }
+        
+        .curve-btn:hover, .latency-btn:hover, .prediction-btn:hover {
+            border-color: #333;
+        }
+        
+        .setting-description {
+            font-family: system-ui, sans-serif;
+            font-size: 11px;
             color: #888;
-        }
-
-        .perf-value {
-            color: #00ff00;
-            font-weight: bold;
-        }
-
-        .perf-value.warning {
-            color: #ffaa00;
-        }
-
-        .perf-value.critical {
-            color: #ff4444;
+            margin-top: 4px;
+            line-height: 1.3;
         }
     </style>
-    <script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script>
-<script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script></head>
+</head>
 <body>
-    <!-- Home Screen -->
-    <div class="home-screen" id="home-screen">
-        <button class="load-pdf-btn" id="load-pdf-btn">Load PDF</button>
-        <input type="file" id="pdf-input" accept=".pdf">
-    </div>
-
-    <!-- PDF Annotation Interface -->
-    <div class="container" id="container">
-        <!-- Settings Panel -->
-        <div class="panel" id="panel">
-            <div class="setting disabled" id="stroke-size-setting">
-                <div class="setting-label">Stroke Size</div>
-                <div class="stepper">
-                    <button class="stepper-btn" id="decrease" disabled="">−</button>
-                    <div class="stepper-value" id="value">2</div>
-                    <button class="stepper-btn" id="increase" disabled="">+</button>
-                    <div class="preview">
-                        <div class="preview-dot" id="dot"></div>
+    <div class="app-container">
+        <div class="panel-overlay" id="panelOverlay"></div>
+        
+        <div class="slide-panel" id="slidePanel">
+            <div class="panel-content">
+                <h2 class="panel-title">Drawing Settings</h2>
+                
+                <div class="section-title">Pressure Settings</div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">Pressure Sensitivity</label>
+                    <div class="slider-container">
+                        <input type="range" class="slider" id="pressureSensitivity" min="0.1" max="3" step="0.1" value="1">
+                    </div>
+                    <div class="slider-value" id="pressureSensitivityValue">1.0x</div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">Minimum Width</label>
+                    <div class="slider-container">
+                        <input type="range" class="slider" id="minWidth" min="0.5" max="5" step="0.1" value="1">
+                    </div>
+                    <div class="slider-value" id="minWidthValue">1.0px</div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">Maximum Width</label>
+                    <div class="slider-container">
+                        <input type="range" class="slider" id="maxWidth" min="5" max="20" step="0.5" value="8">
+                    </div>
+                    <div class="slider-value" id="maxWidthValue">8.0px</div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">Pressure Curve</label>
+                    <div class="curve-selector">
+                        <button class="curve-btn active" data-curve="linear">Linear</button>
+                        <button class="curve-btn" data-curve="ease">Ease</button>
+                        <button class="curve-btn" data-curve="sharp">Sharp</button>
                     </div>
                 </div>
-            </div>
-            
-            <div class="setting">
-                <div class="setting-label">Pen Color</div>
-                <div class="color-picker">
-                    <div class="color-swatch active" data-color="#000000" style="background: #000000;"></div>
-                    <div class="color-swatch" data-color="#FF0000" style="background: #FF0000;"></div>
-                    <div class="color-swatch" data-color="#0066FF" style="background: #0066FF;"></div>
-                    <div class="color-swatch" data-color="#00AA00" style="background: #00AA00;"></div>
-                    <div class="color-swatch" data-color="#FFD700" style="background: #FFD700;"></div>
-                    <div class="color-swatch" data-color="#FF6600" style="background: #FF6600;"></div>
-                    <div class="color-swatch" data-color="#9900CC" style="background: #9900CC;"></div>
-                    <div class="color-swatch" data-color="#FFFFFF" style="background: #FFFFFF; border: 1px solid #ccc;"></div>
-                </div>
-            </div>
-            
-            <div class="setting">
-                <div class="setting-label">Smooth Drawing (QI)</div>
-                <div class="toggle-container">
-                    <input type="checkbox" id="qi-toggle" class="toggle-input" checked="">
-                    <label for="qi-toggle" class="toggle-label">
-                        <span class="toggle-slider"></span>
-                    </label>
-                    <span class="toggle-text">Enabled</span>
-                </div>
-            </div>
-            
-            <div class="setting">
-                <div class="setting-label">Eraser Mode</div>
-                <div class="toggle-container">
-                    <input type="checkbox" id="eraser-toggle" class="toggle-input">
-                    <label for="eraser-toggle" class="toggle-label">
-                        <span class="toggle-slider"></span>
-                    </label>
-                    <span class="toggle-text" id="eraser-text">Disabled</span>
-                </div>
-            </div>
-            
-            <div class="setting" id="eraser-settings" style="display: none;">
-                <div class="setting-label">Eraser Size</div>
-                <div class="stepper">
-                    <button class="stepper-btn" id="decrease-eraser">−</button>
-                    <div class="stepper-value" id="eraser-value">10</div>
-                    <button class="stepper-btn" id="increase-eraser">+</button>
-                    <div class="preview">
-                        <div class="preview-dot" id="eraser-dot"></div>
+                
+                <div class="setting-group">
+                    <div class="checkbox-container">
+                        <input type="checkbox" class="checkbox" id="enablePressure" checked>
+                        <label class="checkbox-label" for="enablePressure">Enable Pressure</label>
                     </div>
                 </div>
-            </div>
-            
-            <div class="setting" id="dynamic-eraser-setting" style="display: none;">
-                <div class="setting-label">Dynamic Eraser</div>
-                <div class="toggle-container">
-                    <input type="checkbox" id="dynamic-eraser-toggle" class="toggle-input">
-                    <label for="dynamic-eraser-toggle" class="toggle-label">
-                        <span class="toggle-slider"></span>
-                    </label>
-                    <span class="toggle-text" id="dynamic-eraser-text">Disabled</span>
+                
+                <div class="section-title">Smoothing & Latency</div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">Line Smoothing</label>
+                    <div class="slider-container">
+                        <input type="range" class="slider" id="smoothing" min="0" max="10" step="1" value="3">
+                    </div>
+                    <div class="slider-value" id="smoothingValue">3</div>
                 </div>
-            </div>
-            
-            <div class="setting" id="eraser-calibration-x-setting" style="display: none;">
-                <div class="setting-label">Eraser Calibration X</div>
-                <div class="stepper">
-                    <button class="stepper-btn" id="decrease-eraser-offset-x">−</button>
-                    <div class="stepper-value" id="eraser-offset-x-value">-6</div>
-                    <button class="stepper-btn" id="increase-eraser-offset-x">+</button>
-                </div>
-            </div>
-            
-            <div class="setting" id="eraser-calibration-y-setting" style="display: none;">
-                <div class="setting-label">Eraser Calibration Y</div>
-                <div class="stepper">
-                    <button class="stepper-btn" id="decrease-eraser-offset-y">−</button>
-                    <div class="stepper-value" id="eraser-offset-y-value">0</div>
-                    <button class="stepper-btn" id="increase-eraser-offset-y">+</button>
-                </div>
-            </div>
-
-            <div class="setting">
-                <div class="setting-label">Pen Pressure</div>
-                <div class="toggle-container">
-                    <input type="checkbox" id="pressure-toggle" class="toggle-input" checked="">
-                    <label for="pressure-toggle" class="toggle-label">
-                        <span class="toggle-slider"></span>
-                    </label>
-                    <span class="toggle-text" id="pressure-text">Enabled</span>
-                </div>
-            </div>
-            
-            <div class="setting" id="pressure-settings">
-                <div class="setting-label">Low Pressure Stroke</div>
-                <div class="stepper">
-                    <button class="stepper-btn" id="decrease-low">−</button>
-                    <div class="stepper-value" id="low-value">0.2</div>
-                    <button class="stepper-btn" id="increase-low">+</button>
-                    <div class="preview">
-                        <div class="preview-dot" id="low-dot"></div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">Latency Reduction Mode</label>
+                    <div class="latency-mode-selector">
+                        <button class="latency-btn" data-mode="standard">Standard</button>
+                        <button class="latency-btn active" data-mode="optimized">Optimized</button>
+                        <button class="latency-btn" data-mode="ultra">Ultra</button>
                     </div>
                 </div>
-            </div>
-            
-            <div class="setting" id="pressure-settings-high">
-                <div class="setting-label">High Pressure Stroke</div>
-                <div class="stepper">
-                    <button class="stepper-btn" id="decrease-high">−</button>
-                    <div class="stepper-value" id="high-value">9</div>
-                    <button class="stepper-btn" id="increase-high">+</button>
-                    <div class="preview">
-                        <div class="preview-dot" id="high-dot"></div>
+                
+                <div class="section-title">Debouncing Settings</div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">Input Debouncing</label>
+                    <div class="slider-container">
+                        <input type="range" class="slider" id="debounceThreshold" min="0" max="20" step="1" value="5">
+                    </div>
+                    <div class="slider-value" id="debounceThresholdValue">5ms</div>
+                    <div class="setting-description">Filters rapid input events to reduce noise</div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">Movement Threshold</label>
+                    <div class="slider-container">
+                        <input type="range" class="slider" id="movementThreshold" min="0" max="10" step="0.5" value="2">
+                    </div>
+                    <div class="slider-value" id="movementThresholdValue">2.0px</div>
+                    <div class="setting-description">Minimum movement distance to register input</div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">Pressure Debouncing</label>
+                    <div class="slider-container">
+                        <input type="range" class="slider" id="pressureDebounce" min="0" max="10" step="1" value="3">
+                    </div>
+                    <div class="slider-value" id="pressureDebounceValue">3</div>
+                    <div class="setting-description">Smooths pressure variations to reduce jitter</div>
+                </div>
+                
+                <div class="setting-group">
+                    <div class="checkbox-container">
+                        <input type="checkbox" class="checkbox" id="adaptiveDebouncing" checked>
+                        <label class="checkbox-label" for="adaptiveDebouncing">Adaptive Debouncing</label>
+                    </div>
+                    <div class="setting-description">Automatically adjusts debouncing based on drawing speed</div>
+                </div>
+                
+                <div class="section-title">Prediction Settings</div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">Prediction Strength</label>
+                    <div class="slider-container">
+                        <input type="range" class="slider" id="prediction" min="0" max="10" step="1" value="5">
+                    </div>
+                    <div class="slider-value" id="predictionValue">5</div>
+                    <div class="setting-description">How far ahead to predict stylus movement</div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">Prediction Algorithm</label>
+                    <div class="prediction-mode-selector">
+                        <button class="prediction-btn active" data-mode="linear">Linear</button>
+                        <button class="prediction-btn" data-mode="velocity">Velocity</button>
+                        <button class="prediction-btn" data-mode="kalman">Kalman</button>
+                    </div>
+                    <div class="setting-description">Method used for calculating predicted positions</div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">Prediction Confidence</label>
+                    <div class="slider-container">
+                        <input type="range" class="slider" id="predictionConfidence" min="0" max="10" step="1" value="7">
+                    </div>
+                    <div class="slider-value" id="predictionConfidenceValue">7</div>
+                    <div class="setting-description">How much to trust prediction vs actual input</div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">Prediction Smoothing</label>
+                    <div class="slider-container">
+                        <input type="range" class="slider" id="predictionSmoothing" min="0" max="10" step="1" value="4">
+                    </div>
+                    <div class="slider-value" id="predictionSmoothingValue">4</div>
+                    <div class="setting-description">Smooths predicted points to reduce artifacts</div>
+                </div>
+                
+                <div class="setting-group">
+                    <div class="checkbox-container">
+                        <input type="checkbox" class="checkbox" id="enablePrediction" checked>
+                        <label class="checkbox-label" for="enablePrediction">Enable Prediction</label>
                     </div>
                 </div>
-            </div>
-            
-            <div class="setting" id="pressure-curve-setting">
-                <div class="setting-label">Pressure Curve</div>
-                <select id="curve-type" class="curve-select">
-                    <option value="linear">Linear</option>
-                    <option value="exponential">Exponential</option>
-                    <option value="logarithmic" selected="">Logarithmic</option>
-                    <option value="custom">Custom</option>
-                </select>
-            </div>
-            
-            <div class="setting" id="pressure-sensitivity-setting">
-                <div class="setting-label">Sensitivity: <span id="sensitivity-value">1.0</span></div>
-                <input type="range" id="sensitivity-slider" class="sensitivity-slider" min="0.1" max="3.0" step="0.1" value="1.0">
-                <div class="slider-labels">
-                    <span>Gentle</span>
-                    <span>Responsive</span>
+                
+                <div class="setting-group">
+                    <div class="checkbox-container">
+                        <input type="checkbox" class="checkbox" id="correctionMode">
+                        <label class="checkbox-label" for="correctionMode">Error Correction</label>
+                    </div>
+                    <div class="setting-description">Corrects prediction errors with actual input</div>
                 </div>
-            </div>
-            
-            <div class="setting">
-                <div class="setting-label">Pen Calibration X</div>
-                <div class="stepper">
-                    <button class="stepper-btn" id="decrease-offset-x">−</button>
-                    <div class="stepper-value" id="offset-x-value">-5</div>
-                    <button class="stepper-btn" id="increase-offset-x">+</button>
+                
+                <div class="section-title">Performance</div>
+                
+                <div class="setting-group">
+                    <div class="checkbox-container">
+                        <input type="checkbox" class="checkbox" id="frameRateBoost" checked>
+                        <label class="checkbox-label" for="frameRateBoost">High Frame Rate Mode</label>
+                    </div>
                 </div>
-            </div>
-            
-            <div class="setting">
-                <div class="setting-label">Pen Calibration Y</div>
-                <div class="stepper">
-                    <button class="stepper-btn" id="decrease-offset-y">−</button>
-                    <div class="stepper-value" id="offset-y-value">0</div>
-                    <button class="stepper-btn" id="increase-offset-y">+</button>
-                </div>
-            </div>
-            
-            <div class="setting">
-                <div class="setting-label">PDF Scale (Quality)</div>
-                <div class="stepper">
-                    <button class="stepper-btn" id="decrease-scale">−</button>
-                    <div class="stepper-value" id="scale-value">Auto</div>
-                    <button class="stepper-btn" id="increase-scale">+</button>
+                
+                <div class="setting-group">
+                    <div class="checkbox-container">
+                        <input type="checkbox" class="checkbox" id="directRendering" checked>
+                        <label class="checkbox-label" for="directRendering">Direct Canvas Rendering</label>
+                    </div>
                 </div>
             </div>
         </div>
         
-        <!-- Control Buttons -->
-        <button class="btn btn-settings" id="settings">
-            <svg class="icon" viewBox="0 0 24 24">
-                <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"></path>
-            </svg>
-        </button>
-        
-        <button class="btn btn-cast" id="cast">
-            <svg class="icon" viewBox="0 0 24 24">
-                <path d="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm18-7H5v1.63c3.96 1.28 7.09 4.41 8.37 8.37H19V7zM1 10v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"></path>
-            </svg>
-        </button>
-        
-        <button class="btn btn-clear" id="clear">
-            <svg class="icon" viewBox="0 0 24 24">
-                <path d="M3 6h18l-1.5 14H4.5L3 6zm5-4h8v2H8V2zm0 6v8h2V8H8zm6 0v8h2V8h-2z"></path>
-            </svg>
-        </button>
-        
-        <!-- Cast Status -->
-        <div class="cast-status" id="cast-status">
-            Casting to display
-        </div>
-        
-        <!-- PDF Canvas (background) -->
-        <canvas id="pdf-canvas"></canvas>
-        
-        <!-- Drawing Canvas (overlay) -->
-        <canvas id="drawing-canvas"></canvas>
-        
-        <!-- Eraser Preview Circle -->
-        <div id="eraser-preview" style="display: none;"></div>
-        
-        <!-- Performance Monitor -->
-        <div class="performance-monitor" id="performance-monitor">
-            <div class="perf-line">
-                <span class="perf-label">FPS:</span>
-                <span class="perf-value" id="fps-value">0</span>
+        <div class="canvas-container">
+            <div class="controls-left">
+                <button class="control-btn" id="panelToggle" title="Settings">
+                    <svg class="control-icon" id="panelIcon" viewBox="0 0 24 24">
+                        <rect width="18" height="18" x="3" y="3" rx="2"/>
+                        <path d="M9 8h7"/>
+                        <path d="M9 12h7"/>
+                        <path d="M9 16h7"/>
+                    </svg>
+                </button>
             </div>
-            <div class="perf-line">
-                <span class="perf-label">Frame:</span>
-                <span class="perf-value" id="frame-time-value">0ms</span>
+            
+            <div class="controls-right">
+                <button class="control-btn" id="clearCanvas" title="Clear canvas">
+                    <svg class="control-icon" viewBox="0 0 24 24">
+                        <path d="m3 6 18 0"/>
+                        <path d="m19 6 0 14c0 1-1 2-2 2l-10 0c-1 0-2-1-2-2l0-14"/>
+                        <path d="m8 6 0-2c0-1 1-2 2-2l4 0c0 1 1 2 1 2l0 2"/>
+                        <line x1="10" x2="10" y1="11" y2="17"/>
+                        <line x1="14" x2="14" y1="11" y2="17"/>
+                    </svg>
+                </button>
             </div>
-            <div class="perf-line">
-                <span class="perf-label">Memory:</span>
-                <span class="perf-value" id="memory-value">0MB</span>
-            </div>
-            <div class="perf-line">
-                <span class="perf-label">GPU:</span>
-                <span class="perf-value" id="gpu-value">-</span>
-            </div>
+            
+            <canvas id="canvas"></canvas>
         </div>
     </div>
-
+    
     <script>
-        // Set PDF.js worker source
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
-        class PDFAnnotationApp {
-            constructor() {
-                // PDF elements
-                this.pdfCanvas = document.getElementById('pdf-canvas');
-                this.pdfCtx = this.pdfCanvas.getContext('2d');
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            const swCode = `
+                const CACHE_NAME = 'drawing-pwa-v1';
                 
-                // Drawing elements
-                this.drawingCanvas = document.getElementById('drawing-canvas');
-                this.ctx = this.drawingCanvas.getContext('2d');
-                
-                // Home screen elements
-                this.homeScreen = document.getElementById('home-screen');
-                this.container = document.getElementById('container');
-                this.loadPdfBtn = document.getElementById('load-pdf-btn');
-                this.pdfInput = document.getElementById('pdf-input');
-                
-                // Cast elements
-                this.castBtn = document.getElementById('cast');
-                this.castStatus = document.getElementById('cast-status');
-                
-                // PDF state
-                this.pdfDoc = null;
-                this.currentPage = 1;
-                this.totalPages = 0;
-                this.scale = 1;
-                
-                // PDF scale system
-                this.scaleOptions = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 2.5, 3.0, 4.0];
-                this.currentScaleIndex = -1; // -1 means "Auto" mode
-                this.customScale = null;
-                
-                // Page drawings storage
-                this.pageDrawings = {};
-                
-                // Drawing state
-                this.isDrawing = false;
-                this.points = [];
-                
-                // Cast state
-                this.isCastReceiver = window.location.hash === '#cast-receiver';
-                this.presentationConnection = null;
-                this.presentationRequest = null;
-                this.isCasting = false;
-                
-                // Settings
-                this.strokeSize = 2;
-                this.smoothDrawing = true;
-                this.penColor = '#000000';
-                this.eraserEnabled = false;
-                this.eraserSize = 10;
-                this.dynamicEraserEnabled = false;
-                this.pressureEnabled = true;
-                this.lowPressureStroke = 0.2;
-                this.highPressureStroke = 9;
-                this.pressureCurve = 'logarithmic';
-                this.pressureSensitivity = 1.0;
-                this.penOffsetX = -5;
-                this.penOffsetY = 0;
-                this.eraserOffsetX = -6;
-                this.eraserOffsetY = 0;
-                
-                // Dynamic eraser tracking
-                this.lastPosition = null;
-                this.lastTime = 0;
-                this.currentEraserSize = 10;
-                
-                // Eraser button state tracking
-                this.wasInEraserButtonMode = false;
-                this.previousEraserState = false;
-                this.previousDynamicEraserState = false;
-                
-                // Performance monitoring
-                this.performanceMonitor = null;
-                this.frameCount = 0;
-                this.lastFrameTime = performance.now();
-                this.lastFpsUpdate = performance.now();
-                this.frameTimings = [];
-                this.isMonitoringPerformance = false;
-                
-                this.init();
-            }
-
-            // ===== INITIALIZATION =====
-            init() {
-                this.setupCastMode();
-                this.setupHomeScreenEvents();
-                this.setupCanvas();
-                this.setupEvents();
-                this.updatePreviews();
-                this.updateScaleDisplay();
-                this.setupPerformanceMonitoring();
-            }
-
-            setupCastMode() {
-                if (this.isCastReceiver) {
-                    // This is the cast receiver mode
-                    document.body.classList.add('cast-receiver');
-                    this.setupCastReceiver();
-                } else {
-                    // This is the controller mode
-                    this.setupCastController();
-                }
-            }
-
-            setupCastController() {
-                // Setup Presentation API for casting
-                if ('PresentationRequest' in window) {
-                    this.presentationRequest = new PresentationRequest([
-                        window.location.href + '#cast-receiver'
-                    ]);
-                } else {
-                    // Hide cast button if Presentation API is not supported
-                    this.castBtn.style.display = 'none';
-                }
-            }
-
-            setupCastReceiver() {
-                // Hide home screen and show container immediately for receiver
-                this.homeScreen.classList.add('hidden');
-                this.container.classList.add('active');
-                
-                // Setup receiver to listen for messages
-                if ('presentation' in navigator && 'receiver' in navigator.presentation) {
-                    navigator.presentation.receiver.connectionList.then(list => {
-                        list.connections.forEach(connection => {
-                            this.handleCastConnection(connection);
-                        });
-                        
-                        list.addEventListener('connectionavailable', event => {
-                            this.handleCastConnection(event.connection);
-                        });
-                    });
-                }
-            }
-
-            handleCastConnection(connection) {
-                connection.addEventListener('message', event => {
-                    try {
-                        const data = JSON.parse(event.data);
-                        this.handleCastMessage(data);
-                    } catch (e) {
-                        console.error('Error parsing cast message:', e);
-                    }
+                self.addEventListener('install', (event) => {
+                    self.skipWaiting();
                 });
-            }
-
-            handleCastMessage(data) {
-                switch (data.type) {
-                    case 'pdf-loaded':
-                        this.loadPDFFromData(data.pdfData);
-                        break;
-                    case 'page-change':
-                        this.currentPage = data.page;
-                        this.renderCurrentPage();
-                        break;
-                    case 'scale-change':
-                        this.currentScaleIndex = data.scaleIndex;
-                        this.renderCurrentPage();
-                        break;
-                    case 'drawing-update':
-                        this.handleDrawingUpdate(data.drawingData);
-                        break;
-                    case 'drawing-clear':
-                        this.clearDrawing();
-                        break;
-                }
-            }
-
-            handleDrawingUpdate(drawingData) {
-                if (!drawingData) return;
                 
-                // Load the drawing image data onto the canvas
-                const img = new Image();
-                img.onload = () => {
-                    this.ctx.clearRect(0, 0, this.drawingCanvas.width, this.drawingCanvas.height);
-                    this.ctx.drawImage(img, 0, 0);
-                };
-                img.src = drawingData;
-            }
-
-            clearDrawing() {
-                this.ctx.clearRect(0, 0, this.drawingCanvas.width, this.drawingCanvas.height);
-            }
-
-            async loadPDFFromData(pdfData) {
-                try {
-                    const arrayBuffer = this.base64ToArrayBuffer(pdfData);
-                    this.pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-                    this.totalPages = this.pdfDoc.numPages;
-                    this.currentPage = 1;
-                    await this.renderCurrentPage();
-                } catch (error) {
-                    console.error('Error loading PDF in cast receiver:', error);
-                }
-            }
-
-            base64ToArrayBuffer(base64) {
-                const binaryString = atob(base64);
-                const bytes = new Uint8Array(binaryString.length);
-                for (let i = 0; i < binaryString.length; i++) {
-                    bytes[i] = binaryString.charCodeAt(i);
-                }
-                return bytes.buffer;
-            }
-
-            arrayBufferToBase64(buffer) {
-                const bytes = new Uint8Array(buffer);
-                let binary = '';
-                for (let i = 0; i < bytes.byteLength; i++) {
-                    binary += String.fromCharCode(bytes[i]);
-                }
-                return btoa(binary);
-            }
-
-            setupHomeScreenEvents() {
-                if (this.isCastReceiver) return;
-                
-                // PDF loading events
-                this.loadPdfBtn.addEventListener('click', () => {
-                    this.pdfInput.click();
+                self.addEventListener('activate', (event) => {
+                    event.waitUntil(self.clients.claim());
                 });
-
-                this.pdfInput.addEventListener('change', (e) => {
-                    const file = e.target.files[0];
-                    if (file && file.type === 'application/pdf') {
-                        this.loadPDF(file);
-                    }
-                });
-            }
-
-            setupCanvas() {
-                this.ctx.lineCap = 'round';
-                this.ctx.lineJoin = 'round';
-                this.ctx.strokeStyle = this.penColor;
-                this.ctx.fillStyle = this.penColor;
-                // No resize listener - PDF size stays fixed
-            }
-
-            // ===== PDF FUNCTIONALITY =====
-            cloneArrayBuffer(buffer) {
-                const cloned = new ArrayBuffer(buffer.byteLength);
-                new Uint8Array(cloned).set(new Uint8Array(buffer));
-                return cloned;
-            }
-
-            async loadPDF(file) {
-                try {
-                    const originalArrayBuffer = await file.arrayBuffer();
-                    // Clone the array buffer immediately before PDF.js potentially detaches it
-                    const clonedArrayBuffer = this.cloneArrayBuffer(originalArrayBuffer);
-                    
-                    this.pdfDoc = await pdfjsLib.getDocument({ data: originalArrayBuffer }).promise;
-                    this.totalPages = this.pdfDoc.numPages;
-                    this.currentPage = 1;
-                    
-                    // Store the cloned version for casting
-                    this.pdfArrayBuffer = clonedArrayBuffer;
-                    
-                    // Hide home screen and show annotation interface
-                    this.homeScreen.classList.add('hidden');
-                    this.container.classList.add('active');
-                    
-                    // Render first page
-                    await this.renderCurrentPage();
-                    
-                    // Send PDF to cast receiver if connected
-                    if (this.isCasting) {
-                        this.sendCastMessage({
-                            type: 'pdf-loaded',
-                            pdfData: this.arrayBufferToBase64(this.cloneArrayBuffer(this.pdfArrayBuffer))
-                        });
-                    }
-                } catch (error) {
-                    console.error('Error loading PDF:', error);
-                }
-            }
-
-            async renderCurrentPage() {
-                if (!this.pdfDoc) return;
-
-                const page = await this.pdfDoc.getPage(this.currentPage);
                 
-                // Get initial viewport
-                const initialViewport = page.getViewport({ scale: 1 });
-                
-                // For cast receiver, always scale to fit the receiver's screen
-                let displayScale, renderingScale;
-                
-                if (this.isCastReceiver) {
-                    // Cast receiver: always fit to screen, regardless of controller's scale setting
-                    displayScale = Math.min(
-                        window.innerWidth / initialViewport.width,
-                        window.innerHeight / initialViewport.height
+                self.addEventListener('fetch', (event) => {
+                    event.respondWith(
+                        caches.match(event.request).then((response) => {
+                            return response || fetch(event.request);
+                        })
                     );
-                    
-                    // Use quality setting for rendering, but ensure it fits on screen
-                    if (this.currentScaleIndex === -1) {
-                        renderingScale = displayScale;
-                    } else {
-                        // Apply quality multiplier but ensure display still fits
-                        renderingScale = displayScale * this.scaleOptions[this.currentScaleIndex];
-                    }
-                } else {
-                    // Controller: use original logic
-                    displayScale = window.innerWidth / initialViewport.width;
-                    
-                    if (this.currentScaleIndex === -1) {
-                        renderingScale = displayScale;
-                    } else {
-                        renderingScale = displayScale * this.scaleOptions[this.currentScaleIndex];
-                    }
-                }
-                
-                // Create viewports
-                const renderViewport = page.getViewport({ scale: renderingScale });
-                const displayViewport = page.getViewport({ scale: displayScale });
-
-                // Set canvas dimensions (reset on scale change or first render)
-                if (!this.canvasInitialized || this.lastScaleIndex !== this.currentScaleIndex) {
-                    this.pdfCanvas.width = renderViewport.width;
-                    this.pdfCanvas.height = renderViewport.height;
-                    this.drawingCanvas.width = renderViewport.width;
-                    this.drawingCanvas.height = renderViewport.height;
-                    
-                    // Set display size
-                    this.pdfCanvas.style.width = displayViewport.width + 'px';
-                    this.pdfCanvas.style.height = displayViewport.height + 'px';
-                    this.drawingCanvas.style.width = displayViewport.width + 'px';
-                    this.drawingCanvas.style.height = displayViewport.height + 'px';
-                    
-                    this.canvasInitialized = true;
-                    this.lastScaleIndex = this.currentScaleIndex;
-                }
-
-                // Position canvases
-                if (this.isCastReceiver) {
-                    // Center on cast receiver screen
-                    const x = Math.max(0, (window.innerWidth - displayViewport.width) / 2);
-                    const y = Math.max(0, (window.innerHeight - displayViewport.height) / 2);
-                    
-                    this.pdfCanvas.style.left = x + 'px';
-                    this.pdfCanvas.style.top = y + 'px';
-                    this.drawingCanvas.style.left = x + 'px';
-                    this.drawingCanvas.style.top = y + 'px';
-                } else {
-                    // Controller: align to left edge
-                    const x = 0;
-                    const y = Math.max(0, (window.innerHeight - displayViewport.height) / 2);
-                    
-                    this.pdfCanvas.style.left = x + 'px';
-                    this.pdfCanvas.style.top = y + 'px';
-                    this.drawingCanvas.style.left = x + 'px';
-                    this.drawingCanvas.style.top = y + 'px';
-                }
-
-                // Clear previous content
-                this.pdfCtx.clearRect(0, 0, this.pdfCanvas.width, this.pdfCanvas.height);
-                this.ctx.clearRect(0, 0, this.drawingCanvas.width, this.drawingCanvas.height);
-
-                // Render PDF page
-                const renderContext = {
-                    canvasContext: this.pdfCtx,
-                    viewport: renderViewport
-                };
-                
-                await page.render(renderContext).promise;
-
-                // Setup drawing canvas
-                this.ctx.lineCap = 'round';
-                this.ctx.lineJoin = 'round';
-                this.ctx.strokeStyle = this.penColor;
-                this.ctx.fillStyle = this.penColor;
-                this.ctx.lineWidth = this.strokeSize;
-            }
-
-            // ===== CAST FUNCTIONALITY =====
-            startCasting() {
-                if (!this.presentationRequest || this.isCasting) return;
-                
-                this.presentationRequest.start()
-                    .then(connection => {
-                        this.presentationConnection = connection;
-                        this.isCasting = true;
-                        this.updateCastUI();
-                        
-                        // Add connection state tracking
-                        connection.addEventListener('connect', () => {
-                            console.log('Presentation connection established');
-                            this.sendInitialData();
-                        });
-                        
-                        connection.addEventListener('close', () => {
-                            console.log('Presentation connection closed');
-                            this.stopCasting();
-                        });
-                        
-                        connection.addEventListener('terminate', () => {
-                            console.log('Presentation connection terminated');
-                            this.stopCasting();
-                        });
-                        
-                        // Wait a moment for the connection to stabilize, then send initial data
-                        setTimeout(() => {
-                            if (this.isCasting && this.presentationConnection) {
-                                this.sendInitialData();
-                            }
-                        }, 1000);
-                    })
-                    .catch(error => {
-                        console.error('Error starting cast:', error);
-                    });
-            }
-
-            sendInitialData() {
-                // Send initial PDF data if available
-                if (this.pdfArrayBuffer) {
-                    setTimeout(() => {
-                        this.sendCastMessage({
-                            type: 'pdf-loaded',
-                            pdfData: this.arrayBufferToBase64(this.cloneArrayBuffer(this.pdfArrayBuffer))
-                        });
-                    }, 500);
-                    
-                    // Send current page
-                    setTimeout(() => {
-                        this.sendCastMessage({
-                            type: 'page-change',
-                            page: this.currentPage
-                        });
-                    }, 1000);
-                    
-                    // Send current scale
-                    setTimeout(() => {
-                        this.sendCastMessage({
-                            type: 'scale-change',
-                            scaleIndex: this.currentScaleIndex
-                        });
-                    }, 1500);
-                    
-                    // Send current drawing data if any exists for current page
-                    setTimeout(() => {
-                        if (this.pageDrawings[this.currentPage] || this.drawingCanvas.width > 0) {
-                            const drawingData = this.drawingCanvas.toDataURL();
-                            this.sendCastMessage({
-                                type: 'drawing-update',
-                                drawingData: drawingData
-                            });
-                        }
-                    }, 2000);
-                }
-            }
-
-            stopCasting() {
-                if (this.presentationConnection) {
-                    this.presentationConnection.close();
-                    this.presentationConnection = null;
-                }
-                this.isCasting = false;
-                this.updateCastUI();
-            }
-
-            sendCastMessage(data) {
-                if (this.presentationConnection && this.isCasting) {
-                    try {
-                        this.presentationConnection.send(JSON.stringify(data));
-                    } catch (error) {
-                        console.error('Error sending cast message:', error);
-                    }
-                }
-            }
-
-            updateCastUI() {
-                if (this.isCasting) {
-                    this.castBtn.classList.add('casting');
-                    this.castStatus.classList.add('visible');
-                } else {
-                    this.castBtn.classList.remove('casting');
-                    this.castStatus.classList.remove('visible');
-                }
-            }
-
-            // ===== EVENT SETUP =====
-            setupEvents() {
-                if (!this.isCastReceiver) {
-                    this.setupDrawingEvents();
-                }
-                this.setupUIEvents();
-                this.setupKeyboardEvents();
-                this.setupPanelSwipe();
-                this.setupEraserPreview();
-                this.setupPageGestures();
-            }
-
-            setupDrawingEvents() {
-                // Mouse events (fallback)
-                this.drawingCanvas.addEventListener('mousedown', (e) => this.startDrawing(e));
-                this.drawingCanvas.addEventListener('mousemove', (e) => this.draw(e));
-                this.drawingCanvas.addEventListener('mouseup', () => this.stopDrawing());
-                this.drawingCanvas.addEventListener('mouseout', () => this.stopDrawing());
-
-                // Stylus events
-                this.drawingCanvas.addEventListener('pointerdown', (e) => {
-                    if (e.pointerType === 'pen') {
-                        e.preventDefault();
-                        this.handleEraserButtonState(e);
-                        this.startDrawing(e);
-                    }
                 });
-
-                this.drawingCanvas.addEventListener('pointermove', (e) => {
-                    if (e.pointerType === 'pen') {
-                        e.preventDefault();
-                        this.handleEraserButtonState(e);
-                        this.draw(e);
-                    }
-                });
-
-                this.drawingCanvas.addEventListener('pointerup', (e) => {
-                    if (e.pointerType === 'pen') {
-                        e.preventDefault();
-                        this.handleEraserButtonState(e);
-                        this.stopDrawing();
-                    }
-                });
-
-                // Block touch events to prevent finger drawing
-                ['touchstart', 'touchmove', 'touchend'].forEach(event => {
-                    this.drawingCanvas.addEventListener(event, (e) => e.preventDefault());
-                });
-            }
-
-            setupKeyboardEvents() {
-                // Keyboard navigation for PDF pages
-                document.addEventListener('keydown', (e) => {
-                    if (!this.pdfDoc) return; // Only work when PDF is loaded
-                    
-                    switch(e.key) {
-                        case 'ArrowLeft':
-                            e.preventDefault();
-                            this.previousPage();
-                            break;
-                        case 'ArrowRight':
-                            e.preventDefault();
-                            this.nextPage();
-                            break;
-                        case 'ArrowUp':
-                            e.preventDefault();
-                            this.previousPage();
-                            break;
-                        case 'ArrowDown':
-                            e.preventDefault();
-                            this.nextPage();
-                            break;
-                    }
-                });
-            }
-
-            setupUIEvents() {
-                // Main controls
-                document.getElementById('clear').addEventListener('click', () => this.clear());
-                document.getElementById('settings').addEventListener('click', () => this.togglePanel());
-                
-                // Cast control
-                if (!this.isCastReceiver) {
-                    this.castBtn.addEventListener('click', () => {
-                        if (this.isCasting) {
-                            this.stopCasting();
-                        } else {
-                            this.startCasting();
-                        }
-                    });
-                }
-                
-                // Basic stroke controls
-                document.getElementById('decrease').addEventListener('click', () => this.changeSize(-1));
-                document.getElementById('increase').addEventListener('click', () => this.changeSize(1));
-                
-                // Toggle controls
-                document.getElementById('qi-toggle').addEventListener('change', (e) => this.toggleSmoothing(e));
-                document.getElementById('eraser-toggle').addEventListener('change', (e) => this.toggleEraser(e));
-                document.getElementById('dynamic-eraser-toggle').addEventListener('change', (e) => this.toggleDynamicEraser(e));
-                document.getElementById('pressure-toggle').addEventListener('change', (e) => this.togglePressure(e));
-                
-                // Eraser controls
-                document.getElementById('decrease-eraser').addEventListener('click', () => this.changeEraserSize(-5));
-                document.getElementById('increase-eraser').addEventListener('click', () => this.changeEraserSize(5));
-                
-                // Pressure controls
-                document.getElementById('decrease-low').addEventListener('click', () => this.changeLowPressure(-0.1));
-                document.getElementById('increase-low').addEventListener('click', () => this.changeLowPressure(0.1));
-                document.getElementById('decrease-high').addEventListener('click', () => this.changeHighPressure(-1));
-                document.getElementById('increase-high').addEventListener('click', () => this.changeHighPressure(1));
-                document.getElementById('curve-type').addEventListener('change', (e) => this.changeCurveType(e));
-                document.getElementById('sensitivity-slider').addEventListener('input', (e) => this.changeSensitivity(e));
-                
-                // Pen calibration controls
-                document.getElementById('decrease-offset-x').addEventListener('click', () => this.changePenOffsetX(-1));
-                document.getElementById('increase-offset-x').addEventListener('click', () => this.changePenOffsetX(1));
-                document.getElementById('decrease-offset-y').addEventListener('click', () => this.changePenOffsetY(-1));
-                document.getElementById('increase-offset-y').addEventListener('click', () => this.changePenOffsetY(1));
-                
-                // Eraser calibration controls
-                document.getElementById('decrease-eraser-offset-x').addEventListener('click', () => this.changeEraserOffsetX(-1));
-                document.getElementById('increase-eraser-offset-x').addEventListener('click', () => this.changeEraserOffsetX(1));
-                document.getElementById('decrease-eraser-offset-y').addEventListener('click', () => this.changeEraserOffsetY(-1));
-                document.getElementById('increase-eraser-offset-y').addEventListener('click', () => this.changeEraserOffsetY(1));
-                
-                // PDF scale controls
-                document.getElementById('decrease-scale').addEventListener('click', () => this.changePDFScale(-1));
-                document.getElementById('increase-scale').addEventListener('click', () => this.changePDFScale(1));
-                
-                // Color picker controls
-                document.querySelectorAll('.color-swatch').forEach(swatch => {
-                    swatch.addEventListener('click', (e) => this.selectColor(e.target.dataset.color));
-                });
-
-                // Panel close events
-                document.addEventListener('click', (e) => this.handleOutsideClick(e));
-                document.addEventListener('pointerdown', (e) => {
-                    if (e.pointerType === 'pen') {
-                        this.handleOutsideClick(e);
-                    }
-                });
-            }
-
-            // ===== DRAWING LOGIC =====
-            getPosition(e) {
-                const rect = this.drawingCanvas.getBoundingClientRect();
-                // Get position relative to display size
-                const displayX = e.clientX - rect.left + this.penOffsetX;
-                const displayY = e.clientY - rect.top + this.penOffsetY;
-                
-                // Scale to match high-resolution canvas
-                const scaleRatio = this.getCanvasScaleRatio();
-                return {
-                    x: displayX * scaleRatio,
-                    y: displayY * scaleRatio,
-                    pressure: e.pressure || 0.5
-                };
-            }
-
-            getEraserPosition(e) {
-                const rect = this.drawingCanvas.getBoundingClientRect();
-                // Get position relative to display size
-                const displayX = e.clientX - rect.left + this.eraserOffsetX;
-                const displayY = e.clientY - rect.top + this.eraserOffsetY;
-                
-                // Scale to match high-resolution canvas
-                const scaleRatio = this.getCanvasScaleRatio();
-                return {
-                    x: displayX * scaleRatio,
-                    y: displayY * scaleRatio,
-                    pressure: e.pressure || 0.5
-                };
-            }
-
-            getCanvasScaleRatio() {
-                // Calculate the ratio between canvas resolution and display size
-                const canvasWidth = this.drawingCanvas.width;
-                const displayWidth = parseFloat(this.drawingCanvas.style.width);
-                
-                // Safety check for initialization issues
-                if (!displayWidth || displayWidth === 0 || !canvasWidth || canvasWidth === 0) {
-                    // Fallback to 1:1 ratio if dimensions aren't ready
-                    return 1;
-                }
-                
-                const ratio = canvasWidth / displayWidth;
-                
-                // Additional safety check for invalid ratios
-                if (!ratio || ratio <= 0 || !isFinite(ratio)) {
-                    return 1;
-                }
-                
-                return ratio;
-            }
-
-            applyPressureCurve(pressure) {
-                let adjustedPressure = pressure * this.pressureSensitivity;
-                adjustedPressure = Math.max(0, Math.min(1, adjustedPressure));
-                
-                switch (this.pressureCurve) {
-                    case 'linear': return adjustedPressure;
-                    case 'exponential': return Math.pow(adjustedPressure, 0.5);
-                    case 'logarithmic': return Math.pow(adjustedPressure, 2);
-                    case 'custom': return adjustedPressure * adjustedPressure * (3 - 2 * adjustedPressure);
-                    default: return adjustedPressure;
-                }
-            }
-
-            getCurrentStrokeSize(pressure) {
-                let size;
-                if (!this.pressureEnabled) {
-                    size = this.strokeSize;
-                } else {
-                    const transformedPressure = this.applyPressureCurve(pressure);
-                    const range = this.highPressureStroke - this.lowPressureStroke;
-                    size = this.lowPressureStroke + (transformedPressure * range);
-                }
-                
-                // Scale the stroke size to match canvas resolution
-                const scaleRatio = this.getCanvasScaleRatio();
-                return size * scaleRatio;
-            }
-
-            calculateDynamicEraserSize(currentPos, currentTime) {
-                if (!this.dynamicEraserEnabled || !this.lastPosition || !this.lastTime) {
-                    const scaleRatio = this.getCanvasScaleRatio();
-                    return this.eraserSize * scaleRatio;
-                }
-                
-                const timeDelta = currentTime - this.lastTime;
-                if (timeDelta === 0) return this.currentEraserSize;
-                
-                const distance = Math.sqrt(
-                    Math.pow(currentPos.x - this.lastPosition.x, 2) + 
-                    Math.pow(currentPos.y - this.lastPosition.y, 2)
-                );
-                
-                // Normalize distance to display coordinates to maintain consistent speed sensitivity across scales
-                const scaleRatio = this.getCanvasScaleRatio();
-                const normalizedDistance = distance / scaleRatio;
-                
-                const speed = normalizedDistance / timeDelta; // display pixels per millisecond
-                const speedPixelsPerSecond = speed * 1000; // convert to display pixels per second
-                
-                // Map speed to eraser size (5px to 90px) - base sizes
-                let dynamicSize;
-                if (speedPixelsPerSecond <= 100) {
-                    // Slow movement: 5-20px
-                    dynamicSize = 5 + (speedPixelsPerSecond / 100) * 15;
-                } else {
-                    // Fast movement: 20-90px  
-                    const fastSpeed = Math.min(speedPixelsPerSecond - 100, 900);
-                    dynamicSize = 20 + (fastSpeed / 900) * 70;
-                }
-                
-                // Scale to match canvas resolution
-                dynamicSize *= scaleRatio;
-                
-                // Smooth the size change to avoid jitter
-                // Apply different smoothing for increasing vs decreasing size
-                if (dynamicSize > this.currentEraserSize) {
-                    // Size increasing - normal smoothing for responsive growth
-                    this.currentEraserSize = this.currentEraserSize * 0.7 + dynamicSize * 0.3;
-                } else {
-                    // Size decreasing - slower smoothing for gradual shrinking
-                    this.currentEraserSize = this.currentEraserSize * 0.92 + dynamicSize * 0.08;
-                }
-                return Math.round(this.currentEraserSize);
-            }
-
-            startDrawing(e) {
-                this.isDrawing = true;
-                
-                if (this.eraserEnabled) {
-                    const pos = this.getEraserPosition(e);
-                    this.points = [pos];
-                    
-                    // Initialize dynamic eraser tracking
-                    this.lastPosition = pos;
-                    this.lastTime = Date.now();
-                    this.currentEraserSize = this.eraserSize;
-                    
-                    // Eraser mode
-                    this.ctx.globalCompositeOperation = 'destination-out';
-                    const activeEraserSize = this.dynamicEraserEnabled ? this.currentEraserSize : this.eraserSize;
-                    this.ctx.lineWidth = activeEraserSize;
-                    this.ctx.beginPath();
-                    this.ctx.arc(pos.x, pos.y, activeEraserSize / 2, 0, 2 * Math.PI);
-                    this.ctx.fill();
-                    this.showEraserPreview(pos.x, pos.y);
-                } else {
-                    const pos = this.getPosition(e);
-                    this.points = [pos];
-                    
-                    // Drawing mode
-                    this.ctx.globalCompositeOperation = 'source-over';
-                    const strokeSize = this.getCurrentStrokeSize(pos.pressure);
-                    this.ctx.lineWidth = strokeSize;
-                    this.ctx.beginPath();
-                    this.ctx.arc(pos.x, pos.y, strokeSize / 2, 0, 2 * Math.PI);
-                    this.ctx.fill();
-                }
-            }
-
-            draw(e) {
-                if (!this.isDrawing) return;
-                
-                if (this.eraserEnabled) {
-                    const pos = this.getEraserPosition(e);
-                    const currentTime = Date.now();
-                    this.points.push(pos);
-                    
-                    // Calculate dynamic eraser size based on speed
-                    const activeEraserSize = this.calculateDynamicEraserSize(pos, currentTime);
-                    
-                    // Eraser mode - simple line erasing
-                    this.ctx.globalCompositeOperation = 'destination-out';
-                    this.ctx.lineWidth = activeEraserSize;
-                    
-                    const prevPoint = this.points[this.points.length - 2];
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(prevPoint.x, prevPoint.y);
-                    this.ctx.lineTo(pos.x, pos.y);
-                    this.ctx.stroke();
-                    
-                    this.showEraserPreview(pos.x, pos.y);
-                    
-                    // Update tracking for next calculation
-                    this.lastPosition = pos;
-                    this.lastTime = currentTime;
-                } else {
-                    const pos = this.getPosition(e);
-                    this.points.push(pos);
-                    // Drawing mode
-                    this.ctx.globalCompositeOperation = 'source-over';
-                    const strokeSize = this.getCurrentStrokeSize(pos.pressure);
-                    this.ctx.lineWidth = strokeSize;
-                    
-                    if (this.points.length < 3 || !this.smoothDrawing) {
-                        const prevPoint = this.points[this.points.length - 2];
-                        const prevStrokeSize = this.getCurrentStrokeSize(prevPoint.pressure);
-                        
-                        this.ctx.lineWidth = (strokeSize + prevStrokeSize) / 2;
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(prevPoint.x, prevPoint.y);
-                        this.ctx.lineTo(pos.x, pos.y);
-                        this.ctx.stroke();
-                    } else {
-                        const currentPoint = this.points[this.points.length - 1];
-                        const previousPoint = this.points[this.points.length - 2];
-                        const beforePreviousPoint = this.points[this.points.length - 3];
-                        
-                        const midX = (previousPoint.x + currentPoint.x) / 2;
-                        const midY = (previousPoint.y + currentPoint.y) / 2;
-                        const prevStrokeSize = this.getCurrentStrokeSize(previousPoint.pressure);
-                        
-                        this.ctx.lineWidth = prevStrokeSize;
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(
-                            (beforePreviousPoint.x + previousPoint.x) / 2,
-                            (beforePreviousPoint.y + previousPoint.y) / 2
-                        );
-                        this.ctx.quadraticCurveTo(previousPoint.x, previousPoint.y, midX, midY);
-                        this.ctx.stroke();
-                    }
-                }
-            }
-
-            stopDrawing() {
-                if (this.isDrawing && this.points.length >= 2) {
-                    const lastPoint = this.points[this.points.length - 1];
-                    const secondLastPoint = this.points[this.points.length - 2];
-                    const finalStrokeSize = this.getCurrentStrokeSize(lastPoint.pressure);
-                    
-                    this.ctx.lineWidth = finalStrokeSize;
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(
-                        (secondLastPoint.x + lastPoint.x) / 2,
-                        (secondLastPoint.y + lastPoint.y) / 2
-                    );
-                    this.ctx.lineTo(lastPoint.x, lastPoint.y);
-                    this.ctx.stroke();
-                }
-                
-                // Send drawing update to cast receiver when stroke is complete
-                if (this.isDrawing && !this.isCastReceiver) {
-                    this.sendDrawingUpdate();
-                }
-                
-                // Clear any eraser preview when stopping
-                this.clearEraserPreview();
-                
-                this.isDrawing = false;
-                this.points = [];
-                this.ctx.lineWidth = this.strokeSize;
-            }
-
-            sendDrawingUpdate() {
-                if (this.isCasting) {
-                    // Get current drawing data and send it
-                    const drawingData = this.drawingCanvas.toDataURL();
-                    this.sendCastMessage({
-                        type: 'drawing-update',
-                        drawingData: drawingData
-                    });
-                }
-            }
-
-            // ===== UI CONTROLS =====
-            clear() {
-                // Clear current page's drawing canvas
-                this.ctx.clearRect(0, 0, this.drawingCanvas.width, this.drawingCanvas.height);
-                
-                // Remove stored drawing for current page
-                if (this.pdfDoc && this.pageDrawings[this.currentPage]) {
-                    delete this.pageDrawings[this.currentPage];
-                }
-                
-                // Send clear command to cast receiver if not cast receiver itself
-                if (!this.isCastReceiver) {
-                    this.sendCastMessage({
-                        type: 'drawing-clear'
-                    });
-                }
-            }
-
-            togglePanel() {
-                const panel = document.getElementById('panel');
-                const settings = document.getElementById('settings');
-                panel.classList.toggle('open');
-                settings.classList.toggle('hidden');
-            }
-
-            changeSize(delta) {
-                const newSize = Math.max(1, Math.min(20, this.strokeSize + delta));
-                if (newSize !== this.strokeSize) {
-                    this.strokeSize = newSize;
-                    this.ctx.lineWidth = this.strokeSize;
-                    document.getElementById('value').textContent = this.strokeSize;
-                    this.updatePreviews();
-                }
-            }
-
-            changeLowPressure(delta) {
-                const newSize = Math.max(0.2, Math.min(this.highPressureStroke - 1, this.lowPressureStroke + delta));
-                if (newSize !== this.lowPressureStroke) {
-                    this.lowPressureStroke = Math.round(newSize * 10) / 10;
-                    document.getElementById('low-value').textContent = this.lowPressureStroke;
-                    this.updatePreviews();
-                }
-            }
-
-            changeHighPressure(delta) {
-                const newSize = Math.max(this.lowPressureStroke + 1, Math.min(20, this.highPressureStroke + delta));
-                if (newSize !== this.highPressureStroke) {
-                    this.highPressureStroke = newSize;
-                    document.getElementById('high-value').textContent = this.highPressureStroke;
-                    this.updatePreviews();
-                }
-            }
-
-            toggleSmoothing(e) {
-                this.smoothDrawing = e.target.checked;
-                document.querySelector('.toggle-text').textContent = this.smoothDrawing ? 'Enabled' : 'Disabled';
-            }
-
-            changeCurveType(e) {
-                this.pressureCurve = e.target.value;
-            }
-
-            changeSensitivity(e) {
-                this.pressureSensitivity = parseFloat(e.target.value);
-                document.getElementById('sensitivity-value').textContent = this.pressureSensitivity.toFixed(1);
-            }
-
-            changeEraserSize(delta) {
-                const newSize = Math.max(5, Math.min(90, this.eraserSize + delta));
-                if (newSize !== this.eraserSize) {
-                    this.eraserSize = newSize;
-                    document.getElementById('eraser-value').textContent = this.eraserSize;
-                    this.updatePreviews();
-                }
-            }
-
-            toggleEraser(e) {
-                this.eraserEnabled = e.target.checked;
-                const toggleText = document.getElementById('eraser-text');
-                const eraserSettings = document.getElementById('eraser-settings');
-                const dynamicEraserSetting = document.getElementById('dynamic-eraser-setting');
-                const eraserCalibrationXSetting = document.getElementById('eraser-calibration-x-setting');
-                const eraserCalibrationYSetting = document.getElementById('eraser-calibration-y-setting');
-                
-                toggleText.textContent = this.eraserEnabled ? 'Enabled' : 'Disabled';
-                eraserSettings.style.display = this.eraserEnabled ? 'block' : 'none';
-                dynamicEraserSetting.style.display = this.eraserEnabled ? 'block' : 'none';
-                eraserCalibrationXSetting.style.display = this.eraserEnabled ? 'block' : 'none';
-                eraserCalibrationYSetting.style.display = this.eraserEnabled ? 'block' : 'none';
-                
-                // Update cursor style
-                this.drawingCanvas.style.cursor = this.eraserEnabled ? 'none' : 'crosshair';
-            }
-
-            toggleDynamicEraser(e) {
-                this.dynamicEraserEnabled = e.target.checked;
-                const toggleText = document.getElementById('dynamic-eraser-text');
-                const eraserSizeSetting = document.getElementById('eraser-settings');
-                const eraserButtons = ['decrease-eraser', 'increase-eraser'];
-                
-                toggleText.textContent = this.dynamicEraserEnabled ? 'Enabled' : 'Disabled';
-                
-                if (this.dynamicEraserEnabled) {
-                    eraserSizeSetting.classList.add('disabled');
-                    eraserButtons.forEach(id => document.getElementById(id).disabled = true);
-                } else {
-                    eraserSizeSetting.classList.remove('disabled');
-                    eraserButtons.forEach(id => document.getElementById(id).disabled = false);
-                }
-            }
-
-            togglePressure(e) {
-                this.pressureEnabled = e.target.checked;
-                const toggleText = document.getElementById('pressure-text');
-                const pressureSettings = ['pressure-settings', 'pressure-settings-high', 'pressure-curve-setting', 'pressure-sensitivity-setting'];
-                const strokeSizeSetting = document.getElementById('stroke-size-setting');
-                const strokeButtons = ['decrease', 'increase'];
-                
-                toggleText.textContent = this.pressureEnabled ? 'Enabled' : 'Disabled';
-                
-                pressureSettings.forEach(id => {
-                    document.getElementById(id).style.display = this.pressureEnabled ? 'block' : 'none';
-                });
-                
-                if (this.pressureEnabled) {
-                    strokeSizeSetting.classList.add('disabled');
-                    strokeButtons.forEach(id => document.getElementById(id).disabled = true);
-                } else {
-                    strokeSizeSetting.classList.remove('disabled');
-                    strokeButtons.forEach(id => document.getElementById(id).disabled = false);
-                }
-            }
-
-            changePenOffsetX(delta) {
-                const newOffset = Math.max(-50, Math.min(50, this.penOffsetX + delta));
-                if (newOffset !== this.penOffsetX) {
-                    this.penOffsetX = newOffset;
-                    document.getElementById('offset-x-value').textContent = this.penOffsetX;
-                }
-            }
-
-            changePenOffsetY(delta) {
-                const newOffset = Math.max(-50, Math.min(50, this.penOffsetY + delta));
-                if (newOffset !== this.penOffsetY) {
-                    this.penOffsetY = newOffset;
-                    document.getElementById('offset-y-value').textContent = this.penOffsetY;
-                }
-            }
-
-            changeEraserOffsetX(delta) {
-                const newOffset = Math.max(-50, Math.min(50, this.eraserOffsetX + delta));
-                if (newOffset !== this.eraserOffsetX) {
-                    this.eraserOffsetX = newOffset;
-                    document.getElementById('eraser-offset-x-value').textContent = this.eraserOffsetX;
-                }
-            }
-
-            changeEraserOffsetY(delta) {
-                const newOffset = Math.max(-50, Math.min(50, this.eraserOffsetY + delta));
-                if (newOffset !== this.eraserOffsetY) {
-                    this.eraserOffsetY = newOffset;
-                    document.getElementById('eraser-offset-y-value').textContent = this.eraserOffsetY;
-                }
-            }
-
-            async changePDFScale(delta) {
-                if (!this.pdfDoc) return;
-                
-                const oldIndex = this.currentScaleIndex;
-                
-                // Navigate through scale options
-                if (delta > 0) {
-                    // Increase scale
-                    if (this.currentScaleIndex < this.scaleOptions.length - 1) {
-                        this.currentScaleIndex++;
-                    }
-                } else {
-                    // Decrease scale  
-                    if (this.currentScaleIndex > -1) {
-                        this.currentScaleIndex--;
-                    }
-                }
-                
-                // Check if scale actually changed
-                if (oldIndex === this.currentScaleIndex) return;
-                
-                // Save current drawing before scale change
-                this.saveCurrentPageDrawing();
-                
-                // Update scale display
-                this.updateScaleDisplay();
-                
-                // Reset canvas initialization to allow resizing
-                this.canvasInitialized = false;
-                this.fixedScale = null;
-                
-                // Re-render with new scale
-                await this.renderCurrentPage();
-                
-                // Restore drawing with scale adjustment
-                this.restorePageDrawingWithScale();
-                
-                // Send scale change to cast receiver
-                this.sendCastMessage({
-                    type: 'scale-change',
-                    scaleIndex: this.currentScaleIndex
-                });
-            }
-
-            updateScaleDisplay() {
-                const scaleElement = document.getElementById('scale-value');
-                if (this.currentScaleIndex === -1) {
-                    scaleElement.textContent = 'Auto';
-                } else {
-                    scaleElement.textContent = this.scaleOptions[this.currentScaleIndex] + 'x';
-                }
-                
-                // Update button states
-                const decreaseBtn = document.getElementById('decrease-scale');
-                const increaseBtn = document.getElementById('increase-scale');
-                
-                decreaseBtn.disabled = this.currentScaleIndex <= -1;
-                increaseBtn.disabled = this.currentScaleIndex >= this.scaleOptions.length - 1;
-            }
-
-            selectColor(color) {
-                this.penColor = color;
-                this.ctx.strokeStyle = color;
-                this.ctx.fillStyle = color;
-                
-                // Update UI - remove active class from all swatches
-                document.querySelectorAll('.color-swatch').forEach(swatch => {
-                    swatch.classList.remove('active');
-                });
-                
-                // Add active class to selected swatch
-                const selectedSwatch = document.querySelector(`[data-color="${color}"]`);
-                if (selectedSwatch) {
-                    selectedSwatch.classList.add('active');
-                }
-            }
-
-            // ===== GESTURE HANDLING =====
-            setupPanelSwipe() {
-                const panel = document.getElementById('panel');
-                let touchStart = { x: 0, y: 0 };
-                let touchEnd = { x: 0, y: 0 };
-                let isSwiping = false;
-
-                panel.addEventListener('touchstart', (e) => {
-                    if (!panel.classList.contains('open')) return;
-                    const touch = e.touches[0];
-                    touchStart = { x: touch.clientX, y: touch.clientY };
-                    isSwiping = true;
-                }, { passive: true });
-
-                panel.addEventListener('touchmove', (e) => {
-                    if (!isSwiping || !panel.classList.contains('open')) return;
-                    const touch = e.touches[0];
-                    touchEnd = { x: touch.clientX, y: touch.clientY };
-                    
-                    const deltaX = touchEnd.x - touchStart.x;
-                    const deltaY = Math.abs(touchEnd.y - touchStart.y);
-                    
-                    if (Math.abs(deltaX) > deltaY && Math.abs(deltaX) > 10) {
-                        e.preventDefault();
-                    }
-                }, { passive: false });
-
-                panel.addEventListener('touchend', () => {
-                    if (!isSwiping || !panel.classList.contains('open')) {
-                        isSwiping = false;
-                        return;
-                    }
-                    
-                    const deltaX = touchEnd.x - touchStart.x;
-                    const deltaY = Math.abs(touchEnd.y - touchStart.y);
-                    const swipeDistance = Math.abs(deltaX);
-                    
-                    if (deltaX < -50 && swipeDistance > deltaY) {
-                        this.closePanel();
-                    }
-                    
-                    isSwiping = false;
-                }, { passive: true });
-            }
-
-            closePanel() {
-                const panel = document.getElementById('panel');
-                const settings = document.getElementById('settings');
-                panel.classList.remove('open');
-                setTimeout(() => settings.classList.remove('hidden'), 300);
-            }
-
-            handleOutsideClick(e) {
-                const panel = document.getElementById('panel');
-                const settings = document.getElementById('settings');
-                
-                if (panel.classList.contains('open') && !panel.contains(e.target) && !settings.contains(e.target)) {
-                    this.closePanel();
-                }
-            }
-
-            // ===== ERASER PREVIEW =====
-            setupEraserPreview() {
-                this.eraserPreview = document.getElementById('eraser-preview');
-            }
-
-            updateEraserPreview(e) {
-                if (!this.eraserEnabled || !this.isDrawing) return;
-                
-                // Get viewport coordinates (not canvas coordinates)
-                this.eraserPreview.style.left = e.clientX + 'px';
-                this.eraserPreview.style.top = e.clientY + 'px';
-                // Make the content area match eraser size exactly (border adds visual thickness)
-                this.eraserPreview.style.width = this.eraserSize + 'px';
-                this.eraserPreview.style.height = this.eraserSize + 'px';
-                this.eraserPreview.style.display = 'block';
-            }
-
-            showEraserPreview(x, y) {
-                if (!this.eraserEnabled) return;
-                
-                // Get base eraser size (not scaled)
-                const baseEraserSize = this.dynamicEraserEnabled ? 
-                    (this.currentEraserSize / this.getCanvasScaleRatio()) : 
-                    this.eraserSize;
-                
-                // Convert canvas coordinates back to display coordinates
-                const scaleRatio = this.getCanvasScaleRatio();
-                const displayX = x / scaleRatio;
-                const displayY = y / scaleRatio;
-                
-                // Position relative to canvas
-                const rect = this.drawingCanvas.getBoundingClientRect();
-                this.eraserPreview.style.left = (rect.left + displayX) + 'px';
-                this.eraserPreview.style.top = (rect.top + displayY) + 'px';
-                this.eraserPreview.style.width = baseEraserSize + 'px';
-                this.eraserPreview.style.height = baseEraserSize + 'px';
-                this.eraserPreview.style.display = 'block';
-            }
-
-            hideEraserPreview() {
-                this.eraserPreview.style.display = 'none';
-            }
-
-            clearEraserPreview() {
-                this.hideEraserPreview();
-            }
-
-            // ===== ERASER BUTTON HANDLING =====
-            handleEraserButtonState(e) {
-                // Detect if eraser button is pressed (button 5, which is bit 4 in buttons bitmask)
-                const eraserButtonPressed = (e.buttons & 32) !== 0; // 32 = 2^5 for button 5
-                
-                if (eraserButtonPressed && !this.wasInEraserButtonMode) {
-                    // Eraser button just pressed - switch to dynamic eraser mode
-                    this.wasInEraserButtonMode = true;
-                    
-                    // Save current states
-                    this.previousEraserState = this.eraserEnabled;
-                    this.previousDynamicEraserState = this.dynamicEraserEnabled;
-                    
-                    // Activate eraser mode with dynamic eraser
-                    this.setEraserMode(true, true);
-                    
-                } else if (!eraserButtonPressed && this.wasInEraserButtonMode) {
-                    // Eraser button just released - return to pen mode
-                    this.wasInEraserButtonMode = false;
-                    
-                    // Restore previous states
-                    this.setEraserMode(this.previousEraserState, this.previousDynamicEraserState);
-                }
-            }
-
-            setEraserMode(eraserEnabled, dynamicEnabled) {
-                // Update internal state
-                this.eraserEnabled = eraserEnabled;
-                this.dynamicEraserEnabled = dynamicEnabled;
-                
-                // Update UI toggles
-                document.getElementById('eraser-toggle').checked = eraserEnabled;
-                document.getElementById('dynamic-eraser-toggle').checked = dynamicEnabled;
-                
-                // Trigger the toggle functions to update UI visibility and states
-                this.toggleEraser({ target: { checked: eraserEnabled } });
-                this.toggleDynamicEraser({ target: { checked: dynamicEnabled } });
-            }
-
-            // ===== DRAWING PERSISTENCE =====
-            saveCurrentPageDrawing() {
-                if (!this.pdfDoc) return;
-                
-                // Save current drawing canvas as image data
-                const imageData = this.drawingCanvas.toDataURL();
-                this.pageDrawings[this.currentPage] = imageData;
-            }
-
-            restorePageDrawing() {
-                if (!this.pdfDoc) return;
-                
-                // Clear current drawing canvas
-                this.ctx.clearRect(0, 0, this.drawingCanvas.width, this.drawingCanvas.height);
-                
-                // Restore drawing if it exists for this page
-                const savedDrawing = this.pageDrawings[this.currentPage];
-                if (savedDrawing) {
-                    const img = new Image();
-                    img.onload = () => {
-                        this.ctx.drawImage(img, 0, 0);
-                    };
-                    img.src = savedDrawing;
-                }
-            }
-
-            restorePageDrawingWithScale() {
-                // For now, use the same method as regular restore
-                // In the future, this could include scale-aware restoration
-                this.restorePageDrawing();
-            }
-
-            // ===== PAGE NAVIGATION =====
-            async nextPage() {
-                if (!this.pdfDoc || this.currentPage >= this.totalPages) return;
-                
-                // Save current page's drawing before changing pages
-                this.saveCurrentPageDrawing();
-                
-                this.currentPage++;
-                await this.renderCurrentPage();
-                
-                // Restore drawing for the new page
-                this.restorePageDrawing();
-                
-                // Send page change to cast receiver
-                if (!this.isCastReceiver) {
-                    this.sendCastMessage({
-                        type: 'page-change',
-                        page: this.currentPage
-                    });
-                    
-                    // Send current page's drawing data if any exists
-                    setTimeout(() => {
-                        const drawingData = this.drawingCanvas.toDataURL();
-                        this.sendCastMessage({
-                            type: 'drawing-update',
-                            drawingData: drawingData
-                        });
-                    }, 100);
-                }
-            }
-
-            async previousPage() {
-                if (!this.pdfDoc || this.currentPage <= 1) return;
-                
-                // Save current page's drawing before changing pages
-                this.saveCurrentPageDrawing();
-                
-                this.currentPage--;
-                await this.renderCurrentPage();
-                
-                // Restore drawing for the new page
-                this.restorePageDrawing();
-                
-                // Send page change to cast receiver
-                if (!this.isCastReceiver) {
-                    this.sendCastMessage({
-                        type: 'page-change',
-                        page: this.currentPage
-                    });
-                    
-                    // Send current page's drawing data if any exists
-                    setTimeout(() => {
-                        const drawingData = this.drawingCanvas.toDataURL();
-                        this.sendCastMessage({
-                            type: 'drawing-update',
-                            drawingData: drawingData
-                        });
-                    }, 100);
-                }
-            }
-
-            // ===== PAGE GESTURES =====
-            setupPageGestures() {
-                if (!this.pdfDoc) return;
-                
-                let touchStart = { x: 0, y: 0 };
-                let touchEnd = { x: 0, y: 0 };
-                let isTwoFingerGesture = false;
-                let gestureStartTime = 0;
-                
-                // Touch start - detect 2-finger gesture
-                this.container.addEventListener('touchstart', (e) => {
-                    if (!this.pdfDoc) return;
-                    
-                    if (e.touches.length === 2) {
-                        // Two fingers detected
-                        isTwoFingerGesture = true;
-                        gestureStartTime = Date.now();
-                        
-                        // Calculate center point between two fingers
-                        const touch1 = e.touches[0];
-                        const touch2 = e.touches[1];
-                        touchStart = {
-                            x: (touch1.clientX + touch2.clientX) / 2,
-                            y: (touch1.clientY + touch2.clientY) / 2
-                        };
-                        
-                        e.preventDefault();
-                    } else {
-                        isTwoFingerGesture = false;
-                    }
-                }, { passive: false });
-                
-                // Touch move - track 2-finger movement
-                this.container.addEventListener('touchmove', (e) => {
-                    if (!this.pdfDoc || !isTwoFingerGesture || e.touches.length !== 2) return;
-                    
-                    // Calculate center point between two fingers
-                    const touch1 = e.touches[0];
-                    const touch2 = e.touches[1];
-                    touchEnd = {
-                        x: (touch1.clientX + touch2.clientX) / 2,
-                        y: (touch1.clientY + touch2.clientY) / 2
-                    };
-                    
-                    e.preventDefault();
-                }, { passive: false });
-                
-                // Touch end - evaluate gesture
-                this.container.addEventListener('touchend', (e) => {
-                    if (!this.pdfDoc || !isTwoFingerGesture) return;
-                    
-                    const gestureTime = Date.now() - gestureStartTime;
-                    const deltaX = touchEnd.x - touchStart.x;
-                    const deltaY = Math.abs(touchEnd.y - touchStart.y);
-                    const swipeDistance = Math.abs(deltaX);
-                    
-                    // Gesture validation criteria
-                    const minSwipeDistance = 80; // minimum distance for swipe
-                    const maxGestureTime = 800; // maximum time for gesture (ms)
-                    const maxVerticalMovement = 100; // maximum vertical movement allowed
-                    
-                    // Check if it's a valid horizontal swipe
-                    if (swipeDistance >= minSwipeDistance && 
-                        gestureTime <= maxGestureTime && 
-                        deltaY <= maxVerticalMovement &&
-                        swipeDistance > deltaY) {
-                        
-                        if (deltaX > 0) {
-                            // Swipe right - previous page
-                            this.previousPage();
-                        } else {
-                            // Swipe left - next page
-                            this.nextPage();
-                        }
-                    }
-                    
-                    // Reset gesture state
-                    isTwoFingerGesture = false;
-                    e.preventDefault();
-                }, { passive: false });
-                
-                // Cancel gesture if fingers lift differently
-                this.container.addEventListener('touchcancel', () => {
-                    isTwoFingerGesture = false;
-                });
-            }
-
-            // ===== PERFORMANCE MONITORING =====
-            setupPerformanceMonitoring() {
-                if (this.isCastReceiver) return;
-                
-                this.performanceMonitor = document.getElementById('performance-monitor');
-                this.fpsElement = document.getElementById('fps-value');
-                this.frameTimeElement = document.getElementById('frame-time-value');
-                this.memoryElement = document.getElementById('memory-value');
-                this.gpuElement = document.getElementById('gpu-value');
-                
-                // Start monitoring
-                this.startPerformanceMonitoring();
-                
-                // Monitor GPU memory usage if available
-                this.setupGPUMonitoring();
-            }
-
-            startPerformanceMonitoring() {
-                this.isMonitoringPerformance = true;
-                this.lastFrameTime = performance.now();
-                this.frameTimings = [];
-                this.frameCount = 0;
-                this.lastFpsUpdate = performance.now();
-                
-                // Start the monitoring loop
-                this.performanceLoop();
-            }
-
-            performanceLoop() {
-                if (!this.isMonitoringPerformance) return;
-                
-                const currentTime = performance.now();
-                const deltaTime = currentTime - this.lastFrameTime;
-                
-                // Track frame timings
-                this.frameTimings.push(deltaTime);
-                if (this.frameTimings.length > 60) {
-                    this.frameTimings.shift();
-                }
-                
-                this.frameCount++;
-                this.lastFrameTime = currentTime;
-                
-                // Update performance display every 250ms
-                if (currentTime - this.lastFpsUpdate >= 250) {
-                    this.updatePerformanceDisplay();
-                    this.lastFpsUpdate = currentTime;
-                }
-                
-                // Continue the loop
-                requestAnimationFrame(() => this.performanceLoop());
-            }
-
-            updatePerformanceDisplay() {
-                // Calculate FPS
-                const avgFrameTime = this.frameTimings.reduce((a, b) => a + b, 0) / this.frameTimings.length;
-                const fps = Math.round(1000 / avgFrameTime);
-                
-                // Update FPS display with color coding
-                this.fpsElement.textContent = fps;
-                this.fpsElement.className = 'perf-value';
-                if (fps < 30) {
-                    this.fpsElement.classList.add('critical');
-                } else if (fps < 50) {
-                    this.fpsElement.classList.add('warning');
-                }
-                
-                // Update frame time
-                this.frameTimeElement.textContent = `${avgFrameTime.toFixed(1)}ms`;
-                this.frameTimeElement.className = 'perf-value';
-                if (avgFrameTime > 33) { // > 30fps
-                    this.frameTimeElement.classList.add('critical');
-                } else if (avgFrameTime > 20) { // > 50fps
-                    this.frameTimeElement.classList.add('warning');
-                }
-                
-                // Update memory usage
-                this.updateMemoryDisplay();
-                
-                // Reset frame count
-                this.frameCount = 0;
-            }
-
-            updateMemoryDisplay() {
-                if (performance.memory) {
-                    // Chrome/Edge - show used heap size
-                    const usedMB = Math.round(performance.memory.usedJSHeapSize / 1024 / 1024);
-                    const totalMB = Math.round(performance.memory.totalJSHeapSize / 1024 / 1024);
-                    const limitMB = Math.round(performance.memory.jsHeapSizeLimit / 1024 / 1024);
-                    
-                    this.memoryElement.textContent = `${usedMB}MB`;
-                    this.memoryElement.className = 'perf-value';
-                    
-                    // Color code based on usage percentage
-                    const usagePercent = (usedMB / limitMB) * 100;
-                    if (usagePercent > 80) {
-                        this.memoryElement.classList.add('critical');
-                    } else if (usagePercent > 60) {
-                        this.memoryElement.classList.add('warning');
-                    }
-                } else {
-                    // Fallback for other browsers
-                    this.memoryElement.textContent = 'N/A';
-                }
-            }
-
-            setupGPUMonitoring() {
-                // Try to get GPU info
-                const canvas = document.createElement('canvas');
-                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-                
-                if (gl) {
-                    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-                    if (debugInfo) {
-                        const gpu = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
-                        // Show shortened GPU name
-                        const shortGPU = this.shortenGPUName(gpu);
-                        this.gpuElement.textContent = shortGPU;
-                    } else {
-                        this.gpuElement.textContent = 'Unknown';
-                    }
-                } else {
-                    this.gpuElement.textContent = 'None';
-                }
-            }
-
-            shortenGPUName(gpuName) {
-                if (!gpuName) return 'Unknown';
-                
-                // Common GPU name patterns
-                gpuName = gpuName.replace(/ANGLE \(([^,]+).*\)/, '$1');
-                gpuName = gpuName.replace(/Direct3D.* vs_.* ps_.*/, '');
-                gpuName = gpuName.replace(/OpenGL.*/, '');
-                
-                // Shorten common vendor names
-                gpuName = gpuName.replace(/NVIDIA GeForce /, 'GTX ');
-                gpuName = gpuName.replace(/AMD Radeon /, 'RX ');
-                gpuName = gpuName.replace(/Intel\(R\) /, '');
-                gpuName = gpuName.replace(/Graphics/, 'Gfx');
-                
-                // Limit length
-                if (gpuName.length > 12) {
-                    gpuName = gpuName.substring(0, 9) + '...';
-                }
-                
-                return gpuName.trim();
-            }
-
-            stopPerformanceMonitoring() {
-                this.isMonitoringPerformance = false;
-            }
-
-            // ===== UI UPDATES =====
-            updatePreviews() {
-                const dots = [
-                    { element: document.getElementById('dot'), size: this.strokeSize },
-                    { element: document.getElementById('low-dot'), size: this.lowPressureStroke },
-                    { element: document.getElementById('high-dot'), size: this.highPressureStroke },
-                    { element: document.getElementById('eraser-dot'), size: this.eraserSize }
-                ];
-                
-                dots.forEach(({ element, size }) => {
-                    // All dots show actual size since they all represent diameter/lineWidth
-                    const displaySize = Math.min(size, 30);
-                    element.style.width = `${displaySize}px`;
-                    element.style.height = `${displaySize}px`;
-                });
+            `;
+            
+            const blob = new Blob([swCode], { type: 'application/javascript' });
+            const swUrl = URL.createObjectURL(blob);
+            
+            navigator.serviceWorker.register(swUrl).then(() => {
+                console.log('Service Worker registered');
+            }).catch((error) => {
+                console.log('Service Worker registration failed:', error);
+            });
+        }
+        
+        // Canvas setup
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Panel elements
+        const slidePanel = document.getElementById('slidePanel');
+        const panelOverlay = document.getElementById('panelOverlay');
+        const panelToggle = document.getElementById('panelToggle');
+        const panelIcon = document.getElementById('panelIcon');
+        
+        // Icon SVG paths
+        const menuIcon = `
+            <rect width="18" height="18" x="3" y="3" rx="2"/>
+            <path d="M9 8h7"/>
+            <path d="M9 12h7"/>
+            <path d="M9 16h7"/>
+        `;
+        
+        const closeIcon = `
+            <path d="m18 6-12 12"/>
+            <path d="m6 6 12 12"/>
+        `;
+        
+        // Panel functionality
+        function togglePanel() {
+            const isOpen = slidePanel.classList.contains('open');
+            if (isOpen) {
+                slidePanel.classList.remove('open');
+                panelOverlay.classList.remove('active');
+                panelIcon.innerHTML = menuIcon;
+                panelToggle.setAttribute('title', 'Settings');
+            } else {
+                slidePanel.classList.add('open');
+                panelOverlay.classList.add('active');
+                panelIcon.innerHTML = closeIcon;
+                panelToggle.setAttribute('title', 'Close');
             }
         }
-
-        // Initialize the app
-        new PDFAnnotationApp();
+        
+        function closePanel() {
+            slidePanel.classList.remove('open');
+            panelOverlay.classList.remove('active');
+            panelIcon.innerHTML = menuIcon;
+            panelToggle.setAttribute('title', 'Settings');
+        }
+        
+        // Panel event listeners
+        panelToggle.addEventListener('click', togglePanel);
+        panelOverlay.addEventListener('click', closePanel);
+        
+        // Drawing settings
+        let drawingSettings = {
+            // Pressure
+            sensitivity: 1.0,
+            minWidth: 1.0,
+            maxWidth: 8.0,
+            curve: 'linear',
+            enabled: true,
+            
+            // Smoothing & Latency
+            smoothing: 3,
+            latencyMode: 'optimized',
+            
+            // Debouncing
+            debounceThreshold: 5,
+            movementThreshold: 2.0,
+            pressureDebounce: 3,
+            adaptiveDebouncing: true,
+            
+            // Prediction
+            prediction: 5,
+            predictionMode: 'linear',
+            predictionConfidence: 7,
+            predictionSmoothing: 4,
+            enablePrediction: true,
+            correctionMode: false,
+            
+            // Performance
+            frameRateBoost: true,
+            directRendering: true
+        };
+        
+        // Buffers and state
+        let smoothingBuffer = [];
+        let predictionBuffer = [];
+        let pressureBuffer = [];
+        let velocityHistory = [];
+        let maxBufferSize = 10;
+        let lastTimestamp = 0;
+        let lastProcessedTime = 0;
+        let lastPosition = { x: 0, y: 0 };
+        let frameRequestId = null;
+        let pendingDrawCalls = [];
+        
+        // Kalman filter state for advanced prediction
+        let kalmanState = {
+            x: 0, y: 0,
+            vx: 0, vy: 0,
+            initialized: false
+        };
+        
+        // Set canvas size with proper pixel ratio handling
+        function resizeCanvas() {
+            const pixelRatio = drawingSettings.frameRateBoost ? 1 : window.devicePixelRatio;
+            canvas.width = window.innerWidth * pixelRatio;
+            canvas.height = window.innerHeight * pixelRatio;
+            canvas.style.width = window.innerWidth + 'px';
+            canvas.style.height = window.innerHeight + 'px';
+            ctx.scale(pixelRatio, pixelRatio);
+            
+            if (drawingSettings.directRendering) {
+                ctx.imageSmoothingEnabled = false;
+                canvas.style.imageRendering = 'pixelated';
+            }
+        }
+        
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Clear canvas function
+        function clearCanvas() {
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        
+        // Pressure curve functions
+        function applePressureCurve(pressure, curve) {
+            switch(curve) {
+                case 'ease':
+                    return Math.pow(pressure, 0.7);
+                case 'sharp':
+                    return Math.pow(pressure, 1.5);
+                default:
+                    return pressure;
+            }
+        }
+        
+        // Calculate line width from pressure
+        function calculateLineWidth(pressure) {
+            if (!drawingSettings.enabled || pressure === undefined) {
+                return 2;
+            }
+            
+            const adjustedPressure = applePressureCurve(pressure, drawingSettings.curve);
+            const normalizedPressure = Math.max(0, Math.min(1, adjustedPressure * drawingSettings.sensitivity));
+            
+            return drawingSettings.minWidth + 
+                   (normalizedPressure * (drawingSettings.maxWidth - drawingSettings.minWidth));
+        }
+        
+        // Debouncing function
+        function shouldProcessInput(x, y, timestamp) {
+            // Time-based debouncing
+            if (timestamp - lastProcessedTime < drawingSettings.debounceThreshold) {
+                return false;
+            }
+            
+            // Movement threshold debouncing
+            const distance = Math.sqrt(
+                Math.pow(x - lastPosition.x, 2) + 
+                Math.pow(y - lastPosition.y, 2)
+            );
+            
+            if (distance < drawingSettings.movementThreshold) {
+                return false;
+            }
+            
+            // Adaptive debouncing based on velocity
+            if (drawingSettings.adaptiveDebouncing && velocityHistory.length > 2) {
+                const avgVelocity = velocityHistory.reduce((a, b) => a + b, 0) / velocityHistory.length;
+                const adaptiveThreshold = Math.max(1, drawingSettings.debounceThreshold - (avgVelocity * 0.1));
+                
+                if (timestamp - lastProcessedTime < adaptiveThreshold) {
+                    return false;
+                }
+            }
+            
+            return true;
+        }
+        
+        // Pressure debouncing
+        function debouncePressure(pressure) {
+            if (drawingSettings.pressureDebounce === 0) return pressure;
+            
+            pressureBuffer.push(pressure);
+            if (pressureBuffer.length > drawingSettings.pressureDebounce + 1) {
+                pressureBuffer.shift();
+            }
+            
+            // Return weighted average of recent pressure values
+            const weights = pressureBuffer.map((_, i) => i + 1);
+            const totalWeight = weights.reduce((a, b) => a + b, 0);
+            
+            return pressureBuffer.reduce((sum, p, i) => 
+                sum + (p * weights[i] / totalWeight), 0
+            );
+        }
+        
+        // Advanced prediction algorithms
+        function predictNextPoint(buffer, mode) {
+            if (buffer.length < 2 || !drawingSettings.enablePrediction) return null;
+            
+            const strength = drawingSettings.prediction / 10;
+            const confidence = drawingSettings.predictionConfidence / 10;
+            
+            switch (mode) {
+                case 'linear':
+                    return predictLinear(buffer, strength);
+                case 'velocity':
+                    return predictVelocity(buffer, strength, confidence);
+                case 'kalman':
+                    return predictKalman(buffer, strength, confidence);
+                default:
+                    return predictLinear(buffer, strength);
+            }
+        }
+        
+        function predictLinear(buffer, strength) {
+            const recent = buffer.slice(-2);
+            const last = recent[recent.length - 1];
+            const prev = recent[recent.length - 2];
+            
+            const deltaX = last.x - prev.x;
+            const deltaY = last.y - prev.y;
+            
+            return {
+                x: last.x + (deltaX * strength),
+                y: last.y + (deltaY * strength),
+                pressure: last.pressure,
+                isPredicted: true
+            };
+        }
+        
+        function predictVelocity(buffer, strength, confidence) {
+            if (buffer.length < 3) return predictLinear(buffer, strength);
+            
+            const recent = buffer.slice(-3);
+            const velocities = [];
+            
+            for (let i = 1; i < recent.length; i++) {
+                const dt = recent[i].timestamp - recent[i-1].timestamp;
+                if (dt > 0) {
+                    velocities.push({
+                        vx: (recent[i].x - recent[i-1].x) / dt,
+                        vy: (recent[i].y - recent[i-1].y) / dt
+                    });
+                }
+            }
+            
+            if (velocities.length === 0) return predictLinear(buffer, strength);
+            
+            // Average velocity with confidence weighting
+            const avgVx = velocities.reduce((sum, v) => sum + v.vx, 0) / velocities.length;
+            const avgVy = velocities.reduce((sum, v) => sum + v.vy, 0) / velocities.length;
+            
+            const last = recent[recent.length - 1];
+            const predictTime = 16.67; // Assume 60fps
+            
+            return {
+                x: last.x + (avgVx * predictTime * strength * confidence),
+                y: last.y + (avgVy * predictTime * strength * confidence),
+                pressure: last.pressure,
+                isPredicted: true
+            };
+        }
+        
+        function predictKalman(buffer, strength, confidence) {
+            const last = buffer[buffer.length - 1];
+            
+            if (!kalmanState.initialized) {
+                kalmanState.x = last.x;
+                kalmanState.y = last.y;
+                kalmanState.vx = 0;
+                kalmanState.vy = 0;
+                kalmanState.initialized = true;
+                return predictLinear(buffer, strength);
+            }
+            
+            // Simple Kalman filter implementation
+            const dt = 16.67; // Assume 60fps
+            const processNoise = 0.1;
+            const measurementNoise = 1.0;
+            
+            // Predict
+            const predictedX = kalmanState.x + kalmanState.vx * dt;
+            const predictedY = kalmanState.y + kalmanState.vy * dt;
+            
+            // Update
+            const innovationX = last.x - predictedX;
+            const innovationY = last.y - predictedY;
+            
+            const gain = measurementNoise / (measurementNoise + processNoise);
+            
+            kalmanState.x = predictedX + gain * innovationX;
+            kalmanState.y = predictedY + gain * innovationY;
+            kalmanState.vx = kalmanState.vx + (gain * innovationX / dt);
+            kalmanState.vy = kalmanState.vy + (gain * innovationY / dt);
+            
+            return {
+                x: kalmanState.x + (kalmanState.vx * dt * strength * confidence),
+                y: kalmanState.y + (kalmanState.vy * dt * strength * confidence),
+                pressure: last.pressure,
+                isPredicted: true
+            };
+        }
+        
+        // Apply smoothing to coordinates
+        function smoothPoint(x, y, pressure, timestamp) {
+            const point = { x, y, pressure, timestamp };
+            
+            // Add to prediction buffer
+            predictionBuffer.push(point);
+            if (predictionBuffer.length > 5) {
+                predictionBuffer.shift();
+            }
+            
+            if (drawingSettings.smoothing === 0) {
+                return point;
+            }
+            
+            smoothingBuffer.push(point);
+            
+            const bufferSize = Math.min(drawingSettings.smoothing + 1, maxBufferSize);
+            if (smoothingBuffer.length > bufferSize) {
+                smoothingBuffer.shift();
+            }
+            
+            // Apply latency-optimized smoothing
+            if (drawingSettings.latencyMode === 'ultra') {
+                return smoothingBuffer[smoothingBuffer.length - 1];
+            } else if (drawingSettings.latencyMode === 'optimized') {
+                const weights = smoothingBuffer.map((_, i) => Math.pow(i + 1, 1.5));
+                const totalWeight = weights.reduce((a, b) => a + b, 0);
+                
+                let smoothX = 0, smoothY = 0, smoothPressure = 0;
+                
+                smoothingBuffer.forEach((point, i) => {
+                    const weight = weights[i] / totalWeight;
+                    smoothX += point.x * weight;
+                    smoothY += point.y * weight;
+                    smoothPressure += point.pressure * weight;
+                });
+                
+                return { x: smoothX, y: smoothY, pressure: smoothPressure };
+            } else {
+                const totalWeight = smoothingBuffer.length;
+                let smoothX = 0, smoothY = 0, smoothPressure = 0;
+                
+                smoothingBuffer.forEach(point => {
+                    smoothX += point.x;
+                    smoothY += point.y;
+                    smoothPressure += point.pressure;
+                });
+                
+                return {
+                    x: smoothX / totalWeight,
+                    y: smoothY / totalWeight,
+                    pressure: smoothPressure / totalWeight
+                };
+            }
+        }
+        
+        // Smooth predicted points
+        function smoothPrediction(prediction) {
+            if (!prediction || drawingSettings.predictionSmoothing === 0) return prediction;
+            
+            // Simple smoothing for predicted points
+            const smoothingFactor = drawingSettings.predictionSmoothing / 10;
+            if (predictionBuffer.length > 1) {
+                const lastActual = predictionBuffer[predictionBuffer.length - 1];
+                return {
+                    x: prediction.x * (1 - smoothingFactor) + lastActual.x * smoothingFactor,
+                    y: prediction.y * (1 - smoothingFactor) + lastActual.y * smoothingFactor,
+                    pressure: prediction.pressure,
+                    isPredicted: true
+                };
+            }
+            
+            return prediction;
+        }
+        
+        // Optimized drawing function
+        function executeDrawing() {
+            if (pendingDrawCalls.length === 0) return;
+            
+            ctx.beginPath();
+            
+            pendingDrawCalls.forEach(drawCall => {
+                ctx.moveTo(drawCall.fromX, drawCall.fromY);
+                ctx.lineTo(drawCall.toX, drawCall.toY);
+                ctx.lineWidth = drawCall.lineWidth;
+            });
+            
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = 'black';
+            ctx.stroke();
+            
+            pendingDrawCalls = [];
+            frameRequestId = null;
+        }
+        
+        // Event handlers for all settings
+        function setupEventHandlers() {
+            // Pressure settings
+            document.getElementById('pressureSensitivity').addEventListener('input', (e) => {
+                drawingSettings.sensitivity = parseFloat(e.target.value);
+                document.getElementById('pressureSensitivityValue').textContent = e.target.value + 'x';
+            });
+            
+            document.getElementById('minWidth').addEventListener('input', (e) => {
+                drawingSettings.minWidth = parseFloat(e.target.value);
+                document.getElementById('minWidthValue').textContent = e.target.value + 'px';
+            });
+            
+            document.getElementById('maxWidth').addEventListener('input', (e) => {
+                drawingSettings.maxWidth = parseFloat(e.target.value);
+                document.getElementById('maxWidthValue').textContent = e.target.value + 'px';
+            });
+            
+            document.getElementById('smoothing').addEventListener('input', (e) => {
+                drawingSettings.smoothing = parseInt(e.target.value);
+                document.getElementById('smoothingValue').textContent = e.target.value;
+                smoothingBuffer = [];
+            });
+            
+            document.getElementById('enablePressure').addEventListener('change', (e) => {
+                drawingSettings.enabled = e.target.checked;
+            });
+            
+            // Debouncing settings
+            document.getElementById('debounceThreshold').addEventListener('input', (e) => {
+                drawingSettings.debounceThreshold = parseInt(e.target.value);
+                document.getElementById('debounceThresholdValue').textContent = e.target.value + 'ms';
+            });
+            
+            document.getElementById('movementThreshold').addEventListener('input', (e) => {
+                drawingSettings.movementThreshold = parseFloat(e.target.value);
+                document.getElementById('movementThresholdValue').textContent = e.target.value + 'px';
+            });
+            
+            document.getElementById('pressureDebounce').addEventListener('input', (e) => {
+                drawingSettings.pressureDebounce = parseInt(e.target.value);
+                document.getElementById('pressureDebounceValue').textContent = e.target.value;
+                pressureBuffer = [];
+            });
+            
+            document.getElementById('adaptiveDebouncing').addEventListener('change', (e) => {
+                drawingSettings.adaptiveDebouncing = e.target.checked;
+            });
+            
+            // Prediction settings
+            document.getElementById('prediction').addEventListener('input', (e) => {
+                drawingSettings.prediction = parseInt(e.target.value);
+                document.getElementById('predictionValue').textContent = e.target.value;
+            });
+            
+            document.getElementById('predictionConfidence').addEventListener('input', (e) => {
+                drawingSettings.predictionConfidence = parseInt(e.target.value);
+                document.getElementById('predictionConfidenceValue').textContent = e.target.value;
+            });
+            
+            document.getElementById('predictionSmoothing').addEventListener('input', (e) => {
+                drawingSettings.predictionSmoothing = parseInt(e.target.value);
+                document.getElementById('predictionSmoothingValue').textContent = e.target.value;
+            });
+            
+            document.getElementById('enablePrediction').addEventListener('change', (e) => {
+                drawingSettings.enablePrediction = e.target.checked;
+            });
+            
+            document.getElementById('correctionMode').addEventListener('change', (e) => {
+                drawingSettings.correctionMode = e.target.checked;
+            });
+            
+            // Performance settings
+            document.getElementById('frameRateBoost').addEventListener('change', (e) => {
+                drawingSettings.frameRateBoost = e.target.checked;
+                resizeCanvas();
+            });
+            
+            document.getElementById('directRendering').addEventListener('change', (e) => {
+                drawingSettings.directRendering = e.target.checked;
+                resizeCanvas();
+            });
+            
+            // Button selectors
+            document.querySelectorAll('.curve-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.curve-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    drawingSettings.curve = btn.dataset.curve;
+                });
+            });
+            
+            document.querySelectorAll('.latency-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.latency-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    drawingSettings.latencyMode = btn.dataset.mode;
+                    smoothingBuffer = [];
+                });
+            });
+            
+            document.querySelectorAll('.prediction-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.prediction-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    drawingSettings.predictionMode = btn.dataset.mode;
+                    kalmanState.initialized = false;
+                });
+            });
+        }
+        
+        setupEventHandlers();
+        
+        // Trash button event handler
+        document.getElementById('clearCanvas').addEventListener('click', clearCanvas);
+        
+        // Prevent controls and panel from interfering with drawing
+        document.querySelector('.slide-panel').addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+        });
+        document.querySelectorAll('.control-btn').forEach(btn => {
+            btn.addEventListener('pointerdown', (e) => {
+                e.stopPropagation();
+            });
+        });
+        
+        // Drawing state
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+        
+        // Function to check if input is from stylus/pen
+        function isStylusInput(e) {
+            if (e.pointerType === 'pen') return true;
+            if (e.type.includes('mouse')) return true;
+            return false;
+        }
+        
+        // Drawing functions
+        function startDrawing(e) {
+            if (e.target.closest('.slide-panel') || e.target.closest('.controls-left') || e.target.closest('.controls-right')) return;
+            if (!isStylusInput(e)) return;
+            
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            lastX = e.clientX - rect.left;
+            lastY = e.clientY - rect.top;
+            
+            // Reset all buffers and state
+            smoothingBuffer = [];
+            predictionBuffer = [];
+            pressureBuffer = [];
+            velocityHistory = [];
+            pendingDrawCalls = [];
+            lastPosition = { x: lastX, y: lastY };
+            lastProcessedTime = performance.now();
+            kalmanState.initialized = false;
+        }
+        
+        function draw(e) {
+            if (!isDrawing) return;
+            if (!isStylusInput(e)) return;
+            
+            e.preventDefault();
+            
+            const rect = canvas.getBoundingClientRect();
+            const rawX = e.clientX - rect.left;
+            const rawY = e.clientY - rect.top;
+            const rawPressure = e.pressure || 0.5;
+            const timestamp = performance.now();
+            
+            // Apply debouncing
+            if (!shouldProcessInput(rawX, rawY, timestamp)) {
+                return;
+            }
+            
+            // Update velocity history
+            if (velocityHistory.length > 0) {
+                const dt = timestamp - lastTimestamp;
+                if (dt > 0) {
+                    const velocity = Math.sqrt(
+                        Math.pow(rawX - lastPosition.x, 2) + 
+                        Math.pow(rawY - lastPosition.y, 2)
+                    ) / dt;
+                    velocityHistory.push(velocity);
+                    if (velocityHistory.length > 5) {
+                        velocityHistory.shift();
+                    }
+                }
+            } else {
+                velocityHistory.push(0);
+            }
+            
+            // Apply pressure debouncing
+            const debouncedPressure = debouncePressure(rawPressure);
+            
+            // Apply smoothing
+            const smoothed = smoothPoint(rawX, rawY, debouncedPressure, timestamp);
+            
+            // Add prediction if enabled
+            if (drawingSettings.enablePrediction && drawingSettings.prediction > 0) {
+                const predicted = predictNextPoint(predictionBuffer, drawingSettings.predictionMode);
+                if (predicted) {
+                    const smoothedPrediction = smoothPrediction(predicted);
+                    
+                    pendingDrawCalls.push({
+                        fromX: lastX,
+                        fromY: lastY,
+                        toX: smoothedPrediction.x,
+                        toY: smoothedPrediction.y,
+                        lineWidth: calculateLineWidth(smoothedPrediction.pressure),
+                        isPredicted: true
+                    });
+                }
+            }
+            
+            // Add the actual smoothed point
+            pendingDrawCalls.push({
+                fromX: lastX,
+                fromY: lastY,
+                toX: smoothed.x,
+                toY: smoothed.y,
+                lineWidth: calculateLineWidth(smoothed.pressure),
+                isPredicted: false
+            });
+            
+            // Execute drawing based on latency mode
+            if (drawingSettings.latencyMode === 'ultra' || !drawingSettings.frameRateBoost) {
+                executeDrawing();
+            } else if (!frameRequestId) {
+                frameRequestId = requestAnimationFrame(executeDrawing);
+            }
+            
+            // Update state
+            lastX = smoothed.x;
+            lastY = smoothed.y;
+            lastPosition = { x: rawX, y: rawY };
+            lastTimestamp = timestamp;
+            lastProcessedTime = timestamp;
+        }
+        
+        function stopDrawing(e) {
+            if (!isStylusInput(e)) return;
+            isDrawing = false;
+            
+            // Flush any remaining draw calls
+            if (frameRequestId) {
+                cancelAnimationFrame(frameRequestId);
+                executeDrawing();
+            }
+            
+            // Clear buffers
+            smoothingBuffer = [];
+            predictionBuffer = [];
+            pressureBuffer = [];
+            velocityHistory = [];
+            pendingDrawCalls = [];
+            kalmanState.initialized = false;
+        }
+        
+        // Mouse events (for desktop testing)
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+        
+        // Pointer events (primary method for stylus detection)
+        if (window.PointerEvent) {
+            canvas.addEventListener('pointerdown', startDrawing);
+            canvas.addEventListener('pointermove', draw);
+            canvas.addEventListener('pointerup', stopDrawing);
+            canvas.addEventListener('pointercancel', stopDrawing);
+            canvas.addEventListener('pointerleave', stopDrawing);
+        }
+        
+        // Prevent context menu
+        canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
+        
+        // Prevent touch events for finger input
+        document.addEventListener('touchstart', (e) => {
+            if (!e.target.closest('.slide-panel') && !e.target.closest('.controls-left') && !e.target.closest('.controls-right')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+        
+        document.addEventListener('touchmove', (e) => {
+            if (!e.target.closest('.slide-panel') && !e.target.closest('.controls-left') && !e.target.closest('.controls-right')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+        
+        // Handle stylus hover
+        canvas.addEventListener('pointermove', (e) => {
+            if (e.pointerType === 'pen' && !isDrawing) {
+                canvas.style.cursor = 'crosshair';
+            }
+        });
     </script>
-
-</body></html>
+</body>
+</html>
