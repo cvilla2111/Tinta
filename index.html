@@ -410,8 +410,23 @@
             updateAllStrokeWidths();
         }
         
-        // Initialize with current viewport as base
-        resizeSVG();
+        // Initialize with proper timing to avoid stroke width issues
+        function initializeCanvas() {
+            // Ensure viewport is stable before calculating stroke widths
+            resizeSVG();
+            updateAllStrokeWidths();
+            console.log('Canvas initialized with proper stroke width');
+        }
+        
+        // Initialize after DOM is ready and viewport is stable
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                setTimeout(initializeCanvas, 100); // Small delay to ensure viewport is stable
+            });
+        } else {
+            setTimeout(initializeCanvas, 100);
+        }
+        
         window.addEventListener('resize', resizeSVG);
         
         // Drawing functionality
