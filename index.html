@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>Simple Pen Pad — Smooth + Panel Controls</title>
+  <title>Simple Pen Pad — Vector Re‑render on Resize</title>
 
   <!-- Minimal PWA manifest (inline data URL) -->
   <meta name="theme-color" content="#ffffff" />
@@ -132,7 +132,7 @@
       transition:transform var(--drawer-dur) var(--drawer-ease);
       will-change:transform;
       contain:layout paint size style;
-      z-index:2;                    /* above backdrop */
+      z-index:2;
     }
     .drawer-host.open .drawer{ transform:translate3d(0,0,0); }
 
@@ -145,7 +145,7 @@
       will-change:background-color;
       pointer-events:none;
       contain:layout paint;
-      z-index:1;                     /* behind drawer */
+      z-index:1;
     }
     .drawer-host.open .backdrop{
       background-color:rgba(0,0,0,var(--backdrop-max));
@@ -237,7 +237,6 @@
       padding:0 6px;
     }
 
-    /* Tiny notes */
     .note{
       margin-top:4px;
       font-size:10px;
@@ -257,7 +256,6 @@
   <!-- Top-left: Menu button -->
   <div class="toolbar-left">
     <button id="menuBtn" class="btn" aria-label="Open menu" aria-expanded="false" aria-controls="drawer" title="Menu">
-      <!-- Lucide "menu" icon -->
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M4 6h16" />
         <path d="M4 12h16" />
@@ -269,7 +267,6 @@
   <!-- Top-right: Clear button -->
   <div class="toolbar-right">
     <button id="clearBtn" class="btn" aria-label="Clear canvas" title="Clear">
-      <!-- Lucide "trash-2" icon -->
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M3 6h18" />
         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
@@ -280,17 +277,15 @@
     </button>
   </div>
 
-  <!-- Slide-in drawer (left) and backdrop -->
+  <!-- Slide-in drawer and backdrop -->
   <div id="drawerHost" class="drawer-host" aria-hidden="true">
     <aside id="drawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
       <div class="drawer-content">
         <h2 id="drawerTitle" style="margin:0 0 10px 0;font-size:14px;">Menu</h2>
 
-        <!-- Ink color palette -->
         <div class="section">
           <h3>Ink color</h3>
           <div class="palette" id="palette" role="group" aria-label="Ink colors">
-            <!-- 7 hard colors -->
             <button class="swatch" data-color="#000000" aria-label="Black" aria-pressed="true"><span style="background:#000000;border-color:#000000;"></span></button>
             <button class="swatch" data-color="#D32F2F" aria-label="Red"><span style="background:#D32F2F;"></span></button>
             <button class="swatch" data-color="#1976D2" aria-label="Blue"><span style="background:#1976D2;"></span></button>
@@ -302,10 +297,8 @@
           <div class="note">Pick one of 7 preset inks. Default: Black.</div>
         </div>
 
-        <!-- Stroke width -->
         <div class="section">
           <h3>Stroke width</h3>
-
           <div class="control">
             <div class="row">
               <div class="label">Min width</div>
@@ -331,7 +324,6 @@
           </div>
         </div>
 
-        <!-- Pressure curve -->
         <div class="section">
           <h3>Pressure curve</h3>
           <div class="control">
@@ -347,7 +339,6 @@
           </div>
         </div>
 
-        <!-- Smoothing strength -->
         <div class="section">
           <h3>Smoothing</h3>
           <div class="control">
@@ -375,7 +366,6 @@
           </div>
         </div>
 
-        <!-- Mode -->
         <div class="section">
           <h3>Mode</h3>
           <div class="control">
@@ -419,15 +409,15 @@
     const drawer     = document.getElementById('drawer');
     const backdrop   = document.getElementById('backdrop');
 
-    // Settings (UPDATED DEFAULTS)
+    // Settings (defaults)
     const CURVE_OPTS = ['Soft','Linear','Firm'];
     const CURVE_GAMMA = { Soft:0.5, Linear:1, Firm:2 };
 
     const settings = {
       inkColor: '#000000',
-      minWidth: 0.5,     // default updated
-      maxWidth: 8.0,     // default updated
-      curve: 'Firm',     // default updated
+      minWidth: 0.5,
+      maxWidth: 8.0,
+      curve: 'Firm',
       smoothing: 0.35,
       stabilizer: 0,
       mode: 'Smoothness',
@@ -450,6 +440,10 @@
       rafId: 0,
       modeSharp: false
     };
+
+    // Vector stroke history
+    let history = [];
+    let currentStroke = null;
 
     // Touch-only context menu suppression
     const TOUCH_CTX_GUARD_MS = 1500;
@@ -475,19 +469,7 @@
       return state.modeSharp ? raw : Math.min(2, raw);
     }
 
-    function sizeCanvas(preserve = false){
-      let tmp = null;
-      if (preserve && canvas.width && canvas.height){
-        if (typeof OffscreenCanvas !== 'undefined') {
-          tmp = new OffscreenCanvas(canvas.width, canvas.height);
-        } else {
-          tmp = document.createElement('canvas');
-          tmp.width = canvas.width; tmp.height = canvas.height;
-        }
-        const tctx = tmp.getContext('2d');
-        tctx.drawImage(canvas, 0, 0);
-      }
-
+    function sizeCanvas(){
       state.dpr = computeDPR();
       state.cssW = window.innerWidth;
       state.cssH = window.innerHeight;
@@ -497,17 +479,12 @@
       canvas.width  = Math.floor(state.cssW * state.dpr);
       canvas.height = Math.floor(state.cssH * state.dpr);
 
+      // Reset and clear
       ctx.setTransform(1,0,0,1,0,0);
-      if (preserve && tmp){
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        const tw = tmp.width || tmp.bitmapWidth || canvas.width;
-        const th = tmp.height || tmp.bitmapHeight || canvas.height;
-        ctx.drawImage(tmp, 0, 0, tw, th, 0, 0, canvas.width, canvas.height);
-      } else {
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-      }
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Base transform: 1 CSS px = state.dpr device px
       ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
@@ -527,10 +504,10 @@
       return (p > 0) ? Math.min(1, Math.max(0, p)) : 1;
     }
 
-    function pressureToWidth(p){
-      const gamma = CURVE_GAMMA[settings.curve] || 1;
+    function pressureToWidthFor(stroke, p){
+      const gamma = stroke.gamma || CURVE_GAMMA[stroke.curve] || 1;
       const t = Math.pow(p, gamma);
-      const w = settings.minWidth + (settings.maxWidth - settings.minWidth) * t;
+      const w = stroke.minWidth + (stroke.maxWidth - stroke.minWidth) * t;
       return Math.max(0.25, Math.min(64, w));
     }
 
@@ -565,7 +542,7 @@
     drawer.addEventListener('pointerdown', (e) => e.stopPropagation(), { passive:true });
     window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); }, { passive:true });
 
-    // Drawing handlers — rAF + coalesced events, pen-only
+    // Live drawing — pen-only
     const moveEventName = ('onpointerrawupdate' in window) ? 'pointerrawupdate' : 'pointermove';
 
     function startStroke(e){
@@ -583,7 +560,30 @@
       state.lastX = x; state.lastY = y;
       state.sx = x; state.sy = y;
 
-      state.filteredW = pressureToWidth(pressureOf(e));
+      // Initialize filtered width
+      state.filteredW = pressureToWidthFor({
+        minWidth: settings.minWidth,
+        maxWidth: settings.maxWidth,
+        curve: settings.curve,
+        gamma: CURVE_GAMMA[settings.curve]
+      }, pressureOf(e));
+
+      // Start a new vector stroke (base size = current canvas CSS size)
+      currentStroke = {
+        color: settings.inkColor,
+        minWidth: settings.minWidth,
+        maxWidth: settings.maxWidth,
+        curve: settings.curve,
+        gamma: CURVE_GAMMA[settings.curve],
+        smoothing: settings.smoothing,
+        baseW: state.cssW,
+        baseH: state.cssH,
+        points: []
+      };
+
+      // First point
+      currentStroke.points.push({ x, y, p: pressureOf(e) });
+
       state.needsRender = true;
     }
 
@@ -613,11 +613,19 @@
           state.sx = x; state.sy = y;
         }
 
-        // Width smoothing (width only)
-        const targetW = pressureToWidth(pressureOf(ev));
+        // Record vector point (post-stabilizer position + raw pressure)
+        if (currentStroke) currentStroke.points.push({ x, y, p: pressureOf(ev) });
+
+        // Live width smoothing + enqueue for on-screen render
+        const targetW = pressureToWidthFor({
+          minWidth: settings.minWidth,
+          maxWidth: settings.maxWidth,
+          curve: settings.curve,
+          gamma: CURVE_GAMMA[settings.curve]
+        }, pressureOf(ev));
         state.filteredW += (targetW - state.filteredW) * settings.smoothing;
 
-        state.queue.push({ x, y, w: state.filteredW, color: settings.inkColor });
+        state.queue.push({ x, y, w: state.filteredW, color: currentStroke ? currentStroke.color : settings.inkColor });
       }
 
       state.needsRender = true;
@@ -629,6 +637,17 @@
       state.pointerId = null;
       state.needsRender = true;
       try { canvas.releasePointerCapture(e.pointerId); } catch {}
+
+      // Commit vector stroke
+      if (currentStroke){
+        // Handle taps: ensure at least two points to render a dot
+        if (currentStroke.points.length === 1){
+          const pt = currentStroke.points[0];
+          currentStroke.points.push({ x: pt.x + 0.01, y: pt.y, p: pt.p });
+        }
+        history.push(currentStroke);
+        currentStroke = null;
+      }
     }
 
     canvas.addEventListener('pointerdown', startStroke, { passive:true });
@@ -637,8 +656,9 @@
     canvas.addEventListener('pointercancel', endStroke,  { passive:true });
     canvas.addEventListener('pointerout',  endStroke,    { passive:true });
 
-    // Clear button
+    // Clear button: clear canvas + vector history
     function clearCanvas(){
+      history = [];
       ctx.setTransform(1,0,0,1,0,0);
       ctx.fillStyle = '#fff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -646,7 +666,65 @@
     }
     clearBtn.addEventListener('click', clearCanvas, { passive:true });
 
-    // Render loop
+    // Redraw all strokes from vector history at current size/DPR
+    function redrawAllStrokes(){
+      // Clear
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const WIDTH_EPS = 0.1;
+
+      for (let s = 0; s < history.length; s++){
+        const stroke = history[s];
+        if (!stroke.points || stroke.points.length === 0) continue;
+
+        // Scale from stroke's base size to current canvas CSS size
+        const scaleX = state.cssW / (stroke.baseW || state.cssW);
+        const scaleY = state.cssH / (stroke.baseH || state.cssH);
+
+        ctx.save();
+        ctx.setTransform(state.dpr * scaleX, 0, 0, state.dpr * scaleY, 0, 0);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = stroke.color;
+
+        let filteredW = pressureToWidthFor(stroke, stroke.points[0].p);
+        let lastX = stroke.points[0].x, lastY = stroke.points[0].y;
+
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineWidth = filteredW;
+        let currentLW = filteredW;
+
+        for (let i = 1; i < stroke.points.length; i++){
+          const pt = stroke.points[i];
+          const targetW = pressureToWidthFor(stroke, pt.p);
+          filteredW += (targetW - filteredW) * stroke.smoothing;
+          const lw = Math.max(0.25, Math.min(64, filteredW));
+
+          if (Math.abs(lw - currentLW) > WIDTH_EPS){
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineWidth = lw;
+            currentLW = lw;
+          }
+
+          ctx.lineTo(pt.x, pt.y);
+          lastX = pt.x;
+          lastY = pt.y;
+        }
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      // Restore default drawing transform for live strokes
+      ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
+    }
+
+    // Render loop for live strokes
     const WIDTH_EPS = 0.1;
     function render(){
       if (state.needsRender){
@@ -795,14 +873,17 @@
         settings.mode = v;
         state.modeSharp = (v === 'Sharpness');
         const nowSharp = state.modeSharp;
-        if (wasSharp !== nowSharp) sizeCanvas(true);
+        if (wasSharp !== nowSharp) {
+          sizeCanvas();       // new DPR
+          redrawAllStrokes(); // crisp re-render at new DPR
+        }
       }
     );
 
-    // Initialize
+    // Initialize and hook resize
     state.modeSharp = (settings.mode === 'Sharpness');
-    sizeCanvas(false);
-    window.addEventListener('resize', () => sizeCanvas(true), { passive:true });
+    sizeCanvas();
+    window.addEventListener('resize', () => { sizeCanvas(); redrawAllStrokes(); }, { passive:true });
     state.rafId = requestAnimationFrame(render);
   </script>
 </body>
