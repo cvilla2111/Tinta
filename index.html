@@ -6,7 +6,7 @@
     <title>Surface Pen Writing App</title>
     
     <!-- PWA Manifest -->
-    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlN1cmZhY2UgUGVuIFdyaXRpbmcgQXBwIiwKICAic2hvcnRfbmFtZSI6ICJQZW5BcHAiLAogICJzdGFydF91cmwiOiAiLyIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiI2ZmZmZmZiIsCiAgInRoZW1lX2NvbG9yIjogIiNmZmZmZmYiLAogICJpY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUIzYVdSMGFEMGlNVEk0SWlCb1pXbG5hSFE5SWpFeU9DSWdkbWxsZDBodmVEMGlNQ0F3SURBZ01USTRJaUI0Yld4dWN6MGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtY3ZNakF3TUM5emRtY2lQZ29nSUR4eVpXTjBJSGRwWkhSb1BTSXhNamdrSWlCb1pXbG5hSFE5SWpFeU9DSWdabWxzYkQwaVoyaHBkR1VpTHo0S1BDOXpkbWMrIiwKICAgICAgInNpemVzIjogIjEyOHgxMjgiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIgogICAgfQogIF0KfQ==">
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlN1cmZhY2UgUGVuIFdyaXRpbmcgQXBwIiwKICAic2hvcnRfbmFtZSI6ICJQZW5BcHAiLAogICJzdGFydF91cmwiOiAiLyIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiI2ZmZmZmZiIsCiAgInRoZW1lX2NvbG9yIjogIiNmZmZmZmYiLAogICJpY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUI0Yld4dWN6MGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtY3ZNakF3TUM5emRtY2lJR2hwWldkb2REMGlNVEk0SWlCM2FXUjBhRDBpTVRJNElpQjJhV1YzUW05NFBTSXdJREFnTVRJNElERTlJaUJtYVd4c1BTSWpabVptWm1abUlqNDhjbVZqZENCM2FXUjBhRDBpTVRJNElpQm9aV2xuYUhROUlqRXlPQ0lnWm1sc2JEMGlJMlptWm1abUlpOCtQQzl6ZG1jKyIsCiAgICAgICJzaXplcyI6ICIxMjh4MTI4IiwKICAgICAgInR5cGUiOiAiaW1hZ2Uvc3ZnK3htbCIKICAgIH0KICBdCn0=">
     
     <style>
         * {
@@ -21,12 +21,15 @@
             background-color: white;
             overflow: hidden;
             touch-action: none;
+            user-select: none;
         }
 
         #canvas {
             display: block;
             background-color: white;
             cursor: crosshair;
+            width: 100vw;
+            height: 100vh;
         }
     </style>
 </head>
@@ -34,18 +37,18 @@
     <canvas id="canvas"></canvas>
 
     <script>
-        // Register service worker for PWA
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('data:text/javascript;base64,c2VsZi5hZGRFdmVudExpc3RlbmVyKCdpbnN0YWxsJywgZXZlbnQgPT4gewogIGV2ZW50LndhaXRVbnRpbChzZWxmLnNraXBXYWl0aW5nKCkpOwp9KTsKCnNlbGYuYWRkRXZlbnRMaXN0ZW5lcignZmV0Y2gnLCBldmVudCA9PiB7CiAgZXZlbnQucmVzcG9uZFdpdGgoZmV0Y2goZXZlbnQucmVxdWVzdCkpOwp9KTs=');
-        }
-
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
 
-        // Set canvas size to full viewport
+        // Set canvas size
         function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            
+            ctx.scale(dpr, dpr);
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             ctx.strokeStyle = '#000000';
@@ -53,95 +56,75 @@
         }
 
         resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
-
+        
         let isDrawing = false;
-        let lastX = 0;
-        let lastY = 0;
-        let animationId = null;
+        let points = [];
 
-        // Throttle drawing for better performance
-        let pendingDraw = false;
+        function getPoint(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+            const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+            
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
 
-        function startDrawing(e) {
+        function startDraw(e) {
             e.preventDefault();
             isDrawing = true;
-            [lastX, lastY] = getCoordinates(e);
-            
-            // Start a new path
-            ctx.beginPath();
-            ctx.moveTo(lastX, lastY);
+            points = [getPoint(e)];
         }
 
         function draw(e) {
             if (!isDrawing) return;
-            if (pendingDraw) return;
+            e.preventDefault();
             
-            pendingDraw = true;
+            const point = getPoint(e);
+            points.push(point);
             
-            animationId = requestAnimationFrame(() => {
-                const [currentX, currentY] = getCoordinates(e);
+            if (points.length >= 2) {
+                const lastPoint = points[points.length - 2];
                 
-                ctx.lineTo(currentX, currentY);
+                ctx.beginPath();
+                ctx.moveTo(lastPoint.x, lastPoint.y);
+                ctx.lineTo(point.x, point.y);
                 ctx.stroke();
-                
-                [lastX, lastY] = [currentX, currentY];
-                pendingDraw = false;
-            });
-        }
-
-        function stopDrawing(e) {
-            if (!isDrawing) return;
-            e.preventDefault();
-            
-            isDrawing = false;
-            
-            if (animationId) {
-                cancelAnimationFrame(animationId);
-                animationId = null;
             }
-            
-            pendingDraw = false;
-            ctx.beginPath(); // End current path
         }
 
-        function getCoordinates(e) {
-            const rect = canvas.getBoundingClientRect();
-            
-            // Handle different event types
-            if (e.touches && e.touches.length > 0) {
-                return [e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top];
-            } else if (e.clientX !== undefined) {
-                return [e.clientX - rect.left, e.clientY - rect.top];
+        function stopDraw(e) {
+            if (isDrawing) {
+                e.preventDefault();
+                isDrawing = false;
+                points = [];
             }
-            
-            return [lastX, lastY]; // Fallback
         }
 
-        // Use only pointer events for better performance and pen support
-        canvas.addEventListener('pointerdown', startDrawing, { passive: false });
-        canvas.addEventListener('pointermove', draw, { passive: false });
-        canvas.addEventListener('pointerup', stopDrawing, { passive: false });
-        canvas.addEventListener('pointercancel', stopDrawing, { passive: false });
-        canvas.addEventListener('pointerout', stopDrawing, { passive: false });
+        // Mouse events
+        canvas.addEventListener('mousedown', startDraw);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDraw);
+        canvas.addEventListener('mouseleave', stopDraw);
 
-        // Prevent context menu on right click
-        canvas.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-        });
+        // Touch events
+        canvas.addEventListener('touchstart', startDraw);
+        canvas.addEventListener('touchmove', draw);
+        canvas.addEventListener('touchend', stopDraw);
+        canvas.addEventListener('touchcancel', stopDraw);
 
-        // Prevent zoom and other gestures
-        document.addEventListener('gesturestart', (e) => {
-            e.preventDefault();
-        });
+        // Prevent scrolling and zooming
+        document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+        document.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
 
-        document.addEventListener('gesturechange', (e) => {
-            e.preventDefault();
-        });
+        // Resize handler
+        window.addEventListener('resize', resizeCanvas);
 
-        document.addEventListener('gestureend', (e) => {
-            e.preventDefault();
-        });
+        // PWA service worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('data:text/javascript;base64,c2VsZi5hZGRFdmVudExpc3RlbmVyKCdpbnN0YWxsJywgKCkgPT4gc2VsZi5za2lwV2FpdGluZygpKTtzZWxmLmFkZEV2ZW50TGlzdGVuZXIoJ2ZldGNoJywgZSA9PiBlLnJlc3BvbmRXaXRoKGZldGNoKGUucmVxdWVzdCkpKTs=');
+        }
     </script>
 </body>
 </html>
