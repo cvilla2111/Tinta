@@ -20,7 +20,6 @@
             width: 100%;
             background-color: white;
             overflow: hidden;
-            touch-action: none;
             user-select: none;
             font-family: Arial, sans-serif;
         }
@@ -29,6 +28,7 @@
             display: flex;
             width: 100vw;
             height: 100vh;
+            position: relative;
         }
 
         .sidebar {
@@ -38,8 +38,11 @@
             border-right: 1px solid #ddd;
             transform: translateX(-100%);
             transition: transform 0.3s ease;
-            position: relative;
+            position: absolute;
+            left: 0;
+            top: 0;
             z-index: 10;
+            touch-action: auto;
         }
 
         .sidebar.open {
@@ -47,7 +50,8 @@
         }
 
         .canvas-container {
-            flex: 1;
+            width: 100%;
+            height: 100vh;
             position: relative;
             background-color: white;
         }
@@ -58,39 +62,60 @@
             cursor: crosshair;
             width: 100%;
             height: 100%;
+            touch-action: none;
         }
 
         .menu-toggle {
             position: absolute;
             top: 20px;
-            left: 20px;
+            left: 0;
             z-index: 20;
-            background-color: #333;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 5px;
+            background-color: white;
+            color: black;
+            border: 2px solid black;
+            padding: 8px 12px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 0 8px 8px 0;
+            border-left: none;
         }
 
         .menu-toggle:hover {
-            background-color: #555;
+            background-color: #f0f0f0;
         }
 
         .sidebar-content {
             padding: 60px 20px 20px 20px;
             height: 100%;
+            touch-action: auto;
         }
 
         .sidebar h3 {
             margin-bottom: 20px;
             color: #333;
         }
+
+        .sidebar-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.3);
+            z-index: 5;
+            display: none;
+        }
+
+        .sidebar-overlay.show {
+            display: block;
+        }
     </style>
 </head>
 <body>
     <div class="container">
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+        
         <div class="sidebar" id="sidebar">
             <div class="sidebar-content">
                 <h3>Tools</h3>
@@ -108,17 +133,24 @@
         const ctx = canvas.getContext('2d');
         const sidebar = document.getElementById('sidebar');
         const menuToggle = document.getElementById('menuToggle');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
 
         // Toggle sidebar
-        menuToggle.addEventListener('click', () => {
+        menuToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
             sidebar.classList.toggle('open');
+            sidebarOverlay.classList.toggle('show');
         });
 
-        // Close sidebar when clicking on canvas
-        canvas.addEventListener('click', () => {
-            if (sidebar.classList.contains('open')) {
-                sidebar.classList.remove('open');
-            }
+        // Close sidebar when clicking overlay
+        sidebarOverlay.addEventListener('click', () => {
+            sidebar.classList.remove('open');
+            sidebarOverlay.classList.remove('show');
+        });
+
+        // Prevent sidebar from closing when clicking inside it
+        sidebar.addEventListener('click', (e) => {
+            e.stopPropagation();
         });
 
         // Set canvas size
@@ -153,8 +185,8 @@
         }
 
         function startDraw(e) {
-            // Don't draw if clicking on menu toggle
-            if (e.target === menuToggle) return;
+            // Don't draw if clicking on menu toggle or sidebar
+            if (e.target === menuToggle || sidebar.contains(e.target)) return;
             
             e.preventDefault();
             isDrawing = true;
@@ -186,26 +218,24 @@
             }
         }
 
-        // Mouse events
+        // Mouse events only on canvas
         canvas.addEventListener('mousedown', startDraw);
         canvas.addEventListener('mousemove', draw);
         canvas.addEventListener('mouseup', stopDraw);
         canvas.addEventListener('mouseleave', stopDraw);
 
-        // Touch events
+        // Touch events only on canvas
         canvas.addEventListener('touchstart', startDraw);
         canvas.addEventListener('touchmove', draw);
         canvas.addEventListener('touchend', stopDraw);
         canvas.addEventListener('touchcancel', stopDraw);
 
-        // Prevent scrolling and zooming
-        document.addEventListener('touchmove', (e) => {
-            if (e.target === canvas) {
-                e.preventDefault();
-            }
+        // Prevent scrolling only on canvas
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
         }, { passive: false });
         
-        document.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
+        canvas.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
 
         // Resize handler
         window.addEventListener('resize', resizeCanvas);
