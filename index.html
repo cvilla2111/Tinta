@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>Simple Pen Pad — Smooth</title>
+  <title>Simple Pen Pad — Smooth + Panel Controls</title>
 
   <!-- Minimal PWA manifest (inline data URL) -->
   <meta name="theme-color" content="#ffffff" />
@@ -22,25 +22,22 @@
 
   <style>
     :root{
-      /* UI sizing */
       --btn-size:35px;
       --btn-radius:4px;
       --btn-border:0.75px;
       --icon-size:24px;
       --icon-stroke:0.75px;
 
-      /* Safe areas */
       --safe-top:env(safe-area-inset-top, 0px);
       --safe-left:env(safe-area-inset-left, 0px);
       --safe-right:env(safe-area-inset-right, 0px);
 
-      /* Drawer */
       --drawer-w:280px;
       --drawer-max-w:85vw;
       --drawer-border:#000;
       --drawer-dur:220ms;
       --drawer-ease:cubic-bezier(.2,.7,.2,1);
-      --backdrop-max:0.12; /* subtle */
+      --backdrop-max:0.12;
     }
     html,body{
       margin:0;
@@ -49,6 +46,14 @@
       overscroll-behavior:none;
     }
     body{ position:relative }
+
+    /* Prevent long-press callouts and selection on key elements */
+    html, body, #pad, .btn, .drawer, .drawer-content, .swatch, .stepper button {
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
 
     /* Canvas */
     #pad{
@@ -108,8 +113,8 @@
       position:fixed;
       inset:0;
       z-index:20;
-      pointer-events:none;           /* off by default */
-      contain:layout paint style;    /* isolate painting/layout */
+      pointer-events:none;
+      contain:layout paint style;
     }
     .drawer-host.open{ pointer-events:auto; }
 
@@ -127,40 +132,117 @@
       transition:transform var(--drawer-dur) var(--drawer-ease);
       will-change:transform;
       contain:layout paint size style;
+      z-index:2;                    /* above backdrop */
     }
     .drawer-host.open .drawer{ transform:translate3d(0,0,0); }
 
-    /* Backdrop that catches outside clicks/touches */
+    /* Backdrop */
     .backdrop{
       position:absolute;
       inset:0;
-      background:rgba(0,0,0,0);
+      background-color:rgba(0,0,0,0);
       transition:background-color var(--drawer-dur) linear;
       will-change:background-color;
-      pointer-events:none;           /* off until open */
+      pointer-events:none;
       contain:layout paint;
+      z-index:1;                     /* behind drawer */
     }
     .drawer-host.open .backdrop{
-      background:rgba(0,0,0,var(--backdrop-max));
+      background-color:rgba(0,0,0,var(--backdrop-max));
       pointer-events:auto;
     }
 
     /* Drawer content */
     .drawer-content{
-      padding:16px;
+      padding:14px;
       font-family:system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
       color:#000;
-      line-height:1.4;
+      line-height:1.35;
       user-select:none;
     }
-    .drawer-content h2{
-      margin:0 0 12px 0;
-      font-size:16px;
+    .section{ margin-bottom:10px; }
+    .section h3{
+      margin:0 0 6px 0;
+      font-size:13px;
+      font-weight:600;
+      letter-spacing:.2px;
     }
-    .drawer-content .hint{
+
+    /* Color palette */
+    .palette{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+    }
+    .swatch{
+      width:26px; height:26px;
+      border-radius:6px;
+      border:0.75px solid #000;
+      box-sizing:border-box;
+      padding:0;
+      background:#fff;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      touch-action:manipulation;
+    }
+    .swatch > span{
+      display:block;
+      width:18px; height:18px;
+      border-radius:4px;
+      border:0.75px solid rgba(0,0,0,.3);
+      box-sizing:border-box;
+    }
+    .swatch[aria-pressed="true"]{
+      outline:2px solid #000;
+      outline-offset:2px;
+    }
+
+    /* Stepper controls */
+    .control{ margin:8px 0; }
+    .row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+    }
+    .label{
       font-size:12px;
+      font-weight:600;
+    }
+    .stepper{
+      display:inline-flex;
+      align-items:center;
+      border:0.75px solid #000;
+      border-radius:6px;
+      overflow:hidden;
+    }
+    .stepper button{
+      width:28px; height:26px;
+      background:#fff;
+      border:none;
+      border-right:0.75px solid #000;
+      font-size:16px; line-height:1;
+      padding:0; margin:0;
+      cursor:pointer;
+      touch-action:manipulation;
+    }
+    .stepper button:last-child{ border-right:none; border-left:0.75px solid #000; }
+    .stepper .val{
+      min-width:54px;
+      text-align:center;
+      font-variant-numeric:tabular-nums;
+      font-size:12px;
+      padding:0 6px;
+    }
+
+    /* Tiny notes */
+    .note{
+      margin-top:4px;
+      font-size:10px;
       color:#333;
-      opacity:.8;
+      opacity:.9;
     }
 
     .hidden{ display:none !important; }
@@ -202,9 +284,113 @@
   <div id="drawerHost" class="drawer-host" aria-hidden="true">
     <aside id="drawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
       <div class="drawer-content">
-        <h2 id="drawerTitle">Menu</h2>
-        <div class="hint">Tap/click outside the panel to close.</div>
-        <!-- Add any menu items here -->
+        <h2 id="drawerTitle" style="margin:0 0 10px 0;font-size:14px;">Menu</h2>
+
+        <!-- Ink color palette -->
+        <div class="section">
+          <h3>Ink color</h3>
+          <div class="palette" id="palette" role="group" aria-label="Ink colors">
+            <!-- 7 hard colors -->
+            <button class="swatch" data-color="#000000" aria-label="Black" aria-pressed="true"><span style="background:#000000;border-color:#000000;"></span></button>
+            <button class="swatch" data-color="#D32F2F" aria-label="Red"><span style="background:#D32F2F;"></span></button>
+            <button class="swatch" data-color="#1976D2" aria-label="Blue"><span style="background:#1976D2;"></span></button>
+            <button class="swatch" data-color="#2E7D32" aria-label="Green"><span style="background:#2E7D32;"></span></button>
+            <button class="swatch" data-color="#FB8C00" aria-label="Orange"><span style="background:#FB8C00;"></span></button>
+            <button class="swatch" data-color="#6A1B9A" aria-label="Purple"><span style="background:#6A1B9A;"></span></button>
+            <button class="swatch" data-color="#616161" aria-label="Gray"><span style="background:#616161;"></span></button>
+          </div>
+          <div class="note">Pick one of 7 preset inks. Default: Black.</div>
+        </div>
+
+        <!-- Stroke width -->
+        <div class="section">
+          <h3>Stroke width</h3>
+
+          <div class="control">
+            <div class="row">
+              <div class="label">Min width</div>
+              <div class="stepper" id="minW">
+                <button class="minus" aria-label="Decrease min width">−</button>
+                <div class="val" aria-live="polite">1.0 px</div>
+                <button class="plus" aria-label="Increase min width">+</button>
+              </div>
+            </div>
+            <div class="note">Thinnest line at lightest pressure. Default: 1 px.</div>
+          </div>
+
+          <div class="control">
+            <div class="row">
+              <div class="label">Max width</div>
+              <div class="stepper" id="maxW">
+                <button class="minus" aria-label="Decrease max width">−</button>
+                <div class="val" aria-live="polite">5.0 px</div>
+                <button class="plus" aria-label="Increase max width">+</button>
+              </div>
+            </div>
+            <div class="note">Thickest line at firm pressure. Default: 5 px.</div>
+          </div>
+        </div>
+
+        <!-- Pressure curve -->
+        <div class="section">
+          <h3>Pressure curve</h3>
+          <div class="control">
+            <div class="row">
+              <div class="label">Response</div>
+              <div class="stepper" id="curve">
+                <button class="minus" aria-label="Previous curve">−</button>
+                <div class="val" aria-live="polite">Linear</div>
+                <button class="plus" aria-label="Next curve">+</button>
+              </div>
+            </div>
+            <div class="note">Soft = thicker with light touch • Linear (default) • Firm = needs more pressure.</div>
+          </div>
+        </div>
+
+        <!-- Smoothing strength -->
+        <div class="section">
+          <h3>Smoothing</h3>
+          <div class="control">
+            <div class="row">
+              <div class="label">Strength</div>
+              <div class="stepper" id="smooth">
+                <button class="minus" aria-label="Less smoothing">−</button>
+                <div class="val" aria-live="polite">0.35</div>
+                <button class="plus" aria-label="More smoothing">+</button>
+              </div>
+            </div>
+            <div class="note">Stabilizes width changes only. 0 = none • 1 = very smooth. Default: 0.35.</div>
+          </div>
+
+          <div class="control">
+            <div class="row">
+              <div class="label">Stabilizer</div>
+              <div class="stepper" id="stabilizer">
+                <button class="minus" aria-label="Decrease stabilizer">−</button>
+                <div class="val" aria-live="polite">0 px</div>
+                <button class="plus" aria-label="Increase stabilizer">+</button>
+              </div>
+            </div>
+            <div class="note">Smooths the path by limiting how far the pen moves per event. Default: 0 px (off).</div>
+          </div>
+        </div>
+
+        <!-- Mode -->
+        <div class="section">
+          <h3>Mode</h3>
+          <div class="control">
+            <div class="row">
+              <div class="label">Rendering</div>
+              <div class="stepper" id="mode">
+                <button class="minus" aria-label="Previous mode">−</button>
+                <div class="val" aria-live="polite">Smoothness</div>
+                <button class="plus" aria-label="Next mode">+</button>
+              </div>
+            </div>
+            <div class="note">Smoothness caps DPR at 2 (default). Sharpness uses full device DPR (sharper, heavier).</div>
+          </div>
+        </div>
+
       </div>
     </aside>
     <div id="backdrop" class="backdrop" aria-hidden="true"></div>
@@ -213,7 +399,7 @@
   <canvas id="pad"></canvas>
 
   <script>
-    // Optional, minimal service worker (install/activate only; no fetch interception)
+    // Optional, minimal service worker
     if ('serviceWorker' in navigator) {
       const sw = `
         self.addEventListener('install', e => self.skipWaiting());
@@ -226,20 +412,28 @@
 
     // DOM refs
     const canvas     = document.getElementById('pad');
-    const ctx        = canvas.getContext('2d', { alpha:false, desynchronized:true }); // hint lower latency
+    const ctx        = canvas.getContext('2d', { alpha:false, desynchronized:true });
     const menuBtn    = document.getElementById('menuBtn');
     const clearBtn   = document.getElementById('clearBtn');
     const drawerHost = document.getElementById('drawerHost');
     const drawer     = document.getElementById('drawer');
     const backdrop   = document.getElementById('backdrop');
 
-    // Drawing state (optimized for smoothness)
-    const MAX_DPR = 2;
-    const STROKE_MIN = 1;
-    const STROKE_RANGE = 4;
-    const WIDTH_LERP = 0.35;
-    const WIDTH_EPS = 0.1;
+    // Settings (defaults preserved)
+    const CURVE_OPTS = ['Soft','Linear','Firm'];
+    const CURVE_GAMMA = { Soft:0.5, Linear:1, Firm:2 };
 
+    const settings = {
+      inkColor: '#000000',
+      minWidth: 1.0,
+      maxWidth: 5.0,
+      curve: 'Linear',
+      smoothing: 0.35,
+      stabilizer: 0,
+      mode: 'Smoothness',
+    };
+
+    // Drawing state
     const state = {
       dpr: 1,
       cssW: 0,
@@ -249,21 +443,57 @@
       pointerId: null,
       lastX: 0,
       lastY: 0,
-      filteredW: STROKE_MIN + STROKE_RANGE,
-      queue: [],           // points queued for next frame: {x,y,w}
+      sx: 0, sy: 0,
+      filteredW: settings.maxWidth,
+      queue: [],
       needsRender: false,
       rafId: 0,
-      drawerOpen: false
+      modeSharp: false
     };
 
-    function getDPR(){
-      const raw = (typeof window.devicePixelRatio === 'number' && window.devicePixelRatio > 0)
+    // Robust touch-only context menu suppression
+    const TOUCH_CTX_GUARD_MS = 1500;
+    let lastTouchTs = 0;
+
+    // Record recent touch activity (capture phase to run before anything else)
+    window.addEventListener('touchstart', () => { lastTouchTs = performance.now(); }, { capture:true, passive:true });
+    window.addEventListener('touchend',   () => { lastTouchTs = performance.now(); }, { capture:true, passive:true });
+
+    // Block context menu if it came from touch (keeps right-click for mouse/stylus)
+    document.addEventListener('contextmenu', (e) => {
+      const fromTouch = (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) ||
+                        (performance.now() - lastTouchTs) < TOUCH_CTX_GUARD_MS;
+      if (fromTouch) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, { capture:true });
+
+    function getDeviceDPR(){
+      return (typeof window.devicePixelRatio === 'number' && window.devicePixelRatio > 0)
         ? window.devicePixelRatio : 1;
-      return Math.min(MAX_DPR, Math.max(1, raw));
     }
 
-    function sizeCanvas(){
-      state.dpr = getDPR();
+    function computeDPR(){
+      const raw = getDeviceDPR();
+      return state.modeSharp ? raw : Math.min(2, raw);
+    }
+
+    function sizeCanvas(preserve = false){
+      // Copy current bitmap before resize if requested
+      let tmp = null;
+      if (preserve && canvas.width && canvas.height){
+        if (typeof OffscreenCanvas !== 'undefined') {
+          tmp = new OffscreenCanvas(canvas.width, canvas.height);
+        } else {
+          tmp = document.createElement('canvas');
+          tmp.width = canvas.width; tmp.height = canvas.height;
+        }
+        const tctx = tmp.getContext('2d');
+        tctx.drawImage(canvas, 0, 0);
+      }
+
+      state.dpr = computeDPR();
       state.cssW = window.innerWidth;
       state.cssH = window.innerHeight;
 
@@ -272,34 +502,46 @@
       canvas.width  = Math.floor(state.cssW * state.dpr);
       canvas.height = Math.floor(state.cssH * state.dpr);
 
+      ctx.setTransform(1,0,0,1,0,0);
+      if (preserve && tmp){
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Draw previous bitmap scaled
+        const tw = tmp.width || tmp.bitmapWidth || canvas.width;
+        const th = tmp.height || tmp.bitmapHeight || canvas.height;
+        ctx.drawImage(tmp, 0, 0, tw, th, 0, 0, canvas.width, canvas.height);
+      } else {
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
       ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      ctx.strokeStyle = '#000';
+      ctx.strokeStyle = settings.inkColor;
 
-      // Paint white background (no transform churn)
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, state.cssW, state.cssH);
-
-      // Cache rect for fast coords
       const r = canvas.getBoundingClientRect();
       state.rect.left = r.left;
       state.rect.top  = r.top;
     }
 
     function xyFromEvent(e){
-      // Use cached rect; update at pointerdown and resize
       return { x: e.clientX - state.rect.left, y: e.clientY - state.rect.top };
     }
 
     function pressureOf(e){
-      return (typeof e.pressure === 'number' && e.pressure > 0) ? e.pressure : 1;
+      const p = (typeof e.pressure === 'number') ? e.pressure : 1;
+      return (p > 0) ? Math.min(1, Math.max(0, p)) : 1;
+    }
+
+    function pressureToWidth(p){
+      const gamma = CURVE_GAMMA[settings.curve] || 1;
+      const t = Math.pow(p, gamma);
+      const w = settings.minWidth + (settings.maxWidth - settings.minWidth) * t;
+      return Math.max(0.25, Math.min(64, w));
     }
 
     function openDrawer(){
-      if (state.drawerOpen) return;
-      state.drawerOpen = true;
-      menuBtn.classList.add('hidden');                 // hide immediately
+      menuBtn.classList.add('hidden');
       menuBtn.setAttribute('aria-expanded', 'true');
       drawerHost.classList.add('open');
       drawerHost.setAttribute('aria-hidden', 'false');
@@ -307,9 +549,6 @@
     }
 
     function closeDrawer(){
-      if (!state.drawerOpen) return;
-      state.drawerOpen = false;
-
       drawerHost.classList.remove('open');
       drawerHost.setAttribute('aria-hidden', 'true');
       drawer.setAttribute('aria-hidden', 'true');
@@ -318,27 +557,26 @@
       const onEnd = (e) => {
         if (e.target !== drawer || e.propertyName !== 'transform') return;
         drawer.removeEventListener('transitionend', onEnd);
-        menuBtn.classList.remove('hidden');            // show after slide-out completes
+        menuBtn.classList.remove('hidden');
       };
       drawer.addEventListener('transitionend', onEnd, { once:true });
 
-      // Fallback if transitionend doesn't fire
       setTimeout(() => menuBtn.classList.remove('hidden'), 320);
     }
 
-    // Event wiring for drawer
+    // Drawer interactions
     menuBtn.addEventListener('pointerdown', openDrawer, { passive:true });
-    menuBtn.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') openDrawer();
-    });
+    menuBtn.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') openDrawer(); });
     backdrop.addEventListener('pointerdown', closeDrawer, { passive:true });
+    drawer.addEventListener('pointerdown', (e) => e.stopPropagation(), { passive:true });
     window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); }, { passive:true });
 
     // Drawing handlers — rAF + coalesced events, pen-only
+    const moveEventName = ('onpointerrawupdate' in window) ? 'pointerrawupdate' : 'pointermove';
+
     function startStroke(e){
       if (e.pointerType !== 'pen' || e.button !== 0) return;
 
-      // Refresh rect in case layout changed
       const r = canvas.getBoundingClientRect();
       state.rect.left = r.left;
       state.rect.top  = r.top;
@@ -348,12 +586,11 @@
       state.pointerId = e.pointerId;
 
       const { x, y } = xyFromEvent(e);
-      state.lastX = x;
-      state.lastY = y;
+      state.lastX = x; state.lastY = y;
+      state.sx = x; state.sy = y;
 
-      const w0 = STROKE_MIN + pressureOf(e) * STROKE_RANGE;
-      state.filteredW = w0;
-      state.needsRender = true; // trigger frame even if next event is delayed
+      state.filteredW = pressureToWidth(pressureOf(e));
+      state.needsRender = true;
     }
 
     function moveStroke(e){
@@ -363,10 +600,30 @@
 
       for (let i = 0; i < src.length; i++){
         const ev = src[i];
-        const { x, y } = xyFromEvent(ev);
-        const targetW = STROKE_MIN + pressureOf(ev) * STROKE_RANGE;
-        state.filteredW += (targetW - state.filteredW) * WIDTH_LERP;
-        state.queue.push({ x, y, w: state.filteredW });
+        const { x:rx, y:ry } = xyFromEvent(ev);
+
+        // Path stabilizer
+        let x = rx, y = ry;
+        const S = settings.stabilizer;
+        if (S > 0){
+          const dx = rx - state.sx, dy = ry - state.sy;
+          const dist = Math.hypot(dx, dy);
+          if (dist > 0){
+            const step = Math.min(dist, S);
+            const t = step / dist;
+            x = state.sx + dx * t;
+            y = state.sy + dy * t;
+          }
+          state.sx = x; state.sy = y;
+        } else {
+          state.sx = x; state.sy = y;
+        }
+
+        // Width smoothing (width only)
+        const targetW = pressureToWidth(pressureOf(ev));
+        state.filteredW += (targetW - state.filteredW) * settings.smoothing;
+
+        state.queue.push({ x, y, w: state.filteredW, color: settings.inkColor });
       }
 
       state.needsRender = true;
@@ -376,51 +633,59 @@
       if (e.pointerId !== state.pointerId) return;
       state.drawing = false;
       state.pointerId = null;
-      // Ensure any remaining queued points are flushed next frame
       state.needsRender = true;
       try { canvas.releasePointerCapture(e.pointerId); } catch {}
     }
 
-    // Choose the fastest move event available
-    const moveEventName = ('onpointerrawupdate' in window) ? 'pointerrawupdate' : 'pointermove';
-
-    // Add listeners (no preventDefault needed thanks to touch-action: none)
     canvas.addEventListener('pointerdown', startStroke, { passive:true });
     canvas.addEventListener(moveEventName, moveStroke,   { passive:true });
     canvas.addEventListener('pointerup',   endStroke,    { passive:true });
     canvas.addEventListener('pointercancel', endStroke,  { passive:true });
     canvas.addEventListener('pointerout',  endStroke,    { passive:true });
 
-    // Clear button — no transform churn
+    // Clear button
     function clearCanvas(){
+      ctx.setTransform(1,0,0,1,0,0);
       ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, state.cssW, state.cssH);
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
     }
     clearBtn.addEventListener('click', clearCanvas, { passive:true });
 
-    // Render loop: batch per frame, segment on significant width changes
+    // Render loop
+    const WIDTH_EPS = 0.1;
     function render(){
       if (state.needsRender){
         state.needsRender = false;
 
         let currentLW = -1;
         let pathOpen = false;
+        let currentColor = null;
 
-        // Drain queue this frame
         while (state.queue.length){
           const p = state.queue.shift();
-          const lw = Math.max(0.5, Math.min(STROKE_MIN + STROKE_RANGE, p.w));
+          const lw = Math.max(0.25, Math.min(64, p.w));
 
           if (!pathOpen){
             ctx.beginPath();
             ctx.moveTo(state.lastX, state.lastY);
             ctx.lineWidth = lw;
+            ctx.strokeStyle = p.color;
             currentLW = lw;
+            currentColor = p.color;
             pathOpen = true;
           }
 
+          if (p.color !== currentColor){
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(state.lastX, state.lastY);
+            ctx.lineWidth = lw;
+            ctx.strokeStyle = p.color;
+            currentColor = p.color;
+          }
+
           if (Math.abs(lw - currentLW) > WIDTH_EPS){
-            // Commit previous segment before changing width
             ctx.stroke();
             ctx.beginPath();
             ctx.moveTo(state.lastX, state.lastY);
@@ -435,7 +700,6 @@
 
         if (pathOpen){
           ctx.stroke();
-          // Start a fresh subpath next frame to keep width segments isolated
           pathOpen = false;
         }
       }
@@ -443,9 +707,108 @@
       state.rafId = requestAnimationFrame(render);
     }
 
+    // UI: Palette
+    (function initPalette(){
+      const el = document.getElementById('palette');
+      el.addEventListener('pointerdown', (e) => {
+        const btn = e.target.closest('.swatch');
+        if (!btn) return;
+        const color = btn.getAttribute('data-color');
+        settings.inkColor = color;
+        for (const b of el.querySelectorAll('.swatch')) b.setAttribute('aria-pressed', 'false');
+        btn.setAttribute('aria-pressed', 'true');
+      }, { passive:true });
+    })();
+
+    // UI: Stepper helpers
+    function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+    function fmt(v, decimals=0, suffix=''){ return v.toFixed(decimals) + (suffix ? ' ' + suffix : ''); }
+
+    function bindNumberStepper(id, get, set, {min, max, step, decimals=0, suffix=''}) {
+      const root = document.getElementById(id);
+      const minus = root.querySelector('.minus');
+      const plus  = root.querySelector('.plus');
+      const val   = root.querySelector('.val');
+      function render(){ val.textContent = fmt(get(), decimals, suffix); }
+      function bump(dir){
+        let v = get();
+        v = clamp(v + dir*step, min, max);
+        set(v);
+        render();
+      }
+      minus.addEventListener('click', () => bump(-1), { passive:true });
+      plus.addEventListener('click',  () => bump(+1), { passive:true });
+      render();
+    }
+
+    function bindEnumStepper(id, options, get, set){
+      const root = document.getElementById(id);
+      const minus = root.querySelector('.minus');
+      const plus  = root.querySelector('.plus');
+      const val   = root.querySelector('.val');
+      function idx(){ return Math.max(0, options.indexOf(get())); }
+      function render(){ val.textContent = options[idx()]; }
+      function bump(dir){
+        const i = (idx() + dir + options.length) % options.length;
+        set(options[i]);
+        render();
+      }
+      minus.addEventListener('click', () => bump(-1), { passive:true });
+      plus.addEventListener('click',  () => bump(+1), { passive:true });
+      render();
+    }
+
+    // Wire steppers
+    bindNumberStepper('minW',
+      () => settings.minWidth,
+      (v) => {
+        settings.minWidth = v;
+        if (settings.maxWidth < v) settings.maxWidth = v;
+      },
+      { min:0.5, max:20, step:0.5, decimals:1, suffix:'px' }
+    );
+
+    bindNumberStepper('maxW',
+      () => settings.maxWidth,
+      (v) => {
+        settings.maxWidth = v;
+        if (settings.minWidth > v) settings.minWidth = v;
+      },
+      { min:0.5, max:20, step:0.5, decimals:1, suffix:'px' }
+    );
+
+    bindEnumStepper('curve', CURVE_OPTS,
+      () => settings.curve,
+      (v) => { settings.curve = v; }
+    );
+
+    bindNumberStepper('smooth',
+      () => settings.smoothing,
+      (v) => { settings.smoothing = v; },
+      { min:0, max:1, step:0.05, decimals:2 }
+    );
+
+    bindNumberStepper('stabilizer',
+      () => settings.stabilizer,
+      (v) => { settings.stabilizer = v; },
+      { min:0, max:20, step:1, decimals:0, suffix:'px' }
+    );
+
+    bindEnumStepper('mode', ['Smoothness','Sharpness'],
+      () => settings.mode,
+      (v) => {
+        const wasSharp = (settings.mode === 'Sharpness');
+        settings.mode = v;
+        state.modeSharp = (v === 'Sharpness');
+        const nowSharp = state.modeSharp;
+        if (wasSharp !== nowSharp) sizeCanvas(true);
+      }
+    );
+
     // Initialize
-    sizeCanvas();
-    window.addEventListener('resize', sizeCanvas, { passive:true });
+    state.modeSharp = (settings.mode === 'Sharpness');
+    sizeCanvas(false);
+    window.addEventListener('resize', () => sizeCanvas(true), { passive:true });
     state.rafId = requestAnimationFrame(render);
   </script>
 </body>
