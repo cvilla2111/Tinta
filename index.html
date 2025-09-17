@@ -311,11 +311,11 @@
               <div class="label">Min width</div>
               <div class="stepper" id="minW">
                 <button class="minus" aria-label="Decrease min width">−</button>
-                <div class="val" aria-live="polite">1.0 px</div>
+                <div class="val" aria-live="polite">0.5 px</div>
                 <button class="plus" aria-label="Increase min width">+</button>
               </div>
             </div>
-            <div class="note">Thinnest line at lightest pressure. Default: 1 px.</div>
+            <div class="note">Thinnest line at lightest pressure. Default: 0.5 px.</div>
           </div>
 
           <div class="control">
@@ -323,11 +323,11 @@
               <div class="label">Max width</div>
               <div class="stepper" id="maxW">
                 <button class="minus" aria-label="Decrease max width">−</button>
-                <div class="val" aria-live="polite">5.0 px</div>
+                <div class="val" aria-live="polite">8.0 px</div>
                 <button class="plus" aria-label="Increase max width">+</button>
               </div>
             </div>
-            <div class="note">Thickest line at firm pressure. Default: 5 px.</div>
+            <div class="note">Thickest line at firm pressure. Default: 8 px.</div>
           </div>
         </div>
 
@@ -339,11 +339,11 @@
               <div class="label">Response</div>
               <div class="stepper" id="curve">
                 <button class="minus" aria-label="Previous curve">−</button>
-                <div class="val" aria-live="polite">Linear</div>
+                <div class="val" aria-live="polite">Firm</div>
                 <button class="plus" aria-label="Next curve">+</button>
               </div>
             </div>
-            <div class="note">Soft = thicker with light touch • Linear (default) • Firm = needs more pressure.</div>
+            <div class="note">Soft = thicker with light touch • Linear • Firm (default) = needs more pressure.</div>
           </div>
         </div>
 
@@ -419,15 +419,15 @@
     const drawer     = document.getElementById('drawer');
     const backdrop   = document.getElementById('backdrop');
 
-    // Settings (defaults preserved)
+    // Settings (UPDATED DEFAULTS)
     const CURVE_OPTS = ['Soft','Linear','Firm'];
     const CURVE_GAMMA = { Soft:0.5, Linear:1, Firm:2 };
 
     const settings = {
       inkColor: '#000000',
-      minWidth: 1.0,
-      maxWidth: 5.0,
-      curve: 'Linear',
+      minWidth: 0.5,     // default updated
+      maxWidth: 8.0,     // default updated
+      curve: 'Firm',     // default updated
       smoothing: 0.35,
       stabilizer: 0,
       mode: 'Smoothness',
@@ -451,15 +451,11 @@
       modeSharp: false
     };
 
-    // Robust touch-only context menu suppression
+    // Touch-only context menu suppression
     const TOUCH_CTX_GUARD_MS = 1500;
     let lastTouchTs = 0;
-
-    // Record recent touch activity (capture phase to run before anything else)
     window.addEventListener('touchstart', () => { lastTouchTs = performance.now(); }, { capture:true, passive:true });
     window.addEventListener('touchend',   () => { lastTouchTs = performance.now(); }, { capture:true, passive:true });
-
-    // Block context menu if it came from touch (keeps right-click for mouse/stylus)
     document.addEventListener('contextmenu', (e) => {
       const fromTouch = (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) ||
                         (performance.now() - lastTouchTs) < TOUCH_CTX_GUARD_MS;
@@ -480,7 +476,6 @@
     }
 
     function sizeCanvas(preserve = false){
-      // Copy current bitmap before resize if requested
       let tmp = null;
       if (preserve && canvas.width && canvas.height){
         if (typeof OffscreenCanvas !== 'undefined') {
@@ -506,7 +501,6 @@
       if (preserve && tmp){
         ctx.fillStyle = '#fff';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        // Draw previous bitmap scaled
         const tw = tmp.width || tmp.bitmapWidth || canvas.width;
         const th = tmp.height || tmp.bitmapHeight || canvas.height;
         ctx.drawImage(tmp, 0, 0, tw, th, 0, 0, canvas.width, canvas.height);
