@@ -301,7 +301,7 @@
             <label>Min Width</label>
             <div class="stroke-stepper">
                 <button class="stepper-button" onclick="changeMinWidth(-0.1)">−</button>
-                <span class="stroke-value" id="minWidthValue">0.3</span>
+                <span class="stroke-value" id="minWidthValue">0.1</span>
                 <button class="stepper-button" onclick="changeMinWidth(0.1)">+</button>
             </div>
         </div>
@@ -310,7 +310,7 @@
             <label>Max Width</label>
             <div class="stroke-stepper">
                 <button class="stepper-button" onclick="changeMaxWidth(-0.1)">−</button>
-                <span class="stroke-value" id="maxWidthValue">1.5</span>
+                <span class="stroke-value" id="maxWidthValue">2.5</span>
                 <button class="stepper-button" onclick="changeMaxWidth(0.1)">+</button>
             </div>
         </div>
@@ -319,7 +319,7 @@
             <label>Sensitivity</label>
             <div class="stroke-stepper">
                 <button class="stepper-button" onclick="changeSensitivity(-0.1)">−</button>
-                <span class="stroke-value" id="sensitivityValue">1.0</span>
+                <span class="stroke-value" id="sensitivityValue">0.3</span>
                 <button class="stepper-button" onclick="changeSensitivity(0.1)">+</button>
             </div>
         </div>
@@ -328,7 +328,7 @@
             <label>Smoothing</label>
             <div class="stroke-stepper">
                 <button class="stepper-button" onclick="changeSmoothing(-0.1)">−</button>
-                <span class="stroke-value" id="smoothingValue">0.8</span>
+                <span class="stroke-value" id="smoothingValue">1.0</span>
                 <button class="stepper-button" onclick="changeSmoothing(0.1)">+</button>
             </div>
         </div>
@@ -421,10 +421,10 @@
         let pressureSensitivityEnabled = true; // User toggle for pressure sensitivity
         
         // Pressure settings
-        let minWidthMultiplier = 0.3; // Minimum width as multiplier of base width
-        let maxWidthMultiplier = 1.5; // Maximum width as multiplier of base width  
-        let pressureSensitivity = 1.0; // Sensitivity curve adjustment
-        let smoothingIntensity = 0.8; // Universal smoothing intensity (0 = none, 1 = maximum)
+        let minWidthMultiplier = 0.1; // Minimum width as multiplier of base width
+        let maxWidthMultiplier = 2.5; // Maximum width as multiplier of base width  
+        let pressureSensitivity = 0.3; // Sensitivity curve adjustment
+        let smoothingIntensity = 1.0; // Universal smoothing intensity (0 = none, 1 = maximum)
         
         function getCoords(e) {
             const rect = svg.getBoundingClientRect();
