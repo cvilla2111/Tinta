@@ -273,11 +273,69 @@
             pointer-events: none;
             transform: translateX(-10px);
         }
+        
+        #loadingOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            opacity: 1;
+            transition: opacity 0.5s ease;
+        }
+        
+        #loadingOverlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #f0f0f0;
+            border-top: 3px solid #5D5CDE;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 16px;
+            font-weight: 500;
+            color: #666;
+            text-align: center;
+        }
+        
+        .loading-subtext {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            color: #999;
+            margin-top: 8px;
+            text-align: center;
+        }
     </style>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script>
 </head>
 <body>
+    <div id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Vector Canvas</div>
+        <div class="loading-subtext">Initializing drawing engine...</div>
+    </div>
+    
     <svg id="canvas" xmlns="http://www.w3.org/2000/svg"></svg>
     
     <div id="eraserCursor" class="eraser-cursor"></div>
@@ -426,21 +484,59 @@
             updateAllStrokeWidths();
         }
         
-        // Initialize with proper timing to avoid stroke width issues
-        function initializeCanvas() {
-            // Ensure viewport is stable before calculating stroke widths
-            resizeSVG();
-            updateAllStrokeWidths();
-            console.log('Canvas initialized with proper stroke width');
+        // Initialize with proper loading sequence
+        async function initializeCanvas() {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const subtext = loadingOverlay.querySelector('.loading-subtext');
+            
+            try {
+                // Step 1: Initialize viewport
+                subtext.textContent = 'Setting up canvas...';
+                await new Promise(resolve => setTimeout(resolve, 200));
+                resizeSVG();
+                
+                // Step 2: Calculate stroke widths
+                subtext.textContent = 'Calculating stroke widths...';
+                await new Promise(resolve => setTimeout(resolve, 200));
+                updateAllStrokeWidths();
+                
+                // Step 3: Initialize UI controls
+                subtext.textContent = 'Initializing controls...';
+                await new Promise(resolve => setTimeout(resolve, 200));
+                updatePressureControlsVisibility();
+                
+                // Step 4: Load Lucide icons
+                subtext.textContent = 'Loading icons...';
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+                await new Promise(resolve => setTimeout(resolve, 300));
+                
+                // Step 5: Final setup
+                subtext.textContent = 'Ready to draw!';
+                await new Promise(resolve => setTimeout(resolve, 200));
+                
+                console.log('Canvas fully initialized and ready');
+                
+                // Hide loading overlay with smooth transition
+                loadingOverlay.classList.add('hidden');
+                
+                // Remove loading overlay from DOM after transition
+                setTimeout(() => {
+                    loadingOverlay.remove();
+                }, 500);
+                
+            } catch (error) {
+                console.error('Error during initialization:', error);
+                subtext.textContent = 'Error loading app. Please refresh.';
+            }
         }
         
-        // Initialize after DOM is ready and viewport is stable
+        // Initialize with proper sequence after DOM is ready
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => {
-                setTimeout(initializeCanvas, 100); // Small delay to ensure viewport is stable
-            });
+            document.addEventListener('DOMContentLoaded', initializeCanvas);
         } else {
-            setTimeout(initializeCanvas, 100);
+            initializeCanvas();
         }
         
         window.addEventListener('resize', resizeSVG);
