@@ -919,13 +919,11 @@
                 e.target.classList.add('selected');
                 
                 const color = e.target.dataset.color;
-                // Update current color for new strokes
+                // Update current color for new strokes only
                 currentColor = color;
                 
-                // Update the CSS class for both stroke and fill (covers both drawing modes)
-                const style = document.createElement('style');
-                style.textContent = `.drawing-path { stroke: ${color}; fill: ${color}; }`;
-                document.head.appendChild(style);
+                // No global CSS update - colors are set individually on each path when created
+                console.log(`Color changed to: ${color}`);
             });
         });
         
