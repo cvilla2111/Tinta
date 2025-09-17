@@ -58,62 +58,90 @@
         let isDrawing = false;
         let lastX = 0;
         let lastY = 0;
+        let animationId = null;
+
+        // Throttle drawing for better performance
+        let pendingDraw = false;
 
         function startDrawing(e) {
+            e.preventDefault();
             isDrawing = true;
             [lastX, lastY] = getCoordinates(e);
+            
+            // Start a new path
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
         }
 
         function draw(e) {
             if (!isDrawing) return;
+            if (pendingDraw) return;
             
-            const [currentX, currentY] = getCoordinates(e);
+            pendingDraw = true;
             
-            ctx.beginPath();
-            ctx.moveTo(lastX, lastY);
-            ctx.lineTo(currentX, currentY);
-            ctx.stroke();
-            
-            [lastX, lastY] = [currentX, currentY];
+            animationId = requestAnimationFrame(() => {
+                const [currentX, currentY] = getCoordinates(e);
+                
+                ctx.lineTo(currentX, currentY);
+                ctx.stroke();
+                
+                [lastX, lastY] = [currentX, currentY];
+                pendingDraw = false;
+            });
         }
 
-        function stopDrawing() {
+        function stopDrawing(e) {
+            if (!isDrawing) return;
+            e.preventDefault();
+            
             isDrawing = false;
+            
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            
+            pendingDraw = false;
+            ctx.beginPath(); // End current path
         }
 
         function getCoordinates(e) {
             const rect = canvas.getBoundingClientRect();
-            if (e.touches) {
+            
+            // Handle different event types
+            if (e.touches && e.touches.length > 0) {
                 return [e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top];
+            } else if (e.clientX !== undefined) {
+                return [e.clientX - rect.left, e.clientY - rect.top];
             }
-            return [e.clientX - rect.left, e.clientY - rect.top];
+            
+            return [lastX, lastY]; // Fallback
         }
 
-        // Mouse events
-        canvas.addEventListener('mousedown', startDrawing);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stopDrawing);
-        canvas.addEventListener('mouseout', stopDrawing);
+        // Use only pointer events for better performance and pen support
+        canvas.addEventListener('pointerdown', startDrawing, { passive: false });
+        canvas.addEventListener('pointermove', draw, { passive: false });
+        canvas.addEventListener('pointerup', stopDrawing, { passive: false });
+        canvas.addEventListener('pointercancel', stopDrawing, { passive: false });
+        canvas.addEventListener('pointerout', stopDrawing, { passive: false });
 
-        // Touch events for surface pen and touch
-        canvas.addEventListener('touchstart', (e) => {
+        // Prevent context menu on right click
+        canvas.addEventListener('contextmenu', (e) => {
             e.preventDefault();
-            startDrawing(e);
-        });
-        canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            draw(e);
-        });
-        canvas.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            stopDrawing();
         });
 
-        // Pointer events for better pen support
-        canvas.addEventListener('pointerdown', startDrawing);
-        canvas.addEventListener('pointermove', draw);
-        canvas.addEventListener('pointerup', stopDrawing);
-        canvas.addEventListener('pointerout', stopDrawing);
+        // Prevent zoom and other gestures
+        document.addEventListener('gesturestart', (e) => {
+            e.preventDefault();
+        });
+
+        document.addEventListener('gesturechange', (e) => {
+            e.preventDefault();
+        });
+
+        document.addEventListener('gestureend', (e) => {
+            e.preventDefault();
+        });
     </script>
 </body>
 </html>
