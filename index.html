@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>Simple Pen Pad</title>
+  <title>Simple Pen Pad — Smooth</title>
 
   <!-- Minimal PWA manifest (inline data URL) -->
   <meta name="theme-color" content="#ffffff" />
@@ -22,12 +22,25 @@
 
   <style>
     :root{
+      /* UI sizing */
       --btn-size:35px;
       --btn-radius:4px;
       --btn-border:0.75px;
       --icon-size:24px;
       --icon-stroke:0.75px;
+
+      /* Safe areas */
       --safe-top:env(safe-area-inset-top, 0px);
+      --safe-left:env(safe-area-inset-left, 0px);
+      --safe-right:env(safe-area-inset-right, 0px);
+
+      /* Drawer */
+      --drawer-w:280px;
+      --drawer-max-w:85vw;
+      --drawer-border:#000;
+      --drawer-dur:220ms;
+      --drawer-ease:cubic-bezier(.2,.7,.2,1);
+      --backdrop-max:0.12; /* subtle */
     }
     html,body{
       margin:0;
@@ -35,24 +48,36 @@
       background:#fff;
       overscroll-behavior:none;
     }
-    body{position:relative}
+    body{ position:relative }
+
+    /* Canvas */
     #pad{
       display:block;
       width:100%;
       height:100%;
       background:#fff;
-      touch-action:none;        /* no panning/zooming */
+      touch-action:none;             /* prevent panning/zooming */
       cursor:crosshair;
     }
 
-    /* Toolbar (top-right) */
-    .toolbar{
+    /* Top-right toolbar (Clear) */
+    .toolbar-right{
       position:fixed;
       top:calc(var(--safe-top) + 10px);
-      right:10px;
+      right:calc(var(--safe-right) + 10px);
       z-index:10;
-      pointer-events:none;      /* let pen events reach canvas */
+      pointer-events:none;           /* pen events reach canvas */
     }
+
+    /* Top-left toolbar (Menu) */
+    .toolbar-left{
+      position:fixed;
+      top:calc(var(--safe-top) + 10px);
+      left:calc(var(--safe-left) + 10px);
+      z-index:10;
+      pointer-events:none;
+    }
+
     .btn{
       width:var(--btn-size);
       height:var(--btn-size);
@@ -63,10 +88,10 @@
       align-items:center;
       justify-content:center;
       box-sizing:border-box;
-      pointer-events:auto;      /* clickable */
+      pointer-events:auto;           /* clickable */
       touch-action:manipulation;
     }
-    .btn:active{background:#f2f2f2}
+    .btn:active{ background:#f2f2f2 }
     .btn svg{
       width:var(--icon-size);
       height:var(--icon-size);
@@ -77,12 +102,92 @@
       fill:none;
       vector-effect:non-scaling-stroke;
     }
+
+    /* Drawer host overlays the app when open */
+    .drawer-host{
+      position:fixed;
+      inset:0;
+      z-index:20;
+      pointer-events:none;           /* off by default */
+      contain:layout paint style;    /* isolate painting/layout */
+    }
+    .drawer-host.open{ pointer-events:auto; }
+
+    /* Slide-in drawer panel */
+    .drawer{
+      position:absolute;
+      top:0;
+      left:0;
+      width:var(--drawer-w);
+      max-width:var(--drawer-max-w);
+      height:100%;
+      background:#fff;
+      border-right:var(--btn-border) solid var(--drawer-border);
+      transform:translate3d(-100%,0,0);
+      transition:transform var(--drawer-dur) var(--drawer-ease);
+      will-change:transform;
+      contain:layout paint size style;
+    }
+    .drawer-host.open .drawer{ transform:translate3d(0,0,0); }
+
+    /* Backdrop that catches outside clicks/touches */
+    .backdrop{
+      position:absolute;
+      inset:0;
+      background:rgba(0,0,0,0);
+      transition:background-color var(--drawer-dur) linear;
+      will-change:background-color;
+      pointer-events:none;           /* off until open */
+      contain:layout paint;
+    }
+    .drawer-host.open .backdrop{
+      background:rgba(0,0,0,var(--backdrop-max));
+      pointer-events:auto;
+    }
+
+    /* Drawer content */
+    .drawer-content{
+      padding:16px;
+      font-family:system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      color:#000;
+      line-height:1.4;
+      user-select:none;
+    }
+    .drawer-content h2{
+      margin:0 0 12px 0;
+      font-size:16px;
+    }
+    .drawer-content .hint{
+      font-size:12px;
+      color:#333;
+      opacity:.8;
+    }
+
+    .hidden{ display:none !important; }
+
+    @media (prefers-reduced-motion: reduce){
+      .drawer{ transition:none !important; }
+      .backdrop{ transition:none !important; }
+    }
   </style>
 </head>
 <body>
-  <div class="toolbar">
-    <!-- Clear button with Lucide "trash-2" icon -->
+  <!-- Top-left: Menu button -->
+  <div class="toolbar-left">
+    <button id="menuBtn" class="btn" aria-label="Open menu" aria-expanded="false" aria-controls="drawer" title="Menu">
+      <!-- Lucide "menu" icon -->
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 6h16" />
+        <path d="M4 12h16" />
+        <path d="M4 18h16" />
+      </svg>
+    </button>
+  </div>
+
+  <!-- Top-right: Clear button -->
+  <div class="toolbar-right">
     <button id="clearBtn" class="btn" aria-label="Clear canvas" title="Clear">
+      <!-- Lucide "trash-2" icon -->
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M3 6h18" />
         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
@@ -93,102 +198,255 @@
     </button>
   </div>
 
+  <!-- Slide-in drawer (left) and backdrop -->
+  <div id="drawerHost" class="drawer-host" aria-hidden="true">
+    <aside id="drawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
+      <div class="drawer-content">
+        <h2 id="drawerTitle">Menu</h2>
+        <div class="hint">Tap/click outside the panel to close.</div>
+        <!-- Add any menu items here -->
+      </div>
+    </aside>
+    <div id="backdrop" class="backdrop" aria-hidden="true"></div>
+  </div>
+
   <canvas id="pad"></canvas>
 
   <script>
-    // Service worker (offline)
+    // Optional, minimal service worker (install/activate only; no fetch interception)
     if ('serviceWorker' in navigator) {
       const sw = `
-        const CACHE = 'pen-pad-v1';
-        self.addEventListener('install', e => {
-          e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./'])));
-          self.skipWaiting();
-        });
+        self.addEventListener('install', e => self.skipWaiting());
         self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
-        self.addEventListener('fetch', e => {
-          e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
-        });
       `;
-      navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw], {type:'text/javascript'})));
+      navigator.serviceWorker.register(
+        URL.createObjectURL(new Blob([sw], {type:'text/javascript'}))
+      ).catch(()=>{});
     }
 
-    const canvas = document.getElementById('pad');
-    const ctx = canvas.getContext('2d', { alpha:false });
+    // DOM refs
+    const canvas     = document.getElementById('pad');
+    const ctx        = canvas.getContext('2d', { alpha:false, desynchronized:true }); // hint lower latency
+    const menuBtn    = document.getElementById('menuBtn');
+    const clearBtn   = document.getElementById('clearBtn');
+    const drawerHost = document.getElementById('drawerHost');
+    const drawer     = document.getElementById('drawer');
+    const backdrop   = document.getElementById('backdrop');
 
-    const state = { drawing:false };
-    const STROKE_MIN = 1, STROKE_RANGE = 4;
+    // Drawing state (optimized for smoothness)
+    const MAX_DPR = 2;
+    const STROKE_MIN = 1;
+    const STROKE_RANGE = 4;
+    const WIDTH_LERP = 0.35;
+    const WIDTH_EPS = 0.1;
+
+    const state = {
+      dpr: 1,
+      cssW: 0,
+      cssH: 0,
+      rect: { left:0, top:0 },
+      drawing: false,
+      pointerId: null,
+      lastX: 0,
+      lastY: 0,
+      filteredW: STROKE_MIN + STROKE_RANGE,
+      queue: [],           // points queued for next frame: {x,y,w}
+      needsRender: false,
+      rafId: 0,
+      drawerOpen: false
+    };
+
+    function getDPR(){
+      const raw = (typeof window.devicePixelRatio === 'number' && window.devicePixelRatio > 0)
+        ? window.devicePixelRatio : 1;
+      return Math.min(MAX_DPR, Math.max(1, raw));
+    }
 
     function sizeCanvas(){
-      const dpr = Math.max(1, window.devicePixelRatio || 1);
-      const w = window.innerWidth, h = window.innerHeight;
-      canvas.style.width = w + 'px';
-      canvas.style.height = h + 'px';
-      canvas.width = Math.floor(w * dpr);
-      canvas.height = Math.floor(h * dpr);
-      ctx.setTransform(dpr,0,0,dpr,0,0);
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0,0,w,h);
+      state.dpr = getDPR();
+      state.cssW = window.innerWidth;
+      state.cssH = window.innerHeight;
+
+      canvas.style.width = state.cssW + 'px';
+      canvas.style.height = state.cssH + 'px';
+      canvas.width  = Math.floor(state.cssW * state.dpr);
+      canvas.height = Math.floor(state.cssH * state.dpr);
+
+      ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.strokeStyle = '#000';
-      ctx.lineWidth = 2;
-    }
 
-    function isPen(e){ return e.pointerType === 'pen'; }
-    function pressure(e){ return e.pressure > 0 ? e.pressure : 1; }
-    function xy(e){
+      // Paint white background (no transform churn)
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, state.cssW, state.cssH);
+
+      // Cache rect for fast coords
       const r = canvas.getBoundingClientRect();
-      return { x: e.clientX - r.left, y: e.clientY - r.top };
+      state.rect.left = r.left;
+      state.rect.top  = r.top;
     }
 
-    canvas.addEventListener('pointerdown', (e) => {
-      if (!isPen(e) || e.button !== 0) { e.preventDefault(); return; }
+    function xyFromEvent(e){
+      // Use cached rect; update at pointerdown and resize
+      return { x: e.clientX - state.rect.left, y: e.clientY - state.rect.top };
+    }
+
+    function pressureOf(e){
+      return (typeof e.pressure === 'number' && e.pressure > 0) ? e.pressure : 1;
+    }
+
+    function openDrawer(){
+      if (state.drawerOpen) return;
+      state.drawerOpen = true;
+      menuBtn.classList.add('hidden');                 // hide immediately
+      menuBtn.setAttribute('aria-expanded', 'true');
+      drawerHost.classList.add('open');
+      drawerHost.setAttribute('aria-hidden', 'false');
+      drawer.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeDrawer(){
+      if (!state.drawerOpen) return;
+      state.drawerOpen = false;
+
+      drawerHost.classList.remove('open');
+      drawerHost.setAttribute('aria-hidden', 'true');
+      drawer.setAttribute('aria-hidden', 'true');
+      menuBtn.setAttribute('aria-expanded', 'false');
+
+      const onEnd = (e) => {
+        if (e.target !== drawer || e.propertyName !== 'transform') return;
+        drawer.removeEventListener('transitionend', onEnd);
+        menuBtn.classList.remove('hidden');            // show after slide-out completes
+      };
+      drawer.addEventListener('transitionend', onEnd, { once:true });
+
+      // Fallback if transitionend doesn't fire
+      setTimeout(() => menuBtn.classList.remove('hidden'), 320);
+    }
+
+    // Event wiring for drawer
+    menuBtn.addEventListener('pointerdown', openDrawer, { passive:true });
+    menuBtn.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') openDrawer();
+    });
+    backdrop.addEventListener('pointerdown', closeDrawer, { passive:true });
+    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); }, { passive:true });
+
+    // Drawing handlers — rAF + coalesced events, pen-only
+    function startStroke(e){
+      if (e.pointerType !== 'pen' || e.button !== 0) return;
+
+      // Refresh rect in case layout changed
+      const r = canvas.getBoundingClientRect();
+      state.rect.left = r.left;
+      state.rect.top  = r.top;
+
       canvas.setPointerCapture(e.pointerId);
       state.drawing = true;
-      const { x, y } = xy(e);
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      e.preventDefault();
-    }, { passive:false });
+      state.pointerId = e.pointerId;
 
-    canvas.addEventListener('pointermove', (e) => {
-      if (!state.drawing || !isPen(e)) return;
-      const { x, y } = xy(e);
-      ctx.lineWidth = STROKE_MIN + pressure(e) * STROKE_RANGE;
-      ctx.lineTo(x, y);
-      ctx.stroke();
-      e.preventDefault();
-    }, { passive:false });
+      const { x, y } = xyFromEvent(e);
+      state.lastX = x;
+      state.lastY = y;
 
-    function endDraw(e){
-      if (!state.drawing) return;
-      state.drawing = false;
-      try { canvas.releasePointerCapture(e.pointerId); } catch {}
-      e.preventDefault();
+      const w0 = STROKE_MIN + pressureOf(e) * STROKE_RANGE;
+      state.filteredW = w0;
+      state.needsRender = true; // trigger frame even if next event is delayed
     }
-    canvas.addEventListener('pointerup', endDraw, { passive:false });
-    canvas.addEventListener('pointercancel', endDraw, { passive:false });
-    canvas.addEventListener('pointerout', endDraw, { passive:false });
 
-    // Block finger/mouse drawing
-    canvas.addEventListener('pointerdown', (e) => {
-      if (!isPen(e)) e.preventDefault();
-    }, { passive:false });
-    canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive:false });
-    canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive:false });
-    canvas.addEventListener('touchend', (e) => e.preventDefault(), { passive:false });
+    function moveStroke(e){
+      if (!state.drawing || e.pointerId !== state.pointerId) return;
 
-    // Clear
-    document.getElementById('clearBtn').addEventListener('click', () => {
-      const dpr = Math.max(1, window.devicePixelRatio || 1);
-      const w = window.innerWidth, h = window.innerHeight;
-      ctx.setTransform(dpr,0,0,dpr,0,0);
+      const src = (typeof e.getCoalescedEvents === 'function') ? e.getCoalescedEvents() : [e];
+
+      for (let i = 0; i < src.length; i++){
+        const ev = src[i];
+        const { x, y } = xyFromEvent(ev);
+        const targetW = STROKE_MIN + pressureOf(ev) * STROKE_RANGE;
+        state.filteredW += (targetW - state.filteredW) * WIDTH_LERP;
+        state.queue.push({ x, y, w: state.filteredW });
+      }
+
+      state.needsRender = true;
+    }
+
+    function endStroke(e){
+      if (e.pointerId !== state.pointerId) return;
+      state.drawing = false;
+      state.pointerId = null;
+      // Ensure any remaining queued points are flushed next frame
+      state.needsRender = true;
+      try { canvas.releasePointerCapture(e.pointerId); } catch {}
+    }
+
+    // Choose the fastest move event available
+    const moveEventName = ('onpointerrawupdate' in window) ? 'pointerrawupdate' : 'pointermove';
+
+    // Add listeners (no preventDefault needed thanks to touch-action: none)
+    canvas.addEventListener('pointerdown', startStroke, { passive:true });
+    canvas.addEventListener(moveEventName, moveStroke,   { passive:true });
+    canvas.addEventListener('pointerup',   endStroke,    { passive:true });
+    canvas.addEventListener('pointercancel', endStroke,  { passive:true });
+    canvas.addEventListener('pointerout',  endStroke,    { passive:true });
+
+    // Clear button — no transform churn
+    function clearCanvas(){
       ctx.fillStyle = '#fff';
-      ctx.fillRect(0,0,w,h);
-    });
+      ctx.fillRect(0, 0, state.cssW, state.cssH);
+    }
+    clearBtn.addEventListener('click', clearCanvas, { passive:true });
 
+    // Render loop: batch per frame, segment on significant width changes
+    function render(){
+      if (state.needsRender){
+        state.needsRender = false;
+
+        let currentLW = -1;
+        let pathOpen = false;
+
+        // Drain queue this frame
+        while (state.queue.length){
+          const p = state.queue.shift();
+          const lw = Math.max(0.5, Math.min(STROKE_MIN + STROKE_RANGE, p.w));
+
+          if (!pathOpen){
+            ctx.beginPath();
+            ctx.moveTo(state.lastX, state.lastY);
+            ctx.lineWidth = lw;
+            currentLW = lw;
+            pathOpen = true;
+          }
+
+          if (Math.abs(lw - currentLW) > WIDTH_EPS){
+            // Commit previous segment before changing width
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(state.lastX, state.lastY);
+            ctx.lineWidth = lw;
+            currentLW = lw;
+          }
+
+          ctx.lineTo(p.x, p.y);
+          state.lastX = p.x;
+          state.lastY = p.y;
+        }
+
+        if (pathOpen){
+          ctx.stroke();
+          // Start a fresh subpath next frame to keep width segments isolated
+          pathOpen = false;
+        }
+      }
+
+      state.rafId = requestAnimationFrame(render);
+    }
+
+    // Initialize
     sizeCanvas();
-    window.addEventListener('resize', sizeCanvas);
+    window.addEventListener('resize', sizeCanvas, { passive:true });
+    state.rafId = requestAnimationFrame(render);
   </script>
 </body>
 </html>
