@@ -1,551 +1,194 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Surface Pen Writing App</title>
-    
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlN1cmZhY2UgUGVuIFdyaXRpbmcgQXBwIiwKICAic2hvcnRfbmFtZSI6ICJQZW5BcHAiLAogICJzdGFydF91cmwiOiAiLyIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiI2ZmZmZmZiIsCiAgInRoZW1lX2NvbG9yIjogIiNmZmZmZmYiLAogICJpY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUI0Yld4dWN6MGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtY3ZNakF3TUM5emRtY2lJR2hwWldkb2REMGlNVEk0SWlCM2FXUjBhRDBpTVRJNElpQjJhV1YzUW05NFBTSXdJREFnTVRJNElERTlJaUJtYVd4c1BTSWpabVptWm1abUlqNDhjbVZqZENCM2FXUjBhRDBpTVRJNElpQm9aV2xuYUhROUlqRXlPQ0lnWm1sc2JEMGlJMlptWm1abUlpOCtQQzl6ZG1jKyIsCiAgICAgICJzaXplcyI6ICIxMjh4MTI4IiwKICAgICAgInR5cGUiOiAiaW1hZ2Uvc3ZnK3htbCIKICAgIH0KICBdCn0=">
-    
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Simple Pen Pad</title>
 
-        html, body {
-            height: 100%;
-            width: 100%;
-            background-color: white;
-            overflow: hidden;
-            user-select: none;
-            font-family: Arial, sans-serif;
-        }
+  <!-- Minimal PWA manifest (inline data URL) -->
+  <meta name="theme-color" content="#ffffff" />
+  <link rel="manifest" href='data:application/manifest+json,{
+    "name":"Simple Pen Pad",
+    "short_name":"Pen Pad",
+    "start_url":".",
+    "display":"standalone",
+    "background_color":"#ffffff",
+    "theme_color":"#ffffff",
+    "icons":[
+      {"src":"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 192 192%22%3E%3Crect width=%22192%22 height=%22192%22 fill=%22white%22/%3E%3C/svg%3E","sizes":"192x192","type":"image/svg+xml"},
+      {"src":"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 512 512%22%3E%3Crect width=%22512%22 height=%22512%22 fill=%22white%22/%3E%3C/svg%3E","sizes":"512x512","type":"image/svg+xml"}
+    ]
+  }' />
 
-        .container {
-            display: flex;
-            width: 100vw;
-            height: 100vh;
-            position: relative;
-        }
+  <style>
+    :root{
+      --btn-size:35px;
+      --btn-radius:4px;
+      --btn-border:0.75px;
+      --icon-size:24px;
+      --icon-stroke:0.75px;
+      --safe-top:env(safe-area-inset-top, 0px);
+    }
+    html,body{
+      margin:0;
+      height:100%;
+      background:#fff;
+      overscroll-behavior:none;
+    }
+    body{position:relative}
+    #pad{
+      display:block;
+      width:100%;
+      height:100%;
+      background:#fff;
+      touch-action:none;        /* no panning/zooming */
+      cursor:crosshair;
+    }
 
-        .sidebar {
-            width: 15%;
-            height: 100vh;
-            background-color: #f5f5f5;
-            border-right: 1px solid #ddd;
-            transform: translateX(-100%);
-            transition: transform 0.3s ease;
-            position: absolute;
-            left: 0;
-            top: 0;
-            z-index: 10;
-            touch-action: auto;
-        }
-
-        .sidebar.open {
-            transform: translateX(0);
-        }
-
-        .canvas-container {
-            width: 100%;
-            height: 100vh;
-            position: relative;
-            background-color: white;
-        }
-
-        #canvas {
-            display: block;
-            background-color: white;
-            cursor: crosshair;
-            width: 100%;
-            height: 100%;
-            touch-action: none;
-        }
-
-        .menu-toggle {
-            position: absolute;
-            top: 20px;
-            left: 0;
-            z-index: 20;
-            background-color: white;
-            color: black;
-            border: 0.5px solid black;
-            padding: 8px 12px;
-            cursor: pointer;
-            font-size: 18px;
-            font-weight: normal;
-            border-radius: 0 8px 8px 0;
-            border-left: none;
-            opacity: 1;
-            visibility: visible;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
-            -webkit-text-stroke: 0.5px black;
-            text-stroke: 0.5px black;
-        }
-
-        .menu-toggle:hover {
-            background-color: #f0f0f0;
-        }
-
-        .menu-toggle.hidden {
-            opacity: 0;
-            visibility: hidden;
-        }
-
-        .sidebar-content {
-            padding: 60px 20px 20px 20px;
-            height: 100%;
-            touch-action: auto;
-        }
-
-        .sidebar h3 {
-            margin-bottom: 20px;
-            color: #333;
-            font-size: 16px;
-        }
-
-        .control-group {
-            margin-bottom: 25px;
-        }
-
-        .control-label {
-            display: block;
-            margin-bottom: 8px;
-            font-size: 14px;
-            color: #555;
-            font-weight: 500;
-        }
-
-        .slider-container {
-            position: relative;
-            margin-bottom: 10px;
-        }
-
-        .slider {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 100%;
-            height: 6px;
-            border-radius: 3px;
-            background: #ddd;
-            outline: none;
-            opacity: 0.7;
-            transition: opacity 0.2s;
-        }
-
-        .slider:hover {
-            opacity: 1;
-        }
-
-        .slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: #333;
-            cursor: pointer;
-            border: 2px solid white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-
-        .slider::-moz-range-thumb {
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: #333;
-            cursor: pointer;
-            border: 2px solid white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-
-        .value-display {
-            display: inline-block;
-            min-width: 30px;
-            text-align: center;
-            font-size: 12px;
-            color: #666;
-            background: #eee;
-            padding: 2px 6px;
-            border-radius: 3px;
-            margin-left: 8px;
-        }
-
-        .color-picker-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 8px;
-        }
-
-        .color-option {
-            width: 25px;
-            height: 25px;
-            border-radius: 50%;
-            cursor: pointer;
-            border: 2px solid transparent;
-            transition: all 0.2s ease;
-        }
-
-        .color-option:hover {
-            transform: scale(1.1);
-        }
-
-        .color-option.selected {
-            border-color: #333;
-            transform: scale(1.1);
-        }
-
-        .preview-stroke {
-            width: 100%;
-            height: 40px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            background: white;
-            margin-top: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .sidebar-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.3);
-            z-index: 5;
-            display: none;
-        }
-
-        .sidebar-overlay.show {
-            display: block;
-        }
-    </style>
+    /* Toolbar (top-right) */
+    .toolbar{
+      position:fixed;
+      top:calc(var(--safe-top) + 10px);
+      right:10px;
+      z-index:10;
+      pointer-events:none;      /* let pen events reach canvas */
+    }
+    .btn{
+      width:var(--btn-size);
+      height:var(--btn-size);
+      border-radius:var(--btn-radius);
+      background:#fff;
+      border:var(--btn-border) solid #000;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      box-sizing:border-box;
+      pointer-events:auto;      /* clickable */
+      touch-action:manipulation;
+    }
+    .btn:active{background:#f2f2f2}
+    .btn svg{
+      width:var(--icon-size);
+      height:var(--icon-size);
+      stroke:#000;
+      stroke-width:var(--icon-stroke);
+      stroke-linecap:round;
+      stroke-linejoin:round;
+      fill:none;
+      vector-effect:non-scaling-stroke;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="sidebar-overlay" id="sidebarOverlay"></div>
-        
-        <div class="sidebar" id="sidebar">
-            <div class="sidebar-content">
-                <h3>Ink Controls</h3>
-                
-                <div class="control-group">
-                    <label class="control-label">Stroke Width</label>
-                    <div class="slider-container">
-                        <input type="range" min="0.5" max="10" value="2" step="0.5" class="slider" id="strokeWidth">
-                        <span class="value-display" id="strokeWidthValue">2.0</span>
-                    </div>
-                </div>
+  <div class="toolbar">
+    <!-- Clear button with Lucide "trash-2" icon -->
+    <button id="clearBtn" class="btn" aria-label="Clear canvas" title="Clear">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 6h18" />
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+        <path d="M10 11v6" />
+        <path d="M14 11v6" />
+      </svg>
+    </button>
+  </div>
 
-                <div class="control-group">
-                    <label class="control-label">Smoothing</label>
-                    <div class="slider-container">
-                        <input type="range" min="0" max="1" value="0.8" step="0.1" class="slider" id="smoothing">
-                        <span class="value-display" id="smoothingValue">0.8</span>
-                    </div>
-                </div>
+  <canvas id="pad"></canvas>
 
-                <div class="control-group">
-                    <label class="control-label">Opacity</label>
-                    <div class="slider-container">
-                        <input type="range" min="0.1" max="1" value="1" step="0.1" class="slider" id="opacity">
-                        <span class="value-display" id="opacityValue">1.0</span>
-                    </div>
-                </div>
-
-                <div class="control-group">
-                    <label class="control-label">Color</label>
-                    <div class="color-picker-container">
-                        <div class="color-option selected" data-color="#000000" style="background-color: #000000;"></div>
-                        <div class="color-option" data-color="#ff0000" style="background-color: #ff0000;"></div>
-                        <div class="color-option" data-color="#00ff00" style="background-color: #00ff00;"></div>
-                        <div class="color-option" data-color="#0000ff" style="background-color: #0000ff;"></div>
-                        <div class="color-option" data-color="#ff8800" style="background-color: #ff8800;"></div>
-                        <div class="color-option" data-color="#8800ff" style="background-color: #8800ff;"></div>
-                        <div class="color-option" data-color="#888888" style="background-color: #888888;"></div>
-                        <div class="color-option" data-color="#ffff00" style="background-color: #ffff00;"></div>
-                    </div>
-                </div>
-
-                <div class="control-group">
-                    <label class="control-label">Preview</label>
-                    <div class="preview-stroke">
-                        <canvas id="previewCanvas" width="120" height="30"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="canvas-container">
-            <button class="menu-toggle" id="menuToggle">☰</button>
-            <canvas id="canvas"></canvas>
-        </div>
-    </div>
-
-    <script>
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        const previewCanvas = document.getElementById('previewCanvas');
-        const previewCtx = previewCanvas.getContext('2d');
-        const sidebar = document.getElementById('sidebar');
-        const menuToggle = document.getElementById('menuToggle');
-        const sidebarOverlay = document.getElementById('sidebarOverlay');
-
-        // Ink settings
-        let inkSettings = {
-            strokeWidth: 2,
-            color: '#000000',
-            opacity: 1,
-            smoothing: 0.8
-        };
-
-        // Control elements
-        const strokeWidthSlider = document.getElementById('strokeWidth');
-        const strokeWidthValue = document.getElementById('strokeWidthValue');
-        const smoothingSlider = document.getElementById('smoothing');
-        const smoothingValue = document.getElementById('smoothingValue');
-        const opacitySlider = document.getElementById('opacity');
-        const opacityValue = document.getElementById('opacityValue');
-        const colorOptions = document.querySelectorAll('.color-option');
-
-        // Update ink settings and preview
-        function updateInkSettings() {
-            inkSettings.strokeWidth = parseFloat(strokeWidthSlider.value);
-            inkSettings.smoothing = parseFloat(smoothingSlider.value);
-            inkSettings.opacity = parseFloat(opacitySlider.value);
-            
-            strokeWidthValue.textContent = inkSettings.strokeWidth.toFixed(1);
-            smoothingValue.textContent = inkSettings.smoothing.toFixed(1);
-            opacityValue.textContent = inkSettings.opacity.toFixed(1);
-            
-            updatePreview();
-            updateCanvasStyle();
-        }
-
-        function updatePreview() {
-            previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
-            previewCtx.globalAlpha = inkSettings.opacity;
-            previewCtx.strokeStyle = inkSettings.color;
-            previewCtx.lineWidth = inkSettings.strokeWidth;
-            previewCtx.lineCap = 'round';
-            
-            previewCtx.beginPath();
-            previewCtx.moveTo(10, 15);
-            previewCtx.lineTo(110, 15);
-            previewCtx.stroke();
-        }
-
-        function updateCanvasStyle() {
-            ctx.strokeStyle = inkSettings.color;
-            ctx.lineWidth = inkSettings.strokeWidth;
-            ctx.globalAlpha = inkSettings.opacity;
-        }
-
-        // Event listeners for controls
-        strokeWidthSlider.addEventListener('input', updateInkSettings);
-        smoothingSlider.addEventListener('input', updateInkSettings);
-        opacitySlider.addEventListener('input', updateInkSettings);
-
-        colorOptions.forEach(option => {
-            option.addEventListener('click', () => {
-                colorOptions.forEach(opt => opt.classList.remove('selected'));
-                option.classList.add('selected');
-                inkSettings.color = option.dataset.color;
-                updateInkSettings();
-            });
+  <script>
+    // Service worker (offline)
+    if ('serviceWorker' in navigator) {
+      const sw = `
+        const CACHE = 'pen-pad-v1';
+        self.addEventListener('install', e => {
+          e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./'])));
+          self.skipWaiting();
         });
-
-        // Toggle sidebar
-        menuToggle.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const isOpening = !sidebar.classList.contains('open');
-            
-            sidebar.classList.toggle('open');
-            sidebarOverlay.classList.toggle('show');
-            
-            if (isOpening) {
-                menuToggle.classList.add('hidden');
-            } else {
-                menuToggle.classList.remove('hidden');
-            }
+        self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+        self.addEventListener('fetch', e => {
+          e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
         });
+      `;
+      navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw], {type:'text/javascript'})));
+    }
 
-        sidebarOverlay.addEventListener('click', () => {
-            sidebar.classList.remove('open');
-            sidebarOverlay.classList.remove('show');
-            menuToggle.classList.remove('hidden');
-        });
+    const canvas = document.getElementById('pad');
+    const ctx = canvas.getContext('2d', { alpha:false });
 
-        sidebar.addEventListener('click', (e) => {
-            e.stopPropagation();
-        });
+    const state = { drawing:false };
+    const STROKE_MIN = 1, STROKE_RANGE = 4;
 
-        // Set canvas size
-        function resizeCanvas() {
-            const dpr = window.devicePixelRatio || 1;
-            const rect = canvas.getBoundingClientRect();
-            
-            canvas.width = rect.width * dpr;
-            canvas.height = rect.height * dpr;
-            
-            ctx.scale(dpr, dpr);
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            updateCanvasStyle();
-        }
+    function sizeCanvas(){
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const w = window.innerWidth, h = window.innerHeight;
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0,0,w,h);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2;
+    }
 
-        resizeCanvas();
-        updateInkSettings();
-        
-        let isDrawing = false;
-        let points = [];
-        let smoothedPoints = [];
+    function isPen(e){ return e.pointerType === 'pen'; }
+    function pressure(e){ return e.pressure > 0 ? e.pressure : 1; }
+    function xy(e){
+      const r = canvas.getBoundingClientRect();
+      return { x: e.clientX - r.left, y: e.clientY - r.top };
+    }
 
-        function getPoint(e) {
-            const rect = canvas.getBoundingClientRect();
-            const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
-            const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
-            
-            return {
-                x: clientX - rect.left,
-                y: clientY - rect.top
-            };
-        }
+    canvas.addEventListener('pointerdown', (e) => {
+      if (!isPen(e) || e.button !== 0) { e.preventDefault(); return; }
+      canvas.setPointerCapture(e.pointerId);
+      state.drawing = true;
+      const { x, y } = xy(e);
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      e.preventDefault();
+    }, { passive:false });
 
-        function smoothPoint(currentPoint, lastSmoothedPoint, smoothingFactor) {
-            if (!lastSmoothedPoint) return currentPoint;
-            
-            return {
-                x: lastSmoothedPoint.x + (currentPoint.x - lastSmoothedPoint.x) * (1 - smoothingFactor),
-                y: lastSmoothedPoint.y + (currentPoint.y - lastSmoothedPoint.y) * (1 - smoothingFactor)
-            };
-        }
+    canvas.addEventListener('pointermove', (e) => {
+      if (!state.drawing || !isPen(e)) return;
+      const { x, y } = xy(e);
+      ctx.lineWidth = STROKE_MIN + pressure(e) * STROKE_RANGE;
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      e.preventDefault();
+    }, { passive:false });
 
-        function drawSmoothLine(from, to, cp1, cp2) {
-            if (cp1 && cp2) {
-                ctx.beginPath();
-                ctx.moveTo(from.x, from.y);
-                ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, to.x, to.y);
-                ctx.stroke();
-            } else {
-                ctx.beginPath();
-                ctx.moveTo(from.x, from.y);
-                ctx.lineTo(to.x, to.y);
-                ctx.stroke();
-            }
-        }
+    function endDraw(e){
+      if (!state.drawing) return;
+      state.drawing = false;
+      try { canvas.releasePointerCapture(e.pointerId); } catch {}
+      e.preventDefault();
+    }
+    canvas.addEventListener('pointerup', endDraw, { passive:false });
+    canvas.addEventListener('pointercancel', endDraw, { passive:false });
+    canvas.addEventListener('pointerout', endDraw, { passive:false });
 
-        function isPenInput(e) {
-            if (e.pointerType) {
-                return e.pointerType === 'pen';
-            }
-            
-            if (e.touches && e.touches[0]) {
-                const touch = e.touches[0];
-                return touch.force > 0 && (touch.radiusX > 1 || touch.radiusY > 1);
-            }
-            
-            return e.type.startsWith('mouse');
-        }
+    // Block finger/mouse drawing
+    canvas.addEventListener('pointerdown', (e) => {
+      if (!isPen(e)) e.preventDefault();
+    }, { passive:false });
+    canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive:false });
+    canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive:false });
+    canvas.addEventListener('touchend', (e) => e.preventDefault(), { passive:false });
 
-        function startDraw(e) {
-            if (e.target === menuToggle || sidebar.contains(e.target)) return;
-            if (!isPenInput(e)) return;
-            
-            e.preventDefault();
-            isDrawing = true;
-            const point = getPoint(e);
-            points = [point];
-            smoothedPoints = [point];
-        }
+    // Clear
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const w = window.innerWidth, h = window.innerHeight;
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0,0,w,h);
+    });
 
-        function draw(e) {
-            if (!isDrawing) return;
-            if (!isPenInput(e)) return;
-            
-            e.preventDefault();
-            
-            const currentPoint = getPoint(e);
-            points.push(currentPoint);
-            
-            // Apply smoothing
-            const lastSmoothed = smoothedPoints[smoothedPoints.length - 1];
-            const smoothed = smoothPoint(currentPoint, lastSmoothed, inkSettings.smoothing);
-            smoothedPoints.push(smoothed);
-            
-            if (smoothedPoints.length >= 2) {
-                const len = smoothedPoints.length;
-                const p1 = smoothedPoints[len - 2];
-                const p2 = smoothedPoints[len - 1];
-                
-                if (len >= 3) {
-                    // Use quadratic curves for smoother lines
-                    const p0 = smoothedPoints[len - 3];
-                    const cp1 = {
-                        x: p0.x + (p1.x - p0.x) * 0.5,
-                        y: p0.y + (p1.y - p0.y) * 0.5
-                    };
-                    const cp2 = {
-                        x: p1.x + (p2.x - p1.x) * 0.5,
-                        y: p1.y + (p2.y - p1.y) * 0.5
-                    };
-                    
-                    ctx.beginPath();
-                    ctx.moveTo(p0.x, p0.y);
-                    ctx.quadraticCurveTo(p1.x, p1.y, cp2.x, cp2.y);
-                    ctx.stroke();
-                } else {
-                    // Simple line for first segment
-                    ctx.beginPath();
-                    ctx.moveTo(p1.x, p1.y);
-                    ctx.lineTo(p2.x, p2.y);
-                    ctx.stroke();
-                }
-            }
-        }
-
-        function stopDraw(e) {
-            if (isDrawing) {
-                e.preventDefault();
-                isDrawing = false;
-                points = [];
-                smoothedPoints = [];
-            }
-        }
-
-        // Event listeners
-        canvas.addEventListener('pointerdown', startDraw);
-        canvas.addEventListener('pointermove', draw);
-        canvas.addEventListener('pointerup', stopDraw);
-        canvas.addEventListener('pointercancel', stopDraw);
-
-        canvas.addEventListener('touchstart', startDraw);
-        canvas.addEventListener('touchmove', draw);
-        canvas.addEventListener('touchend', stopDraw);
-        canvas.addEventListener('touchcancel', stopDraw);
-
-        canvas.addEventListener('mousedown', startDraw);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stopDraw);
-        canvas.addEventListener('mouseleave', stopDraw);
-
-        canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-        }, { passive: false });
-        
-        canvas.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
-
-        window.addEventListener('resize', resizeCanvas);
-
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('data:text/javascript;base64,c2VsZi5hZGRFdmVudExpc3RlbmVyKCdpbnN0YWxsJywgKCkgPT4gc2VsZi5za2lwV2FpdGluZygpKTtzZWxmLmFkZEV2ZW50TGlzdGVuZXIoJ2ZldGNoJywgZSA9PiBlLnJlc3BvbmRXaXRoKGZldGNoKGUucmVxdWVzdCkpKTs=');
-        }
-    </script>
+    sizeCanvas();
+    window.addEventListener('resize', sizeCanvas);
+  </script>
 </body>
 </html>
