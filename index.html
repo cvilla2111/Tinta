@@ -29,6 +29,20 @@
             cursor: crosshair;
         }
         
+        #canvas.eraser-mode {
+            cursor: none;
+        }
+        
+        .eraser-cursor {
+            position: fixed;
+            border: 2px dashed #ff0000;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 999;
+            background: rgba(255, 0, 0, 0.1);
+            display: none;
+        }
+        
         .drawing-path {
             stroke: #000000;
             stroke-linecap: round;
@@ -266,6 +280,8 @@
 <body>
     <svg id="canvas" xmlns="http://www.w3.org/2000/svg"></svg>
     
+    <div id="eraserCursor" class="eraser-cursor"></div>
+    
     <button id="menuButton" onclick="togglePanel()" title="Open menu">
         <i data-lucide="menu" style="width: 24px; height: 24px; stroke-width: 0.75px;"></i>
     </button>
@@ -434,6 +450,8 @@
         const SMOOTH_WINDOW = 4; // Number of recent points to keep smooth
         let isPressureSupported = false;
         let pressureSensitivityEnabled = true; // User toggle for pressure sensitivity
+        let isEraserMode = false; // Track if we're in eraser mode
+        let eraserRadius = 20; // Eraser size in pixels
         
         // Pressure settings
         let minWidthMultiplier = 0.1; // Minimum width as multiplier of base width
@@ -773,7 +791,102 @@
             paths = [];
         }
         
-        // Pointer Events (supports pressure-sensitive stylus input)
+        // Eraser functionality
+        function setEraserMode(enabled) {
+            isEraserMode = enabled;
+            const eraserCursor = document.getElementById('eraserCursor');
+            
+            if (enabled) {
+                svg.classList.add('eraser-mode');
+                eraserCursor.style.display = 'block';
+                console.log('Eraser mode activated');
+            } else {
+                svg.classList.remove('eraser-mode');
+                eraserCursor.style.display = 'none';
+                console.log('Drawing mode activated');
+            }
+        }
+        
+        function updateEraserCursor(x, y) {
+            const eraserCursor = document.getElementById('eraserCursor');
+            const size = eraserRadius * 2;
+            eraserCursor.style.width = size + 'px';
+            eraserCursor.style.height = size + 'px';
+            eraserCursor.style.left = (x - eraserRadius) + 'px';
+            eraserCursor.style.top = (y - eraserRadius) + 'px';
+        }
+        
+        function eraseAtPoint(x, y) {
+            // Check all paths for intersection with eraser circle
+            const allPaths = svg.querySelectorAll('.drawing-path');
+            const eraserBounds = {
+                x: x - eraserRadius,
+                y: y - eraserRadius,
+                width: eraserRadius * 2,
+                height: eraserRadius * 2
+            };
+            
+            allPaths.forEach(path => {
+                const pathBounds = path.getBBox();
+                
+                // Quick bounding box check first
+                if (pathBounds.x < eraserBounds.x + eraserBounds.width &&
+                    pathBounds.x + pathBounds.width > eraserBounds.x &&
+                    pathBounds.y < eraserBounds.y + eraserBounds.height &&
+                    pathBounds.y + pathBounds.height > eraserBounds.y) {
+                    
+                    // More precise check: test if eraser circle intersects with path
+                    if (pathIntersectsCircle(path, x, y, eraserRadius)) {
+                        // Remove the entire path for simplicity
+                        path.remove();
+                        
+                        // Remove from paths array
+                        const pathIndex = paths.findIndex(p => p.element === path);
+                        if (pathIndex > -1) {
+                            paths.splice(pathIndex, 1);
+                        }
+                    }
+                }
+            });
+        }
+        
+        function pathIntersectsCircle(pathElement, circleX, circleY, radius) {
+            // Sample points along the path to check intersection
+            const pathLength = pathElement.getTotalLength();
+            const sampleDistance = 5; // Check every 5 pixels along path
+            
+            for (let i = 0; i <= pathLength; i += sampleDistance) {
+                const point = pathElement.getPointAtLength(i);
+                const distance = Math.sqrt(
+                    Math.pow(point.x - circleX, 2) + 
+                    Math.pow(point.y - circleY, 2)
+                );
+                
+                if (distance <= radius) {
+                    return true; // Intersection found
+                }
+            }
+            
+            return false; // No intersection
+        }
+        
+        function startErasing(e) {
+            const coords = getCoords(e);
+            eraseAtPoint(coords.x, coords.y);
+            isDrawing = true; // Track that we're in an erasing session
+        }
+        
+        function continueErasing(e) {
+            if (!isDrawing) return;
+            const coords = getCoords(e);
+            eraseAtPoint(coords.x, coords.y);
+        }
+        
+        function stopErasing() {
+            isDrawing = false;
+        }
+        
+        // Pointer Events with eraser support
         if (window.PointerEvent) {
             svg.addEventListener('pointerdown', (e) => {
                 // Only allow pen and mouse input, disable finger touch
@@ -781,34 +894,83 @@
                     return; // Block finger touch
                 }
                 
+                // Detect eraser button: buttons value of 32 indicates eraser button pressed
+                const isEraserPressed = (e.buttons === 32) || (e.button === 5);
+                
                 if (e.pointerType === 'pen') {
                     isPressureSupported = e.pressure > 0;
+                    setEraserMode(isEraserPressed);
                 }
+                
                 svg.setPointerCapture(e.pointerId);
-                startDrawing(e);
+                
+                if (isEraserMode) {
+                    startErasing(e);
+                } else {
+                    startDrawing(e);
+                }
             });
+            
             svg.addEventListener('pointermove', (e) => {
                 // Only allow pen and mouse input
                 if (e.pointerType === 'touch') {
                     return; // Block finger touch
                 }
-                draw(e);
+                
+                // Update eraser cursor position if in eraser mode
+                if (isEraserMode) {
+                    updateEraserCursor(e.clientX, e.clientY);
+                    continueErasing(e);
+                } else {
+                    draw(e);
+                }
             });
+            
             svg.addEventListener('pointerup', (e) => {
                 // Only allow pen and mouse input
                 if (e.pointerType === 'touch') {
                     return; // Block finger touch
                 }
-                stopDrawing();
+                
+                // Check if eraser button is released
+                const isEraserPressed = (e.buttons === 32) || (e.button === 5);
+                
+                if (e.pointerType === 'pen') {
+                    setEraserMode(isEraserPressed);
+                }
+                
+                if (isEraserMode) {
+                    stopErasing();
+                } else {
+                    stopDrawing();
+                }
             });
+            
             svg.addEventListener('pointerleave', (e) => {
                 // Only allow pen and mouse input
                 if (e.pointerType === 'touch') {
                     return; // Block finger touch
                 }
-                stopDrawing();
+                
+                if (isEraserMode) {
+                    stopErasing();
+                } else {
+                    stopDrawing();
+                }
+                
+                // Hide eraser cursor when leaving canvas
+                const eraserCursor = document.getElementById('eraserCursor');
+                eraserCursor.style.display = 'none';
             });
-            console.log('Pen and mouse drawing enabled (finger touch disabled)');
+            
+            // Track pointer movement over entire document for eraser cursor
+            document.addEventListener('pointermove', (e) => {
+                if (isEraserMode && e.pointerType === 'pen') {
+                    updateEraserCursor(e.clientX, e.clientY);
+                }
+            });
+            
+            console.log('Pen and mouse drawing enabled with eraser support (finger touch disabled)');
         } else {
             // Fallback to mouse events only (no touch support)
             // Mouse events
@@ -817,7 +979,7 @@
             svg.addEventListener('mouseup', stopDrawing);
             svg.addEventListener('mouseleave', stopDrawing);
             
-            console.log('Mouse-only drawing mode (touch disabled)');
+            console.log('Mouse-only drawing mode (touch disabled, no eraser support)');
         }
         
         // Keyboard shortcuts
