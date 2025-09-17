@@ -184,9 +184,29 @@
             };
         }
 
+        function isPenInput(e) {
+            // Check if it's a pen/stylus input
+            if (e.pointerType) {
+                return e.pointerType === 'pen';
+            }
+            
+            // For touch events, check if it's likely a pen
+            if (e.touches && e.touches[0]) {
+                const touch = e.touches[0];
+                // Pens typically have higher radiusX/Y values and force
+                return touch.force > 0 && (touch.radiusX > 1 || touch.radiusY > 1);
+            }
+            
+            // Allow mouse events (for desktop testing)
+            return e.type.startsWith('mouse');
+        }
+
         function startDraw(e) {
             // Don't draw if clicking on menu toggle or sidebar
             if (e.target === menuToggle || sidebar.contains(e.target)) return;
+            
+            // Only allow pen input, not finger
+            if (!isPenInput(e)) return;
             
             e.preventDefault();
             isDrawing = true;
@@ -195,6 +215,10 @@
 
         function draw(e) {
             if (!isDrawing) return;
+            
+            // Only allow pen input, not finger
+            if (!isPenInput(e)) return;
+            
             e.preventDefault();
             
             const point = getPoint(e);
@@ -218,17 +242,23 @@
             }
         }
 
-        // Mouse events only on canvas
-        canvas.addEventListener('mousedown', startDraw);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stopDraw);
-        canvas.addEventListener('mouseleave', stopDraw);
+        // Use pointer events for better pen detection
+        canvas.addEventListener('pointerdown', startDraw);
+        canvas.addEventListener('pointermove', draw);
+        canvas.addEventListener('pointerup', stopDraw);
+        canvas.addEventListener('pointercancel', stopDraw);
 
-        // Touch events only on canvas
+        // Fallback to touch events with pen detection
         canvas.addEventListener('touchstart', startDraw);
         canvas.addEventListener('touchmove', draw);
         canvas.addEventListener('touchend', stopDraw);
         canvas.addEventListener('touchcancel', stopDraw);
+
+        // Mouse events for desktop testing
+        canvas.addEventListener('mousedown', startDraw);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDraw);
+        canvas.addEventListener('mouseleave', stopDraw);
 
         // Prevent scrolling only on canvas
         canvas.addEventListener('touchmove', (e) => {
@@ -242,7 +272,7 @@
 
         // PWA service worker
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('data:text/javascript;base64,c2VsZi5hZGRFdmVudExpc3RlbmVyKCdpbnN0YWxsJywgKCkgPT4gc2VsZi5za2lwV2FpdGluZygpKTtzZWxmLmFkZEV2ZW50TGlzdGVuZXIoJ2ZldGNoJywgZSA9PiBlLnJlc3BvbmRXaXRoKGZldGNoKGUucmVxdWVzdCkpKTs=');
+            navigator.serviceWorker.register('data:text/javascript;base64,c2VsZi5hZGRFdmVudExpc3RlbmVuZXIoJ2luc3RhbGwnLCAoKSA9PiBzZWxmLnNraXBXYWl0aW5nKCkpO3NlbGYuYWRkRXZlbnRMaXN0ZW5lcignZmV0Y2gnLCBlID0+IGUucmVzcG9uZFdpdGgoZmV0Y2goZS5yZXF1ZXN0KSkpOw==');
         }
     </script>
 </body>
