@@ -72,17 +72,27 @@
             z-index: 20;
             background-color: white;
             color: black;
-            border: 2px solid black;
+            border: 0.5px solid black;
             padding: 8px 12px;
             cursor: pointer;
             font-size: 18px;
-            font-weight: bold;
+            font-weight: normal;
             border-radius: 0 8px 8px 0;
             border-left: none;
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            -webkit-text-stroke: 0.5px black;
+            text-stroke: 0.5px black;
         }
 
         .menu-toggle:hover {
             background-color: #f0f0f0;
+        }
+
+        .menu-toggle.hidden {
+            opacity: 0;
+            visibility: hidden;
         }
 
         .sidebar-content {
@@ -94,6 +104,111 @@
         .sidebar h3 {
             margin-bottom: 20px;
             color: #333;
+            font-size: 16px;
+        }
+
+        .control-group {
+            margin-bottom: 25px;
+        }
+
+        .control-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .slider-container {
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        .slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #ddd;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        .slider:hover {
+            opacity: 1;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #333;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #333;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .value-display {
+            display: inline-block;
+            min-width: 30px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            background: #eee;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-left: 8px;
+        }
+
+        .color-picker-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .color-option {
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .color-option:hover {
+            transform: scale(1.1);
+        }
+
+        .color-option.selected {
+            border-color: #333;
+            transform: scale(1.1);
+        }
+
+        .preview-stroke {
+            width: 100%;
+            height: 40px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .sidebar-overlay {
@@ -118,7 +233,52 @@
         
         <div class="sidebar" id="sidebar">
             <div class="sidebar-content">
-                <h3>Tools</h3>
+                <h3>Ink Controls</h3>
+                
+                <div class="control-group">
+                    <label class="control-label">Stroke Width</label>
+                    <div class="slider-container">
+                        <input type="range" min="0.5" max="10" value="2" step="0.5" class="slider" id="strokeWidth">
+                        <span class="value-display" id="strokeWidthValue">2.0</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">Smoothing</label>
+                    <div class="slider-container">
+                        <input type="range" min="0" max="1" value="0.8" step="0.1" class="slider" id="smoothing">
+                        <span class="value-display" id="smoothingValue">0.8</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">Opacity</label>
+                    <div class="slider-container">
+                        <input type="range" min="0.1" max="1" value="1" step="0.1" class="slider" id="opacity">
+                        <span class="value-display" id="opacityValue">1.0</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">Color</label>
+                    <div class="color-picker-container">
+                        <div class="color-option selected" data-color="#000000" style="background-color: #000000;"></div>
+                        <div class="color-option" data-color="#ff0000" style="background-color: #ff0000;"></div>
+                        <div class="color-option" data-color="#00ff00" style="background-color: #00ff00;"></div>
+                        <div class="color-option" data-color="#0000ff" style="background-color: #0000ff;"></div>
+                        <div class="color-option" data-color="#ff8800" style="background-color: #ff8800;"></div>
+                        <div class="color-option" data-color="#8800ff" style="background-color: #8800ff;"></div>
+                        <div class="color-option" data-color="#888888" style="background-color: #888888;"></div>
+                        <div class="color-option" data-color="#ffff00" style="background-color: #ffff00;"></div>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">Preview</label>
+                    <div class="preview-stroke">
+                        <canvas id="previewCanvas" width="120" height="30"></canvas>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -131,24 +291,97 @@
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
+        const previewCanvas = document.getElementById('previewCanvas');
+        const previewCtx = previewCanvas.getContext('2d');
         const sidebar = document.getElementById('sidebar');
         const menuToggle = document.getElementById('menuToggle');
         const sidebarOverlay = document.getElementById('sidebarOverlay');
 
+        // Ink settings
+        let inkSettings = {
+            strokeWidth: 2,
+            color: '#000000',
+            opacity: 1,
+            smoothing: 0.8
+        };
+
+        // Control elements
+        const strokeWidthSlider = document.getElementById('strokeWidth');
+        const strokeWidthValue = document.getElementById('strokeWidthValue');
+        const smoothingSlider = document.getElementById('smoothing');
+        const smoothingValue = document.getElementById('smoothingValue');
+        const opacitySlider = document.getElementById('opacity');
+        const opacityValue = document.getElementById('opacityValue');
+        const colorOptions = document.querySelectorAll('.color-option');
+
+        // Update ink settings and preview
+        function updateInkSettings() {
+            inkSettings.strokeWidth = parseFloat(strokeWidthSlider.value);
+            inkSettings.smoothing = parseFloat(smoothingSlider.value);
+            inkSettings.opacity = parseFloat(opacitySlider.value);
+            
+            strokeWidthValue.textContent = inkSettings.strokeWidth.toFixed(1);
+            smoothingValue.textContent = inkSettings.smoothing.toFixed(1);
+            opacityValue.textContent = inkSettings.opacity.toFixed(1);
+            
+            updatePreview();
+            updateCanvasStyle();
+        }
+
+        function updatePreview() {
+            previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+            previewCtx.globalAlpha = inkSettings.opacity;
+            previewCtx.strokeStyle = inkSettings.color;
+            previewCtx.lineWidth = inkSettings.strokeWidth;
+            previewCtx.lineCap = 'round';
+            
+            previewCtx.beginPath();
+            previewCtx.moveTo(10, 15);
+            previewCtx.lineTo(110, 15);
+            previewCtx.stroke();
+        }
+
+        function updateCanvasStyle() {
+            ctx.strokeStyle = inkSettings.color;
+            ctx.lineWidth = inkSettings.strokeWidth;
+            ctx.globalAlpha = inkSettings.opacity;
+        }
+
+        // Event listeners for controls
+        strokeWidthSlider.addEventListener('input', updateInkSettings);
+        smoothingSlider.addEventListener('input', updateInkSettings);
+        opacitySlider.addEventListener('input', updateInkSettings);
+
+        colorOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                colorOptions.forEach(opt => opt.classList.remove('selected'));
+                option.classList.add('selected');
+                inkSettings.color = option.dataset.color;
+                updateInkSettings();
+            });
+        });
+
         // Toggle sidebar
         menuToggle.addEventListener('click', (e) => {
             e.stopPropagation();
+            const isOpening = !sidebar.classList.contains('open');
+            
             sidebar.classList.toggle('open');
             sidebarOverlay.classList.toggle('show');
+            
+            if (isOpening) {
+                menuToggle.classList.add('hidden');
+            } else {
+                menuToggle.classList.remove('hidden');
+            }
         });
 
-        // Close sidebar when clicking overlay
         sidebarOverlay.addEventListener('click', () => {
             sidebar.classList.remove('open');
             sidebarOverlay.classList.remove('show');
+            menuToggle.classList.remove('hidden');
         });
 
-        // Prevent sidebar from closing when clicking inside it
         sidebar.addEventListener('click', (e) => {
             e.stopPropagation();
         });
@@ -164,14 +397,15 @@
             ctx.scale(dpr, dpr);
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
-            ctx.strokeStyle = '#000000';
-            ctx.lineWidth = 2;
+            updateCanvasStyle();
         }
 
         resizeCanvas();
+        updateInkSettings();
         
         let isDrawing = false;
         let points = [];
+        let smoothedPoints = [];
 
         function getPoint(e) {
             const rect = canvas.getBoundingClientRect();
@@ -184,53 +418,95 @@
             };
         }
 
+        function smoothPoint(currentPoint, lastSmoothedPoint, smoothingFactor) {
+            if (!lastSmoothedPoint) return currentPoint;
+            
+            return {
+                x: lastSmoothedPoint.x + (currentPoint.x - lastSmoothedPoint.x) * (1 - smoothingFactor),
+                y: lastSmoothedPoint.y + (currentPoint.y - lastSmoothedPoint.y) * (1 - smoothingFactor)
+            };
+        }
+
+        function drawSmoothLine(from, to, cp1, cp2) {
+            if (cp1 && cp2) {
+                ctx.beginPath();
+                ctx.moveTo(from.x, from.y);
+                ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, to.x, to.y);
+                ctx.stroke();
+            } else {
+                ctx.beginPath();
+                ctx.moveTo(from.x, from.y);
+                ctx.lineTo(to.x, to.y);
+                ctx.stroke();
+            }
+        }
+
         function isPenInput(e) {
-            // Check if it's a pen/stylus input
             if (e.pointerType) {
                 return e.pointerType === 'pen';
             }
             
-            // For touch events, check if it's likely a pen
             if (e.touches && e.touches[0]) {
                 const touch = e.touches[0];
-                // Pens typically have higher radiusX/Y values and force
                 return touch.force > 0 && (touch.radiusX > 1 || touch.radiusY > 1);
             }
             
-            // Allow mouse events (for desktop testing)
             return e.type.startsWith('mouse');
         }
 
         function startDraw(e) {
-            // Don't draw if clicking on menu toggle or sidebar
             if (e.target === menuToggle || sidebar.contains(e.target)) return;
-            
-            // Only allow pen input, not finger
             if (!isPenInput(e)) return;
             
             e.preventDefault();
             isDrawing = true;
-            points = [getPoint(e)];
+            const point = getPoint(e);
+            points = [point];
+            smoothedPoints = [point];
         }
 
         function draw(e) {
             if (!isDrawing) return;
-            
-            // Only allow pen input, not finger
             if (!isPenInput(e)) return;
             
             e.preventDefault();
             
-            const point = getPoint(e);
-            points.push(point);
+            const currentPoint = getPoint(e);
+            points.push(currentPoint);
             
-            if (points.length >= 2) {
-                const lastPoint = points[points.length - 2];
+            // Apply smoothing
+            const lastSmoothed = smoothedPoints[smoothedPoints.length - 1];
+            const smoothed = smoothPoint(currentPoint, lastSmoothed, inkSettings.smoothing);
+            smoothedPoints.push(smoothed);
+            
+            if (smoothedPoints.length >= 2) {
+                const len = smoothedPoints.length;
+                const p1 = smoothedPoints[len - 2];
+                const p2 = smoothedPoints[len - 1];
                 
-                ctx.beginPath();
-                ctx.moveTo(lastPoint.x, lastPoint.y);
-                ctx.lineTo(point.x, point.y);
-                ctx.stroke();
+                if (len >= 3) {
+                    // Use quadratic curves for smoother lines
+                    const p0 = smoothedPoints[len - 3];
+                    const cp1 = {
+                        x: p0.x + (p1.x - p0.x) * 0.5,
+                        y: p0.y + (p1.y - p0.y) * 0.5
+                    };
+                    const cp2 = {
+                        x: p1.x + (p2.x - p1.x) * 0.5,
+                        y: p1.y + (p2.y - p1.y) * 0.5
+                    };
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(p0.x, p0.y);
+                    ctx.quadraticCurveTo(p1.x, p1.y, cp2.x, cp2.y);
+                    ctx.stroke();
+                } else {
+                    // Simple line for first segment
+                    ctx.beginPath();
+                    ctx.moveTo(p1.x, p1.y);
+                    ctx.lineTo(p2.x, p2.y);
+                    ctx.stroke();
+                }
             }
         }
 
@@ -239,40 +515,36 @@
                 e.preventDefault();
                 isDrawing = false;
                 points = [];
+                smoothedPoints = [];
             }
         }
 
-        // Use pointer events for better pen detection
+        // Event listeners
         canvas.addEventListener('pointerdown', startDraw);
         canvas.addEventListener('pointermove', draw);
         canvas.addEventListener('pointerup', stopDraw);
         canvas.addEventListener('pointercancel', stopDraw);
 
-        // Fallback to touch events with pen detection
         canvas.addEventListener('touchstart', startDraw);
         canvas.addEventListener('touchmove', draw);
         canvas.addEventListener('touchend', stopDraw);
         canvas.addEventListener('touchcancel', stopDraw);
 
-        // Mouse events for desktop testing
         canvas.addEventListener('mousedown', startDraw);
         canvas.addEventListener('mousemove', draw);
         canvas.addEventListener('mouseup', stopDraw);
         canvas.addEventListener('mouseleave', stopDraw);
 
-        // Prevent scrolling only on canvas
         canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
         }, { passive: false });
         
         canvas.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
 
-        // Resize handler
         window.addEventListener('resize', resizeCanvas);
 
-        // PWA service worker
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('data:text/javascript;base64,c2VsZi5hZGRFdmVudExpc3RlbmVuZXIoJ2luc3RhbGwnLCAoKSA9PiBzZWxmLnNraXBXYWl0aW5nKCkpO3NlbGYuYWRkRXZlbnRMaXN0ZW5lcignZmV0Y2gnLCBlID0+IGUucmVzcG9uZFdpdGgoZmV0Y2goZS5yZXF1ZXN0KSkpOw==');
+            navigator.serviceWorker.register('data:text/javascript;base64,c2VsZi5hZGRFdmVudExpc3RlbmVyKCdpbnN0YWxsJywgKCkgPT4gc2VsZi5za2lwV2FpdGluZygpKTtzZWxmLmFkZEV2ZW50TGlzdGVuZXIoJ2ZldGNoJywgZSA9PiBlLnJlc3BvbmRXaXRoKGZldGNoKGUucmVxdWVzdCkpKTs=');
         }
     </script>
 </body>
