@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>Simple Pen Pad — Vector Replay + Fit Modes</title>
+  <title>Simple Pen Pad -- Vector Replay + Fit Modes + Eraser</title>
 
   <meta name="theme-color" content="#ffffff" />
   <link rel="manifest" href='data:application/manifest+json,{
@@ -51,7 +51,7 @@
     }
     body{ position:relative }
 
-    html, body, #pad, .btn, .drawer, .drawer-content, .swatch, .stepper button {
+    html, body, #pad, .btn, .drawer, .drawer-content, .swatch, .stepper button, .segmented button {
       -webkit-touch-callout: none;
       -webkit-user-select: none;
       user-select: none;
@@ -73,6 +73,8 @@
       right:calc(var(--safe-right) + 10px);
       z-index:10;
       pointer-events:none;
+      display:flex;
+      gap:8px;
     }
 
     .toolbar-left{
@@ -155,7 +157,7 @@
     /* Scrollable drawer content */
     .drawer-content{
       flex:1 1 auto;
-      min-height:0; /* enables flex child to shrink and allow scrolling */
+      min-height:0;
       padding:14px;
       font-family:system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
       color:#000;
@@ -167,28 +169,21 @@
       scrollbar-gutter: stable both-edges;
     }
 
-    /* Aesthetic, small scrollbar (WebKit/Blink) */
-    .drawer-content::-webkit-scrollbar{
-      width:10px;            /* slim but accessible */
-    }
+    /* Scrollbars */
+    .drawer-content::-webkit-scrollbar{ width:10px; }
     .drawer-content::-webkit-scrollbar-track{
       background: var(--scrollbar-track);
       border-left: 0.75px solid var(--scrollbar-border);
     }
     .drawer-content::-webkit-scrollbar-thumb{
       background: var(--scrollbar-thumb);
-      border: 2px solid var(--scrollbar-track); /* pill effect */
+      border: 2px solid var(--scrollbar-track);
       border-radius: 999px;
     }
     .drawer-content::-webkit-scrollbar-thumb:hover{
       background: var(--scrollbar-thumb-hover);
     }
-
-    /* Firefox scrollbar styling */
-    .drawer-content{
-      scrollbar-width: thin; /* auto-sizes to a thin width */
-      scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
-    }
+    .drawer-content{ scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track); }
 
     .section{ margin-bottom:10px; }
     .section h3{
@@ -265,6 +260,25 @@
       padding:0 6px;
     }
 
+    .segmented{ /* ERASER: segmented control styling */
+      display:inline-flex;
+      border:0.75px solid #000;
+      border-radius:8px;
+      overflow:hidden;
+    }
+    .segmented button{
+      padding:6px 10px;
+      font-size:12px;
+      background:#fff;
+      border:none;
+      border-right:0.75px solid #000;
+      cursor:pointer;
+    }
+    .segmented button:last-child{ border-right:none; }
+    .segmented button[aria-pressed="true"]{
+      background:#000; color:#fff;
+    }
+
     .note{
       margin-top:4px;
       font-size:10px;
@@ -292,6 +306,12 @@
   </div>
 
   <div class="toolbar-right">
+    <button id="eraserQuickBtn" class="btn" aria-label="Toggle eraser" title="Pen / Eraser"> <!-- ERASER: quick toggle -->
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 14l7-7a2 2 0 0 1 2.8 0l5.2 5.2a2 2 0 0 1 0 2.8l-4.2 4.2a2 2 0 0 1-1.4.6H7.4a2 2 0 0 1-1.4-.6L3 16.6a2 2 0 0 1 0-2.6z" />
+        <path d="M2 20h12" />
+      </svg>
+    </button>
     <button id="clearBtn" class="btn" aria-label="Clear canvas" title="Clear">
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M3 6h18" />
@@ -307,6 +327,15 @@
     <aside id="drawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
       <div class="drawer-content">
         <h2 id="drawerTitle" style="margin:0 0 10px 0;font-size:14px;">Menu</h2>
+
+        <div class="section"> <!-- ERASER: tool chooser -->
+          <h3>Tool</h3>
+          <div class="segmented" role="group" aria-label="Tool" id="toolChooser">
+            <button data-tool="pen" aria-pressed="true">Pen</button>
+            <button data-tool="eraser" aria-pressed="false">Eraser</button>
+          </div>
+          <div class="note">Eraser removes pixels (destination-out) and is recorded in history.</div>
+        </div>
 
         <div class="section">
           <h3>Ink color</h3>
@@ -449,6 +478,7 @@
     const ctx        = canvas.getContext('2d', { alpha:false, desynchronized:true });
     const menuBtn    = document.getElementById('menuBtn');
     const clearBtn   = document.getElementById('clearBtn');
+    const eraserQuickBtn = document.getElementById('eraserQuickBtn'); // ERASER
     const drawerHost = document.getElementById('drawerHost');
     const drawer     = document.getElementById('drawer');
     const backdrop   = document.getElementById('backdrop');
@@ -458,6 +488,7 @@
     const FIT_OPTS = ['Stretch','Contain','Cover','None'];
 
     const settings = {
+      tool: 'pen',            // ERASER: pen | eraser
       inkColor: '#000000',
       minWidth: 0.5,
       maxWidth: 8.0,
@@ -482,7 +513,8 @@
       queue: [],
       needsRender: false,
       rafId: 0,
-      modeSharp: false
+      modeSharp: false,
+      currentOp: 'source-over' // ERASER: track current composite mode in live queue flush
     };
 
     let history = [];
@@ -527,6 +559,7 @@
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.strokeStyle = settings.inkColor;
+      ctx.globalCompositeOperation = 'source-over'; // ERASER: reset
 
       const r = canvas.getBoundingClientRect();
       state.rect.left = r.left;
@@ -601,7 +634,11 @@
         gamma: CURVE_GAMMA[settings.curve]
       }, pressureOf(e));
 
+      // ERASER: create stroke with type
+      const type = (settings.tool === 'eraser') ? 'erase' : 'ink';
+
       currentStroke = {
+        type, // 'ink' | 'erase'
         color: settings.inkColor,
         minWidth: settings.minWidth,
         maxWidth: settings.maxWidth,
@@ -614,6 +651,15 @@
       };
 
       currentStroke.points.push({ x, y, p: pressureOf(e) });
+
+      // ERASER: queue first op with op mode
+      state.queue.push({
+        x, y,
+        w: state.filteredW,
+        color: currentStroke.color,
+        op: (type === 'erase') ? 'destination-out' : 'source-over'
+      });
+
       state.needsRender = true;
     }
 
@@ -652,7 +698,13 @@
         }, pressureOf(ev));
         state.filteredW += (targetW - state.filteredW) * settings.smoothing;
 
-        state.queue.push({ x, y, w: state.filteredW, color: currentStroke ? currentStroke.color : settings.inkColor });
+        // ERASER: include op flag in queue
+        state.queue.push({
+          x, y,
+          w: state.filteredW,
+          color: currentStroke ? currentStroke.color : settings.inkColor,
+          op: (currentStroke && currentStroke.type === 'erase') ? 'destination-out' : 'source-over'
+        });
       }
 
       state.needsRender = true;
@@ -687,6 +739,7 @@
       ctx.fillStyle = '#fff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
+      ctx.globalCompositeOperation = 'source-over';
     }
     clearBtn.addEventListener('click', clearCanvas, { passive:true });
 
@@ -755,7 +808,17 @@
         ctx.setTransform(T.a, T.b, T.c, T.d, T.e, T.f);
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-        ctx.strokeStyle = stroke.color;
+
+        // ERASER: set composite op per stroke
+        const op = (stroke.type === 'erase') ? 'destination-out' : 'source-over';
+        ctx.globalCompositeOperation = op;
+
+        if (stroke.type === 'ink') {
+          ctx.strokeStyle = stroke.color;
+        } else {
+          // destination-out ignores strokeStyle color; keep any
+          ctx.strokeStyle = '#000';
+        }
 
         let filteredW = pressureToWidthFor(stroke, stroke.points[0].p);
         let lastX = stroke.points[0].x, lastY = stroke.points[0].y;
@@ -788,6 +851,7 @@
       }
 
       ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
+      ctx.globalCompositeOperation = 'source-over'; // ERASER: reset
     }
 
     const WIDTH_EPS = 0.1;
@@ -798,10 +862,21 @@
         let currentLW = -1;
         let pathOpen = false;
         let currentColor = null;
+        let currentOp = state.currentOp; // ERASER
 
         while (state.queue.length){
           const p = state.queue.shift();
           const lw = Math.max(0.25, Math.min(64, p.w));
+
+          // ERASER: apply op changes
+          if (p.op && p.op !== currentOp){
+            if (pathOpen){
+              ctx.stroke();
+              pathOpen = false;
+            }
+            ctx.globalCompositeOperation = p.op;
+            currentOp = p.op;
+          }
 
           if (!pathOpen){
             ctx.beginPath();
@@ -813,7 +888,8 @@
             pathOpen = true;
           }
 
-          if (p.color !== currentColor){
+          if (p.color !== currentColor && currentOp === 'source-over'){
+            // Only meaningful for ink; destination-out ignores color
             ctx.stroke();
             ctx.beginPath();
             ctx.moveTo(state.lastX, state.lastY);
@@ -839,6 +915,9 @@
           ctx.stroke();
           pathOpen = false;
         }
+
+        // ERASER: remember current op
+        state.currentOp = currentOp;
       }
 
       state.rafId = requestAnimationFrame(render);
@@ -854,6 +933,34 @@
         for (const b of el.querySelectorAll('.swatch')) b.setAttribute('aria-pressed', 'false');
         btn.setAttribute('aria-pressed', 'true');
       }, { passive:true });
+    })();
+
+    // ERASER: tool chooser binding
+    (function initToolChooser(){
+      const root = document.getElementById('toolChooser');
+      const buttons = Array.from(root.querySelectorAll('button'));
+      function setTool(t){
+        settings.tool = t;
+        for (const b of buttons){
+          b.setAttribute('aria-pressed', String(b.dataset.tool === t));
+        }
+        // quick toggle visual (invert fill via title or tooltip remains)
+        eraserQuickBtn.classList.toggle('active', t === 'eraser');
+        // Update cursor
+        canvas.style.cursor = (t === 'eraser') ? 'not-allowed' : 'crosshair';
+      }
+      root.addEventListener('click', (e) => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        setTool(btn.dataset.tool);
+      }, { passive:true });
+
+      // Quick toolbar toggle
+      eraserQuickBtn.addEventListener('click', () => {
+        setTool(settings.tool === 'eraser' ? 'pen' : 'eraser');
+      }, { passive:true });
+
+      setTool(settings.tool);
     })();
 
     function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
