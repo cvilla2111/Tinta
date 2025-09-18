@@ -142,14 +142,7 @@
             animation: pulse 2s infinite;
         }
 
-        .eraser-cursor.pixel-mode {
-            width: 40px;
-            height: 40px;
-        }
-
         .eraser-cursor.stroke-mode {
-            width: 20px;
-            height: 20px;
             border-color: rgba(0, 150, 255, 0.8);
             background: rgba(0, 150, 255, 0.1);
         }
@@ -214,7 +207,7 @@
     </button>
 
     <!-- Eraser Cursor -->
-    <div id="eraserCursor" class="eraser-cursor pixel-mode"></div>
+    <div id="eraserCursor" class="eraser-cursor"></div>
 
     <!-- Overlay -->
     <div id="overlay" class="overlay fixed inset-0 bg-black bg-opacity-50 z-40"></div>
@@ -383,6 +376,8 @@
         let isDrawing = false;
         let isErasing = false;
         let eraserMode = 'pixel'; // 'pixel' or 'stroke'
+        let pixelEraserSize = 20; // Pixel eraser diameter in canvas pixels
+        let strokeEraserTolerance = 10; // Stroke eraser tolerance in canvas pixels
         let lastPoint = null;
         let annotations = {};
         let stylusDown = false;
@@ -427,6 +422,19 @@
         // Drawer state
         let isDrawerOpen = false;
 
+        // Convert canvas pixels to screen pixels for cursor sizing
+        function canvasToScreenSize(canvasSize) {
+            if (!annotationCanvas) return canvasSize;
+            
+            const rect = annotationCanvas.getBoundingClientRect();
+            const scaleX = rect.width / annotationCanvas.width;
+            const scaleY = rect.height / annotationCanvas.height;
+            
+            // Use the average scale for circular cursor
+            const scale = (scaleX + scaleY) / 2;
+            return canvasSize * scale;
+        }
+
         // Update eraser cursor position and style
         function updateEraserCursor(e) {
             if (isErasing && stylusDown && e.pointerType === 'pen') {
@@ -434,8 +442,20 @@
                 eraserCursor.style.top = e.clientY + 'px';
                 eraserCursor.style.display = 'block';
                 
-                // Update cursor style based on eraser mode
-                eraserCursor.className = `eraser-cursor ${eraserMode}-mode`;
+                // Set cursor size based on eraser mode and real erase area
+                let cursorSize;
+                if (eraserMode === 'pixel') {
+                    // Show actual pixel eraser size
+                    cursorSize = canvasToScreenSize(pixelEraserSize);
+                    eraserCursor.className = 'eraser-cursor';
+                } else {
+                    // Show stroke detection area
+                    cursorSize = canvasToScreenSize(strokeEraserTolerance * 2);
+                    eraserCursor.className = 'eraser-cursor stroke-mode';
+                }
+                
+                eraserCursor.style.width = cursorSize + 'px';
+                eraserCursor.style.height = cursorSize + 'px';
             } else {
                 eraserCursor.style.display = 'none';
             }
@@ -447,7 +467,14 @@
                 radio.addEventListener('change', (e) => {
                     if (e.target.checked) {
                         eraserMode = e.target.value;
-                        updateEraserCursor({ pointerType: 'pen', clientX: 0, clientY: 0 });
+                        // Update cursor if currently visible
+                        if (eraserCursor.style.display === 'block') {
+                            updateEraserCursor({ 
+                                pointerType: 'pen', 
+                                clientX: parseInt(eraserCursor.style.left), 
+                                clientY: parseInt(eraserCursor.style.top) 
+                            });
+                        }
                     }
                 });
             });
@@ -585,7 +612,7 @@
         }
 
         // Check if point intersects with any stroke (for stroke erasing)
-        function getStrokeAtPoint(point, tolerance = 10) {
+        function getStrokeAtPoint(point, tolerance = strokeEraserTolerance) {
             if (!annotations[currentPage]) return null;
             
             for (let i = annotations[currentPage].length - 1; i >= 0; i--) {
@@ -708,10 +735,10 @@
                 } else {
                     // Pixel erasing: start erasing pixels
                     annotationCtx.globalCompositeOperation = 'destination-out';
-                    annotationCtx.lineWidth = 20;
+                    annotationCtx.lineWidth = pixelEraserSize;
                     annotationCtx.lineCap = 'round';
                     annotationCtx.beginPath();
-                    annotationCtx.arc(point.x, point.y, 10, 0, Math.PI * 2);
+                    annotationCtx.arc(point.x, point.y, pixelEraserSize / 2, 0, Math.PI * 2);
                     annotationCtx.fill();
                 }
             } else {
@@ -749,7 +776,7 @@
                 } else {
                     // Pixel erasing: continue erasing pixels
                     annotationCtx.globalCompositeOperation = 'destination-out';
-                    annotationCtx.lineWidth = 20;
+                    annotationCtx.lineWidth = pixelEraserSize;
                     annotationCtx.lineCap = 'round';
                     annotationCtx.lineJoin = 'round';
                     
