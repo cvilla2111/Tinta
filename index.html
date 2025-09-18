@@ -134,8 +134,6 @@
             position: fixed;
             pointer-events: none;
             z-index: 999;
-            width: 40px;
-            height: 40px;
             border: 2px dashed rgba(255, 0, 0, 0.8);
             border-radius: 50%;
             background: rgba(255, 0, 0, 0.1);
@@ -144,19 +142,64 @@
             animation: pulse 2s infinite;
         }
 
+        .eraser-cursor.pixel-mode {
+            width: 40px;
+            height: 40px;
+        }
+
+        .eraser-cursor.stroke-mode {
+            width: 20px;
+            height: 20px;
+            border-color: rgba(0, 150, 255, 0.8);
+            background: rgba(0, 150, 255, 0.1);
+        }
+
         @keyframes pulse {
             0% {
-                border-color: rgba(255, 0, 0, 0.8);
-                background: rgba(255, 0, 0, 0.1);
+                opacity: 1;
             }
             50% {
-                border-color: rgba(255, 0, 0, 0.5);
-                background: rgba(255, 0, 0, 0.05);
+                opacity: 0.6;
             }
             100% {
-                border-color: rgba(255, 0, 0, 0.8);
-                background: rgba(255, 0, 0, 0.1);
+                opacity: 1;
             }
+        }
+
+        /* Radio button styling */
+        .radio-option {
+            cursor: pointer;
+        }
+
+        .radio-option input[type="radio"] {
+            display: none;
+        }
+
+        .radio-option .radio-custom {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #d1d5db;
+            border-radius: 50%;
+            display: inline-block;
+            position: relative;
+            margin-right: 8px;
+            transition: border-color 0.2s;
+        }
+
+        .radio-option input[type="radio"]:checked + .radio-custom {
+            border-color: #000;
+        }
+
+        .radio-option input[type="radio"]:checked + .radio-custom::after {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #000;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
         }
     </style>
 </head>
@@ -171,7 +214,7 @@
     </button>
 
     <!-- Eraser Cursor -->
-    <div id="eraserCursor" class="eraser-cursor"></div>
+    <div id="eraserCursor" class="eraser-cursor pixel-mode"></div>
 
     <!-- Overlay -->
     <div id="overlay" class="overlay fixed inset-0 bg-black bg-opacity-50 z-40"></div>
@@ -184,7 +227,7 @@
         </div>
 
         <!-- Drawer Content -->
-        <div class="flex-1 p-6 space-y-6">
+        <div class="flex-1 p-6 space-y-6 overflow-y-auto">
             <!-- File Upload -->
             <div>
                 <h3 class="text-sm font-medium text-gray-700 mb-3">Document</h3>
@@ -216,8 +259,32 @@
                             <path d="M20 20H7l-7-7 7-7h13v14z"/>
                             <path d="M13 13l7-7"/>
                         </svg>
-                        Erase Strokes
+                        Erase
                     </button>
+                </div>
+            </div>
+
+            <!-- Eraser Options -->
+            <div id="eraserSection" style="display: none;">
+                <h3 class="text-sm font-medium text-gray-700 mb-3">Eraser Mode</h3>
+                <div class="space-y-3">
+                    <label class="radio-option flex items-center p-3 border border-gray-200 rounded hover:bg-gray-50 transition-colors">
+                        <input type="radio" name="eraserMode" value="pixel" checked>
+                        <span class="radio-custom"></span>
+                        <div class="flex-1">
+                            <div class="font-medium text-sm">Pixel Eraser</div>
+                            <div class="text-xs text-gray-500">Erase pixels like a traditional eraser</div>
+                        </div>
+                    </label>
+                    
+                    <label class="radio-option flex items-center p-3 border border-gray-200 rounded hover:bg-gray-50 transition-colors">
+                        <input type="radio" name="eraserMode" value="stroke">
+                        <span class="radio-custom"></span>
+                        <div class="flex-1">
+                            <div class="font-medium text-sm">Stroke Eraser</div>
+                            <div class="text-xs text-gray-500">Erase entire strokes at once</div>
+                        </div>
+                    </label>
                 </div>
             </div>
 
@@ -315,6 +382,7 @@
         let zoom = 1;
         let isDrawing = false;
         let isErasing = false;
+        let eraserMode = 'pixel'; // 'pixel' or 'stroke'
         let lastPoint = null;
         let annotations = {};
         let stylusDown = false;
@@ -337,6 +405,7 @@
         const drawer = document.getElementById('drawer');
         const overlay = document.getElementById('overlay');
         const toolsSection = document.getElementById('toolsSection');
+        const eraserSection = document.getElementById('eraserSection');
         const viewSection = document.getElementById('viewSection');
         const pageSection = document.getElementById('pageSection');
         const actionsSection = document.getElementById('actionsSection');
@@ -352,18 +421,36 @@
         const prevBtn = document.getElementById('prevBtn');
         const nextBtn = document.getElementById('nextBtn');
 
+        // Eraser mode radio buttons
+        const eraserModeRadios = document.querySelectorAll('input[name="eraserMode"]');
+
         // Drawer state
         let isDrawerOpen = false;
 
-        // Update eraser cursor position
+        // Update eraser cursor position and style
         function updateEraserCursor(e) {
             if (isErasing && stylusDown && e.pointerType === 'pen') {
                 eraserCursor.style.left = e.clientX + 'px';
                 eraserCursor.style.top = e.clientY + 'px';
                 eraserCursor.style.display = 'block';
+                
+                // Update cursor style based on eraser mode
+                eraserCursor.className = `eraser-cursor ${eraserMode}-mode`;
             } else {
                 eraserCursor.style.display = 'none';
             }
+        }
+
+        // Handle eraser mode change
+        function handleEraserModeChange() {
+            eraserModeRadios.forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    if (e.target.checked) {
+                        eraserMode = e.target.value;
+                        updateEraserCursor({ pointerType: 'pen', clientX: 0, clientY: 0 });
+                    }
+                });
+            });
         }
 
         // Drawer functionality
@@ -403,6 +490,7 @@
                 
                 // Show drawer sections
                 toolsSection.style.display = 'block';
+                eraserSection.style.display = 'block';
                 viewSection.style.display = 'block';
                 pageSection.style.display = 'block';
                 actionsSection.style.display = 'block';
@@ -496,7 +584,7 @@
             };
         }
 
-        // Check if point intersects with any stroke (for erasing)
+        // Check if point intersects with any stroke (for stroke erasing)
         function getStrokeAtPoint(point, tolerance = 10) {
             if (!annotations[currentPage]) return null;
             
@@ -610,11 +698,21 @@
             updateEraserCursor(e);
             
             if (isErasing) {
-                // Erase stroke at this point
-                const strokeIndex = getStrokeAtPoint(point);
-                if (strokeIndex !== null) {
-                    annotations[currentPage].splice(strokeIndex, 1);
-                    renderAnnotations();
+                if (eraserMode === 'stroke') {
+                    // Stroke erasing: remove entire stroke
+                    const strokeIndex = getStrokeAtPoint(point);
+                    if (strokeIndex !== null) {
+                        annotations[currentPage].splice(strokeIndex, 1);
+                        renderAnnotations();
+                    }
+                } else {
+                    // Pixel erasing: start erasing pixels
+                    annotationCtx.globalCompositeOperation = 'destination-out';
+                    annotationCtx.lineWidth = 20;
+                    annotationCtx.lineCap = 'round';
+                    annotationCtx.beginPath();
+                    annotationCtx.arc(point.x, point.y, 10, 0, Math.PI * 2);
+                    annotationCtx.fill();
                 }
             } else {
                 // Start new stroke
@@ -641,11 +739,26 @@
             const point = getPointerPosition(e);
             
             if (isErasing) {
-                // Continue erasing strokes
-                const strokeIndex = getStrokeAtPoint(point);
-                if (strokeIndex !== null) {
-                    annotations[currentPage].splice(strokeIndex, 1);
-                    renderAnnotations();
+                if (eraserMode === 'stroke') {
+                    // Stroke erasing: continue removing strokes
+                    const strokeIndex = getStrokeAtPoint(point);
+                    if (strokeIndex !== null) {
+                        annotations[currentPage].splice(strokeIndex, 1);
+                        renderAnnotations();
+                    }
+                } else {
+                    // Pixel erasing: continue erasing pixels
+                    annotationCtx.globalCompositeOperation = 'destination-out';
+                    annotationCtx.lineWidth = 20;
+                    annotationCtx.lineCap = 'round';
+                    annotationCtx.lineJoin = 'round';
+                    
+                    if (lastPoint) {
+                        annotationCtx.beginPath();
+                        annotationCtx.moveTo(lastPoint.x, lastPoint.y);
+                        annotationCtx.lineTo(point.x, point.y);
+                        annotationCtx.stroke();
+                    }
                 }
             } else {
                 // Continue drawing
@@ -662,8 +775,6 @@
                     annotationCtx.stroke();
                 }
                 
-                lastPoint = point;
-                
                 // Update current stroke
                 if (annotations[currentPage] && annotations[currentPage].length > 0) {
                     const currentStroke = annotations[currentPage][annotations[currentPage].length - 1];
@@ -671,6 +782,8 @@
                     currentStroke.width = Math.max(1, e.pressure * 5);
                 }
             }
+            
+            lastPoint = point;
         });
 
         annotationCanvas.addEventListener('pointerup', (e) => {
@@ -735,8 +848,9 @@
                 .catch(err => console.log('Service Worker registration failed'));
         }
 
-        // Initialize drawing mode
+        // Initialize
         setDrawMode(true);
+        handleEraserModeChange();
     </script>
 </body>
 </html>
