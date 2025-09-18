@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <title>Simple Pen Pad — Vector Replay + Fit Modes</title>
 
-  <!-- Minimal PWA manifest (inline data URL) -->
   <meta name="theme-color" content="#ffffff" />
   <link rel="manifest" href='data:application/manifest+json,{
     "name":"Simple Pen Pad",
@@ -38,6 +37,11 @@
       --drawer-dur:220ms;
       --drawer-ease:cubic-bezier(.2,.7,.2,1);
       --backdrop-max:0.12;
+
+      --scrollbar-track: #f2f2f2;
+      --scrollbar-thumb: #bdbdbd;
+      --scrollbar-thumb-hover: #9e9e9e;
+      --scrollbar-border: #000;
     }
     html,body{
       margin:0;
@@ -47,7 +51,6 @@
     }
     body{ position:relative }
 
-    /* Prevent long-press callouts and selection on key elements */
     html, body, #pad, .btn, .drawer, .drawer-content, .swatch, .stepper button {
       -webkit-touch-callout: none;
       -webkit-user-select: none;
@@ -55,26 +58,23 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    /* Canvas */
     #pad{
       display:block;
       width:100%;
       height:100%;
       background:#fff;
-      touch-action:none;             /* prevent panning/zooming */
+      touch-action:none;
       cursor:crosshair;
     }
 
-    /* Top-right toolbar (Clear) */
     .toolbar-right{
       position:fixed;
       top:calc(var(--safe-top) + 10px);
       right:calc(var(--safe-right) + 10px);
       z-index:10;
-      pointer-events:none;           /* pen events reach canvas */
+      pointer-events:none;
     }
 
-    /* Top-left toolbar (Menu) */
     .toolbar-left{
       position:fixed;
       top:calc(var(--safe-top) + 10px);
@@ -108,7 +108,6 @@
       vector-effect:non-scaling-stroke;
     }
 
-    /* Drawer host overlays the app when open */
     .drawer-host{
       position:fixed;
       inset:0;
@@ -118,7 +117,6 @@
     }
     .drawer-host.open{ pointer-events:auto; }
 
-    /* Slide-in drawer panel */
     .drawer{
       position:absolute;
       top:0;
@@ -133,10 +131,12 @@
       will-change:transform;
       contain:layout paint size style;
       z-index:2;
+
+      display:flex;
+      flex-direction:column;
     }
     .drawer-host.open .drawer{ transform:translate3d(0,0,0); }
 
-    /* Backdrop */
     .backdrop{
       position:absolute;
       inset:0;
@@ -152,14 +152,44 @@
       pointer-events:auto;
     }
 
-    /* Drawer content */
+    /* Scrollable drawer content */
     .drawer-content{
+      flex:1 1 auto;
+      min-height:0; /* enables flex child to shrink and allow scrolling */
       padding:14px;
       font-family:system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
       color:#000;
       line-height:1.35;
       user-select:none;
+      overflow:auto;
+      overscroll-behavior:contain;
+      -webkit-overflow-scrolling:touch;
+      scrollbar-gutter: stable both-edges;
     }
+
+    /* Aesthetic, small scrollbar (WebKit/Blink) */
+    .drawer-content::-webkit-scrollbar{
+      width:10px;            /* slim but accessible */
+    }
+    .drawer-content::-webkit-scrollbar-track{
+      background: var(--scrollbar-track);
+      border-left: 0.75px solid var(--scrollbar-border);
+    }
+    .drawer-content::-webkit-scrollbar-thumb{
+      background: var(--scrollbar-thumb);
+      border: 2px solid var(--scrollbar-track); /* pill effect */
+      border-radius: 999px;
+    }
+    .drawer-content::-webkit-scrollbar-thumb:hover{
+      background: var(--scrollbar-thumb-hover);
+    }
+
+    /* Firefox scrollbar styling */
+    .drawer-content{
+      scrollbar-width: thin; /* auto-sizes to a thin width */
+      scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+    }
+
     .section{ margin-bottom:10px; }
     .section h3{
       margin:0 0 6px 0;
@@ -168,7 +198,6 @@
       letter-spacing:.2px;
     }
 
-    /* Color palette */
     .palette{
       display:flex;
       flex-wrap:wrap;
@@ -199,7 +228,6 @@
       outline-offset:2px;
     }
 
-    /* Stepper controls */
     .control{ margin:8px 0; }
     .row{
       display:flex;
@@ -253,10 +281,8 @@
   </style>
 </head>
 <body>
-  <!-- Top-left: Menu button -->
   <div class="toolbar-left">
     <button id="menuBtn" class="btn" aria-label="Open menu" aria-expanded="false" aria-controls="drawer" title="Menu">
-      <!-- menu icon -->
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M4 6h16" />
         <path d="M4 12h16" />
@@ -265,10 +291,8 @@
     </button>
   </div>
 
-  <!-- Top-right: Clear button -->
   <div class="toolbar-right">
     <button id="clearBtn" class="btn" aria-label="Clear canvas" title="Clear">
-      <!-- trash icon -->
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M3 6h18" />
         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
@@ -279,13 +303,11 @@
     </button>
   </div>
 
-  <!-- Slide-in drawer (left) and backdrop -->
   <div id="drawerHost" class="drawer-host" aria-hidden="true">
     <aside id="drawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
       <div class="drawer-content">
         <h2 id="drawerTitle" style="margin:0 0 10px 0;font-size:14px;">Menu</h2>
 
-        <!-- Ink color palette -->
         <div class="section">
           <h3>Ink color</h3>
           <div class="palette" id="palette" role="group" aria-label="Ink colors">
@@ -300,10 +322,8 @@
           <div class="note">Pick one of 7 preset inks. Default: Black.</div>
         </div>
 
-        <!-- Stroke width -->
         <div class="section">
           <h3>Stroke width</h3>
-
           <div class="control">
             <div class="row">
               <div class="label">Min width</div>
@@ -329,7 +349,6 @@
           </div>
         </div>
 
-        <!-- Pressure curve -->
         <div class="section">
           <h3>Pressure curve</h3>
           <div class="control">
@@ -345,7 +364,6 @@
           </div>
         </div>
 
-        <!-- Smoothing strength -->
         <div class="section">
           <h3>Smoothing</h3>
           <div class="control">
@@ -373,7 +391,6 @@
           </div>
         </div>
 
-        <!-- Mode -->
         <div class="section">
           <h3>Mode</h3>
           <div class="control">
@@ -389,7 +406,6 @@
           </div>
         </div>
 
-        <!-- Fit mode -->
         <div class="section">
           <h3>Fit mode</h3>
           <div class="control">
@@ -419,7 +435,6 @@
   <canvas id="pad"></canvas>
 
   <script>
-    // Optional, minimal service worker
     if ('serviceWorker' in navigator) {
       const sw = `
         self.addEventListener('install', e => self.skipWaiting());
@@ -430,7 +445,6 @@
       ).catch(()=>{});
     }
 
-    // DOM refs
     const canvas     = document.getElementById('pad');
     const ctx        = canvas.getContext('2d', { alpha:false, desynchronized:true });
     const menuBtn    = document.getElementById('menuBtn');
@@ -439,23 +453,21 @@
     const drawer     = document.getElementById('drawer');
     const backdrop   = document.getElementById('backdrop');
 
-    // Settings (defaults)
     const CURVE_OPTS = ['Soft','Linear','Firm'];
     const CURVE_GAMMA = { Soft:0.5, Linear:1, Firm:2 };
     const FIT_OPTS = ['Stretch','Contain','Cover','None'];
 
     const settings = {
       inkColor: '#000000',
-      minWidth: 0.5,     // updated default
-      maxWidth: 8.0,     // updated default
-      curve: 'Firm',     // updated default
+      minWidth: 0.5,
+      maxWidth: 8.0,
+      curve: 'Firm',
       smoothing: 0.35,
       stabilizer: 0,
       mode: 'Smoothness',
-      fitMode: 'Contain' // new
+      fitMode: 'Contain'
     };
 
-    // Drawing state
     const state = {
       dpr: 1,
       cssW: 0,
@@ -473,11 +485,9 @@
       modeSharp: false
     };
 
-    // Vector stroke history
     let history = [];
     let currentStroke = null;
 
-    // Touch-only context menu suppression
     const TOUCH_CTX_GUARD_MS = 1500;
     let lastTouchTs = 0;
     window.addEventListener('touchstart', () => { lastTouchTs = performance.now(); }, { capture:true, passive:true });
@@ -495,7 +505,6 @@
       return (typeof window.devicePixelRatio === 'number' && window.devicePixelRatio > 0)
         ? window.devicePixelRatio : 1;
     }
-
     function computeDPR(){
       const raw = getDeviceDPR();
       return state.modeSharp ? raw : Math.min(2, raw);
@@ -511,12 +520,9 @@
       canvas.width  = Math.floor(state.cssW * state.dpr);
       canvas.height = Math.floor(state.cssH * state.dpr);
 
-      // Reset and clear
       ctx.setTransform(1,0,0,1,0,0);
       ctx.fillStyle = '#fff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Base transform: 1 CSS px = state.dpr device px
       ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
@@ -550,7 +556,6 @@
       drawerHost.setAttribute('aria-hidden', 'false');
       drawer.setAttribute('aria-hidden', 'false');
     }
-
     function closeDrawer(){
       drawerHost.classList.remove('open');
       drawerHost.setAttribute('aria-hidden', 'true');
@@ -563,18 +568,15 @@
         menuBtn.classList.remove('hidden');
       };
       drawer.addEventListener('transitionend', onEnd, { once:true });
-
       setTimeout(() => menuBtn.classList.remove('hidden'), 320);
     }
 
-    // Drawer interactions
     menuBtn.addEventListener('pointerdown', openDrawer, { passive:true });
     menuBtn.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') openDrawer(); });
     backdrop.addEventListener('pointerdown', closeDrawer, { passive:true });
     drawer.addEventListener('pointerdown', (e) => e.stopPropagation(), { passive:true });
     window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); }, { passive:true });
 
-    // Live drawing — pen-only
     const moveEventName = ('onpointerrawupdate' in window) ? 'pointerrawupdate' : 'pointermove';
 
     function startStroke(e){
@@ -592,7 +594,6 @@
       state.lastX = x; state.lastY = y;
       state.sx = x; state.sy = y;
 
-      // Initialize filtered width
       state.filteredW = pressureToWidthFor({
         minWidth: settings.minWidth,
         maxWidth: settings.maxWidth,
@@ -600,7 +601,6 @@
         gamma: CURVE_GAMMA[settings.curve]
       }, pressureOf(e));
 
-      // Start a new vector stroke (base size = current canvas CSS size)
       currentStroke = {
         color: settings.inkColor,
         minWidth: settings.minWidth,
@@ -613,9 +613,7 @@
         points: []
       };
 
-      // First point
       currentStroke.points.push({ x, y, p: pressureOf(e) });
-
       state.needsRender = true;
     }
 
@@ -628,7 +626,6 @@
         const ev = src[i];
         const { x:rx, y:ry } = xyFromEvent(ev);
 
-        // Path stabilizer
         let x = rx, y = ry;
         const S = settings.stabilizer;
         if (S > 0){
@@ -645,10 +642,8 @@
           state.sx = x; state.sy = y;
         }
 
-        // Record vector point (post-stabilizer position + raw pressure)
         if (currentStroke) currentStroke.points.push({ x, y, p: pressureOf(ev) });
 
-        // Live width smoothing + enqueue for on-screen render
         const targetW = pressureToWidthFor({
           minWidth: settings.minWidth,
           maxWidth: settings.maxWidth,
@@ -670,9 +665,7 @@
       state.needsRender = true;
       try { canvas.releasePointerCapture(e.pointerId); } catch {}
 
-      // Commit vector stroke
       if (currentStroke){
-        // Handle taps: ensure at least two points to render a dot
         if (currentStroke.points.length === 1){
           const pt = currentStroke.points[0];
           currentStroke.points.push({ x: pt.x + 0.01, y: pt.y, p: pt.p });
@@ -688,7 +681,6 @@
     canvas.addEventListener('pointercancel', endStroke,  { passive:true });
     canvas.addEventListener('pointerout',  endStroke,    { passive:true });
 
-    // Clear button: clear canvas + vector history
     function clearCanvas(){
       history = [];
       ctx.setTransform(1,0,0,1,0,0);
@@ -698,7 +690,6 @@
     }
     clearBtn.addEventListener('click', clearCanvas, { passive:true });
 
-    // Compute transform components based on fit mode and stroke base size
     function computeFitTransform(baseW, baseH){
       const dpr = state.dpr;
       const cssW = state.cssW;
@@ -739,7 +730,6 @@
           break;
       }
 
-      // Convert CSS-space transform to device pixels by multiplying by DPR
       return {
         a: dpr * sx, b: 0,
         c: 0, d: dpr * sy,
@@ -748,9 +738,7 @@
       };
     }
 
-    // Redraw all strokes from vector history at current size/DPR + fit mode
     function redrawAllStrokes(){
-      // Clear
       ctx.setTransform(1,0,0,1,0,0);
       ctx.fillStyle = '#fff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -764,7 +752,6 @@
         const T = computeFitTransform(stroke.baseW || state.cssW, stroke.baseH || state.cssH);
 
         ctx.save();
-        // Apply transform with translation then scale (encoded in setTransform params)
         ctx.setTransform(T.a, T.b, T.c, T.d, T.e, T.f);
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
@@ -797,15 +784,12 @@
           lastY = pt.y;
         }
         ctx.stroke();
-
         ctx.restore();
       }
 
-      // Restore default drawing transform for live strokes (raw CSS space)
       ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
     }
 
-    // Render loop for live strokes
     const WIDTH_EPS = 0.1;
     function render(){
       if (state.needsRender){
@@ -860,7 +844,6 @@
       state.rafId = requestAnimationFrame(render);
     }
 
-    // UI: Palette
     (function initPalette(){
       const el = document.getElementById('palette');
       el.addEventListener('pointerdown', (e) => {
@@ -873,7 +856,6 @@
       }, { passive:true });
     })();
 
-    // UI: Stepper helpers
     function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
     function fmt(v, decimals=0, suffix=''){ return v.toFixed(decimals) + (suffix ? ' ' + suffix : ''); }
 
@@ -888,7 +870,6 @@
         v = clamp(v + dir*step, min, max);
         set(v);
         render();
-        // width changes affect future strokes only; no replay needed
       }
       minus.addEventListener('click', () => bump(-1), { passive:true });
       plus.addEventListener('click',  () => bump(+1), { passive:true });
@@ -904,16 +885,16 @@
       function render(){ val.textContent = options[idx()]; }
       function bump(dir){
         const i = (idx() + dir + options.length) % options.length;
-        set(options[i]);
+        const next = options[i];
+        set(next);
         render();
-        if (typeof onChange === 'function') onChange(options[i]);
+        if (typeof onChange === 'function') onChange(next);
       }
       minus.addEventListener('click', () => bump(-1), { passive:true });
       plus.addEventListener('click',  () => bump(+1), { passive:true });
       render();
     }
 
-    // Wire steppers
     bindNumberStepper('minW',
       () => settings.minWidth,
       (v) => {
@@ -957,8 +938,8 @@
         state.modeSharp = (v === 'Sharpness');
         const nowSharp = state.modeSharp;
         if (wasSharp !== nowSharp) {
-          sizeCanvas();       // new DPR
-          redrawAllStrokes(); // crisp re-render at new DPR
+          sizeCanvas();
+          redrawAllStrokes();
         }
       }
     );
@@ -966,10 +947,9 @@
     bindEnumStepper('fitMode', FIT_OPTS,
       () => settings.fitMode,
       (v) => { settings.fitMode = v; },
-      () => { redrawAllStrokes(); } // apply immediately
+      () => { redrawAllStrokes(); }
     );
 
-    // Initialize and hook resize
     state.modeSharp = (settings.mode === 'Sharpness');
     sizeCanvas();
     window.addEventListener('resize', () => { sizeCanvas(); redrawAllStrokes(); }, { passive:true });
