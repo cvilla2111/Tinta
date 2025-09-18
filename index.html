@@ -25,12 +25,15 @@
             touch-action: none;
         }
         
-        canvas {
+        #pdfCanvas, #annotationCanvas {
             touch-action: none;
             user-select: none;
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
+            position: absolute;
+            top: 0;
+            left: 0;
         }
         
         .no-select {
@@ -39,110 +42,193 @@
             -ms-user-select: none;
             user-select: none;
         }
+        
+        .drawer {
+            transform: translateX(-100%);
+            transition: transform 0.3s ease-in-out;
+        }
+        
+        .drawer.open {
+            transform: translateX(0);
+        }
+        
+        .overlay {
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+        
+        .overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .menu-button {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+            transition: background 0.2s;
+        }
+
+        .menu-button:hover {
+            background: rgba(0, 0, 0, 0.9);
+        }
     </style>
 </head>
-<body class="min-h-screen bg-white">
-    <div id="app" class="min-h-screen bg-white flex flex-col">
-        <!-- Header -->
-        <header class="border-b border-gray-200 p-4">
-            <div class="flex items-center justify-between max-w-6xl mx-auto">
+<body class="min-h-screen bg-white overflow-hidden">
+    <!-- Menu Button -->
+    <button id="menuBtn" class="menu-button">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+    </button>
+
+    <!-- Overlay -->
+    <div id="overlay" class="overlay fixed inset-0 bg-black bg-opacity-50 z-40"></div>
+
+    <!-- Slide Drawer -->
+    <div id="drawer" class="drawer fixed left-0 top-0 h-full w-80 bg-white shadow-xl z-50 flex flex-col">
+        <!-- Drawer Header -->
+        <div class="p-6 border-b border-gray-200">
+            <div class="flex items-center justify-between">
                 <h1 class="text-xl font-semibold">PDF Annotator</h1>
-                
-                <div class="flex items-center gap-4">
-                    <!-- File Upload -->
-                    <button id="loadPdfBtn" class="flex items-center gap-2 px-4 py-2 border border-gray-300 hover:bg-gray-50 transition-colors">
+                <button id="closeDrawerBtn" class="p-2 hover:bg-gray-100 rounded">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Drawer Content -->
+        <div class="flex-1 p-6 space-y-6">
+            <!-- File Upload -->
+            <div>
+                <h3 class="text-sm font-medium text-gray-700 mb-3">Document</h3>
+                <button id="loadPdfBtn" class="w-full flex items-center justify-center gap-2 px-4 py-3 border border-gray-300 hover:bg-gray-50 transition-colors rounded">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7,10 12,15 17,10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Load PDF
+                </button>
+            </div>
+
+            <!-- Tools -->
+            <div id="toolsSection" style="display: none;">
+                <h3 class="text-sm font-medium text-gray-700 mb-3">Tools</h3>
+                <div class="space-y-2">
+                    <button id="drawBtn" class="w-full flex items-center gap-3 p-3 bg-black text-white rounded transition-colors">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                            <polyline points="7,10 12,15 17,10"/>
-                            <line x1="12" y1="15" x2="12" y2="3"/>
+                            <path d="M12 19l7-7 3 3-7 7-3-3z"/>
+                            <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
+                            <path d="M2 2l7.586 7.586"/>
                         </svg>
-                        Load PDF
+                        Draw
                     </button>
                     
-                    <!-- Tools -->
-                    <div id="tools" class="flex items-center gap-4" style="display: none;">
-                        <button id="drawBtn" class="p-2 border bg-black text-white transition-colors">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M12 19l7-7 3 3-7 7-3-3z"/>
-                                <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
-                                <path d="M2 2l7.586 7.586"/>
-                            </svg>
-                        </button>
-                        
-                        <button id="eraseBtn" class="p-2 border border-gray-300 hover:bg-gray-50 transition-colors">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M20 20H7l-7-7 7-7h13v14z"/>
-                                <path d="M13 13l7-7"/>
-                            </svg>
-                        </button>
-                        
-                        <button id="zoomOutBtn" class="p-2 border border-gray-300 hover:bg-gray-50 transition-colors">
+                    <button id="eraseBtn" class="w-full flex items-center gap-3 p-3 border border-gray-300 hover:bg-gray-50 rounded transition-colors">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 20H7l-7-7 7-7h13v14z"/>
+                            <path d="M13 13l7-7"/>
+                        </svg>
+                        Erase Strokes
+                    </button>
+                </div>
+            </div>
+
+            <!-- View Controls -->
+            <div id="viewSection" style="display: none;">
+                <h3 class="text-sm font-medium text-gray-700 mb-3">View</h3>
+                <div class="space-y-2">
+                    <div class="flex gap-2">
+                        <button id="zoomOutBtn" class="flex-1 flex items-center justify-center gap-2 p-3 border border-gray-300 hover:bg-gray-50 rounded transition-colors">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="11" cy="11" r="8"/>
                                 <path d="M21 21l-4.35-4.35"/>
                                 <line x1="8" y1="11" x2="14" y2="11"/>
                             </svg>
+                            Zoom Out
                         </button>
                         
-                        <button id="zoomInBtn" class="p-2 border border-gray-300 hover:bg-gray-50 transition-colors">
+                        <button id="zoomInBtn" class="flex-1 flex items-center justify-center gap-2 p-3 border border-gray-300 hover:bg-gray-50 rounded transition-colors">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="11" cy="11" r="8"/>
                                 <path d="M21 21l-4.35-4.35"/>
                                 <line x1="11" y1="8" x2="11" y2="14"/>
                                 <line x1="8" y1="11" x2="14" y2="11"/>
                             </svg>
-                        </button>
-                        
-                        <button id="clearBtn" class="px-3 py-2 border border-gray-300 hover:bg-gray-50 transition-colors text-sm">
-                            Clear
+                            Zoom In
                         </button>
                     </div>
                 </div>
             </div>
-        </header>
 
-        <!-- Main Content -->
-        <main class="flex-1 flex flex-col items-center p-4">
-            <input id="fileInput" type="file" accept=".pdf" style="display: none;">
-            
-            <!-- Welcome Screen -->
-            <div id="welcomeScreen" class="flex-1 flex items-center justify-center">
-                <div class="text-center">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 text-gray-400">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                        <polyline points="7,10 12,15 17,10"/>
-                        <line x1="12" y1="15" x2="12" y2="3"/>
-                    </svg>
-                    <p class="text-gray-600 mb-4">Load a PDF to start annotating</p>
-                    <button id="welcomeLoadBtn" class="px-6 py-3 bg-black text-white hover:bg-gray-800 transition-colors">
-                        Choose PDF File
-                    </button>
-                </div>
-            </div>
-            
-            <!-- PDF Viewer -->
-            <div id="pdfViewer" class="flex flex-col items-center gap-4 w-full max-w-4xl" style="display: none;">
-                <!-- Canvas Container -->
-                <div class="border border-gray-300 shadow-lg overflow-auto max-w-full max-h-screen canvas-container">
-                    <canvas id="pdfCanvas" class="display-block no-select"></canvas>
-                </div>
-                
-                <!-- Page Controls -->
-                <div class="flex items-center gap-4">
-                    <button id="prevBtn" class="px-4 py-2 border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                        Previous
-                    </button>
-                    
-                    <span id="pageInfo" class="text-sm font-medium">
+            <!-- Page Navigation -->
+            <div id="pageSection" style="display: none;">
+                <h3 class="text-sm font-medium text-gray-700 mb-3">Navigation</h3>
+                <div class="space-y-3">
+                    <div id="pageInfo" class="text-center text-sm font-medium py-2">
                         Page 1 of 1
-                    </span>
+                    </div>
                     
-                    <button id="nextBtn" class="px-4 py-2 border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                        Next
-                    </button>
+                    <div class="flex gap-2">
+                        <button id="prevBtn" class="flex-1 px-4 py-2 border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors rounded">
+                            Previous
+                        </button>
+                        
+                        <button id="nextBtn" class="flex-1 px-4 py-2 border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors rounded">
+                            Next
+                        </button>
+                    </div>
                 </div>
             </div>
-        </main>
+
+            <!-- Actions -->
+            <div id="actionsSection" style="display: none;">
+                <h3 class="text-sm font-medium text-gray-700 mb-3">Actions</h3>
+                <button id="clearBtn" class="w-full px-4 py-3 border border-red-300 text-red-600 hover:bg-red-50 transition-colors rounded">
+                    Clear Page Annotations
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="h-screen w-screen flex items-center justify-center">
+        <input id="fileInput" type="file" accept=".pdf" style="display: none;">
+        
+        <!-- Welcome Screen -->
+        <div id="welcomeScreen" class="text-center">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 text-gray-400">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7,10 12,15 17,10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <p class="text-gray-600 mb-4">Load a PDF to start annotating</p>
+            <button id="welcomeLoadBtn" class="px-6 py-3 bg-black text-white hover:bg-gray-800 transition-colors rounded">
+                Choose PDF File
+            </button>
+        </div>
+        
+        <!-- PDF Viewer -->
+        <div id="pdfViewer" class="relative w-full h-full overflow-auto" style="display: none;">
+            <div id="canvasContainer" class="relative min-h-full flex items-center justify-center">
+                <canvas id="pdfCanvas" class="no-select"></canvas>
+                <canvas id="annotationCanvas" class="no-select"></canvas>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -161,12 +247,24 @@
 
         // DOM elements
         const fileInput = document.getElementById('fileInput');
-        const canvas = document.getElementById('pdfCanvas');
-        const ctx = canvas.getContext('2d');
+        const pdfCanvas = document.getElementById('pdfCanvas');
+        const annotationCanvas = document.getElementById('annotationCanvas');
+        const pdfCtx = pdfCanvas.getContext('2d');
+        const annotationCtx = annotationCanvas.getContext('2d');
         const welcomeScreen = document.getElementById('welcomeScreen');
         const pdfViewer = document.getElementById('pdfViewer');
-        const tools = document.getElementById('tools');
+        const canvasContainer = document.getElementById('canvasContainer');
         const pageInfo = document.getElementById('pageInfo');
+
+        // Drawer elements
+        const menuBtn = document.getElementById('menuBtn');
+        const drawer = document.getElementById('drawer');
+        const overlay = document.getElementById('overlay');
+        const closeDrawerBtn = document.getElementById('closeDrawerBtn');
+        const toolsSection = document.getElementById('toolsSection');
+        const viewSection = document.getElementById('viewSection');
+        const pageSection = document.getElementById('pageSection');
+        const actionsSection = document.getElementById('actionsSection');
 
         // Button elements
         const loadPdfBtn = document.getElementById('loadPdfBtn');
@@ -179,6 +277,17 @@
         const prevBtn = document.getElementById('prevBtn');
         const nextBtn = document.getElementById('nextBtn');
 
+        // Drawer functionality
+        function openDrawer() {
+            drawer.classList.add('open');
+            overlay.classList.add('open');
+        }
+
+        function closeDrawer() {
+            drawer.classList.remove('open');
+            overlay.classList.remove('open');
+        }
+
         // File loading
         async function loadPDF(file) {
             try {
@@ -189,11 +298,17 @@
                 
                 // Show PDF viewer, hide welcome screen
                 welcomeScreen.style.display = 'none';
-                pdfViewer.style.display = 'flex';
-                tools.style.display = 'flex';
+                pdfViewer.style.display = 'block';
+                
+                // Show drawer sections
+                toolsSection.style.display = 'block';
+                viewSection.style.display = 'block';
+                pageSection.style.display = 'block';
+                actionsSection.style.display = 'block';
                 
                 await renderPage(currentPage);
                 updatePageInfo();
+                closeDrawer();
             } catch (error) {
                 console.error('Error loading PDF:', error);
                 alert('Error loading PDF file');
@@ -203,60 +318,128 @@
         // Render PDF page
         async function renderPage(pageNum) {
             const page = await pdfDoc.getPage(pageNum);
-            const viewport = page.getViewport({ scale: zoom });
             
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
+            // Calculate viewport to fit screen width
+            const containerWidth = window.innerWidth;
+            const containerHeight = window.innerHeight;
+            let viewport = page.getViewport({ scale: 1 });
             
-            // Clear canvas
-            ctx.fillStyle = 'white';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Scale to fit width
+            const scaleX = containerWidth / viewport.width;
+            const scaleY = containerHeight / viewport.height;
+            const scale = Math.min(scaleX, scaleY) * zoom;
+            
+            viewport = page.getViewport({ scale });
+            
+            // Set canvas dimensions
+            pdfCanvas.width = viewport.width;
+            pdfCanvas.height = viewport.height;
+            annotationCanvas.width = viewport.width;
+            annotationCanvas.height = viewport.height;
+            
+            // Set canvas display size
+            pdfCanvas.style.width = viewport.width + 'px';
+            pdfCanvas.style.height = viewport.height + 'px';
+            annotationCanvas.style.width = viewport.width + 'px';
+            annotationCanvas.style.height = viewport.height + 'px';
+            
+            // Clear PDF canvas
+            pdfCtx.fillStyle = 'white';
+            pdfCtx.fillRect(0, 0, pdfCanvas.width, pdfCanvas.height);
             
             // Render PDF page
             await page.render({
-                canvasContext: ctx,
+                canvasContext: pdfCtx,
                 viewport: viewport
             }).promise;
             
-            // Restore annotations for this page
-            if (annotations[pageNum]) {
-                annotations[pageNum].forEach(stroke => {
+            // Clear and redraw annotations
+            renderAnnotations();
+        }
+
+        // Render annotations on separate canvas
+        function renderAnnotations() {
+            annotationCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+            
+            if (annotations[currentPage]) {
+                annotations[currentPage].forEach(stroke => {
                     drawStroke(stroke);
                 });
             }
         }
 
-        // Draw stroke on canvas
+        // Draw stroke on annotation canvas
         function drawStroke(stroke) {
-            if (stroke.type === 'erase') {
-                ctx.globalCompositeOperation = 'destination-out';
-                ctx.lineWidth = stroke.width;
-            } else {
-                ctx.globalCompositeOperation = 'source-over';
-                ctx.strokeStyle = 'black';
-                ctx.lineWidth = stroke.width;
-            }
-            
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.beginPath();
+            annotationCtx.globalCompositeOperation = 'source-over';
+            annotationCtx.strokeStyle = 'black';
+            annotationCtx.lineWidth = stroke.width;
+            annotationCtx.lineCap = 'round';
+            annotationCtx.lineJoin = 'round';
+            annotationCtx.beginPath();
             
             if (stroke.points.length > 1) {
-                ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+                annotationCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
                 for (let i = 1; i < stroke.points.length; i++) {
-                    ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+                    annotationCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
                 }
-                ctx.stroke();
+                annotationCtx.stroke();
             }
         }
 
         // Get pointer position relative to canvas
         function getPointerPosition(e) {
-            const rect = canvas.getBoundingClientRect();
+            const rect = annotationCanvas.getBoundingClientRect();
             return {
-                x: (e.clientX - rect.left) * (canvas.width / rect.width),
-                y: (e.clientY - rect.top) * (canvas.height / rect.height)
+                x: (e.clientX - rect.left) * (annotationCanvas.width / rect.width),
+                y: (e.clientY - rect.top) * (annotationCanvas.height / rect.height)
             };
+        }
+
+        // Check if point intersects with any stroke (for erasing)
+        function getStrokeAtPoint(point, tolerance = 10) {
+            if (!annotations[currentPage]) return null;
+            
+            for (let i = annotations[currentPage].length - 1; i >= 0; i--) {
+                const stroke = annotations[currentPage][i];
+                for (let j = 0; j < stroke.points.length - 1; j++) {
+                    const p1 = stroke.points[j];
+                    const p2 = stroke.points[j + 1];
+                    
+                    if (distanceToLineSegment(point, p1, p2) <= tolerance + stroke.width / 2) {
+                        return i;
+                    }
+                }
+            }
+            return null;
+        }
+
+        // Distance from point to line segment
+        function distanceToLineSegment(point, lineStart, lineEnd) {
+            const A = point.x - lineStart.x;
+            const B = point.y - lineStart.y;
+            const C = lineEnd.x - lineStart.x;
+            const D = lineEnd.y - lineStart.y;
+
+            const dot = A * C + B * D;
+            const lenSq = C * C + D * D;
+            let param = -1;
+            if (lenSq !== 0) param = dot / lenSq;
+
+            let xx, yy;
+            if (param < 0) {
+                xx = lineStart.x;
+                yy = lineStart.y;
+            } else if (param > 1) {
+                xx = lineEnd.x;
+                yy = lineEnd.y;
+            } else {
+                xx = lineStart.x + param * C;
+                yy = lineStart.y + param * D;
+            }
+
+            const dx = point.x - xx;
+            const dy = point.y - yy;
+            return Math.sqrt(dx * dx + dy * dy);
         }
 
         // Update page info display
@@ -286,23 +469,23 @@
         // Clear page annotations
         async function clearPage() {
             annotations[currentPage] = [];
-            await renderPage(currentPage);
+            renderAnnotations();
         }
 
         // Toggle tools
         function setDrawMode(drawing) {
             isErasing = !drawing;
             if (drawing) {
-                drawBtn.className = 'p-2 border bg-black text-white transition-colors';
-                eraseBtn.className = 'p-2 border border-gray-300 hover:bg-gray-50 transition-colors';
+                drawBtn.className = 'w-full flex items-center gap-3 p-3 bg-black text-white rounded transition-colors';
+                eraseBtn.className = 'w-full flex items-center gap-3 p-3 border border-gray-300 hover:bg-gray-50 rounded transition-colors';
             } else {
-                drawBtn.className = 'p-2 border border-gray-300 hover:bg-gray-50 transition-colors';
-                eraseBtn.className = 'p-2 border bg-black text-white transition-colors';
+                drawBtn.className = 'w-full flex items-center gap-3 p-3 border border-gray-300 hover:bg-gray-50 rounded transition-colors';
+                eraseBtn.className = 'w-full flex items-center gap-3 p-3 bg-black text-white rounded transition-colors';
             }
         }
 
         // Canvas event handlers
-        canvas.addEventListener('pointerdown', (e) => {
+        annotationCanvas.addEventListener('pointerdown', (e) => {
             // Only allow stylus/pen input, block finger touch
             if (e.pointerType === 'touch') {
                 e.preventDefault();
@@ -311,76 +494,84 @@
             
             if (e.pointerType !== 'pen') return;
             
-            canvas.setPointerCapture(e.pointerId);
+            annotationCanvas.setPointerCapture(e.pointerId);
             isDrawing = true;
             
             const point = getPointerPosition(e);
             lastPoint = point;
             
-            // Start new stroke
-            const newStroke = {
-                type: isErasing ? 'erase' : 'draw',
-                points: [point],
-                width: isErasing ? 20 : Math.max(1, e.pressure * 5)
-            };
-            
-            if (!annotations[currentPage]) {
-                annotations[currentPage] = [];
+            if (isErasing) {
+                // Erase stroke at this point
+                const strokeIndex = getStrokeAtPoint(point);
+                if (strokeIndex !== null) {
+                    annotations[currentPage].splice(strokeIndex, 1);
+                    renderAnnotations();
+                }
+            } else {
+                // Start new stroke
+                const newStroke = {
+                    points: [point],
+                    width: Math.max(1, e.pressure * 5)
+                };
+                
+                if (!annotations[currentPage]) {
+                    annotations[currentPage] = [];
+                }
+                annotations[currentPage].push(newStroke);
             }
-            annotations[currentPage].push(newStroke);
         });
 
-        canvas.addEventListener('pointermove', (e) => {
+        annotationCanvas.addEventListener('pointermove', (e) => {
             if (!isDrawing || e.pointerType === 'touch') return;
             
             const point = getPointerPosition(e);
             
-            // Configure drawing context
             if (isErasing) {
-                ctx.globalCompositeOperation = 'destination-out';
-                ctx.lineWidth = 20;
+                // Continue erasing strokes
+                const strokeIndex = getStrokeAtPoint(point);
+                if (strokeIndex !== null) {
+                    annotations[currentPage].splice(strokeIndex, 1);
+                    renderAnnotations();
+                }
             } else {
-                ctx.globalCompositeOperation = 'source-over';
-                ctx.strokeStyle = 'black';
-                ctx.lineWidth = Math.max(1, e.pressure * 5);
-            }
-            
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            
-            // Draw line segment
-            if (lastPoint) {
-                ctx.beginPath();
-                ctx.moveTo(lastPoint.x, lastPoint.y);
-                ctx.lineTo(point.x, point.y);
-                ctx.stroke();
-            }
-            
-            lastPoint = point;
-            
-            // Update current stroke
-            if (annotations[currentPage] && annotations[currentPage].length > 0) {
-                const currentStroke = annotations[currentPage][annotations[currentPage].length - 1];
-                currentStroke.points.push(point);
-                if (!isErasing) {
+                // Continue drawing
+                annotationCtx.globalCompositeOperation = 'source-over';
+                annotationCtx.strokeStyle = 'black';
+                annotationCtx.lineWidth = Math.max(1, e.pressure * 5);
+                annotationCtx.lineCap = 'round';
+                annotationCtx.lineJoin = 'round';
+                
+                if (lastPoint) {
+                    annotationCtx.beginPath();
+                    annotationCtx.moveTo(lastPoint.x, lastPoint.y);
+                    annotationCtx.lineTo(point.x, point.y);
+                    annotationCtx.stroke();
+                }
+                
+                lastPoint = point;
+                
+                // Update current stroke
+                if (annotations[currentPage] && annotations[currentPage].length > 0) {
+                    const currentStroke = annotations[currentPage][annotations[currentPage].length - 1];
+                    currentStroke.points.push(point);
                     currentStroke.width = Math.max(1, e.pressure * 5);
                 }
             }
         });
 
-        canvas.addEventListener('pointerup', (e) => {
+        annotationCanvas.addEventListener('pointerup', (e) => {
             if (e.pointerType === 'touch') return;
             
             isDrawing = false;
             lastPoint = null;
-            canvas.releasePointerCapture(e.pointerId);
+            annotationCanvas.releasePointerCapture(e.pointerId);
         });
 
         // Prevent context menu and other touch interactions
-        canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-        canvas.addEventListener('touchstart', (e) => e.preventDefault());
-        canvas.addEventListener('touchmove', (e) => e.preventDefault());
-        canvas.addEventListener('touchend', (e) => e.preventDefault());
+        annotationCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
+        annotationCanvas.addEventListener('touchstart', (e) => e.preventDefault());
+        annotationCanvas.addEventListener('touchmove', (e) => e.preventDefault());
+        annotationCanvas.addEventListener('touchend', (e) => e.preventDefault());
 
         // File input handling
         fileInput.addEventListener('change', (e) => {
@@ -388,6 +579,11 @@
                 loadPDF(e.target.files[0]);
             }
         });
+
+        // Drawer event listeners
+        menuBtn.addEventListener('click', openDrawer);
+        closeDrawerBtn.addEventListener('click', closeDrawer);
+        overlay.addEventListener('click', closeDrawer);
 
         // Button event listeners
         loadPdfBtn.addEventListener('click', () => fileInput.click());
@@ -399,6 +595,13 @@
         clearBtn.addEventListener('click', clearPage);
         prevBtn.addEventListener('click', () => changePage(-1));
         nextBtn.addEventListener('click', () => changePage(1));
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (pdfDoc) {
+                renderPage(currentPage);
+            }
+        });
 
         // PWA Service Worker Registration
         if ('serviceWorker' in navigator) {
