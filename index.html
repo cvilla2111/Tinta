@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>Simple Pen Pad — Path or Pixel Eraser</title>
+  <title>Simple Pen Pad — Vector Replay + Fit Modes</title>
 
   <meta name="theme-color" content="#ffffff" />
   <link rel="manifest" href='data:application/manifest+json,{
@@ -31,8 +31,8 @@
       --safe-left:env(safe-area-inset-left, 0px);
       --safe-right:env(safe-area-inset-right, 0px);
 
-      --drawer-w:300px;
-      --drawer-max-w:90vw;
+      --drawer-w:280px;
+      --drawer-max-w:85vw;
       --drawer-border:#000;
       --drawer-dur:220ms;
       --drawer-ease:cubic-bezier(.2,.7,.2,1);
@@ -51,7 +51,7 @@
     }
     body{ position:relative }
 
-    html, body, #pad, .btn, .drawer, .drawer-content, .swatch, .stepper button, .segmented button {
+    html, body, #pad, .btn, .drawer, .drawer-content, .swatch, .stepper button {
       -webkit-touch-callout: none;
       -webkit-user-select: none;
       user-select: none;
@@ -73,10 +73,8 @@
       right:calc(var(--safe-right) + 10px);
       z-index:10;
       pointer-events:none;
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
     }
+
     .toolbar-left{
       position:fixed;
       top:calc(var(--safe-top) + 10px);
@@ -154,9 +152,10 @@
       pointer-events:auto;
     }
 
+    /* Scrollable drawer content */
     .drawer-content{
       flex:1 1 auto;
-      min-height:0;
+      min-height:0; /* enables flex child to shrink and allow scrolling */
       padding:14px;
       font-family:system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
       color:#000;
@@ -167,25 +166,31 @@
       -webkit-overflow-scrolling:touch;
       scrollbar-gutter: stable both-edges;
     }
-    .drawer-content::-webkit-scrollbar{ width:10px; }
+
+    /* Aesthetic, small scrollbar (WebKit/Blink) */
+    .drawer-content::-webkit-scrollbar{
+      width:10px;            /* slim but accessible */
+    }
     .drawer-content::-webkit-scrollbar-track{
       background: var(--scrollbar-track);
       border-left: 0.75px solid var(--scrollbar-border);
     }
     .drawer-content::-webkit-scrollbar-thumb{
       background: var(--scrollbar-thumb);
-      border: 2px solid var(--scrollbar-track);
+      border: 2px solid var(--scrollbar-track); /* pill effect */
       border-radius: 999px;
     }
     .drawer-content::-webkit-scrollbar-thumb:hover{
       background: var(--scrollbar-thumb-hover);
     }
+
+    /* Firefox scrollbar styling */
     .drawer-content{
-      scrollbar-width: thin;
+      scrollbar-width: thin; /* auto-sizes to a thin width */
       scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
     }
 
-    .section{ margin-bottom:12px; }
+    .section{ margin-bottom:10px; }
     .section h3{
       margin:0 0 6px 0;
       font-size:13px;
@@ -229,7 +234,6 @@
       align-items:center;
       justify-content:space-between;
       gap:8px;
-      flex-wrap:wrap;
     }
     .label{
       font-size:12px;
@@ -254,33 +258,11 @@
     }
     .stepper button:last-child{ border-right:none; border-left:0.75px solid #000; }
     .stepper .val{
-      min-width:90px;
+      min-width:54px;
       text-align:center;
       font-variant-numeric:tabular-nums;
       font-size:12px;
       padding:0 6px;
-    }
-
-    .segmented{
-      display:flex;
-      border:0.75px solid #000;
-      border-radius:8px;
-      overflow:hidden;
-      width:100%;
-    }
-    .segmented button{
-      flex:1 1 0;
-      padding:6px 8px;
-      background:#fff;
-      border:0;
-      border-right:0.75px solid #000;
-      font-size:12px;
-      cursor:pointer;
-    }
-    .segmented button:last-child{ border-right:0; }
-    .segmented button[aria-pressed="true"]{
-      background:#000;
-      color:#fff;
     }
 
     .note{
@@ -310,14 +292,6 @@
   </div>
 
   <div class="toolbar-right">
-    <button id="resetViewBtn" class="btn" aria-label="Reset view" title="Reset view">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M4 4v6h6" />
-        <path d="M20 20v-6h-6" />
-        <path d="M5 15a7 7 0 0 0 9 4" />
-        <path d="M19 9a7 7 0 0 0-9-4" />
-      </svg>
-    </button>
     <button id="clearBtn" class="btn" aria-label="Clear canvas" title="Clear">
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M3 6h18" />
@@ -386,7 +360,7 @@
                 <button class="plus" aria-label="Next curve">+</button>
               </div>
             </div>
-            <div class="note">Soft • Linear • Firm (default).</div>
+            <div class="note">Soft = thicker with light touch • Linear • Firm (default) = needs more pressure.</div>
           </div>
         </div>
 
@@ -401,7 +375,7 @@
                 <button class="plus" aria-label="More smoothing">+</button>
               </div>
             </div>
-            <div class="note">Stabilizes width changes only. Default: 0.35.</div>
+            <div class="note">Stabilizes width changes only. 0 = none • 1 = very smooth. Default: 0.35.</div>
           </div>
 
           <div class="control">
@@ -413,7 +387,7 @@
                 <button class="plus" aria-label="Increase stabilizer">+</button>
               </div>
             </div>
-            <div class="note">Limits path speed per event. Default: 0 px (off).</div>
+            <div class="note">Smooths the path by limiting how far the pen moves per event. Default: 0 px (off).</div>
           </div>
         </div>
 
@@ -428,7 +402,7 @@
                 <button class="plus" aria-label="Next mode">+</button>
               </div>
             </div>
-            <div class="note">Smoothness caps DPR at 2. Sharpness uses full DPR.</div>
+            <div class="note">Smoothness caps DPR at 2 (default). Sharpness uses full device DPR (sharper, heavier).</div>
           </div>
         </div>
 
@@ -443,45 +417,13 @@
                 <button class="plus" aria-label="Next fit mode">+</button>
               </div>
             </div>
-            <div class="note">Stretch • Contain • Cover • None.</div>
-          </div>
-        </div>
-
-        <div class="section">
-          <h3>Stylus buttons</h3>
-          <div class="control">
-            <div class="row">
-              <div class="label">Barrel button</div>
-              <div class="stepper" id="barrelAction">
-                <button class="minus" aria-label="Previous barrel action">−</button>
-                <div class="val" aria-live="polite">Eraser</div>
-                <button class="plus" aria-label="Next barrel action">+</button>
-              </div>
+            <div class="note">
+              How drawings adapt when the window size changes:
+              • Stretch: fill; can distort
+              • Contain: show all; no distortion; letterbox
+              • Cover: fill; no distortion; may crop
+              • None: no scaling; can overflow
             </div>
-            <div class="note">Action while holding stylus side button: Draw • Eraser • Eyedropper.</div>
-          </div>
-
-          <div class="control">
-            <div class="row">
-              <div class="label">Tail button</div>
-              <div class="stepper" id="tailAction">
-                <button class="minus" aria-label="Previous tail action">−</button>
-                <div class="val" aria-live="polite">Eraser</div>
-                <button class="plus" aria-label="Next tail action">+</button>
-              </div>
-            </div>
-            <div class="note">Action when pressing eraser-end button.</div>
-          </div>
-        </div>
-
-        <div class="section">
-          <h3>Eraser type</h3>
-          <div class="control">
-            <div class="segmented" id="eraserType" role="group" aria-label="Eraser type">
-              <button data-type="Path" aria-pressed="true">Path eraser</button>
-              <button data-type="Pixel" aria-pressed="false">Pixel eraser</button>
-            </div>
-            <div class="note">Path eraser removes entire strokes you touch. Pixel eraser punches holes like a brush.</div>
           </div>
         </div>
 
@@ -493,7 +435,6 @@
   <canvas id="pad"></canvas>
 
   <script>
-    // Minimal SW
     if ('serviceWorker' in navigator) {
       const sw = `
         self.addEventListener('install', e => self.skipWaiting());
@@ -504,23 +445,18 @@
       ).catch(()=>{});
     }
 
-    // DOM
     const canvas     = document.getElementById('pad');
     const ctx        = canvas.getContext('2d', { alpha:false, desynchronized:true });
     const menuBtn    = document.getElementById('menuBtn');
     const clearBtn   = document.getElementById('clearBtn');
-    const resetViewBtn = document.getElementById('resetViewBtn');
     const drawerHost = document.getElementById('drawerHost');
     const drawer     = document.getElementById('drawer');
     const backdrop   = document.getElementById('backdrop');
 
-    // Constants and options
     const CURVE_OPTS = ['Soft','Linear','Firm'];
     const CURVE_GAMMA = { Soft:0.5, Linear:1, Firm:2 };
     const FIT_OPTS = ['Stretch','Contain','Cover','None'];
-    const BUTTON_ACTIONS = ['Draw','Eraser','Eyedropper']; // Pan removed
 
-    // Settings
     const settings = {
       inkColor: '#000000',
       minWidth: 0.5,
@@ -529,73 +465,29 @@
       smoothing: 0.35,
       stabilizer: 0,
       mode: 'Smoothness',
-      fitMode: 'Contain',
-      barrelAction: 'Eraser',
-      tailAction: 'Eraser',
-      eraserType: 'Path',      // 'Path' or 'Pixel'
-      pixelEraserSize: 18      // px diameter approximation (uses lineWidth)
+      fitMode: 'Contain'
     };
 
-    // State
     const state = {
       dpr: 1,
       cssW: 0,
       cssH: 0,
       rect: { left:0, top:0 },
-
       drawing: false,
       pointerId: null,
-
-      tool: 'Draw',
-      lastX: 0, lastY: 0,
+      lastX: 0,
+      lastY: 0,
       sx: 0, sy: 0,
       filteredW: settings.maxWidth,
       queue: [],
       needsRender: false,
       rafId: 0,
-      modeSharp: false,
-
-      // View offset retained (Reset View keeps it usable for fit modes); Pan feature removed but offset kept for compatibility
-      viewOx: 0, viewOy: 0,
-
-      // Eraser batching/optimizations (applies to both path and pixel variants)
-      eraserTol: 10,
-      eraserLastX: NaN,
-      eraserLastY: NaN,
-      eraserMinMove: 3,
-      eraseChanged: false,
-      eraseRedrawScheduled: false,
-
-      // Pixel eraser specific
-      pixelErasing: false
+      modeSharp: false
     };
 
-    // History of vector strokes (for draw and for re-rendering after pixel erase)
     let history = [];
     let currentStroke = null;
 
-    // Offscreen buffer for pixel eraser compositing
-    let offscreenCanvas = null;
-    let offctx = null;
-    let offValid = false; // whether offscreen reflects current history render
-
-    function ensureOffscreen(){
-      if (!offscreenCanvas) {
-        offscreenCanvas = document.createElement('canvas');
-      }
-      if (!offctx) {
-        offctx = offscreenCanvas.getContext('2d', { alpha:true, desynchronized:true });
-      }
-      const w = Math.floor(state.cssW * state.dpr);
-      const h = Math.floor(state.cssH * state.dpr);
-      if (offscreenCanvas.width !== w || offscreenCanvas.height !== h){
-        offscreenCanvas.width = w;
-        offscreenCanvas.height = h;
-        offValid = false;
-      }
-    }
-
-    // Prevent touch context menu
     const TOUCH_CTX_GUARD_MS = 1500;
     let lastTouchTs = 0;
     window.addEventListener('touchstart', () => { lastTouchTs = performance.now(); }, { capture:true, passive:true });
@@ -603,12 +495,20 @@
     document.addEventListener('contextmenu', (e) => {
       const fromTouch = (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) ||
                         (performance.now() - lastTouchTs) < TOUCH_CTX_GUARD_MS;
-      if (fromTouch) { e.preventDefault(); e.stopPropagation(); }
+      if (fromTouch) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
     }, { capture:true });
 
-    // Sizing
-    function getDeviceDPR(){ return (typeof window.devicePixelRatio === 'number' && window.devicePixelRatio > 0) ? window.devicePixelRatio : 1; }
-    function computeDPR(){ const raw = getDeviceDPR(); return state.modeSharp ? raw : Math.min(2, raw); }
+    function getDeviceDPR(){
+      return (typeof window.devicePixelRatio === 'number' && window.devicePixelRatio > 0)
+        ? window.devicePixelRatio : 1;
+    }
+    function computeDPR(){
+      const raw = getDeviceDPR();
+      return state.modeSharp ? raw : Math.min(2, raw);
+    }
 
     function sizeCanvas(){
       state.dpr = computeDPR();
@@ -620,61 +520,28 @@
       canvas.width  = Math.floor(state.cssW * state.dpr);
       canvas.height = Math.floor(state.cssH * state.dpr);
 
-      ensureOffscreen();
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = settings.inkColor;
 
       const r = canvas.getBoundingClientRect();
       state.rect.left = r.left;
       state.rect.top  = r.top;
-
-      offValid = false;
-      redrawAllStrokes();
     }
 
-    // Fit transform + view offset
-    function computeFitTransform(baseW, baseH){
-      const dpr = state.dpr;
-      const cssW = state.cssW;
-      const cssH = state.cssH;
-
-      const scaleX = cssW / (baseW || cssW || 1);
-      const scaleY = cssH / (baseH || cssH || 1);
-
-      let sx, sy, tx, ty;
-      switch (settings.fitMode) {
-        case 'Stretch':
-          sx = scaleX; sy = scaleY; tx = 0; ty = 0; break;
-        case 'Contain': {
-          const s = Math.min(scaleX, scaleY);
-          sx = s; sy = s;
-          const outW = baseW * s, outH = baseH * s;
-          tx = (cssW - outW) / 2; ty = (cssH - outH) / 2;
-          break;
-        }
-        case 'Cover': {
-          const s = Math.max(scaleX, scaleY);
-          sx = s; sy = s;
-          const outW = baseW * s, outH = baseH * s;
-          tx = (cssW - outW) / 2; ty = (cssH - outH) / 2;
-          break;
-        }
-        case 'None':
-        default:
-          sx = 1; sy = 1; tx = 0; ty = 0; break;
-      }
-      tx += state.viewOx;
-      ty += state.viewOy;
-
-      return {
-        a: dpr * sx, b: 0,
-        c: 0, d: dpr * sy,
-        e: dpr * tx, f: dpr * ty,
-        sx, sy, tx, ty
-      };
+    function xyFromEvent(e){
+      return { x: e.clientX - state.rect.left, y: e.clientY - state.rect.top };
     }
 
-    // Helpers
-    function xyFromEvent(e){ return { x: e.clientX - state.rect.left, y: e.clientY - state.rect.top }; }
-    function pressureOf(e){ const p = (typeof e.pressure === 'number') ? e.pressure : 1; return (p > 0) ? Math.min(1, Math.max(0, p)) : 1; }
+    function pressureOf(e){
+      const p = (typeof e.pressure === 'number') ? e.pressure : 1;
+      return (p > 0) ? Math.min(1, Math.max(0, p)) : 1;
+    }
+
     function pressureToWidthFor(stroke, p){
       const gamma = stroke.gamma || CURVE_GAMMA[stroke.curve] || 1;
       const t = Math.pow(p, gamma);
@@ -682,55 +549,6 @@
       return Math.max(0.25, Math.min(64, w));
     }
 
-    // BBox helpers (for path eraser)
-    function computeStrokeBBox(stroke){
-      if (stroke.bbox) return stroke.bbox;
-      const pts = stroke.points;
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      for (let i = 0; i < pts.length; i++){
-        const p = pts[i];
-        if (p.x < minX) minX = p.x;
-        if (p.y < minY) minY = p.y;
-        if (p.x > maxX) maxX = p.x;
-        if (p.y > maxY) maxY = p.y;
-      }
-      const pad = (stroke.maxWidth || 0) * 0.5 + 1;
-      stroke.bbox = { minX:minX - pad, minY:minY - pad, maxX:maxX + pad, maxY:maxY + pad };
-      return stroke.bbox;
-    }
-    function aabbIntersectsCircle(aabb, cx, cy, r){
-      const clx = Math.max(aabb.minX, Math.min(cx, aabb.maxX));
-      const cly = Math.max(aabb.minY, Math.min(cy, aabb.maxY));
-      const dx = cx - clx, dy = cy - cly;
-      return (dx*dx + dy*dy) <= r*r;
-    }
-    function distToSegment(px, py, x1, y1, x2, y2){
-      const vx = x2 - x1, vy = y2 - y1;
-      const wx = px - x1, wy = py - y1;
-      const c1 = vx*wx + vy*wy;
-      if (c1 <= 0) return Math.hypot(px - x1, py - y1);
-      const c2 = vx*vx + vy*vy;
-      if (c2 <= c1) return Math.hypot(px - x2, py - y2);
-      const t = c1 / c2;
-      const projx = x1 + t * vx;
-      const projy = y1 + t * vy;
-      return Math.hypot(px - projx, py - projy);
-    }
-    function strokeHitTest(stroke, x, y, tolerance){
-      const pts = stroke.points;
-      if (!pts || pts.length < 2) return false;
-      const bbox = computeStrokeBBox(stroke);
-      if (!aabbIntersectsCircle(bbox, x, y, tolerance)) return false;
-      const avgW = (stroke.minWidth + stroke.maxWidth) * 0.5;
-      const tol = Math.max(tolerance, avgW * 0.5);
-      for (let i = 1; i < pts.length; i++){
-        const a = pts[i-1], b = pts[i];
-        if (distToSegment(x, y, a.x, a.y, b.x, b.y) <= tol) return true;
-      }
-      return false;
-    }
-
-    // Drawer controls
     function openDrawer(){
       menuBtn.classList.add('hidden');
       menuBtn.setAttribute('aria-expanded', 'true');
@@ -743,6 +561,7 @@
       drawerHost.setAttribute('aria-hidden', 'true');
       drawer.setAttribute('aria-hidden', 'true');
       menuBtn.setAttribute('aria-expanded', 'false');
+
       const onEnd = (e) => {
         if (e.target !== drawer || e.propertyName !== 'transform') return;
         drawer.removeEventListener('transitionend', onEnd);
@@ -751,17 +570,119 @@
       drawer.addEventListener('transitionend', onEnd, { once:true });
       setTimeout(() => menuBtn.classList.remove('hidden'), 320);
     }
+
     menuBtn.addEventListener('pointerdown', openDrawer, { passive:true });
     menuBtn.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') openDrawer(); });
     backdrop.addEventListener('pointerdown', closeDrawer, { passive:true });
     drawer.addEventListener('pointerdown', (e) => e.stopPropagation(), { passive:true });
     window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); }, { passive:true });
 
-    // Clear and Reset view
+    const moveEventName = ('onpointerrawupdate' in window) ? 'pointerrawupdate' : 'pointermove';
+
+    function startStroke(e){
+      if (e.pointerType !== 'pen' || e.button !== 0) return;
+
+      const r = canvas.getBoundingClientRect();
+      state.rect.left = r.left;
+      state.rect.top  = r.top;
+
+      canvas.setPointerCapture(e.pointerId);
+      state.drawing = true;
+      state.pointerId = e.pointerId;
+
+      const { x, y } = xyFromEvent(e);
+      state.lastX = x; state.lastY = y;
+      state.sx = x; state.sy = y;
+
+      state.filteredW = pressureToWidthFor({
+        minWidth: settings.minWidth,
+        maxWidth: settings.maxWidth,
+        curve: settings.curve,
+        gamma: CURVE_GAMMA[settings.curve]
+      }, pressureOf(e));
+
+      currentStroke = {
+        color: settings.inkColor,
+        minWidth: settings.minWidth,
+        maxWidth: settings.maxWidth,
+        curve: settings.curve,
+        gamma: CURVE_GAMMA[settings.curve],
+        smoothing: settings.smoothing,
+        baseW: state.cssW,
+        baseH: state.cssH,
+        points: []
+      };
+
+      currentStroke.points.push({ x, y, p: pressureOf(e) });
+      state.needsRender = true;
+    }
+
+    function moveStroke(e){
+      if (!state.drawing || e.pointerId !== state.pointerId) return;
+
+      const src = (typeof e.getCoalescedEvents === 'function') ? e.getCoalescedEvents() : [e];
+
+      for (let i = 0; i < src.length; i++){
+        const ev = src[i];
+        const { x:rx, y:ry } = xyFromEvent(ev);
+
+        let x = rx, y = ry;
+        const S = settings.stabilizer;
+        if (S > 0){
+          const dx = rx - state.sx, dy = ry - state.sy;
+          const dist = Math.hypot(dx, dy);
+          if (dist > 0){
+            const step = Math.min(dist, S);
+            const t = step / dist;
+            x = state.sx + dx * t;
+            y = state.sy + dy * t;
+          }
+          state.sx = x; state.sy = y;
+        } else {
+          state.sx = x; state.sy = y;
+        }
+
+        if (currentStroke) currentStroke.points.push({ x, y, p: pressureOf(ev) });
+
+        const targetW = pressureToWidthFor({
+          minWidth: settings.minWidth,
+          maxWidth: settings.maxWidth,
+          curve: settings.curve,
+          gamma: CURVE_GAMMA[settings.curve]
+        }, pressureOf(ev));
+        state.filteredW += (targetW - state.filteredW) * settings.smoothing;
+
+        state.queue.push({ x, y, w: state.filteredW, color: currentStroke ? currentStroke.color : settings.inkColor });
+      }
+
+      state.needsRender = true;
+    }
+
+    function endStroke(e){
+      if (e.pointerId !== state.pointerId) return;
+      state.drawing = false;
+      state.pointerId = null;
+      state.needsRender = true;
+      try { canvas.releasePointerCapture(e.pointerId); } catch {}
+
+      if (currentStroke){
+        if (currentStroke.points.length === 1){
+          const pt = currentStroke.points[0];
+          currentStroke.points.push({ x: pt.x + 0.01, y: pt.y, p: pt.p });
+        }
+        history.push(currentStroke);
+        currentStroke = null;
+      }
+    }
+
+    canvas.addEventListener('pointerdown', startStroke, { passive:true });
+    canvas.addEventListener(moveEventName, moveStroke,   { passive:true });
+    canvas.addEventListener('pointerup',   endStroke,    { passive:true });
+    canvas.addEventListener('pointercancel', endStroke,  { passive:true });
+    canvas.addEventListener('pointerout',  endStroke,    { passive:true });
+
     function clearCanvas(){
       history = [];
-      currentStroke = null;
-      offValid = false;
       ctx.setTransform(1,0,0,1,0,0);
       ctx.fillStyle = '#fff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -769,42 +690,79 @@
     }
     clearBtn.addEventListener('click', clearCanvas, { passive:true });
 
-    function resetView(){
-      state.viewOx = 0; state.viewOy = 0;
-      offValid = false;
-      redrawAllStrokes();
-    }
-    resetViewBtn.addEventListener('click', resetView, { passive:true });
+    function computeFitTransform(baseW, baseH){
+      const dpr = state.dpr;
+      const cssW = state.cssW;
+      const cssH = state.cssH;
 
-    // Redraw from history to on-screen and offscreen buffers
-    function renderHistoryTo(ctxTarget){
-      ctxTarget.setTransform(1,0,0,1,0,0);
-      // Clear to transparent for offscreen, white for onscreen background below
-      const isOff = (ctxTarget === offctx);
-      if (isOff) {
-        ctxTarget.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
-      } else {
-        ctxTarget.fillStyle = '#fff';
-        ctxTarget.fillRect(0, 0, canvas.width, canvas.height);
+      const scaleX = cssW / (baseW || cssW || 1);
+      const scaleY = cssH / (baseH || cssH || 1);
+
+      let sx, sy, tx, ty;
+
+      switch (settings.fitMode) {
+        case 'Stretch':
+          sx = scaleX; sy = scaleY;
+          tx = 0; ty = 0;
+          break;
+        case 'Contain': {
+          const s = Math.min(scaleX, scaleY);
+          sx = s; sy = s;
+          const outW = baseW * s;
+          const outH = baseH * s;
+          tx = (cssW - outW) / 2;
+          ty = (cssH - outH) / 2;
+          break;
+        }
+        case 'Cover': {
+          const s = Math.max(scaleX, scaleY);
+          sx = s; sy = s;
+          const outW = baseW * s;
+          const outH = baseH * s;
+          tx = (cssW - outW) / 2;
+          ty = (cssH - outH) / 2;
+          break;
+        }
+        case 'None':
+        default:
+          sx = 1; sy = 1;
+          tx = 0; ty = 0;
+          break;
       }
+
+      return {
+        a: dpr * sx, b: 0,
+        c: 0, d: dpr * sy,
+        e: dpr * tx, f: dpr * ty,
+        sx, sy, tx, ty
+      };
+    }
+
+    function redrawAllStrokes(){
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const WIDTH_EPS = 0.1;
 
       for (let s = 0; s < history.length; s++){
         const stroke = history[s];
         if (!stroke.points || stroke.points.length === 0) continue;
 
         const T = computeFitTransform(stroke.baseW || state.cssW, stroke.baseH || state.cssH);
-        ctxTarget.save();
-        ctxTarget.setTransform(T.a, T.b, T.c, T.d, T.e, T.f);
-        ctxTarget.lineCap = 'round';
-        ctxTarget.lineJoin = 'round';
-        ctxTarget.strokeStyle = stroke.color;
+
+        ctx.save();
+        ctx.setTransform(T.a, T.b, T.c, T.d, T.e, T.f);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = stroke.color;
 
         let filteredW = pressureToWidthFor(stroke, stroke.points[0].p);
         let lastX = stroke.points[0].x, lastY = stroke.points[0].y;
 
-        ctxTarget.beginPath();
-        ctxTarget.moveTo(lastX, lastY);
-        ctxTarget.lineWidth = filteredW;
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineWidth = filteredW;
         let currentLW = filteredW;
 
         for (let i = 1; i < stroke.points.length; i++){
@@ -813,39 +771,26 @@
           filteredW += (targetW - filteredW) * stroke.smoothing;
           const lw = Math.max(0.25, Math.min(64, filteredW));
 
-          if (Math.abs(lw - currentLW) > 0.1){
-            ctxTarget.stroke();
-            ctxTarget.beginPath();
-            ctxTarget.moveTo(lastX, lastY);
-            ctxTarget.lineWidth = lw;
+          if (Math.abs(lw - currentLW) > WIDTH_EPS){
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineWidth = lw;
             currentLW = lw;
           }
 
-          ctxTarget.lineTo(pt.x, pt.y);
-          lastX = pt.x; lastY = pt.y;
+          ctx.lineTo(pt.x, pt.y);
+          lastX = pt.x;
+          lastY = pt.y;
         }
-        ctxTarget.stroke();
-        ctxTarget.restore();
+        ctx.stroke();
+        ctx.restore();
       }
 
-      // Restore default transform for live strokes (screen)
-      if (!isOff) {
-        ctxTarget.setTransform(state.dpr,0,0,state.dpr,0,0);
-      }
-    }
-
-    function redrawAllStrokes(){
-      // Onscreen
-      renderHistoryTo(ctx);
-      // Offscreen base for pixel erasing
-      ensureOffscreen();
-      renderHistoryTo(offctx);
-      offValid = true;
-      // Restore onscreen default transform
       ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
     }
 
-    // Live vector renderer (for drawing tool)
+    const WIDTH_EPS = 0.1;
     function render(){
       if (state.needsRender){
         state.needsRender = false;
@@ -877,7 +822,7 @@
             currentColor = p.color;
           }
 
-          if (Math.abs(lw - currentLW) > 0.1){
+          if (Math.abs(lw - currentLW) > WIDTH_EPS){
             ctx.stroke();
             ctx.beginPath();
             ctx.moveTo(state.lastX, state.lastY);
@@ -896,19 +841,9 @@
         }
       }
 
-      // Batched redraws requested by erasing
-      if (state.eraseRedrawScheduled){
-        state.eraseRedrawScheduled = false;
-        if (state.eraseChanged){
-          state.eraseChanged = false;
-          redrawAllStrokes();
-        }
-      }
-
       state.rafId = requestAnimationFrame(render);
     }
 
-    // Palette UI
     (function initPalette(){
       const el = document.getElementById('palette');
       el.addEventListener('pointerdown', (e) => {
@@ -921,7 +856,6 @@
       }, { passive:true });
     })();
 
-    // Stepper helpers
     function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
     function fmt(v, decimals=0, suffix=''){ return v.toFixed(decimals) + (suffix ? ' ' + suffix : ''); }
 
@@ -932,9 +866,9 @@
       const val   = root.querySelector('.val');
       function render(){ val.textContent = fmt(get(), decimals, suffix); }
       function bump(dir){
-        let vv = get();
-        vv = clamp(vv + dir*step, min, max);
-        set(vv);
+        let v = get();
+        v = clamp(v + dir*step, min, max);
+        set(v);
         render();
       }
       minus.addEventListener('click', () => bump(-1), { passive:true });
@@ -961,25 +895,6 @@
       render();
     }
 
-    function bindSegmented(id, get, set){
-      const root = document.getElementById(id);
-      function updateUI(){
-        const val = get();
-        for (const b of root.querySelectorAll('button')){
-          b.setAttribute('aria-pressed', String(b.dataset.type === val));
-        }
-      }
-      root.addEventListener('click', (e) => {
-        const btn = e.target.closest('button');
-        if (!btn) return;
-        const val = btn.dataset.type;
-        set(val);
-        updateUI();
-      }, { passive:true });
-      updateUI();
-    }
-
-    // Wire steppers
     bindNumberStepper('minW',
       () => settings.minWidth,
       (v) => {
@@ -1021,311 +936,23 @@
         const wasSharp = (settings.mode === 'Sharpness');
         settings.mode = v;
         state.modeSharp = (v === 'Sharpness');
-        if (wasSharp !== state.modeSharp) sizeCanvas();
+        const nowSharp = state.modeSharp;
+        if (wasSharp !== nowSharp) {
+          sizeCanvas();
+          redrawAllStrokes();
+        }
       }
     );
 
     bindEnumStepper('fitMode', FIT_OPTS,
       () => settings.fitMode,
       (v) => { settings.fitMode = v; },
-      () => { offValid = false; redrawAllStrokes(); }
+      () => { redrawAllStrokes(); }
     );
 
-    bindEnumStepper('barrelAction', BUTTON_ACTIONS,
-      () => settings.barrelAction,
-      (v) => { settings.barrelAction = v; }
-    );
-
-    bindEnumStepper('tailAction', BUTTON_ACTIONS,
-      () => settings.tailAction,
-      (v) => { settings.tailAction = v; }
-    );
-
-    bindSegmented('eraserType',
-      () => settings.eraserType,
-      (v) => { settings.eraserType = v; }
-    );
-
-    // Tool selection
-    function activeToolForEvent(e){
-      if (e.type === 'pointerdown' && e.button === 5) return settings.tailAction;
-      if (e.pointerType === 'pen'){
-        const nonPrimaryHeld = (e.buttons & ~1) !== 0;
-        if (nonPrimaryHeld) return settings.barrelAction;
-      }
-      return 'Draw';
-    }
-
-    // Pointer handlers
-    function startStroke(e){
-      if (e.pointerType !== 'pen' || (e.button !== 0 && e.button !== 5)) return;
-
-      const r = canvas.getBoundingClientRect();
-      state.rect.left = r.left;
-      state.rect.top  = r.top;
-
-      const tool = activeToolForEvent(e);
-      state.tool = tool;
-
-      canvas.setPointerCapture(e.pointerId);
-      state.drawing = true;
-      state.pointerId = e.pointerId;
-
-      const { x, y } = xyFromEvent(e);
-      state.lastX = x; state.lastY = y;
-      state.sx = x; state.sy = y;
-
-      if (tool === 'Eyedropper'){
-        const s = pickTopmostStroke(x - state.viewOx, y - state.viewOy, 8);
-        if (s) settings.inkColor = s.color;
-        // Update palette UI selection
-        const palette = document.getElementById('palette');
-        if (palette){
-          for (const b of palette.querySelectorAll('.swatch')) b.setAttribute('aria-pressed', 'false');
-          const match = palette.querySelector(`.swatch[data-color="${settings.inkColor}"]`);
-          if (match) match.setAttribute('aria-pressed', 'true');
-        }
-        state.drawing = false;
-        try { canvas.releasePointerCapture(e.pointerId); } catch {}
-        return;
-      }
-
-      if (tool === 'Eraser'){
-        state.eraserLastX = x;
-        state.eraserLastY = y;
-
-        if (settings.eraserType === 'Pixel'){
-          ensureOffscreen();
-          // Ensure offscreen has current strokes drawn
-          if (!offValid){ renderHistoryTo(offctx); offValid = true; }
-          // Start pixel erasing: set composite mode to erase (destination-out)
-          offctx.save();
-          offctx.setTransform(state.dpr,0,0,state.dpr,0,0);
-          offctx.globalCompositeOperation = 'destination-out';
-          offctx.lineCap = 'round';
-          offctx.lineJoin = 'round';
-          offctx.lineWidth = settings.pixelEraserSize;
-          offctx.beginPath();
-          offctx.moveTo(x, y);
-          state.pixelErasing = true;
-
-          // Apply one dot immediately
-          offctx.lineTo(x + 0.01, y);
-          offctx.stroke();
-
-          // Blit to screen
-          blitOffscreenToScreen();
-        } else {
-          // Path eraser (whole-stroke)
-          const changed = eraseAtPoint(x - state.viewOx, y - state.viewOy);
-          if (changed){
-            state.eraseChanged = true;
-            scheduleEraseRedraw();
-          }
-        }
-        return;
-      }
-
-      // Draw (ink)
-      state.filteredW = pressureToWidthFor({
-        minWidth: settings.minWidth,
-        maxWidth: settings.maxWidth,
-        curve: settings.curve,
-        gamma: CURVE_GAMMA[settings.curve]
-      }, pressureOf(e));
-
-      currentStroke = {
-        color: settings.inkColor,
-        minWidth: settings.minWidth,
-        maxWidth: settings.maxWidth,
-        curve: settings.curve,
-        gamma: CURVE_GAMMA[settings.curve],
-        smoothing: settings.smoothing,
-        baseW: state.cssW,
-        baseH: state.cssH,
-        points: [{ x, y, p: pressureOf(e) }]
-      };
-
-      state.needsRender = true;
-      offValid = false; // vector changed, offscreen invalid
-    }
-
-    function moveStroke(e){
-      if (!state.drawing || e.pointerId !== state.pointerId) return;
-
-      const src = (typeof e.getCoalescedEvents === 'function') ? e.getCoalescedEvents() : [e];
-
-      if (state.tool === 'Eraser'){
-        if (settings.eraserType === 'Pixel'){
-          if (!state.pixelErasing) return;
-          for (let i = 0; i < src.length; i++){
-            const ev = src[i];
-            const { x, y } = xyFromEvent(ev);
-            const dx = x - state.eraserLastX;
-            const dy = y - state.eraserLastY;
-            if ((dx*dx + dy*dy) >= (state.eraserMinMove * state.eraserMinMove)){
-              state.eraserLastX = x;
-              state.eraserLastY = y;
-
-              offctx.lineTo(x, y);
-              offctx.stroke();
-            }
-          }
-          // Blit once per frame (throttled by RAF via schedule)
-          scheduleBlit();
-          return;
-        } else {
-          // Path eraser
-          const lastX = state.eraserLastX;
-          const lastY = state.eraserLastY;
-          for (let i = 0; i < src.length; i++){
-            const ev = src[i];
-            const { x, y } = xyFromEvent(ev);
-            const dx = x - lastX;
-            const dy = y - lastY;
-            if ((dx*dx + dy*dy) >= (state.eraserMinMove * state.eraserMinMove)){
-              state.eraserLastX = x;
-              state.eraserLastY = y;
-              const changed = eraseAtPoint(x - state.viewOx, y - state.viewOy);
-              if (changed){
-                state.eraseChanged = true;
-              }
-            }
-          }
-          scheduleEraseRedraw();
-          return;
-        }
-      }
-
-      if (state.tool !== 'Draw') return;
-
-      for (let i = 0; i < src.length; i++){
-        const ev = src[i];
-        const { x:rx, y:ry } = xyFromEvent(ev);
-
-        let x = rx, y = ry;
-        const S = settings.stabilizer;
-        if (S > 0){
-          const dx = rx - state.sx, dy = ry - state.sy;
-          const dist = Math.hypot(dx, dy);
-          if (dist > 0){
-            const step = Math.min(dist, S);
-            const t = step / dist;
-            x = state.sx + dx * t;
-            y = state.sy + dy * t;
-          }
-          state.sx = x; state.sy = y;
-        } else {
-          state.sx = x; state.sy = y;
-        }
-
-        if (currentStroke) currentStroke.points.push({ x, y, p: pressureOf(ev) });
-
-        const targetW = pressureToWidthFor({
-          minWidth: settings.minWidth,
-          maxWidth: settings.maxWidth,
-          curve: settings.curve,
-          gamma: CURVE_GAMMA[settings.curve]
-        }, pressureOf(ev));
-        state.filteredW += (targetW - state.filteredW) * settings.smoothing;
-
-        state.queue.push({ x, y, w: state.filteredW, color: currentStroke ? currentStroke.color : settings.inkColor });
-      }
-
-      state.needsRender = true;
-    }
-
-    function endStroke(e){
-      if (e.pointerId !== state.pointerId) return;
-
-      if (state.tool === 'Draw' && currentStroke){
-        if (currentStroke.points.length === 1){
-          const pt = currentStroke.points[0];
-          currentStroke.points.push({ x: pt.x + 0.01, y: pt.y, p: pt.p });
-        }
-        computeStrokeBBox(currentStroke);
-        history.push(currentStroke);
-        currentStroke = null;
-        offValid = false; // vector changed
-      }
-
-      if (state.tool === 'Eraser' && settings.eraserType === 'Pixel'){
-        if (state.pixelErasing){
-          offctx.restore(); // restore default composite
-          state.pixelErasing = false;
-          // On stroke end, just ensure the latest blit has happened
-          blitOffscreenToScreen();
-        }
-      }
-
-      state.drawing = false;
-      state.pointerId = null;
-      try { canvas.releasePointerCapture(e.pointerId); } catch {}
-    }
-
-    // Path eraser
-    function eraseAtPoint(x, y){
-      const tol = state.eraserTol;
-      let changed = false;
-      for (let i = history.length - 1; i >= 0; i--){
-        const s = history[i];
-        const bbox = computeStrokeBBox(s);
-        if (!aabbIntersectsCircle(bbox, x, y, tol)) continue;
-        if (strokeHitTest(s, x, y, tol)){
-          history.splice(i, 1);
-          changed = true;
-        }
-      }
-      if (changed) offValid = false; // offscreen base invalidated
-      return changed;
-    }
-
-    function scheduleEraseRedraw(){
-      if (state.eraseRedrawScheduled) return;
-      state.eraseRedrawScheduled = true;
-      // Render loop will handle the redraw once
-    }
-
-    // Pixel eraser: blit offscreen to screen
-    let blitPending = false;
-    function blitOffscreenToScreen(){
-      // Paint white background then alpha-composited offscreen content
-      ctx.setTransform(1,0,0,1,0,0);
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(offscreenCanvas, 0, 0);
-      ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
-    }
-    function scheduleBlit(){
-      if (blitPending) return;
-      blitPending = true;
-      requestAnimationFrame(() => {
-        blitPending = false;
-        blitOffscreenToScreen();
-      });
-    }
-
-    // Eyedropper helper (topmost stroke)
-    function pickTopmostStroke(x, y, tolerance=6){
-      for (let i = history.length - 1; i >= 0; i--){
-        const s = history[i];
-        if (strokeHitTest(s, x, y, tolerance)) return s;
-      }
-      return null;
-    }
-
-    // Events
-    canvas.addEventListener('pointerdown', startStroke, { passive:true });
-    const moveEventName = ('onpointerrawupdate' in window) ? 'pointerrawupdate' : 'pointermove';
-    canvas.addEventListener(moveEventName, moveStroke,   { passive:true });
-    canvas.addEventListener('pointerup',   endStroke,    { passive:true });
-    canvas.addEventListener('pointercancel', endStroke,  { passive:true });
-    canvas.addEventListener('pointerout',  endStroke,    { passive:true });
-
-    // Init
     state.modeSharp = (settings.mode === 'Sharpness');
     sizeCanvas();
-    window.addEventListener('resize', sizeCanvas, { passive:true });
+    window.addEventListener('resize', () => { sizeCanvas(); redrawAllStrokes(); }, { passive:true });
     state.rafId = requestAnimationFrame(render);
   </script>
 </body>
