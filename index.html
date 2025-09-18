@@ -80,16 +80,64 @@
         .menu-button:hover {
             background: rgba(0, 0, 0, 0.9);
         }
+
+        /* Animated hamburger/close icon */
+        .menu-icon {
+            width: 20px;
+            height: 20px;
+            position: relative;
+            transition: transform 0.3s ease;
+        }
+
+        .menu-icon .line {
+            display: block;
+            position: absolute;
+            height: 2px;
+            width: 100%;
+            background: currentColor;
+            border-radius: 1px;
+            opacity: 1;
+            left: 0;
+            transform-origin: center;
+            transition: all 0.3s ease;
+        }
+
+        .menu-icon .line:nth-child(1) {
+            top: 4px;
+        }
+
+        .menu-icon .line:nth-child(2) {
+            top: 9px;
+        }
+
+        .menu-icon .line:nth-child(3) {
+            top: 14px;
+        }
+
+        /* Close state (X) */
+        .menu-icon.open .line:nth-child(1) {
+            top: 9px;
+            transform: rotate(45deg);
+        }
+
+        .menu-icon.open .line:nth-child(2) {
+            opacity: 0;
+        }
+
+        .menu-icon.open .line:nth-child(3) {
+            top: 9px;
+            transform: rotate(-45deg);
+        }
     </style>
 </head>
 <body class="min-h-screen bg-white overflow-hidden">
     <!-- Menu Button -->
     <button id="menuBtn" class="menu-button">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="3" y1="6" x2="21" y2="6"/>
-            <line x1="3" y1="12" x2="21" y2="12"/>
-            <line x1="3" y1="18" x2="21" y2="18"/>
-        </svg>
+        <div id="menuIcon" class="menu-icon">
+            <span class="line"></span>
+            <span class="line"></span>
+            <span class="line"></span>
+        </div>
     </button>
 
     <!-- Overlay -->
@@ -99,15 +147,7 @@
     <div id="drawer" class="drawer fixed left-0 top-0 h-full w-80 bg-white shadow-xl z-50 flex flex-col">
         <!-- Drawer Header -->
         <div class="p-6 border-b border-gray-200">
-            <div class="flex items-center justify-between">
-                <h1 class="text-xl font-semibold">PDF Annotator</h1>
-                <button id="closeDrawerBtn" class="p-2 hover:bg-gray-100 rounded">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"/>
-                        <line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                </button>
-            </div>
+            <h1 class="text-xl font-semibold">PDF Annotator</h1>
         </div>
 
         <!-- Drawer Content -->
@@ -258,9 +298,9 @@
 
         // Drawer elements
         const menuBtn = document.getElementById('menuBtn');
+        const menuIcon = document.getElementById('menuIcon');
         const drawer = document.getElementById('drawer');
         const overlay = document.getElementById('overlay');
-        const closeDrawerBtn = document.getElementById('closeDrawerBtn');
         const toolsSection = document.getElementById('toolsSection');
         const viewSection = document.getElementById('viewSection');
         const pageSection = document.getElementById('pageSection');
@@ -277,15 +317,30 @@
         const prevBtn = document.getElementById('prevBtn');
         const nextBtn = document.getElementById('nextBtn');
 
+        // Drawer state
+        let isDrawerOpen = false;
+
         // Drawer functionality
         function openDrawer() {
             drawer.classList.add('open');
             overlay.classList.add('open');
+            menuIcon.classList.add('open');
+            isDrawerOpen = true;
         }
 
         function closeDrawer() {
             drawer.classList.remove('open');
             overlay.classList.remove('open');
+            menuIcon.classList.remove('open');
+            isDrawerOpen = false;
+        }
+
+        function toggleDrawer() {
+            if (isDrawerOpen) {
+                closeDrawer();
+            } else {
+                openDrawer();
+            }
         }
 
         // File loading
@@ -581,8 +636,7 @@
         });
 
         // Drawer event listeners
-        menuBtn.addEventListener('click', openDrawer);
-        closeDrawerBtn.addEventListener('click', closeDrawer);
+        menuBtn.addEventListener('click', toggleDrawer);
         overlay.addEventListener('click', closeDrawer);
 
         // Button event listeners
