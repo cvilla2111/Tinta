@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>Simple Pen Pad — Vector Re‑render on Resize</title>
+  <title>Simple Pen Pad — Vector Replay + Fit Modes</title>
 
   <!-- Minimal PWA manifest (inline data URL) -->
   <meta name="theme-color" content="#ffffff" />
@@ -93,7 +93,7 @@
       align-items:center;
       justify-content:center;
       box-sizing:border-box;
-      pointer-events:auto;           /* clickable */
+      pointer-events:auto;
       touch-action:manipulation;
     }
     .btn:active{ background:#f2f2f2 }
@@ -256,6 +256,7 @@
   <!-- Top-left: Menu button -->
   <div class="toolbar-left">
     <button id="menuBtn" class="btn" aria-label="Open menu" aria-expanded="false" aria-controls="drawer" title="Menu">
+      <!-- menu icon -->
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M4 6h16" />
         <path d="M4 12h16" />
@@ -267,6 +268,7 @@
   <!-- Top-right: Clear button -->
   <div class="toolbar-right">
     <button id="clearBtn" class="btn" aria-label="Clear canvas" title="Clear">
+      <!-- trash icon -->
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M3 6h18" />
         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
@@ -277,12 +279,13 @@
     </button>
   </div>
 
-  <!-- Slide-in drawer and backdrop -->
+  <!-- Slide-in drawer (left) and backdrop -->
   <div id="drawerHost" class="drawer-host" aria-hidden="true">
     <aside id="drawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
       <div class="drawer-content">
         <h2 id="drawerTitle" style="margin:0 0 10px 0;font-size:14px;">Menu</h2>
 
+        <!-- Ink color palette -->
         <div class="section">
           <h3>Ink color</h3>
           <div class="palette" id="palette" role="group" aria-label="Ink colors">
@@ -297,8 +300,10 @@
           <div class="note">Pick one of 7 preset inks. Default: Black.</div>
         </div>
 
+        <!-- Stroke width -->
         <div class="section">
           <h3>Stroke width</h3>
+
           <div class="control">
             <div class="row">
               <div class="label">Min width</div>
@@ -324,6 +329,7 @@
           </div>
         </div>
 
+        <!-- Pressure curve -->
         <div class="section">
           <h3>Pressure curve</h3>
           <div class="control">
@@ -339,6 +345,7 @@
           </div>
         </div>
 
+        <!-- Smoothing strength -->
         <div class="section">
           <h3>Smoothing</h3>
           <div class="control">
@@ -366,6 +373,7 @@
           </div>
         </div>
 
+        <!-- Mode -->
         <div class="section">
           <h3>Mode</h3>
           <div class="control">
@@ -378,6 +386,28 @@
               </div>
             </div>
             <div class="note">Smoothness caps DPR at 2 (default). Sharpness uses full device DPR (sharper, heavier).</div>
+          </div>
+        </div>
+
+        <!-- Fit mode -->
+        <div class="section">
+          <h3>Fit mode</h3>
+          <div class="control">
+            <div class="row">
+              <div class="label">Canvas fit</div>
+              <div class="stepper" id="fitMode">
+                <button class="minus" aria-label="Previous fit mode">−</button>
+                <div class="val" aria-live="polite">Contain</div>
+                <button class="plus" aria-label="Next fit mode">+</button>
+              </div>
+            </div>
+            <div class="note">
+              How drawings adapt when the window size changes:
+              • Stretch: fill; can distort
+              • Contain: show all; no distortion; letterbox
+              • Cover: fill; no distortion; may crop
+              • None: no scaling; can overflow
+            </div>
           </div>
         </div>
 
@@ -412,15 +442,17 @@
     // Settings (defaults)
     const CURVE_OPTS = ['Soft','Linear','Firm'];
     const CURVE_GAMMA = { Soft:0.5, Linear:1, Firm:2 };
+    const FIT_OPTS = ['Stretch','Contain','Cover','None'];
 
     const settings = {
       inkColor: '#000000',
-      minWidth: 0.5,
-      maxWidth: 8.0,
-      curve: 'Firm',
+      minWidth: 0.5,     // updated default
+      maxWidth: 8.0,     // updated default
+      curve: 'Firm',     // updated default
       smoothing: 0.35,
       stabilizer: 0,
       mode: 'Smoothness',
+      fitMode: 'Contain' // new
     };
 
     // Drawing state
@@ -666,7 +698,57 @@
     }
     clearBtn.addEventListener('click', clearCanvas, { passive:true });
 
-    // Redraw all strokes from vector history at current size/DPR
+    // Compute transform components based on fit mode and stroke base size
+    function computeFitTransform(baseW, baseH){
+      const dpr = state.dpr;
+      const cssW = state.cssW;
+      const cssH = state.cssH;
+
+      const scaleX = cssW / (baseW || cssW || 1);
+      const scaleY = cssH / (baseH || cssH || 1);
+
+      let sx, sy, tx, ty;
+
+      switch (settings.fitMode) {
+        case 'Stretch':
+          sx = scaleX; sy = scaleY;
+          tx = 0; ty = 0;
+          break;
+        case 'Contain': {
+          const s = Math.min(scaleX, scaleY);
+          sx = s; sy = s;
+          const outW = baseW * s;
+          const outH = baseH * s;
+          tx = (cssW - outW) / 2;
+          ty = (cssH - outH) / 2;
+          break;
+        }
+        case 'Cover': {
+          const s = Math.max(scaleX, scaleY);
+          sx = s; sy = s;
+          const outW = baseW * s;
+          const outH = baseH * s;
+          tx = (cssW - outW) / 2;
+          ty = (cssH - outH) / 2;
+          break;
+        }
+        case 'None':
+        default:
+          sx = 1; sy = 1;
+          tx = 0; ty = 0;
+          break;
+      }
+
+      // Convert CSS-space transform to device pixels by multiplying by DPR
+      return {
+        a: dpr * sx, b: 0,
+        c: 0, d: dpr * sy,
+        e: dpr * tx, f: dpr * ty,
+        sx, sy, tx, ty
+      };
+    }
+
+    // Redraw all strokes from vector history at current size/DPR + fit mode
     function redrawAllStrokes(){
       // Clear
       ctx.setTransform(1,0,0,1,0,0);
@@ -679,12 +761,11 @@
         const stroke = history[s];
         if (!stroke.points || stroke.points.length === 0) continue;
 
-        // Scale from stroke's base size to current canvas CSS size
-        const scaleX = state.cssW / (stroke.baseW || state.cssW);
-        const scaleY = state.cssH / (stroke.baseH || state.cssH);
+        const T = computeFitTransform(stroke.baseW || state.cssW, stroke.baseH || state.cssH);
 
         ctx.save();
-        ctx.setTransform(state.dpr * scaleX, 0, 0, state.dpr * scaleY, 0, 0);
+        // Apply transform with translation then scale (encoded in setTransform params)
+        ctx.setTransform(T.a, T.b, T.c, T.d, T.e, T.f);
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.strokeStyle = stroke.color;
@@ -720,7 +801,7 @@
         ctx.restore();
       }
 
-      // Restore default drawing transform for live strokes
+      // Restore default drawing transform for live strokes (raw CSS space)
       ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
     }
 
@@ -807,13 +888,14 @@
         v = clamp(v + dir*step, min, max);
         set(v);
         render();
+        // width changes affect future strokes only; no replay needed
       }
       minus.addEventListener('click', () => bump(-1), { passive:true });
       plus.addEventListener('click',  () => bump(+1), { passive:true });
       render();
     }
 
-    function bindEnumStepper(id, options, get, set){
+    function bindEnumStepper(id, options, get, set, onChange){
       const root = document.getElementById(id);
       const minus = root.querySelector('.minus');
       const plus  = root.querySelector('.plus');
@@ -824,6 +906,7 @@
         const i = (idx() + dir + options.length) % options.length;
         set(options[i]);
         render();
+        if (typeof onChange === 'function') onChange(options[i]);
       }
       minus.addEventListener('click', () => bump(-1), { passive:true });
       plus.addEventListener('click',  () => bump(+1), { passive:true });
@@ -878,6 +961,12 @@
           redrawAllStrokes(); // crisp re-render at new DPR
         }
       }
+    );
+
+    bindEnumStepper('fitMode', FIT_OPTS,
+      () => settings.fitMode,
+      (v) => { settings.fitMode = v; },
+      () => { redrawAllStrokes(); } // apply immediately
     );
 
     // Initialize and hook resize
