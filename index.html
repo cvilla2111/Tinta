@@ -3,71 +3,303 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>Simple Pen Pad -- Vector Replay + Fit Modes + Eraser (Fix)</title>
+  <title>Simple Pen Pad — Vector Replay + Fit Modes + Pixel Eraser</title>
+
   <meta name="theme-color" content="#ffffff" />
+  <link rel="manifest" href='data:application/manifest+json,{
+    "name":"Simple Pen Pad",
+    "short_name":"Pen Pad",
+    "start_url":".",
+    "display":"standalone",
+    "background_color":"#ffffff",
+    "theme_color":"#ffffff",
+    "icons":[
+      {"src":"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 192 192%22%3E%3Crect width=%22192%22 height=%22192%22 fill=%22white%22/%3E%3C/svg%3E","sizes":"192x192","type":"image/svg+xml"},
+      {"src":"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 512 512%22%3E%3Crect width=%22512%22 height=%22512%22 fill=%22white%22/%3E%3C/svg%3E","sizes":"512x512","type":"image/svg+xml"}
+    ]
+  }' />
+
   <style>
     :root{
-      --btn-size:35px; --btn-radius:4px; --btn-border:0.75px;
-      --icon-size:24px; --icon-stroke:0.75px;
+      --btn-size:35px;
+      --btn-radius:4px;
+      --btn-border:0.75px;
+      --icon-size:24px;
+      --icon-stroke:0.75px;
+
       --safe-top:env(safe-area-inset-top, 0px);
       --safe-left:env(safe-area-inset-left, 0px);
       --safe-right:env(safe-area-inset-right, 0px);
-      --drawer-w:280px; --drawer-max-w:85vw;
-      --drawer-border:#000; --drawer-dur:220ms;
-      --drawer-ease:cubic-bezier(.2,.7,.2,1); --backdrop-max:0.12;
-      --scrollbar-track:#f2f2f2; --scrollbar-thumb:#bdbdbd;
-      --scrollbar-thumb-hover:#9e9e9e; --scrollbar-border:#000;
+
+      --drawer-w:280px;
+      --drawer-max-w:85vw;
+      --drawer-border:#000;
+      --drawer-dur:220ms;
+      --drawer-ease:cubic-bezier(.2,.7,.2,1);
+      --backdrop-max:0.12;
+
+      --scrollbar-track: #f2f2f2;
+      --scrollbar-thumb: #bdbdbd;
+      --scrollbar-thumb-hover: #9e9e9e;
+      --scrollbar-border: #000;
     }
-    html,body{ margin:0; height:100%; background:#fff; overscroll-behavior:none; }
+    html,body{
+      margin:0;
+      height:100%;
+      background:#fff;
+      overscroll-behavior:none;
+    }
     body{ position:relative }
+
     html, body, #pad, .btn, .drawer, .drawer-content, .swatch, .stepper button, .segmented button {
-      -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
-    #pad{ display:block; width:100%; height:100%; background:#fff; touch-action:none; cursor:crosshair; }
-    .toolbar-right{ position:fixed; top:calc(var(--safe-top) + 10px); right:calc(var(--safe-right) + 10px); z-index:10; pointer-events:none; display:flex; gap:8px; }
-    .toolbar-left{ position:fixed; top:calc(var(--safe-top) + 10px); left:calc(var(--safe-left) + 10px); z-index:10; pointer-events:none; }
-    .btn{ width:var(--btn-size); height:var(--btn-size); border-radius:var(--btn-radius); background:#fff; border:var(--btn-border) solid #000; display:inline-flex; align-items:center; justify-content:center; box-sizing:border-box; pointer-events:auto; touch-action:manipulation; }
+
+    #pad{
+      display:block;
+      width:100%;
+      height:100%;
+      background:#fff;
+      touch-action:none;
+      cursor:crosshair;
+    }
+
+    .toolbar-right{
+      position:fixed;
+      top:calc(var(--safe-top) + 10px);
+      right:calc(var(--safe-right) + 10px);
+      z-index:10;
+      pointer-events:none;
+      display:flex;
+      gap:8px;
+    }
+
+    .toolbar-left{
+      position:fixed;
+      top:calc(var(--safe-top) + 10px);
+      left:calc(var(--safe-left) + 10px);
+      z-index:10;
+      pointer-events:none;
+    }
+
+    .btn{
+      width:var(--btn-size);
+      height:var(--btn-size);
+      border-radius:var(--btn-radius);
+      background:#fff;
+      border:var(--btn-border) solid #000;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      box-sizing:border-box;
+      pointer-events:auto;
+      touch-action:manipulation;
+    }
     .btn:active{ background:#f2f2f2 }
-    .btn svg{ width:var(--icon-size); height:var(--icon-size); stroke:#000; stroke-width:var(--icon-stroke); stroke-linecap:round; stroke-linejoin:round; fill:none; vector-effect:non-scaling-stroke; }
-    .drawer-host{ position:fixed; inset:0; z-index:20; pointer-events:none; contain:layout paint style; }
+    .btn svg{
+      width:var(--icon-size);
+      height:var(--icon-size);
+      stroke:#000;
+      stroke-width:var(--icon-stroke);
+      stroke-linecap:round;
+      stroke-linejoin:round;
+      fill:none;
+      vector-effect:non-scaling-stroke;
+    }
+
+    .drawer-host{
+      position:fixed;
+      inset:0;
+      z-index:20;
+      pointer-events:none;
+      contain:layout paint style;
+    }
     .drawer-host.open{ pointer-events:auto; }
-    .drawer{ position:absolute; top:0; left:0; width:var(--drawer-w); max-width:var(--drawer-max-w); height:100%; background:#fff; border-right:var(--btn-border) solid var(--drawer-border); transform:translate3d(-100%,0,0); transition:transform var(--drawer-dur) var(--drawer-ease); will-change:transform; contain:layout paint size style; z-index:2; display:flex; flex-direction:column; }
+
+    .drawer{
+      position:absolute;
+      top:0;
+      left:0;
+      width:var(--drawer-w);
+      max-width:var(--drawer-max-w);
+      height:100%;
+      background:#fff;
+      border-right:var(--btn-border) solid var(--drawer-border);
+      transform:translate3d(-100%,0,0);
+      transition:transform var(--drawer-dur) var(--drawer-ease);
+      will-change:transform;
+      contain:layout paint size style;
+      z-index:2;
+
+      display:flex;
+      flex-direction:column;
+    }
     .drawer-host.open .drawer{ transform:translate3d(0,0,0); }
-    .backdrop{ position:absolute; inset:0; background-color:rgba(0,0,0,0); transition:background-color var(--drawer-dur) linear; will-change:background-color; pointer-events:none; contain:layout paint; z-index:1; }
-    .drawer-host.open .backdrop{ background-color:rgba(0,0,0,var(--backdrop-max)); pointer-events:auto; }
-    .drawer-content{ flex:1 1 auto; min-height:0; padding:14px; font-family:system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color:#000; line-height:1.35; user-select:none; overflow:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; scrollbar-gutter:stable both-edges; }
+
+    .backdrop{
+      position:absolute;
+      inset:0;
+      background-color:rgba(0,0,0,0);
+      transition:background-color var(--drawer-dur) linear;
+      will-change:background-color;
+      pointer-events:none;
+      contain:layout paint;
+      z-index:1;
+    }
+    .drawer-host.open .backdrop{
+      background-color:rgba(0,0,0,var(--backdrop-max));
+      pointer-events:auto;
+    }
+
+    .drawer-content{
+      flex:1 1 auto;
+      min-height:0;
+      padding:14px;
+      font-family:system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      color:#000;
+      line-height:1.35;
+      user-select:none;
+      overflow:auto;
+      overscroll-behavior:contain;
+      -webkit-overflow-scrolling:touch;
+      scrollbar-gutter: stable both-edges;
+    }
+
     .drawer-content::-webkit-scrollbar{ width:10px; }
-    .drawer-content::-webkit-scrollbar-track{ background:var(--scrollbar-track); border-left:0.75px solid var(--scrollbar-border); }
-    .drawer-content::-webkit-scrollbar-thumb{ background:var(--scrollbar-thumb); border:2px solid var(--scrollbar-track); border-radius:999px; }
-    .drawer-content::-webkit-scrollbar-thumb:hover{ background:var(--scrollbar-thumb-hover); }
-    .drawer-content{ scrollbar-width:thin; scrollbar-color:var(--scrollbar-thumb) var(--scrollbar-track); }
+    .drawer-content::-webkit-scrollbar-track{
+      background: var(--scrollbar-track);
+      border-left: 0.75px solid var(--scrollbar-border);
+    }
+    .drawer-content::-webkit-scrollbar-thumb{
+      background: var(--scrollbar-thumb);
+      border: 2px solid var(--scrollbar-track);
+      border-radius: 999px;
+    }
+    .drawer-content::-webkit-scrollbar-thumb:hover{
+      background: var(--scrollbar-thumb-hover);
+    }
+    .drawer-content{
+      scrollbar-width: thin;
+      scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+    }
+
     .section{ margin-bottom:10px; }
-    .section h3{ margin:0 0 6px 0; font-size:13px; font-weight:600; letter-spacing:.2px; }
-    .palette{ display:flex; flex-wrap:wrap; gap:8px; }
-    .swatch{ width:26px; height:26px; border-radius:6px; border:0.75px solid #000; box-sizing:border-box; padding:0; background:#fff; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; touch-action:manipulation; }
-    .swatch > span{ display:block; width:18px; height:18px; border-radius:4px; border:0.75px solid rgba(0,0,0,.3); box-sizing:border-box; }
-    .swatch[aria-pressed="true"]{ outline:2px solid #000; outline-offset:2px; }
+    .section h3{
+      margin:0 0 6px 0;
+      font-size:13px;
+      font-weight:600;
+      letter-spacing:.2px;
+    }
+
+    .palette{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+    }
+    .swatch{
+      width:26px; height:26px;
+      border-radius:6px;
+      border:0.75px solid #000;
+      box-sizing:border-box;
+      padding:0;
+      background:#fff;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      touch-action:manipulation;
+    }
+    .swatch > span{
+      display:block;
+      width:18px; height:18px;
+      border-radius:4px;
+      border:0.75px solid rgba(0,0,0,.3);
+      box-sizing:border-box;
+    }
+    .swatch[aria-pressed="true"]{
+      outline:2px solid #000;
+      outline-offset:2px;
+    }
+
     .control{ margin:8px 0; }
-    .row{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
-    .label{ font-size:12px; font-weight:600; }
-    .stepper{ display:inline-flex; align-items:center; border:0.75px solid #000; border-radius:6px; overflow:hidden; }
-    .stepper button{ width:28px; height:26px; background:#fff; border:none; border-right:0.75px solid #000; font-size:16px; line-height:1; padding:0; margin:0; cursor:pointer; touch-action:manipulation; }
+    .row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+    }
+    .label{
+      font-size:12px;
+      font-weight:600;
+    }
+    .stepper{
+      display:inline-flex;
+      align-items:center;
+      border:0.75px solid #000;
+      border-radius:6px;
+      overflow:hidden;
+    }
+    .stepper button{
+      width:28px; height:26px;
+      background:#fff;
+      border:none;
+      border-right:0.75px solid #000;
+      font-size:16px; line-height:1;
+      padding:0; margin:0;
+      cursor:pointer;
+      touch-action:manipulation;
+    }
     .stepper button:last-child{ border-right:none; border-left:0.75px solid #000; }
-    .stepper .val{ min-width:54px; text-align:center; font-variant-numeric:tabular-nums; font-size:12px; padding:0 6px; }
-    .segmented{ display:inline-flex; border:0.75px solid #000; border-radius:8px; overflow:hidden; }
-    .segmented button{ padding:6px 10px; font-size:12px; background:#fff; border:none; border-right:0.75px solid #000; cursor:pointer; }
+    .stepper .val{
+      min-width:54px;
+      text-align:center;
+      font-variant-numeric:tabular-nums;
+      font-size:12px;
+      padding:0 6px;
+    }
+
+    .segmented{
+      display:inline-flex;
+      border:0.75px solid #000;
+      border-radius:8px;
+      overflow:hidden;
+    }
+    .segmented button{
+      padding:6px 10px;
+      font-size:12px;
+      background:#fff;
+      border:none;
+      border-right:0.75px solid #000;
+      cursor:pointer;
+    }
     .segmented button:last-child{ border-right:none; }
     .segmented button[aria-pressed="true"]{ background:#000; color:#fff; }
-    .note{ margin-top:4px; font-size:10px; color:#333; opacity:.9; }
+
+    .note{
+      margin-top:4px;
+      font-size:10px;
+      color:#333;
+      opacity:.9;
+    }
+
     .hidden{ display:none !important; }
-    @media (prefers-reduced-motion: reduce){ .drawer{ transition:none !important; } .backdrop{ transition:none !important; } }
+
+    @media (prefers-reduced-motion: reduce){
+      .drawer{ transition:none !important; }
+      .backdrop{ transition:none !important; }
+    }
   </style>
 </head>
 <body>
   <div class="toolbar-left">
     <button id="menuBtn" class="btn" aria-label="Open menu" aria-expanded="false" aria-controls="drawer" title="Menu">
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M4 6h16" /><path d="M4 12h16" /><path d="M4 18h16" />
+        <path d="M4 6h16" />
+        <path d="M4 12h16" />
+        <path d="M4 18h16" />
       </svg>
     </button>
   </div>
@@ -132,18 +364,18 @@
             <div class="note">Thinnest line at lightest pressure. Default: 0.5 px.</div>
           </div>
 
-            <div class="control">
-              <div class="row">
-                <div class="label">Max width</div>
-                <div class="stepper" id="maxW">
-                  <button class="minus" aria-label="Decrease max width">−</button>
-                  <div class="val" aria-live="polite">8.0 px</div>
-                  <button class="plus" aria-label="Increase max width">+</button>
-                </div>
+          <div class="control">
+            <div class="row">
+              <div class="label">Max width</div>
+              <div class="stepper" id="maxW">
+                <button class="minus" aria-label="Decrease max width">−</button>
+                <div class="val" aria-live="polite">8.0 px</div>
+                <button class="plus" aria-label="Increase max width">+</button>
               </div>
-              <div class="note">Thickest line at firm pressure. Default: 8 px.</div>
             </div>
+            <div class="note">Thickest line at firm pressure. Default: 8 px.</div>
           </div>
+        </div>
 
         <div class="section">
           <h3>Pressure curve</h3>
@@ -156,7 +388,7 @@
                 <button class="plus" aria-label="Next curve">+</button>
               </div>
             </div>
-            <div class="note">Soft • Linear • Firm (default).</div>
+            <div class="note">Soft = thicker with light touch • Linear • Firm (default) = needs more pressure.</div>
           </div>
         </div>
 
@@ -171,7 +403,7 @@
                 <button class="plus" aria-label="More smoothing">+</button>
               </div>
             </div>
-            <div class="note">0 = none • 1 = very smooth. Default: 0.35.</div>
+            <div class="note">Stabilizes width changes only. 0 = none • 1 = very smooth. Default: 0.35.</div>
           </div>
 
           <div class="control">
@@ -183,7 +415,7 @@
                 <button class="plus" aria-label="Increase stabilizer">+</button>
               </div>
             </div>
-            <div class="note">Limits how far the pen moves per event.</div>
+            <div class="note">Smooths the path by limiting how far the pen moves per event. Default: 0 px (off).</div>
           </div>
         </div>
 
@@ -198,7 +430,7 @@
                 <button class="plus" aria-label="Next mode">+</button>
               </div>
             </div>
-            <div class="note">Smoothness caps DPR at 2; Sharpness uses full DPR.</div>
+            <div class="note">Smoothness caps DPR at 2 (default). Sharpness uses full device DPR (sharper, heavier).</div>
           </div>
         </div>
 
@@ -213,7 +445,13 @@
                 <button class="plus" aria-label="Next fit mode">+</button>
               </div>
             </div>
-            <div class="note">Stretch • Contain • Cover • None.</div>
+            <div class="note">
+              How drawings adapt when the window size changes:
+              • Stretch: fill; can distort
+              • Contain: show all; no distortion; letterbox
+              • Cover: fill; no distortion; may crop
+              • None: no scaling; can overflow
+            </div>
           </div>
         </div>
 
@@ -225,6 +463,17 @@
   <canvas id="pad"></canvas>
 
   <script>
+    // Simple SW to make it installable
+    if ('serviceWorker' in navigator) {
+      const sw = `
+        self.addEventListener('install', e => self.skipWaiting());
+        self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+      `;
+      navigator.serviceWorker.register(
+        URL.createObjectURL(new Blob([sw], {type:'text/javascript'}))
+      ).catch(()=>{});
+    }
+
     const canvas     = document.getElementById('pad');
     const ctx        = canvas.getContext('2d', { alpha:false, desynchronized:true });
     const menuBtn    = document.getElementById('menuBtn');
@@ -239,7 +488,7 @@
     const FIT_OPTS = ['Stretch','Contain','Cover','None'];
 
     const settings = {
-      tool: 'pen',
+      tool: 'pen',            // 'pen' | 'eraser'
       inkColor: '#000000',
       minWidth: 0.5,
       maxWidth: 8.0,
@@ -251,10 +500,15 @@
     };
 
     const state = {
-      dpr: 1, cssW: 0, cssH: 0,
+      dpr: 1,
+      cssW: 0,
+      cssH: 0,
       rect: { left:0, top:0 },
-      drawing: false, pointerId: null,
-      lastX: 0, lastY: 0, sx: 0, sy: 0,
+      drawing: false,
+      pointerId: null,
+      lastX: 0,
+      lastY: 0,
+      sx: 0, sy: 0,
       filteredW: settings.maxWidth,
       queue: [],
       needsRender: false,
@@ -266,30 +520,62 @@
     let history = [];
     let currentStroke = null;
 
-    function getDeviceDPR(){ return (typeof devicePixelRatio==='number'&&devicePixelRatio>0)?devicePixelRatio:1; }
-    function computeDPR(){ const raw=getDeviceDPR(); return state.modeSharp?raw:Math.min(2,raw); }
+    // Prevent touch context menu post-touch
+    const TOUCH_CTX_GUARD_MS = 1500;
+    let lastTouchTs = 0;
+    window.addEventListener('touchstart', () => { lastTouchTs = performance.now(); }, { capture:true, passive:true });
+    window.addEventListener('touchend',   () => { lastTouchTs = performance.now(); }, { capture:true, passive:true });
+    document.addEventListener('contextmenu', (e) => {
+      const fromTouch = (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) ||
+                        (performance.now() - lastTouchTs) < TOUCH_CTX_GUARD_MS;
+      if (fromTouch) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, { capture:true });
+
+    function getDeviceDPR(){
+      return (typeof window.devicePixelRatio === 'number' && window.devicePixelRatio > 0)
+        ? window.devicePixelRatio : 1;
+    }
+    function computeDPR(){
+      const raw = getDeviceDPR();
+      return state.modeSharp ? raw : Math.min(2, raw);
+    }
 
     function sizeCanvas(){
       state.dpr = computeDPR();
-      state.cssW = innerWidth;
-      state.cssH = innerHeight;
+      state.cssW = window.innerWidth;
+      state.cssH = window.innerHeight;
+
       canvas.style.width = state.cssW + 'px';
       canvas.style.height = state.cssH + 'px';
-      canvas.width = Math.floor(state.cssW * state.dpr);
+      canvas.width  = Math.floor(state.cssW * state.dpr);
       canvas.height = Math.floor(state.cssH * state.dpr);
+
       ctx.setTransform(1,0,0,1,0,0);
       ctx.fillStyle = '#fff';
-      ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.strokeStyle = settings.inkColor;
       ctx.globalCompositeOperation = 'source-over';
-      const r = canvas.getBoundingClientRect(); state.rect.left = r.left; state.rect.top = r.top;
+
+      const r = canvas.getBoundingClientRect();
+      state.rect.left = r.left;
+      state.rect.top  = r.top;
     }
 
-    function xyFromEvent(e){ return { x: e.clientX - state.rect.left, y: e.clientY - state.rect.top }; }
-    function pressureOf(e){ const p = (typeof e.pressure==='number')?e.pressure:1; return (p>0)?Math.min(1,Math.max(0,p)):1; }
+    function xyFromEvent(e){
+      return { x: e.clientX - state.rect.left, y: e.clientY - state.rect.top };
+    }
+
+    function pressureOf(e){
+      const p = (typeof e.pressure === 'number') ? e.pressure : 1;
+      return (p > 0) ? Math.min(1, Math.max(0, p)) : 1;
+    }
+
     function pressureToWidthFor(stroke, p){
       const gamma = stroke.gamma || CURVE_GAMMA[stroke.curve] || 1;
       const t = Math.pow(p, gamma);
@@ -297,89 +583,141 @@
       return Math.max(0.25, Math.min(64, w));
     }
 
-    function openDrawer(){ menuBtn.classList.add('hidden'); menuBtn.setAttribute('aria-expanded','true'); drawerHost.classList.add('open'); drawerHost.setAttribute('aria-hidden','false'); drawer.setAttribute('aria-hidden','false'); }
+    function openDrawer(){
+      menuBtn.classList.add('hidden');
+      menuBtn.setAttribute('aria-expanded', 'true');
+      drawerHost.classList.add('open');
+      drawerHost.setAttribute('aria-hidden', 'false');
+      drawer.setAttribute('aria-hidden', 'false');
+    }
     function closeDrawer(){
-      drawerHost.classList.remove('open'); drawerHost.setAttribute('aria-hidden','true'); drawer.setAttribute('aria-hidden','true'); menuBtn.setAttribute('aria-expanded','false');
-      const onEnd=(e)=>{ if(e.target!==drawer||e.propertyName!=='transform')return; drawer.removeEventListener('transitionend',onEnd); menuBtn.classList.remove('hidden'); };
-      drawer.addEventListener('transitionend', onEnd, { once:true }); setTimeout(()=>menuBtn.classList.remove('hidden'),320);
+      drawerHost.classList.remove('open');
+      drawerHost.setAttribute('aria-hidden', 'true');
+      drawer.setAttribute('aria-hidden', 'true');
+      menuBtn.setAttribute('aria-expanded', 'false');
+
+      const onEnd = (e) => {
+        if (e.target !== drawer || e.propertyName !== 'transform') return;
+        drawer.removeEventListener('transitionend', onEnd);
+        menuBtn.classList.remove('hidden');
+      };
+      drawer.addEventListener('transitionend', onEnd, { once:true });
+      setTimeout(() => menuBtn.classList.remove('hidden'), 320);
     }
 
     menuBtn.addEventListener('pointerdown', openDrawer, { passive:true });
-    menuBtn.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' ') openDrawer(); });
+    menuBtn.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') openDrawer(); });
     backdrop.addEventListener('pointerdown', closeDrawer, { passive:true });
-    drawer.addEventListener('pointerdown', (e)=>e.stopPropagation(), { passive:true });
-    addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeDrawer(); }, { passive:true });
+    drawer.addEventListener('pointerdown', (e) => e.stopPropagation(), { passive:true });
+    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); }, { passive:true });
 
     const moveEventName = ('onpointerrawupdate' in window) ? 'pointerrawupdate' : 'pointermove';
 
     function startStroke(e){
-      if (e.pointerType !== 'pen' || e.button !== 0) return; // pen-only
-      const r = canvas.getBoundingClientRect(); state.rect.left = r.left; state.rect.top = r.top;
+      // Pen/stylus only; uncomment below to allow Shift+mouse testing
+      // if ((e.pointerType !== 'pen' && !e.shiftKey) || e.button !== 0) return;
+      if (e.pointerType !== 'pen' || e.button !== 0) return;
+
+      const r = canvas.getBoundingClientRect();
+      state.rect.left = r.left;
+      state.rect.top  = r.top;
+
       canvas.setPointerCapture(e.pointerId);
-      state.drawing = true; state.pointerId = e.pointerId;
+      state.drawing = true;
+      state.pointerId = e.pointerId;
 
       const { x, y } = xyFromEvent(e);
-      state.lastX = x; state.lastY = y; state.sx = x; state.sy = y;
+      state.lastX = x; state.lastY = y;
+      state.sx = x; state.sy = y;
 
       state.filteredW = pressureToWidthFor({
-        minWidth: settings.minWidth, maxWidth: settings.maxWidth, curve: settings.curve, gamma: CURVE_GAMMA[settings.curve]
+        minWidth: settings.minWidth,
+        maxWidth: settings.maxWidth,
+        curve: settings.curve,
+        gamma: CURVE_GAMMA[settings.curve]
       }, pressureOf(e));
 
       const type = (settings.tool === 'eraser') ? 'erase' : 'ink';
+
       currentStroke = {
-        type, color: settings.inkColor,
-        minWidth: settings.minWidth, maxWidth: settings.maxWidth,
-        curve: settings.curve, gamma: CURVE_GAMMA[settings.curve],
+        type, // 'ink' | 'erase'
+        color: settings.inkColor,
+        minWidth: settings.minWidth,
+        maxWidth: settings.maxWidth,
+        curve: settings.curve,
+        gamma: CURVE_GAMMA[settings.curve],
         smoothing: settings.smoothing,
-        baseW: state.cssW, baseH: state.cssH,
+        baseW: state.cssW,
+        baseH: state.cssH,
         points: []
       };
+
       currentStroke.points.push({ x, y, p: pressureOf(e) });
 
-      state.queue.push({ x, y, w: state.filteredW, color: currentStroke.color, op: (type==='erase')?'destination-out':'source-over' });
+      // Seed queue with op so live renderer switches immediately
+      state.queue.push({
+        x, y,
+        w: state.filteredW,
+        color: currentStroke.color,
+        op: (type === 'erase') ? 'destination-out' : 'source-over'
+      });
+
       state.needsRender = true;
     }
 
     function moveStroke(e){
       if (!state.drawing || e.pointerId !== state.pointerId) return;
+
       const src = (typeof e.getCoalescedEvents === 'function') ? e.getCoalescedEvents() : [e];
-      for (let i=0;i<src.length;i++){
+
+      for (let i = 0; i < src.length; i++){
         const ev = src[i];
         const { x:rx, y:ry } = xyFromEvent(ev);
-        let x=rx, y=ry;
+
+        let x = rx, y = ry;
         const S = settings.stabilizer;
-        if (S>0){
+        if (S > 0){
           const dx = rx - state.sx, dy = ry - state.sy;
           const dist = Math.hypot(dx, dy);
-          if (dist>0){
+          if (dist > 0){
             const step = Math.min(dist, S);
             const t = step / dist;
-            x = state.sx + dx*t;
-            y = state.sy + dy*t;
+            x = state.sx + dx * t;
+            y = state.sy + dy * t;
           }
           state.sx = x; state.sy = y;
-        } else { state.sx = x; state.sy = y; }
+        } else {
+          state.sx = x; state.sy = y;
+        }
 
         if (currentStroke) currentStroke.points.push({ x, y, p: pressureOf(ev) });
 
         const targetW = pressureToWidthFor({
-          minWidth: settings.minWidth, maxWidth: settings.maxWidth, curve: settings.curve, gamma: CURVE_GAMMA[settings.curve]
+          minWidth: settings.minWidth,
+          maxWidth: settings.maxWidth,
+          curve: settings.curve,
+          gamma: CURVE_GAMMA[settings.curve]
         }, pressureOf(ev));
         state.filteredW += (targetW - state.filteredW) * settings.smoothing;
 
         state.queue.push({
-          x, y, w: state.filteredW,
+          x, y,
+          w: state.filteredW,
           color: currentStroke ? currentStroke.color : settings.inkColor,
           op: (currentStroke && currentStroke.type === 'erase') ? 'destination-out' : 'source-over'
         });
       }
+
       state.needsRender = true;
     }
 
     function endStroke(e){
       if (e.pointerId !== state.pointerId) return;
-      state.drawing = false; state.pointerId = null; state.needsRender = true;
+      state.drawing = false;
+      state.pointerId = null;
+      state.needsRender = true;
       try { canvas.releasePointerCapture(e.pointerId); } catch {}
+
       if (currentStroke){
         if (currentStroke.points.length === 1){
           const pt = currentStroke.points[0];
@@ -400,44 +738,82 @@
       history = [];
       ctx.setTransform(1,0,0,1,0,0);
       ctx.fillStyle = '#fff';
-      ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
       ctx.globalCompositeOperation = 'source-over';
     }
     clearBtn.addEventListener('click', clearCanvas, { passive:true });
 
     function computeFitTransform(baseW, baseH){
-      const dpr=state.dpr, cssW=state.cssW, cssH=state.cssH;
+      const dpr = state.dpr;
+      const cssW = state.cssW;
+      const cssH = state.cssH;
+
       const scaleX = cssW / (baseW || cssW || 1);
       const scaleY = cssH / (baseH || cssH || 1);
+
       let sx, sy, tx, ty;
+
       switch (settings.fitMode) {
-        case 'Stretch': sx=scaleX; sy=scaleY; tx=0; ty=0; break;
-        case 'Contain': { const s=Math.min(scaleX,scaleY); sx=s; sy=s; const outW=baseW*s, outH=baseH*s; tx=(cssW-outW)/2; ty=(cssH-outH)/2; break; }
-        case 'Cover': { const s=Math.max(scaleX,scaleY); sx=s; sy=s; const outW=baseW*s, outH=baseH*s; tx=(cssW-outW)/2; ty=(cssH-outH)/2; break; }
-        case 'None': default: sx=1; sy=1; tx=0; ty=0; break;
+        case 'Stretch':
+          sx = scaleX; sy = scaleY;
+          tx = 0; ty = 0;
+          break;
+        case 'Contain': {
+          const s = Math.min(scaleX, scaleY);
+          sx = s; sy = s;
+          const outW = baseW * s;
+          const outH = baseH * s;
+          tx = (cssW - outW) / 2;
+          ty = (cssH - outH) / 2;
+          break;
+        }
+        case 'Cover': {
+          const s = Math.max(scaleX, scaleY);
+          sx = s; sy = s;
+          const outW = baseW * s;
+          const outH = baseH * s;
+          tx = (cssW - outW) / 2;
+          ty = (cssH - outH) / 2;
+          break;
+        }
+        case 'None':
+        default:
+          sx = 1; sy = 1;
+          tx = 0; ty = 0;
+          break;
       }
-      return { a:dpr*sx, b:0, c:0, d:dpr*sy, e:dpr*tx, f:dpr*ty, sx, sy, tx, ty };
+
+      return {
+        a: dpr * sx, b: 0,
+        c: 0, d: dpr * sy,
+        e: dpr * tx, f: dpr * ty,
+        sx, sy, tx, ty
+      };
     }
 
     function redrawAllStrokes(){
       ctx.setTransform(1,0,0,1,0,0);
       ctx.fillStyle = '#fff';
-      ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       const WIDTH_EPS = 0.1;
 
-      for (let s=0; s<history.length; s++){
+      for (let s = 0; s < history.length; s++){
         const stroke = history[s];
-        if (!stroke.points || stroke.points.length===0) continue;
+        if (!stroke.points || stroke.points.length === 0) continue;
+
         const T = computeFitTransform(stroke.baseW || state.cssW, stroke.baseH || state.cssH);
+
         ctx.save();
         ctx.setTransform(T.a, T.b, T.c, T.d, T.e, T.f);
-        ctx.lineCap='round'; ctx.lineJoin='round';
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
 
-        const op = (stroke.type==='erase') ? 'destination-out' : 'source-over';
+        // Apply composite mode per stroke
+        const op = (stroke.type === 'erase') ? 'destination-out' : 'source-over';
         ctx.globalCompositeOperation = op;
-        ctx.strokeStyle = (stroke.type==='ink') ? stroke.color : '#000';
+        ctx.strokeStyle = (stroke.type === 'ink') ? stroke.color : '#000';
 
         let filteredW = pressureToWidthFor(stroke, stroke.points[0].p);
         let lastX = stroke.points[0].x, lastY = stroke.points[0].y;
@@ -447,11 +823,12 @@
         ctx.lineWidth = filteredW;
         let currentLW = filteredW;
 
-        for (let i=1; i<stroke.points.length; i++){
+        for (let i = 1; i < stroke.points.length; i++){
           const pt = stroke.points[i];
           const targetW = pressureToWidthFor(stroke, pt.p);
           filteredW += (targetW - filteredW) * stroke.smoothing;
           const lw = Math.max(0.25, Math.min(64, filteredW));
+
           if (Math.abs(lw - currentLW) > WIDTH_EPS){
             ctx.stroke();
             ctx.beginPath();
@@ -459,8 +836,10 @@
             ctx.lineWidth = lw;
             currentLW = lw;
           }
+
           ctx.lineTo(pt.x, pt.y);
-          lastX = pt.x; lastY = pt.y;
+          lastX = pt.x;
+          lastY = pt.y;
         }
         ctx.stroke();
         ctx.restore();
@@ -484,9 +863,12 @@
           const p = state.queue.shift();
           const lw = Math.max(0.25, Math.min(64, p.w));
 
-          // IMPORTANT: switch op BEFORE starting the path
+          // Switch composite op BEFORE drawing
           if (!pathOpen || (p.op && p.op !== currentOp)){
-            if (pathOpen){ ctx.stroke(); pathOpen = false; }
+            if (pathOpen){
+              ctx.stroke();
+              pathOpen = false;
+            }
             ctx.globalCompositeOperation = p.op || 'source-over';
             currentOp = ctx.globalCompositeOperation;
           }
@@ -495,7 +877,6 @@
             ctx.beginPath();
             ctx.moveTo(state.lastX, state.lastY);
             ctx.lineWidth = lw;
-            // For erasing, color is ignored but must be set; keep a constant
             ctx.strokeStyle = (currentOp === 'destination-out') ? '#000' : (p.color || settings.inkColor);
             currentLW = lw;
             currentColor = p.color || settings.inkColor;
@@ -516,16 +897,19 @@
             ctx.beginPath();
             ctx.moveTo(state.lastX, state.lastY);
             ctx.lineWidth = lw;
-            // reapply style in case op is erase
             ctx.strokeStyle = (currentOp === 'destination-out') ? '#000' : currentColor;
             currentLW = lw;
           }
 
           ctx.lineTo(p.x, p.y);
-          state.lastX = p.x; state.lastY = p.y;
+          state.lastX = p.x;
+          state.lastY = p.y;
         }
 
-        if (pathOpen){ ctx.stroke(); pathOpen = false; }
+        if (pathOpen){
+          ctx.stroke();
+          pathOpen = false;
+        }
 
         state.currentOp = currentOp;
       }
@@ -541,8 +925,8 @@
         if (!btn) return;
         const color = btn.getAttribute('data-color');
         settings.inkColor = color;
-        for (const b of el.querySelectorAll('.swatch')) b.setAttribute('aria-pressed','false');
-        btn.setAttribute('aria-pressed','true');
+        for (const b of el.querySelectorAll('.swatch')) b.setAttribute('aria-pressed', 'false');
+        btn.setAttribute('aria-pressed', 'true');
       }, { passive:true });
     })();
 
@@ -552,57 +936,130 @@
       const buttons = Array.from(root.querySelectorAll('button'));
       function setTool(t){
         settings.tool = t;
-        for (const b of buttons) b.setAttribute('aria-pressed', String(b.dataset.tool===t));
-        eraserQuickBtn.classList.toggle('active', t==='eraser');
-        canvas.style.cursor = (t==='eraser') ? 'not-allowed' : 'crosshair';
+        for (const b of buttons){
+          b.setAttribute('aria-pressed', String(b.dataset.tool === t));
+        }
+        eraserQuickBtn.classList.toggle('active', t === 'eraser');
+        canvas.style.cursor = (t === 'eraser') ? 'not-allowed' : 'crosshair';
       }
-      root.addEventListener('click', (e)=>{ const btn=e.target.closest('button'); if(!btn)return; setTool(btn.dataset.tool); }, { passive:true });
-      eraserQuickBtn.addEventListener('click', ()=>{ setTool(settings.tool==='eraser' ? 'pen' : 'eraser'); }, { passive:true });
+      root.addEventListener('click', (e) => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        setTool(btn.dataset.tool);
+      }, { passive:true });
+      eraserQuickBtn.addEventListener('click', () => {
+        setTool(settings.tool === 'eraser' ? 'pen' : 'eraser');
+      }, { passive:true });
       setTool(settings.tool);
     })();
 
-    // Steppers
+    // Steppers and helpers
     function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
     function fmt(v, decimals=0, suffix=''){ return v.toFixed(decimals) + (suffix ? ' ' + suffix : ''); }
+
     function bindNumberStepper(id, get, set, {min, max, step, decimals=0, suffix=''}) {
-      const root = document.getElementById(id), minus = root.querySelector('.minus'), plus = root.querySelector('.plus'), val = root.querySelector('.val');
+      const root = document.getElementById(id);
+      const minus = root.querySelector('.minus');
+      const plus  = root.querySelector('.plus');
+      const val   = root.querySelector('.val');
       function render(){ val.textContent = fmt(get(), decimals, suffix); }
-      function bump(dir){ let v=get(); v=clamp(v+dir*step,min,max); set(v); render(); }
-      minus.addEventListener('click', ()=>bump(-1), { passive:true });
-      plus.addEventListener('click', ()=>bump(+1), { passive:true });
+      function bump(dir){
+        let v = get();
+        v = clamp(v + dir*step, min, max);
+        set(v);
+        render();
+      }
+      minus.addEventListener('click', () => bump(-1), { passive:true });
+      plus.addEventListener('click',  () => bump(+1), { passive:true });
       render();
     }
+
     function bindEnumStepper(id, options, get, set, onChange){
-      const root=document.getElementById(id), minus=root.querySelector('.minus'), plus=root.querySelector('.plus'), val=root.querySelector('.val');
+      const root = document.getElementById(id);
+      const minus = root.querySelector('.minus');
+      const plus  = root.querySelector('.plus');
+      const val   = root.querySelector('.val');
       function idx(){ return Math.max(0, options.indexOf(get())); }
       function render(){ val.textContent = options[idx()]; }
-      function bump(dir){ const i=(idx()+dir+options.length)%options.length; const next=options[i]; set(next); render(); if(typeof onChange==='function') onChange(next); }
-      minus.addEventListener('click', ()=>bump(-1), { passive:true });
-      plus.addEventListener('click', ()=>bump(+1), { passive:true });
+      function bump(dir){
+        const i = (idx() + dir + options.length) % options.length;
+        const next = options[i];
+        set(next);
+        render();
+        if (typeof onChange === 'function') onChange(next);
+      }
+      minus.addEventListener('click', () => bump(-1), { passive:true });
+      plus.addEventListener('click',  () => bump(+1), { passive:true });
       render();
     }
-    bindNumberStepper('minW', ()=>settings.minWidth, (v)=>{ settings.minWidth=v; if(settings.maxWidth<v) settings.maxWidth=v; }, { min:0.5, max:20, step:0.5, decimals:1, suffix:'px' });
-    bindNumberStepper('maxW', ()=>settings.maxWidth, (v)=>{ settings.maxWidth=v; if(settings.minWidth>v) settings.minWidth=v; }, { min:0.5, max:20, step:0.5, decimals:1, suffix:'px' });
-    bindEnumStepper('curve', CURVE_OPTS, ()=>settings.curve, (v)=>{ settings.curve=v; });
-    bindNumberStepper('smooth', ()=>settings.smoothing, (v)=>{ settings.smoothing=v; }, { min:0, max:1, step:0.05, decimals:2 });
-    bindNumberStepper('stabilizer', ()=>settings.stabilizer, (v)=>{ settings.stabilizer=v; }, { min:0, max:20, step:1, decimals:0, suffix:'px' });
-    bindEnumStepper('mode', ['Smoothness','Sharpness'],
-      ()=>settings.mode,
-      (v)=>{ const wasSharp=(settings.mode==='Sharpness'); settings.mode=v; state.modeSharp=(v==='Sharpness'); if(wasSharp!==state.modeSharp){ sizeCanvas(); redrawAllStrokes(); } }
+
+    bindNumberStepper('minW',
+      () => settings.minWidth,
+      (v) => {
+        settings.minWidth = v;
+        if (settings.maxWidth < v) settings.maxWidth = v;
+      },
+      { min:0.5, max:20, step:0.5, decimals:1, suffix:'px' }
     );
-    bindEnumStepper('fitMode', FIT_OPTS, ()=>settings.fitMode, (v)=>{ settings.fitMode=v; }, ()=>{ redrawAllStrokes(); });
+
+    bindNumberStepper('maxW',
+      () => settings.maxWidth,
+      (v) => {
+        settings.maxWidth = v;
+        if (settings.minWidth > v) settings.minWidth = v;
+      },
+      { min:0.5, max:20, step:0.5, decimals:1, suffix:'px' }
+    );
+
+    bindEnumStepper('curve', CURVE_OPTS,
+      () => settings.curve,
+      (v) => { settings.curve = v; }
+    );
+
+    bindNumberStepper('smooth',
+      () => settings.smoothing,
+      (v) => { settings.smoothing = v; },
+      { min:0, max:1, step:0.05, decimals:2 }
+    );
+
+    bindNumberStepper('stabilizer',
+      () => settings.stabilizer,
+      (v) => { settings.stabilizer = v; },
+      { min:0, max:20, step:1, decimals:0, suffix:'px' }
+    );
+
+    bindEnumStepper('mode', ['Smoothness','Sharpness'],
+      () => settings.mode,
+      (v) => {
+        const wasSharp = (settings.mode === 'Sharpness');
+        settings.mode = v;
+        state.modeSharp = (v === 'Sharpness');
+        const nowSharp = state.modeSharp;
+        if (wasSharp !== nowSharp) {
+          sizeCanvas();
+          redrawAllStrokes();
+        }
+      }
+    );
+
+    bindEnumStepper('fitMode', FIT_OPTS,
+      () => settings.fitMode,
+      (v) => { settings.fitMode = v; },
+      () => { redrawAllStrokes(); }
+    );
 
     // Init
     state.modeSharp = (settings.mode === 'Sharpness');
     sizeCanvas();
-    addEventListener('resize', ()=>{ sizeCanvas(); redrawAllStrokes(); }, { passive:true });
+    window.addEventListener('resize', () => { sizeCanvas(); redrawAllStrokes(); }, { passive:true });
+
     function renderLoop(){ render(); state.rafId = requestAnimationFrame(renderLoop); }
     requestAnimationFrame(renderLoop);
 
-    // Optional: allow testing with mouse by holding Shift (toggle this if needed)
-    // addEventListener('pointerdown', e => { if (e.pointerType !== 'pen' && e.shiftKey) startStroke(e); }, { passive:true });
-    // addEventListener(moveEventName, e => { if (e.pointerType !== 'pen' && state.drawing && e.shiftKey) moveStroke(e); }, { passive:true });
-    // addEventListener('pointerup', e => { if (e.pointerType !== 'pen') endStroke(e); }, { passive:true });
+    // Optional: enable Shift+mouse testing by uncommenting these lines:
+    // canvas.addEventListener('pointerdown', e => { if (e.pointerType !== 'pen' && e.shiftKey) startStroke(e); }, { passive:true });
+    // canvas.addEventListener(moveEventName, e => { if (e.pointerType !== 'pen' && e.shiftKey) moveStroke(e); }, { passive:true });
+    // canvas.addEventListener('pointerup', e => { if (e.pointerType !== 'pen') endStroke(e); }, { passive:true });
   </script>
 </body>
 </html>
