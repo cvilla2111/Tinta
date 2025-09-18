@@ -1,1065 +1,474 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>Simple Pen Pad — Vector Replay + Fit Modes + Pixel Eraser</title>
-
-  <meta name="theme-color" content="#ffffff" />
-  <link rel="manifest" href='data:application/manifest+json,{
-    "name":"Simple Pen Pad",
-    "short_name":"Pen Pad",
-    "start_url":".",
-    "display":"standalone",
-    "background_color":"#ffffff",
-    "theme_color":"#ffffff",
-    "icons":[
-      {"src":"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 192 192%22%3E%3Crect width=%22192%22 height=%22192%22 fill=%22white%22/%3E%3C/svg%3E","sizes":"192x192","type":"image/svg+xml"},
-      {"src":"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 512 512%22%3E%3Crect width=%22512%22 height=%22512%22 fill=%22white%22/%3E%3C/svg%3E","sizes":"512x512","type":"image/svg+xml"}
-    ]
-  }' />
-
-  <style>
-    :root{
-      --btn-size:35px;
-      --btn-radius:4px;
-      --btn-border:0.75px;
-      --icon-size:24px;
-      --icon-stroke:0.75px;
-
-      --safe-top:env(safe-area-inset-top, 0px);
-      --safe-left:env(safe-area-inset-left, 0px);
-      --safe-right:env(safe-area-inset-right, 0px);
-
-      --drawer-w:280px;
-      --drawer-max-w:85vw;
-      --drawer-border:#000;
-      --drawer-dur:220ms;
-      --drawer-ease:cubic-bezier(.2,.7,.2,1);
-      --backdrop-max:0.12;
-
-      --scrollbar-track: #f2f2f2;
-      --scrollbar-thumb: #bdbdbd;
-      --scrollbar-thumb-hover: #9e9e9e;
-      --scrollbar-border: #000;
-    }
-    html,body{
-      margin:0;
-      height:100%;
-      background:#fff;
-      overscroll-behavior:none;
-    }
-    body{ position:relative }
-
-    html, body, #pad, .btn, .drawer, .drawer-content, .swatch, .stepper button, .segmented button {
-      -webkit-touch-callout: none;
-      -webkit-user-select: none;
-      user-select: none;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    #pad{
-      display:block;
-      width:100%;
-      height:100%;
-      background:#fff;
-      touch-action:none;
-      cursor:crosshair;
-    }
-
-    .toolbar-right{
-      position:fixed;
-      top:calc(var(--safe-top) + 10px);
-      right:calc(var(--safe-right) + 10px);
-      z-index:10;
-      pointer-events:none;
-      display:flex;
-      gap:8px;
-    }
-
-    .toolbar-left{
-      position:fixed;
-      top:calc(var(--safe-top) + 10px);
-      left:calc(var(--safe-left) + 10px);
-      z-index:10;
-      pointer-events:none;
-    }
-
-    .btn{
-      width:var(--btn-size);
-      height:var(--btn-size);
-      border-radius:var(--btn-radius);
-      background:#fff;
-      border:var(--btn-border) solid #000;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      box-sizing:border-box;
-      pointer-events:auto;
-      touch-action:manipulation;
-    }
-    .btn:active{ background:#f2f2f2 }
-    .btn svg{
-      width:var(--icon-size);
-      height:var(--icon-size);
-      stroke:#000;
-      stroke-width:var(--icon-stroke);
-      stroke-linecap:round;
-      stroke-linejoin:round;
-      fill:none;
-      vector-effect:non-scaling-stroke;
-    }
-
-    .drawer-host{
-      position:fixed;
-      inset:0;
-      z-index:20;
-      pointer-events:none;
-      contain:layout paint style;
-    }
-    .drawer-host.open{ pointer-events:auto; }
-
-    .drawer{
-      position:absolute;
-      top:0;
-      left:0;
-      width:var(--drawer-w);
-      max-width:var(--drawer-max-w);
-      height:100%;
-      background:#fff;
-      border-right:var(--btn-border) solid var(--drawer-border);
-      transform:translate3d(-100%,0,0);
-      transition:transform var(--drawer-dur) var(--drawer-ease);
-      will-change:transform;
-      contain:layout paint size style;
-      z-index:2;
-
-      display:flex;
-      flex-direction:column;
-    }
-    .drawer-host.open .drawer{ transform:translate3d(0,0,0); }
-
-    .backdrop{
-      position:absolute;
-      inset:0;
-      background-color:rgba(0,0,0,0);
-      transition:background-color var(--drawer-dur) linear;
-      will-change:background-color;
-      pointer-events:none;
-      contain:layout paint;
-      z-index:1;
-    }
-    .drawer-host.open .backdrop{
-      background-color:rgba(0,0,0,var(--backdrop-max));
-      pointer-events:auto;
-    }
-
-    .drawer-content{
-      flex:1 1 auto;
-      min-height:0;
-      padding:14px;
-      font-family:system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-      color:#000;
-      line-height:1.35;
-      user-select:none;
-      overflow:auto;
-      overscroll-behavior:contain;
-      -webkit-overflow-scrolling:touch;
-      scrollbar-gutter: stable both-edges;
-    }
-
-    .drawer-content::-webkit-scrollbar{ width:10px; }
-    .drawer-content::-webkit-scrollbar-track{
-      background: var(--scrollbar-track);
-      border-left: 0.75px solid var(--scrollbar-border);
-    }
-    .drawer-content::-webkit-scrollbar-thumb{
-      background: var(--scrollbar-thumb);
-      border: 2px solid var(--scrollbar-track);
-      border-radius: 999px;
-    }
-    .drawer-content::-webkit-scrollbar-thumb:hover{
-      background: var(--scrollbar-thumb-hover);
-    }
-    .drawer-content{
-      scrollbar-width: thin;
-      scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
-    }
-
-    .section{ margin-bottom:10px; }
-    .section h3{
-      margin:0 0 6px 0;
-      font-size:13px;
-      font-weight:600;
-      letter-spacing:.2px;
-    }
-
-    .palette{
-      display:flex;
-      flex-wrap:wrap;
-      gap:8px;
-    }
-    .swatch{
-      width:26px; height:26px;
-      border-radius:6px;
-      border:0.75px solid #000;
-      box-sizing:border-box;
-      padding:0;
-      background:#fff;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      cursor:pointer;
-      touch-action:manipulation;
-    }
-    .swatch > span{
-      display:block;
-      width:18px; height:18px;
-      border-radius:4px;
-      border:0.75px solid rgba(0,0,0,.3);
-      box-sizing:border-box;
-    }
-    .swatch[aria-pressed="true"]{
-      outline:2px solid #000;
-      outline-offset:2px;
-    }
-
-    .control{ margin:8px 0; }
-    .row{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:8px;
-    }
-    .label{
-      font-size:12px;
-      font-weight:600;
-    }
-    .stepper{
-      display:inline-flex;
-      align-items:center;
-      border:0.75px solid #000;
-      border-radius:6px;
-      overflow:hidden;
-    }
-    .stepper button{
-      width:28px; height:26px;
-      background:#fff;
-      border:none;
-      border-right:0.75px solid #000;
-      font-size:16px; line-height:1;
-      padding:0; margin:0;
-      cursor:pointer;
-      touch-action:manipulation;
-    }
-    .stepper button:last-child{ border-right:none; border-left:0.75px solid #000; }
-    .stepper .val{
-      min-width:54px;
-      text-align:center;
-      font-variant-numeric:tabular-nums;
-      font-size:12px;
-      padding:0 6px;
-    }
-
-    .segmented{
-      display:inline-flex;
-      border:0.75px solid #000;
-      border-radius:8px;
-      overflow:hidden;
-    }
-    .segmented button{
-      padding:6px 10px;
-      font-size:12px;
-      background:#fff;
-      border:none;
-      border-right:0.75px solid #000;
-      cursor:pointer;
-    }
-    .segmented button:last-child{ border-right:none; }
-    .segmented button[aria-pressed="true"]{ background:#000; color:#fff; }
-
-    .note{
-      margin-top:4px;
-      font-size:10px;
-      color:#333;
-      opacity:.9;
-    }
-
-    .hidden{ display:none !important; }
-
-    @media (prefers-reduced-motion: reduce){
-      .drawer{ transition:none !important; }
-      .backdrop{ transition:none !important; }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Annotator</title>
+    <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiUERGIEFubm90YXRvciIsInNob3J0X25hbWUiOiJQREZBbm5vdGF0b3IiLCJzdGFydF91cmwiOiIuLyIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiNmZmZmZmYiLCJ0aGVtZV9jb2xvciI6IiMwMDAwMDAiLCJpY29ucyI6W3sic3JjIjoiZGF0YTppbWFnZS9zdmcreG1sO2Jhc2U2NCxQSE4yWnlCM2FXUjBhRDBpTWpRaUlHaGxhV2RvZEQwaU1qUWlJSFpwWlhkQ2IzZzlJakFnTUNBeU5DQXlOQ0lnWm1sc2JEMGlJekF3TURBd01DSStQSEpsWTNRZ2QybGtkR2c5SWpJd0lpQm9aV2xuYUhROUlqSXdJaUJtYVd4c1BTSWpabVptWm1abUlpQnpkSEp2YTJVOUlpTXdNREF3TURBaUlITjBjbTlyWlMxM2FXUjBhRDBpTWlJdlBqd3ZjM1puUGc9PSIsInNpemVzIjoiMjR4MjQiLCJ0eXBlIjoiaW1hZ2Uvc3ZnK3htbCJ9XX0=">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #ffffff;
+            color: #000000;
+            overflow: hidden;
+            touch-action: none;
+        }
+        
+        .toolbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background: #ffffff;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            gap: 15px;
+            z-index: 1000;
+        }
+        
+        .btn {
+            background: #ffffff;
+            border: 1px solid #d0d0d0;
+            color: #000000;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 3px;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            background: #f5f5f5;
+            border-color: #b0b0b0;
+        }
+        
+        .btn.active {
+            background: #000000;
+            color: #ffffff;
+            border-color: #000000;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .pen-size {
+            width: 80px;
+            height: 30px;
+            border: 1px solid #d0d0d0;
+            border-radius: 3px;
+            padding: 5px;
+        }
+        
+        .main-container {
+            position: fixed;
+            top: 50px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #f8f8f8;
+            overflow: auto;
+        }
+        
+        .canvas-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100%;
+            padding: 20px;
+        }
+        
+        .pdf-canvas, .annotation-canvas {
+            position: absolute;
+            border: 1px solid #e0e0e0;
+            background: #ffffff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .annotation-canvas {
+            z-index: 10;
+            cursor: crosshair;
+        }
+        
+        .page-controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ffffff;
+            border: 1px solid #d0d0d0;
+            border-radius: 20px;
+            padding: 10px 15px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .page-info {
+            font-size: 12px;
+            color: #666666;
+            margin: 0 10px;
+        }
+        
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 14px;
+            color: #666666;
+        }
+        
+        .drop-zone {
+            position: fixed;
+            top: 50px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            background: #ffffff;
+            border: 2px dashed #d0d0d0;
+            margin: 20px;
+            border-radius: 10px;
+            color: #666666;
+            font-size: 16px;
+        }
+        
+        .drop-zone.drag-over {
+            border-color: #000000;
+            background: #f8f8f8;
+        }
+    </style>
 </head>
 <body>
-  <div class="toolbar-left">
-    <button id="menuBtn" class="btn" aria-label="Open menu" aria-expanded="false" aria-controls="drawer" title="Menu">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M4 6h16" />
-        <path d="M4 12h16" />
-        <path d="M4 18h16" />
-      </svg>
-    </button>
-  </div>
+    <div class="toolbar">
+        <input type="file" id="pdfInput" class="file-input" accept=".pdf">
+        <button class="btn" onclick="document.getElementById('pdfInput').click()">Load PDF</button>
+        <button class="btn" id="penTool">Pen</button>
+        <button class="btn" id="eraserTool">Eraser</button>
+        <input type="range" class="pen-size" id="penSize" min="1" max="20" value="2">
+        <button class="btn" id="clearAll">Clear All</button>
+        <button class="btn" id="saveAnnotations">Save</button>
+    </div>
 
-  <div class="toolbar-right">
-    <button id="eraserQuickBtn" class="btn" aria-label="Toggle eraser" title="Pen / Eraser">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M3 14l7-7a2 2 0 0 1 2.8 0l5.2 5.2a2 2 0 0 1 0 2.8l-4.2 4.2a2 2 0 0 1-1.4.6H7.4a2 2 0 0 1-1.4-.6L3 16.6a2 2 0 0 1 0-2.6z" />
-        <path d="M2 20h12" />
-      </svg>
-    </button>
-    <button id="clearBtn" class="btn" aria-label="Clear canvas" title="Clear">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M3 6h18" />
-        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-        <path d="M10 11v6" />
-        <path d="M14 11v6" />
-      </svg>
-    </button>
-  </div>
-
-  <div id="drawerHost" class="drawer-host" aria-hidden="true">
-    <aside id="drawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
-      <div class="drawer-content">
-        <h2 id="drawerTitle" style="margin:0 0 10px 0;font-size:14px;">Menu</h2>
-
-        <div class="section">
-          <h3>Tool</h3>
-          <div class="segmented" role="group" aria-label="Tool" id="toolChooser">
-            <button data-tool="pen" aria-pressed="true">Pen</button>
-            <button data-tool="eraser" aria-pressed="false">Eraser</button>
-          </div>
-          <div class="note">Eraser removes pixels (destination-out) and is recorded in history.</div>
+    <div class="main-container">
+        <div class="drop-zone" id="dropZone">
+            <div>Drop PDF file here or click "Load PDF"</div>
+            <div style="font-size: 12px; margin-top: 10px; color: #999;">Supports stylus with pressure sensitivity</div>
         </div>
-
-        <div class="section">
-          <h3>Ink color</h3>
-          <div class="palette" id="palette" role="group" aria-label="Ink colors">
-            <button class="swatch" data-color="#000000" aria-label="Black" aria-pressed="true"><span style="background:#000000;border-color:#000000;"></span></button>
-            <button class="swatch" data-color="#D32F2F" aria-label="Red"><span style="background:#D32F2F;"></span></button>
-            <button class="swatch" data-color="#1976D2" aria-label="Blue"><span style="background:#1976D2;"></span></button>
-            <button class="swatch" data-color="#2E7D32" aria-label="Green"><span style="background:#2E7D32;"></span></button>
-            <button class="swatch" data-color="#FB8C00" aria-label="Orange"><span style="background:#FB8C00;"></span></button>
-            <button class="swatch" data-color="#6A1B9A" aria-label="Purple"><span style="background:#6A1B9A;"></span></button>
-            <button class="swatch" data-color="#616161" aria-label="Gray"><span style="background:#616161;"></span></button>
-          </div>
-          <div class="note">Pick one of 7 preset inks. Default: Black.</div>
+        
+        <div class="canvas-container" id="canvasContainer" style="display: none;">
+            <canvas id="pdfCanvas" class="pdf-canvas"></canvas>
+            <canvas id="annotationCanvas" class="annotation-canvas"></canvas>
         </div>
+        
+        <div class="loading" id="loading" style="display: none;">Loading PDF...</div>
+    </div>
 
-        <div class="section">
-          <h3>Stroke width</h3>
-          <div class="control">
-            <div class="row">
-              <div class="label">Min width</div>
-              <div class="stepper" id="minW">
-                <button class="minus" aria-label="Decrease min width">−</button>
-                <div class="val" aria-live="polite">0.5 px</div>
-                <button class="plus" aria-label="Increase min width">+</button>
-              </div>
-            </div>
-            <div class="note">Thinnest line at lightest pressure. Default: 0.5 px.</div>
-          </div>
+    <div class="page-controls" id="pageControls">
+        <button class="btn" id="prevPage">←</button>
+        <span class="page-info" id="pageInfo">1 / 1</span>
+        <button class="btn" id="nextPage">→</button>
+    </div>
 
-          <div class="control">
-            <div class="row">
-              <div class="label">Max width</div>
-              <div class="stepper" id="maxW">
-                <button class="minus" aria-label="Decrease max width">−</button>
-                <div class="val" aria-live="polite">8.0 px</div>
-                <button class="plus" aria-label="Increase max width">+</button>
-              </div>
-            </div>
-            <div class="note">Thickest line at firm pressure. Default: 8 px.</div>
-          </div>
-        </div>
-
-        <div class="section">
-          <h3>Pressure curve</h3>
-          <div class="control">
-            <div class="row">
-              <div class="label">Response</div>
-              <div class="stepper" id="curve">
-                <button class="minus" aria-label="Previous curve">−</button>
-                <div class="val" aria-live="polite">Firm</div>
-                <button class="plus" aria-label="Next curve">+</button>
-              </div>
-            </div>
-            <div class="note">Soft = thicker with light touch • Linear • Firm (default) = needs more pressure.</div>
-          </div>
-        </div>
-
-        <div class="section">
-          <h3>Smoothing</h3>
-          <div class="control">
-            <div class="row">
-              <div class="label">Strength</div>
-              <div class="stepper" id="smooth">
-                <button class="minus" aria-label="Less smoothing">−</button>
-                <div class="val" aria-live="polite">0.35</div>
-                <button class="plus" aria-label="More smoothing">+</button>
-              </div>
-            </div>
-            <div class="note">Stabilizes width changes only. 0 = none • 1 = very smooth. Default: 0.35.</div>
-          </div>
-
-          <div class="control">
-            <div class="row">
-              <div class="label">Stabilizer</div>
-              <div class="stepper" id="stabilizer">
-                <button class="minus" aria-label="Decrease stabilizer">−</button>
-                <div class="val" aria-live="polite">0 px</div>
-                <button class="plus" aria-label="Increase stabilizer">+</button>
-              </div>
-            </div>
-            <div class="note">Smooths the path by limiting how far the pen moves per event. Default: 0 px (off).</div>
-          </div>
-        </div>
-
-        <div class="section">
-          <h3>Mode</h3>
-          <div class="control">
-            <div class="row">
-              <div class="label">Rendering</div>
-              <div class="stepper" id="mode">
-                <button class="minus" aria-label="Previous mode">−</button>
-                <div class="val" aria-live="polite">Smoothness</div>
-                <button class="plus" aria-label="Next mode">+</button>
-              </div>
-            </div>
-            <div class="note">Smoothness caps DPR at 2 (default). Sharpness uses full device DPR (sharper, heavier).</div>
-          </div>
-        </div>
-
-        <div class="section">
-          <h3>Fit mode</h3>
-          <div class="control">
-            <div class="row">
-              <div class="label">Canvas fit</div>
-              <div class="stepper" id="fitMode">
-                <button class="minus" aria-label="Previous fit mode">−</button>
-                <div class="val" aria-live="polite">Contain</div>
-                <button class="plus" aria-label="Next fit mode">+</button>
-              </div>
-            </div>
-            <div class="note">
-              How drawings adapt when the window size changes:
-              • Stretch: fill; can distort
-              • Contain: show all; no distortion; letterbox
-              • Cover: fill; no distortion; may crop
-              • None: no scaling; can overflow
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </aside>
-    <div id="backdrop" class="backdrop" aria-hidden="true"></div>
-  </div>
-
-  <canvas id="pad"></canvas>
-
-  <script>
-    // Simple SW to make it installable
-    if ('serviceWorker' in navigator) {
-      const sw = `
-        self.addEventListener('install', e => self.skipWaiting());
-        self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
-      `;
-      navigator.serviceWorker.register(
-        URL.createObjectURL(new Blob([sw], {type:'text/javascript'}))
-      ).catch(()=>{});
-    }
-
-    const canvas     = document.getElementById('pad');
-    const ctx        = canvas.getContext('2d', { alpha:false, desynchronized:true });
-    const menuBtn    = document.getElementById('menuBtn');
-    const clearBtn   = document.getElementById('clearBtn');
-    const eraserQuickBtn = document.getElementById('eraserQuickBtn');
-    const drawerHost = document.getElementById('drawerHost');
-    const drawer     = document.getElementById('drawer');
-    const backdrop   = document.getElementById('backdrop');
-
-    const CURVE_OPTS = ['Soft','Linear','Firm'];
-    const CURVE_GAMMA = { Soft:0.5, Linear:1, Firm:2 };
-    const FIT_OPTS = ['Stretch','Contain','Cover','None'];
-
-    const settings = {
-      tool: 'pen',            // 'pen' | 'eraser'
-      inkColor: '#000000',
-      minWidth: 0.5,
-      maxWidth: 8.0,
-      curve: 'Firm',
-      smoothing: 0.35,
-      stabilizer: 0,
-      mode: 'Smoothness',
-      fitMode: 'Contain'
-    };
-
-    const state = {
-      dpr: 1,
-      cssW: 0,
-      cssH: 0,
-      rect: { left:0, top:0 },
-      drawing: false,
-      pointerId: null,
-      lastX: 0,
-      lastY: 0,
-      sx: 0, sy: 0,
-      filteredW: settings.maxWidth,
-      queue: [],
-      needsRender: false,
-      rafId: 0,
-      modeSharp: false,
-      currentOp: 'source-over'
-    };
-
-    let history = [];
-    let currentStroke = null;
-
-    // Prevent touch context menu post-touch
-    const TOUCH_CTX_GUARD_MS = 1500;
-    let lastTouchTs = 0;
-    window.addEventListener('touchstart', () => { lastTouchTs = performance.now(); }, { capture:true, passive:true });
-    window.addEventListener('touchend',   () => { lastTouchTs = performance.now(); }, { capture:true, passive:true });
-    document.addEventListener('contextmenu', (e) => {
-      const fromTouch = (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) ||
-                        (performance.now() - lastTouchTs) < TOUCH_CTX_GUARD_MS;
-      if (fromTouch) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    }, { capture:true });
-
-    function getDeviceDPR(){
-      return (typeof window.devicePixelRatio === 'number' && window.devicePixelRatio > 0)
-        ? window.devicePixelRatio : 1;
-    }
-    function computeDPR(){
-      const raw = getDeviceDPR();
-      return state.modeSharp ? raw : Math.min(2, raw);
-    }
-
-    function sizeCanvas(){
-      state.dpr = computeDPR();
-      state.cssW = window.innerWidth;
-      state.cssH = window.innerHeight;
-
-      canvas.style.width = state.cssW + 'px';
-      canvas.style.height = state.cssH + 'px';
-      canvas.width  = Math.floor(state.cssW * state.dpr);
-      canvas.height = Math.floor(state.cssH * state.dpr);
-
-      ctx.setTransform(1,0,0,1,0,0);
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.strokeStyle = settings.inkColor;
-      ctx.globalCompositeOperation = 'source-over';
-
-      const r = canvas.getBoundingClientRect();
-      state.rect.left = r.left;
-      state.rect.top  = r.top;
-    }
-
-    function xyFromEvent(e){
-      return { x: e.clientX - state.rect.left, y: e.clientY - state.rect.top };
-    }
-
-    function pressureOf(e){
-      const p = (typeof e.pressure === 'number') ? e.pressure : 1;
-      return (p > 0) ? Math.min(1, Math.max(0, p)) : 1;
-    }
-
-    function pressureToWidthFor(stroke, p){
-      const gamma = stroke.gamma || CURVE_GAMMA[stroke.curve] || 1;
-      const t = Math.pow(p, gamma);
-      const w = stroke.minWidth + (stroke.maxWidth - stroke.minWidth) * t;
-      return Math.max(0.25, Math.min(64, w));
-    }
-
-    function openDrawer(){
-      menuBtn.classList.add('hidden');
-      menuBtn.setAttribute('aria-expanded', 'true');
-      drawerHost.classList.add('open');
-      drawerHost.setAttribute('aria-hidden', 'false');
-      drawer.setAttribute('aria-hidden', 'false');
-    }
-    function closeDrawer(){
-      drawerHost.classList.remove('open');
-      drawerHost.setAttribute('aria-hidden', 'true');
-      drawer.setAttribute('aria-hidden', 'true');
-      menuBtn.setAttribute('aria-expanded', 'false');
-
-      const onEnd = (e) => {
-        if (e.target !== drawer || e.propertyName !== 'transform') return;
-        drawer.removeEventListener('transitionend', onEnd);
-        menuBtn.classList.remove('hidden');
-      };
-      drawer.addEventListener('transitionend', onEnd, { once:true });
-      setTimeout(() => menuBtn.classList.remove('hidden'), 320);
-    }
-
-    menuBtn.addEventListener('pointerdown', openDrawer, { passive:true });
-    menuBtn.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') openDrawer(); });
-    backdrop.addEventListener('pointerdown', closeDrawer, { passive:true });
-    drawer.addEventListener('pointerdown', (e) => e.stopPropagation(), { passive:true });
-    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); }, { passive:true });
-
-    const moveEventName = ('onpointerrawupdate' in window) ? 'pointerrawupdate' : 'pointermove';
-
-    function startStroke(e){
-      // Pen/stylus only; uncomment below to allow Shift+mouse testing
-      // if ((e.pointerType !== 'pen' && !e.shiftKey) || e.button !== 0) return;
-      if (e.pointerType !== 'pen' || e.button !== 0) return;
-
-      const r = canvas.getBoundingClientRect();
-      state.rect.left = r.left;
-      state.rect.top  = r.top;
-
-      canvas.setPointerCapture(e.pointerId);
-      state.drawing = true;
-      state.pointerId = e.pointerId;
-
-      const { x, y } = xyFromEvent(e);
-      state.lastX = x; state.lastY = y;
-      state.sx = x; state.sy = y;
-
-      state.filteredW = pressureToWidthFor({
-        minWidth: settings.minWidth,
-        maxWidth: settings.maxWidth,
-        curve: settings.curve,
-        gamma: CURVE_GAMMA[settings.curve]
-      }, pressureOf(e));
-
-      const type = (settings.tool === 'eraser') ? 'erase' : 'ink';
-
-      currentStroke = {
-        type, // 'ink' | 'erase'
-        color: settings.inkColor,
-        minWidth: settings.minWidth,
-        maxWidth: settings.maxWidth,
-        curve: settings.curve,
-        gamma: CURVE_GAMMA[settings.curve],
-        smoothing: settings.smoothing,
-        baseW: state.cssW,
-        baseH: state.cssH,
-        points: []
-      };
-
-      currentStroke.points.push({ x, y, p: pressureOf(e) });
-
-      // Seed queue with op so live renderer switches immediately
-      state.queue.push({
-        x, y,
-        w: state.filteredW,
-        color: currentStroke.color,
-        op: (type === 'erase') ? 'destination-out' : 'source-over'
-      });
-
-      state.needsRender = true;
-    }
-
-    function moveStroke(e){
-      if (!state.drawing || e.pointerId !== state.pointerId) return;
-
-      const src = (typeof e.getCoalescedEvents === 'function') ? e.getCoalescedEvents() : [e];
-
-      for (let i = 0; i < src.length; i++){
-        const ev = src[i];
-        const { x:rx, y:ry } = xyFromEvent(ev);
-
-        let x = rx, y = ry;
-        const S = settings.stabilizer;
-        if (S > 0){
-          const dx = rx - state.sx, dy = ry - state.sy;
-          const dist = Math.hypot(dx, dy);
-          if (dist > 0){
-            const step = Math.min(dist, S);
-            const t = step / dist;
-            x = state.sx + dx * t;
-            y = state.sy + dy * t;
-          }
-          state.sx = x; state.sy = y;
-        } else {
-          state.sx = x; state.sy = y;
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        // PWA Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('data:text/javascript;base64,c2VsZi5hZGRFdmVudExpc3RlbmVyKCdpbnN0YWxsJywgZXZlbnQgPT4ge30pOw==');
         }
 
-        if (currentStroke) currentStroke.points.push({ x, y, p: pressureOf(ev) });
+        // PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-        const targetW = pressureToWidthFor({
-          minWidth: settings.minWidth,
-          maxWidth: settings.maxWidth,
-          curve: settings.curve,
-          gamma: CURVE_GAMMA[settings.curve]
-        }, pressureOf(ev));
-        state.filteredW += (targetW - state.filteredW) * settings.smoothing;
-
-        state.queue.push({
-          x, y,
-          w: state.filteredW,
-          color: currentStroke ? currentStroke.color : settings.inkColor,
-          op: (currentStroke && currentStroke.type === 'erase') ? 'destination-out' : 'source-over'
-        });
-      }
-
-      state.needsRender = true;
-    }
-
-    function endStroke(e){
-      if (e.pointerId !== state.pointerId) return;
-      state.drawing = false;
-      state.pointerId = null;
-      state.needsRender = true;
-      try { canvas.releasePointerCapture(e.pointerId); } catch {}
-
-      if (currentStroke){
-        if (currentStroke.points.length === 1){
-          const pt = currentStroke.points[0];
-          currentStroke.points.push({ x: pt.x + 0.01, y: pt.y, p: pt.p });
-        }
-        history.push(currentStroke);
-        currentStroke = null;
-      }
-    }
-
-    canvas.addEventListener('pointerdown', startStroke, { passive:true });
-    canvas.addEventListener(moveEventName, moveStroke,   { passive:true });
-    canvas.addEventListener('pointerup',   endStroke,    { passive:true });
-    canvas.addEventListener('pointercancel', endStroke,  { passive:true });
-    canvas.addEventListener('pointerout',  endStroke,    { passive:true });
-
-    function clearCanvas(){
-      history = [];
-      ctx.setTransform(1,0,0,1,0,0);
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
-      ctx.globalCompositeOperation = 'source-over';
-    }
-    clearBtn.addEventListener('click', clearCanvas, { passive:true });
-
-    function computeFitTransform(baseW, baseH){
-      const dpr = state.dpr;
-      const cssW = state.cssW;
-      const cssH = state.cssH;
-
-      const scaleX = cssW / (baseW || cssW || 1);
-      const scaleY = cssH / (baseH || cssH || 1);
-
-      let sx, sy, tx, ty;
-
-      switch (settings.fitMode) {
-        case 'Stretch':
-          sx = scaleX; sy = scaleY;
-          tx = 0; ty = 0;
-          break;
-        case 'Contain': {
-          const s = Math.min(scaleX, scaleY);
-          sx = s; sy = s;
-          const outW = baseW * s;
-          const outH = baseH * s;
-          tx = (cssW - outW) / 2;
-          ty = (cssH - outH) / 2;
-          break;
-        }
-        case 'Cover': {
-          const s = Math.max(scaleX, scaleY);
-          sx = s; sy = s;
-          const outW = baseW * s;
-          const outH = baseH * s;
-          tx = (cssW - outW) / 2;
-          ty = (cssH - outH) / 2;
-          break;
-        }
-        case 'None':
-        default:
-          sx = 1; sy = 1;
-          tx = 0; ty = 0;
-          break;
-      }
-
-      return {
-        a: dpr * sx, b: 0,
-        c: 0, d: dpr * sy,
-        e: dpr * tx, f: dpr * ty,
-        sx, sy, tx, ty
-      };
-    }
-
-    function redrawAllStrokes(){
-      ctx.setTransform(1,0,0,1,0,0);
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      const WIDTH_EPS = 0.1;
-
-      for (let s = 0; s < history.length; s++){
-        const stroke = history[s];
-        if (!stroke.points || stroke.points.length === 0) continue;
-
-        const T = computeFitTransform(stroke.baseW || state.cssW, stroke.baseH || state.cssH);
-
-        ctx.save();
-        ctx.setTransform(T.a, T.b, T.c, T.d, T.e, T.f);
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-
-        // Apply composite mode per stroke
-        const op = (stroke.type === 'erase') ? 'destination-out' : 'source-over';
-        ctx.globalCompositeOperation = op;
-        ctx.strokeStyle = (stroke.type === 'ink') ? stroke.color : '#000';
-
-        let filteredW = pressureToWidthFor(stroke, stroke.points[0].p);
-        let lastX = stroke.points[0].x, lastY = stroke.points[0].y;
-
-        ctx.beginPath();
-        ctx.moveTo(lastX, lastY);
-        ctx.lineWidth = filteredW;
-        let currentLW = filteredW;
-
-        for (let i = 1; i < stroke.points.length; i++){
-          const pt = stroke.points[i];
-          const targetW = pressureToWidthFor(stroke, pt.p);
-          filteredW += (targetW - filteredW) * stroke.smoothing;
-          const lw = Math.max(0.25, Math.min(64, filteredW));
-
-          if (Math.abs(lw - currentLW) > WIDTH_EPS){
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(lastX, lastY);
-            ctx.lineWidth = lw;
-            currentLW = lw;
-          }
-
-          ctx.lineTo(pt.x, pt.y);
-          lastX = pt.x;
-          lastY = pt.y;
-        }
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
-      ctx.globalCompositeOperation = 'source-over';
-    }
-
-    const WIDTH_EPS = 0.1;
-    function render(){
-      if (state.needsRender){
-        state.needsRender = false;
-
-        let currentLW = -1;
-        let pathOpen = false;
-        let currentColor = null;
-        let currentOp = state.currentOp;
-
-        while (state.queue.length){
-          const p = state.queue.shift();
-          const lw = Math.max(0.25, Math.min(64, p.w));
-
-          // Switch composite op BEFORE drawing
-          if (!pathOpen || (p.op && p.op !== currentOp)){
-            if (pathOpen){
-              ctx.stroke();
-              pathOpen = false;
+        class PDFAnnotator {
+            constructor() {
+                this.pdf = null;
+                this.currentPage = 1;
+                this.totalPages = 0;
+                this.scale = 1.5;
+                this.isDrawing = false;
+                this.currentTool = 'pen';
+                this.penSize = 2;
+                
+                this.pdfCanvas = document.getElementById('pdfCanvas');
+                this.annotationCanvas = document.getElementById('annotationCanvas');
+                this.pdfCtx = this.pdfCanvas.getContext('2d');
+                this.annotationCtx = this.annotationCanvas.getContext('2d');
+                
+                this.annotations = new Map(); // Store annotations per page
+                
+                this.initializeEventListeners();
+                this.setupDrawing();
             }
-            ctx.globalCompositeOperation = p.op || 'source-over';
-            currentOp = ctx.globalCompositeOperation;
-          }
-
-          if (!pathOpen){
-            ctx.beginPath();
-            ctx.moveTo(state.lastX, state.lastY);
-            ctx.lineWidth = lw;
-            ctx.strokeStyle = (currentOp === 'destination-out') ? '#000' : (p.color || settings.inkColor);
-            currentLW = lw;
-            currentColor = p.color || settings.inkColor;
-            pathOpen = true;
-          }
-
-          if (currentOp === 'source-over' && p.color && p.color !== currentColor){
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(state.lastX, state.lastY);
-            ctx.lineWidth = lw;
-            ctx.strokeStyle = p.color;
-            currentColor = p.color;
-          }
-
-          if (Math.abs(lw - currentLW) > WIDTH_EPS){
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(state.lastX, state.lastY);
-            ctx.lineWidth = lw;
-            ctx.strokeStyle = (currentOp === 'destination-out') ? '#000' : currentColor;
-            currentLW = lw;
-          }
-
-          ctx.lineTo(p.x, p.y);
-          state.lastX = p.x;
-          state.lastY = p.y;
+            
+            initializeEventListeners() {
+                // File input
+                document.getElementById('pdfInput').addEventListener('change', (e) => {
+                    if (e.target.files[0]) {
+                        this.loadPDF(e.target.files[0]);
+                    }
+                });
+                
+                // Drag and drop
+                const dropZone = document.getElementById('dropZone');
+                dropZone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    dropZone.classList.add('drag-over');
+                });
+                
+                dropZone.addEventListener('dragleave', () => {
+                    dropZone.classList.remove('drag-over');
+                });
+                
+                dropZone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    dropZone.classList.remove('drag-over');
+                    const files = e.dataTransfer.files;
+                    if (files[0] && files[0].type === 'application/pdf') {
+                        this.loadPDF(files[0]);
+                    }
+                });
+                
+                // Tools
+                document.getElementById('penTool').addEventListener('click', () => {
+                    this.setTool('pen');
+                });
+                
+                document.getElementById('eraserTool').addEventListener('click', () => {
+                    this.setTool('eraser');
+                });
+                
+                document.getElementById('penSize').addEventListener('input', (e) => {
+                    this.penSize = parseInt(e.target.value);
+                });
+                
+                document.getElementById('clearAll').addEventListener('click', () => {
+                    this.clearCurrentPageAnnotations();
+                });
+                
+                document.getElementById('saveAnnotations').addEventListener('click', () => {
+                    this.saveAnnotations();
+                });
+                
+                // Page navigation
+                document.getElementById('prevPage').addEventListener('click', () => {
+                    if (this.currentPage > 1) {
+                        this.goToPage(this.currentPage - 1);
+                    }
+                });
+                
+                document.getElementById('nextPage').addEventListener('click', () => {
+                    if (this.currentPage < this.totalPages) {
+                        this.goToPage(this.currentPage + 1);
+                    }
+                });
+            }
+            
+            setupDrawing() {
+                const canvas = this.annotationCanvas;
+                let lastPoint = null;
+                
+                // Prevent default touch behaviors
+                canvas.addEventListener('touchstart', (e) => e.preventDefault());
+                canvas.addEventListener('touchmove', (e) => e.preventDefault());
+                canvas.addEventListener('touchend', (e) => e.preventDefault());
+                
+                // Pointer events for stylus support
+                canvas.addEventListener('pointerdown', (e) => {
+                    // Only allow stylus input (not finger)
+                    if (e.pointerType !== 'pen') return;
+                    
+                    this.isDrawing = true;
+                    const rect = canvas.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    lastPoint = { x, y };
+                    
+                    this.annotationCtx.lineJoin = 'round';
+                    this.annotationCtx.lineCap = 'round';
+                    
+                    if (this.currentTool === 'pen') {
+                        // Use pressure for line width
+                        const pressure = e.pressure || 0.5;
+                        const lineWidth = this.penSize * (0.5 + pressure);
+                        this.annotationCtx.globalCompositeOperation = 'source-over';
+                        this.annotationCtx.strokeStyle = '#000000';
+                        this.annotationCtx.lineWidth = lineWidth;
+                    } else if (this.currentTool === 'eraser') {
+                        this.annotationCtx.globalCompositeOperation = 'destination-out';
+                        this.annotationCtx.lineWidth = this.penSize * 3;
+                    }
+                    
+                    this.annotationCtx.beginPath();
+                    this.annotationCtx.moveTo(x, y);
+                });
+                
+                canvas.addEventListener('pointermove', (e) => {
+                    if (!this.isDrawing || e.pointerType !== 'pen') return;
+                    
+                    const rect = canvas.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    if (this.currentTool === 'pen') {
+                        // Use pressure for line width
+                        const pressure = e.pressure || 0.5;
+                        const lineWidth = this.penSize * (0.5 + pressure);
+                        this.annotationCtx.lineWidth = lineWidth;
+                    }
+                    
+                    this.annotationCtx.lineTo(x, y);
+                    this.annotationCtx.stroke();
+                    this.annotationCtx.beginPath();
+                    this.annotationCtx.moveTo(x, y);
+                });
+                
+                canvas.addEventListener('pointerup', (e) => {
+                    if (e.pointerType !== 'pen') return;
+                    this.isDrawing = false;
+                    this.saveCurrentPageAnnotations();
+                });
+                
+                // Handle pointer leave
+                canvas.addEventListener('pointerleave', () => {
+                    this.isDrawing = false;
+                });
+            }
+            
+            setTool(tool) {
+                this.currentTool = tool;
+                document.querySelectorAll('.btn').forEach(btn => btn.classList.remove('active'));
+                document.getElementById(tool + 'Tool').classList.add('active');
+                
+                if (tool === 'pen') {
+                    this.annotationCanvas.style.cursor = 'crosshair';
+                } else {
+                    this.annotationCanvas.style.cursor = 'grab';
+                }
+            }
+            
+            async loadPDF(file) {
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('dropZone').style.display = 'none';
+                
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    this.pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+                    this.totalPages = this.pdf.numPages;
+                    this.currentPage = 1;
+                    
+                    await this.renderPage(1);
+                    
+                    document.getElementById('canvasContainer').style.display = 'flex';
+                    document.getElementById('pageControls').style.display = 'flex';
+                    document.getElementById('loading').style.display = 'none';
+                    
+                    this.updatePageInfo();
+                    this.setTool('pen'); // Default to pen tool
+                    
+                } catch (error) {
+                    console.error('Error loading PDF:', error);
+                    document.getElementById('loading').textContent = 'Error loading PDF';
+                }
+            }
+            
+            async renderPage(pageNumber) {
+                const page = await this.pdf.getPage(pageNumber);
+                const viewport = page.getViewport({ scale: this.scale });
+                
+                // Set canvas dimensions
+                this.pdfCanvas.width = viewport.width;
+                this.pdfCanvas.height = viewport.height;
+                this.annotationCanvas.width = viewport.width;
+                this.annotationCanvas.height = viewport.height;
+                
+                // Render PDF page
+                await page.render({
+                    canvasContext: this.pdfCtx,
+                    viewport: viewport
+                }).promise;
+                
+                // Load annotations for this page
+                this.loadPageAnnotations(pageNumber);
+            }
+            
+            async goToPage(pageNumber) {
+                if (pageNumber < 1 || pageNumber > this.totalPages) return;
+                
+                // Save current page annotations
+                this.saveCurrentPageAnnotations();
+                
+                this.currentPage = pageNumber;
+                await this.renderPage(pageNumber);
+                this.updatePageInfo();
+            }
+            
+            updatePageInfo() {
+                document.getElementById('pageInfo').textContent = `${this.currentPage} / ${this.totalPages}`;
+            }
+            
+            saveCurrentPageAnnotations() {
+                const imageData = this.annotationCtx.getImageData(0, 0, this.annotationCanvas.width, this.annotationCanvas.height);
+                this.annotations.set(this.currentPage, imageData);
+            }
+            
+            loadPageAnnotations(pageNumber) {
+                this.annotationCtx.clearRect(0, 0, this.annotationCanvas.width, this.annotationCanvas.height);
+                
+                const savedAnnotations = this.annotations.get(pageNumber);
+                if (savedAnnotations) {
+                    this.annotationCtx.putImageData(savedAnnotations, 0, 0);
+                }
+            }
+            
+            clearCurrentPageAnnotations() {
+                this.annotationCtx.clearRect(0, 0, this.annotationCanvas.width, this.annotationCanvas.height);
+                this.annotations.delete(this.currentPage);
+            }
+            
+            saveAnnotations() {
+                // Save current page first
+                this.saveCurrentPageAnnotations();
+                
+                // Create a download link for annotations data
+                const annotationsData = {};
+                for (let [page, imageData] of this.annotations) {
+                    // Convert ImageData to base64
+                    const canvas = document.createElement('canvas');
+                    canvas.width = imageData.width;
+                    canvas.height = imageData.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.putImageData(imageData, 0, 0);
+                    annotationsData[page] = canvas.toDataURL();
+                }
+                
+                const blob = new Blob([JSON.stringify(annotationsData)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'pdf-annotations.json';
+                a.click();
+                URL.revokeObjectURL(url);
+            }
         }
-
-        if (pathOpen){
-          ctx.stroke();
-          pathOpen = false;
-        }
-
-        state.currentOp = currentOp;
-      }
-
-      state.rafId = requestAnimationFrame(render);
-    }
-
-    // Palette
-    (function initPalette(){
-      const el = document.getElementById('palette');
-      el.addEventListener('pointerdown', (e) => {
-        const btn = e.target.closest('.swatch');
-        if (!btn) return;
-        const color = btn.getAttribute('data-color');
-        settings.inkColor = color;
-        for (const b of el.querySelectorAll('.swatch')) b.setAttribute('aria-pressed', 'false');
-        btn.setAttribute('aria-pressed', 'true');
-      }, { passive:true });
-    })();
-
-    // Tool chooser + quick toggle
-    (function initToolChooser(){
-      const root = document.getElementById('toolChooser');
-      const buttons = Array.from(root.querySelectorAll('button'));
-      function setTool(t){
-        settings.tool = t;
-        for (const b of buttons){
-          b.setAttribute('aria-pressed', String(b.dataset.tool === t));
-        }
-        eraserQuickBtn.classList.toggle('active', t === 'eraser');
-        canvas.style.cursor = (t === 'eraser') ? 'not-allowed' : 'crosshair';
-      }
-      root.addEventListener('click', (e) => {
-        const btn = e.target.closest('button');
-        if (!btn) return;
-        setTool(btn.dataset.tool);
-      }, { passive:true });
-      eraserQuickBtn.addEventListener('click', () => {
-        setTool(settings.tool === 'eraser' ? 'pen' : 'eraser');
-      }, { passive:true });
-      setTool(settings.tool);
-    })();
-
-    // Steppers and helpers
-    function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
-    function fmt(v, decimals=0, suffix=''){ return v.toFixed(decimals) + (suffix ? ' ' + suffix : ''); }
-
-    function bindNumberStepper(id, get, set, {min, max, step, decimals=0, suffix=''}) {
-      const root = document.getElementById(id);
-      const minus = root.querySelector('.minus');
-      const plus  = root.querySelector('.plus');
-      const val   = root.querySelector('.val');
-      function render(){ val.textContent = fmt(get(), decimals, suffix); }
-      function bump(dir){
-        let v = get();
-        v = clamp(v + dir*step, min, max);
-        set(v);
-        render();
-      }
-      minus.addEventListener('click', () => bump(-1), { passive:true });
-      plus.addEventListener('click',  () => bump(+1), { passive:true });
-      render();
-    }
-
-    function bindEnumStepper(id, options, get, set, onChange){
-      const root = document.getElementById(id);
-      const minus = root.querySelector('.minus');
-      const plus  = root.querySelector('.plus');
-      const val   = root.querySelector('.val');
-      function idx(){ return Math.max(0, options.indexOf(get())); }
-      function render(){ val.textContent = options[idx()]; }
-      function bump(dir){
-        const i = (idx() + dir + options.length) % options.length;
-        const next = options[i];
-        set(next);
-        render();
-        if (typeof onChange === 'function') onChange(next);
-      }
-      minus.addEventListener('click', () => bump(-1), { passive:true });
-      plus.addEventListener('click',  () => bump(+1), { passive:true });
-      render();
-    }
-
-    bindNumberStepper('minW',
-      () => settings.minWidth,
-      (v) => {
-        settings.minWidth = v;
-        if (settings.maxWidth < v) settings.maxWidth = v;
-      },
-      { min:0.5, max:20, step:0.5, decimals:1, suffix:'px' }
-    );
-
-    bindNumberStepper('maxW',
-      () => settings.maxWidth,
-      (v) => {
-        settings.maxWidth = v;
-        if (settings.minWidth > v) settings.minWidth = v;
-      },
-      { min:0.5, max:20, step:0.5, decimals:1, suffix:'px' }
-    );
-
-    bindEnumStepper('curve', CURVE_OPTS,
-      () => settings.curve,
-      (v) => { settings.curve = v; }
-    );
-
-    bindNumberStepper('smooth',
-      () => settings.smoothing,
-      (v) => { settings.smoothing = v; },
-      { min:0, max:1, step:0.05, decimals:2 }
-    );
-
-    bindNumberStepper('stabilizer',
-      () => settings.stabilizer,
-      (v) => { settings.stabilizer = v; },
-      { min:0, max:20, step:1, decimals:0, suffix:'px' }
-    );
-
-    bindEnumStepper('mode', ['Smoothness','Sharpness'],
-      () => settings.mode,
-      (v) => {
-        const wasSharp = (settings.mode === 'Sharpness');
-        settings.mode = v;
-        state.modeSharp = (v === 'Sharpness');
-        const nowSharp = state.modeSharp;
-        if (wasSharp !== nowSharp) {
-          sizeCanvas();
-          redrawAllStrokes();
-        }
-      }
-    );
-
-    bindEnumStepper('fitMode', FIT_OPTS,
-      () => settings.fitMode,
-      (v) => { settings.fitMode = v; },
-      () => { redrawAllStrokes(); }
-    );
-
-    // Init
-    state.modeSharp = (settings.mode === 'Sharpness');
-    sizeCanvas();
-    window.addEventListener('resize', () => { sizeCanvas(); redrawAllStrokes(); }, { passive:true });
-
-    function renderLoop(){ render(); state.rafId = requestAnimationFrame(renderLoop); }
-    requestAnimationFrame(renderLoop);
-
-    // Optional: enable Shift+mouse testing by uncommenting these lines:
-    // canvas.addEventListener('pointerdown', e => { if (e.pointerType !== 'pen' && e.shiftKey) startStroke(e); }, { passive:true });
-    // canvas.addEventListener(moveEventName, e => { if (e.pointerType !== 'pen' && e.shiftKey) moveStroke(e); }, { passive:true });
-    // canvas.addEventListener('pointerup', e => { if (e.pointerType !== 'pen') endStroke(e); }, { passive:true });
-  </script>
+        
+        // Initialize the app
+        const annotator = new PDFAnnotator();
+    </script>
 </body>
 </html>
