@@ -128,6 +128,36 @@
             top: 9px;
             transform: rotate(-45deg);
         }
+
+        /* Eraser cursor */
+        .eraser-cursor {
+            position: fixed;
+            pointer-events: none;
+            z-index: 999;
+            width: 40px;
+            height: 40px;
+            border: 2px dashed rgba(255, 0, 0, 0.8);
+            border-radius: 50%;
+            background: rgba(255, 0, 0, 0.1);
+            display: none;
+            transform: translate(-50%, -50%);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                border-color: rgba(255, 0, 0, 0.8);
+                background: rgba(255, 0, 0, 0.1);
+            }
+            50% {
+                border-color: rgba(255, 0, 0, 0.5);
+                background: rgba(255, 0, 0, 0.05);
+            }
+            100% {
+                border-color: rgba(255, 0, 0, 0.8);
+                background: rgba(255, 0, 0, 0.1);
+            }
+        }
     </style>
 </head>
 <body class="min-h-screen bg-white overflow-hidden">
@@ -139,6 +169,9 @@
             <span class="line"></span>
         </div>
     </button>
+
+    <!-- Eraser Cursor -->
+    <div id="eraserCursor" class="eraser-cursor"></div>
 
     <!-- Overlay -->
     <div id="overlay" class="overlay fixed inset-0 bg-black bg-opacity-50 z-40"></div>
@@ -284,6 +317,7 @@
         let isErasing = false;
         let lastPoint = null;
         let annotations = {};
+        let stylusDown = false;
 
         // DOM elements
         const fileInput = document.getElementById('fileInput');
@@ -295,6 +329,7 @@
         const pdfViewer = document.getElementById('pdfViewer');
         const canvasContainer = document.getElementById('canvasContainer');
         const pageInfo = document.getElementById('pageInfo');
+        const eraserCursor = document.getElementById('eraserCursor');
 
         // Drawer elements
         const menuBtn = document.getElementById('menuBtn');
@@ -319,6 +354,17 @@
 
         // Drawer state
         let isDrawerOpen = false;
+
+        // Update eraser cursor position
+        function updateEraserCursor(e) {
+            if (isErasing && stylusDown && e.pointerType === 'pen') {
+                eraserCursor.style.left = e.clientX + 'px';
+                eraserCursor.style.top = e.clientY + 'px';
+                eraserCursor.style.display = 'block';
+            } else {
+                eraserCursor.style.display = 'none';
+            }
+        }
 
         // Drawer functionality
         function openDrawer() {
@@ -537,6 +583,10 @@
                 drawBtn.className = 'w-full flex items-center gap-3 p-3 border border-gray-300 hover:bg-gray-50 rounded transition-colors';
                 eraseBtn.className = 'w-full flex items-center gap-3 p-3 bg-black text-white rounded transition-colors';
             }
+            // Hide eraser cursor when switching modes
+            if (!isErasing) {
+                eraserCursor.style.display = 'none';
+            }
         }
 
         // Canvas event handlers
@@ -551,9 +601,13 @@
             
             annotationCanvas.setPointerCapture(e.pointerId);
             isDrawing = true;
+            stylusDown = true;
             
             const point = getPointerPosition(e);
             lastPoint = point;
+            
+            // Update eraser cursor
+            updateEraserCursor(e);
             
             if (isErasing) {
                 // Erase stroke at this point
@@ -577,6 +631,11 @@
         });
 
         annotationCanvas.addEventListener('pointermove', (e) => {
+            // Update eraser cursor position for any pen movement
+            if (e.pointerType === 'pen') {
+                updateEraserCursor(e);
+            }
+            
             if (!isDrawing || e.pointerType === 'touch') return;
             
             const point = getPointerPosition(e);
@@ -618,8 +677,20 @@
             if (e.pointerType === 'touch') return;
             
             isDrawing = false;
+            stylusDown = false;
             lastPoint = null;
             annotationCanvas.releasePointerCapture(e.pointerId);
+            
+            // Hide eraser cursor when stylus is lifted
+            eraserCursor.style.display = 'none';
+        });
+
+        annotationCanvas.addEventListener('pointerleave', (e) => {
+            // Hide eraser cursor when stylus leaves canvas area
+            if (e.pointerType === 'pen') {
+                eraserCursor.style.display = 'none';
+                stylusDown = false;
+            }
         });
 
         // Prevent context menu and other touch interactions
