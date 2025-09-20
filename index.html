@@ -200,18 +200,7 @@
         </div>
     </div>
 
-    <!-- Floating Page Controls -->
-    <div id="pageControls" class="page-controls hidden rounded-lg px-4 py-2 shadow-lg">
-        <div class="flex items-center space-x-4">
-            <button id="prevPageFloat" class="px-3 py-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors disabled:opacity-50" disabled>
-                ←
-            </button>
-            <span id="pageInfoFloat" class="text-sm font-medium">1 / 1</span>
-            <button id="nextPageFloat" class="px-3 py-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors disabled:opacity-50" disabled>
-                →
-            </button>
-        </div>
-    </div>
+
 
     <!-- API Support Warning -->
     <div id="apiWarning" class="hidden fixed bottom-4 left-4 bg-yellow-100 dark:bg-yellow-900 border border-yellow-400 text-yellow-800 dark:text-yellow-200 px-4 py-3 rounded-lg shadow-lg max-w-sm z-30">
@@ -272,9 +261,7 @@
                 document.getElementById('prevPage').addEventListener('click', () => this.previousPage());
                 document.getElementById('nextPage').addEventListener('click', () => this.nextPage());
                 
-                // Navigation (floating)
-                document.getElementById('prevPageFloat').addEventListener('click', () => this.previousPage());
-                document.getElementById('nextPageFloat').addEventListener('click', () => this.nextPage());
+
 
                 // Tools
                 document.querySelectorAll('.tool-button').forEach(btn => {
@@ -350,7 +337,6 @@
                     
                     document.getElementById('loadingArea').classList.add('hidden');
                     document.getElementById('pdfViewer').classList.remove('hidden');
-                    document.getElementById('pageControls').classList.remove('hidden');
                     
                     // Show drawer sections (removed zoomSection)
                     ['toolsSection', 'colorsSection', 'sizeSection', 'navigationSection', 'actionsSection'].forEach(id => {
@@ -372,10 +358,9 @@
                 
                 const page = await this.pdf.getPage(this.currentPage);
                 
-                // Calculate scale to fit viewport width with some padding
+                // Calculate scale to fit full viewport width (edge to edge)
                 const viewportWidth = window.innerWidth;
-                const paddingX = 40; // 20px padding on each side
-                const availableWidth = viewportWidth - paddingX;
+                const availableWidth = viewportWidth;
                 
                 // Get the original PDF page dimensions
                 const originalViewport = page.getViewport({ scale: 1 });
@@ -437,9 +422,7 @@
                 
                 // Update page info
                 const pageText = `Page ${this.currentPage} of ${this.totalPages}`;
-                const pageTextFloat = `${this.currentPage} / ${this.totalPages}`;
                 document.getElementById('pageInfo').textContent = pageText;
-                document.getElementById('pageInfoFloat').textContent = pageTextFloat;
                 
                 // Update navigation buttons
                 const prevDisabled = this.currentPage <= 1;
@@ -447,8 +430,6 @@
                 
                 document.getElementById('prevPage').disabled = prevDisabled;
                 document.getElementById('nextPage').disabled = nextDisabled;
-                document.getElementById('prevPageFloat').disabled = prevDisabled;
-                document.getElementById('nextPageFloat').disabled = nextDisabled;
             }
 
             setupAnnotationCanvas(canvas) {
