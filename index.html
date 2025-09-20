@@ -539,9 +539,9 @@
                 if (this.currentTool === 'eraser') {
                     this.erase(canvas, currentPoint);
                 } else {
-                    // If moving fast or large distance, use direct line drawing
-                    if (speed > 2 || distance > 25 * scaleRatio) {
-                        this.drawLineWithPressure(canvas, this.lastPoint, currentPoint);
+                    // If moving fast or large distance, use direct line with gap filling
+                    if (speed > 1.5 || distance > 20 * scaleRatio) {
+                        this.drawHighSpeedLine(canvas, this.lastPoint, currentPoint);
                     } else if (this.pointHistory.length >= 3) {
                         // For slow/medium speed, use smooth curves
                         this.drawAdaptiveCurve(canvas);
@@ -868,6 +868,45 @@
                 ctx.lineTo(to.x, to.y);
                 ctx.stroke();
                 ctx.restore();
+            }
+
+            drawHighSpeedLine(canvas, from, to) {
+                const distance = Math.sqrt(
+                    Math.pow(to.x - from.x, 2) + 
+                    Math.pow(to.y - from.y, 2)
+                );
+                
+                const scaleRatio = parseFloat(canvas.dataset.scaleRatio) || 1;
+                const maxSegmentLength = 12 * scaleRatio; // Maximum gap before interpolation
+                
+                // If the distance is small enough, draw directly
+                if (distance <= maxSegmentLength) {
+                    this.drawLineWithPressure(canvas, from, to);
+                    return;
+                }
+                
+                // For large distances, interpolate points to fill gaps
+                const numSegments = Math.ceil(distance / maxSegmentLength);
+                
+                for (let i = 0; i < numSegments; i++) {
+                    const t1 = i / numSegments;
+                    const t2 = (i + 1) / numSegments;
+                    
+                    const segmentStart = {
+                        x: from.x + (to.x - from.x) * t1,
+                        y: from.y + (to.y - from.y) * t1,
+                        pressure: from.pressure + (to.pressure - from.pressure) * t1
+                    };
+                    
+                    const segmentEnd = {
+                        x: from.x + (to.x - from.x) * t2,
+                        y: from.y + (to.y - from.y) * t2,
+                        pressure: from.pressure + (to.pressure - from.pressure) * t2
+                    };
+                    
+                    // Draw each segment immediately
+                    this.drawLineWithPressure(canvas, segmentStart, segmentEnd);
+                }
             }
 
             erase(canvas, point) {
