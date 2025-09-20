@@ -526,9 +526,9 @@
                     Math.pow(currentPoint.y - this.lastPoint.y, 2)
                 );
                 
-                // If moving fast, interpolate points to avoid gaps
-                if (distance > 15 * scaleRatio) {
-                    this.interpolatePoints(this.lastPoint, currentPoint);
+                // If moving fast, draw direct line to fill gaps
+                if (distance > 20 * scaleRatio) {
+                    this.drawLineWithPressure(canvas, this.lastPoint, currentPoint);
                 }
                 
                 // Add to point history for smoothing and prediction
@@ -537,43 +537,15 @@
                     this.pointHistory.shift();
                 }
                 
-                // Queue point for processing
-                this.pendingPoints.push(currentPoint);
-                
-                // Immediate visual feedback with prediction
+                // Immediate visual feedback with prediction for normal distances
                 if (this.currentTool === 'eraser') {
                     this.erase(canvas, currentPoint);
-                } else {
+                } else if (distance <= 20 * scaleRatio) {
                     this.predictiveDrawing(canvas, this.lastPoint, currentPoint);
                 }
                 
                 this.lastPoint = currentPoint;
                 this.lastTimestamp = timestamp;
-            }
-
-            interpolatePoints(fromPoint, toPoint) {
-                const distance = Math.sqrt(
-                    Math.pow(toPoint.x - fromPoint.x, 2) + 
-                    Math.pow(toPoint.y - fromPoint.y, 2)
-                );
-                
-                // Calculate how many intermediate points we need
-                const numPoints = Math.floor(distance / 10); // Every 10 pixels
-                
-                if (numPoints > 1) {
-                    for (let i = 1; i < numPoints; i++) {
-                        const t = i / numPoints;
-                        const interpolatedPoint = {
-                            x: fromPoint.x + (toPoint.x - fromPoint.x) * t,
-                            y: fromPoint.y + (toPoint.y - fromPoint.y) * t,
-                            pressure: fromPoint.pressure + (toPoint.pressure - fromPoint.pressure) * t,
-                            timestamp: fromPoint.timestamp + (toPoint.timestamp - fromPoint.timestamp) * t
-                        };
-                        
-                        // Add interpolated points to the queue
-                        this.pendingPoints.push(interpolatedPoint);
-                    }
-                }
             }
 
             stopDrawingUnified(e, canvas) {
