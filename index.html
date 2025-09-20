@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Ink API Demo2</title>
+    <title>Web Ink API Demo</title>
     <style>
         * {
             margin: 0;
@@ -50,11 +50,30 @@
         let prevX = 0;
         let prevY = 0;
         
-        // Canvas setup
+        // Canvas setup with high-DPI support
         function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            
+            // Set actual canvas size in memory (scaled for high-DPI)
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            
+            // Set display size (CSS pixels)
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = rect.height + 'px';
+            
+            // Scale the drawing context to match device pixel ratio
+            ctx.scale(dpr, dpr);
+            
+            // Improve rendering quality
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
         }
+        
+        // Initial setup
+        canvas.style.width = '100vw';
+        canvas.style.height = '100vh';
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
         
