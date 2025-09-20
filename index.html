@@ -315,13 +315,25 @@
         </div>
         
         <div class="stroke-control">
-            <h3>Stroke Smoothing</h3>
+            <h3>Smoothing Type</h3>
             <div class="stepper">
-                <button class="stepper-button" onclick="decreaseSmoothing()" id="decreaseSmoothingBtn">-</button>
-                <div class="stepper-value" id="smoothingValue">3</div>
-                <button class="stepper-button" onclick="increaseSmoothing()" id="increaseSmoothingBtn">+</button>
+                <button class="stepper-button" onclick="decreaseSmoothingType()" id="decreaseSmoothingTypeBtn">-</button>
+                <div class="stepper-value" id="smoothingTypeValue" style="font-size: 12px; min-width: 100px;">Natural Curves</div>
+                <button class="stepper-button" onclick="increaseSmoothingType()" id="increaseSmoothingTypeBtn">+</button>
             </div>
-            <button class="stepper-button" onclick="resetSmoothing()" id="resetSmoothingBtn" style="width: 100%; margin-top: 10px; font-size: 14px;">Reset</button>
+            <div style="font-size: 10px; color: #666; margin-top: 5px; line-height: 1.2;" id="smoothingTypeDesc">Catmull-Rom splines, smooth natural feel</div>
+            <button class="stepper-button" onclick="resetSmoothingType()" id="resetSmoothingTypeBtn" style="width: 100%; margin-top: 10px; font-size: 14px;">Reset</button>
+        </div>
+        
+        <div class="stroke-control">
+            <h3>Smoothing Intensity</h3>
+            <div class="stepper">
+                <button class="stepper-button" onclick="decreaseSmoothingIntensity()" id="decreaseSmoothingIntensityBtn">-</button>
+                <div class="stepper-value" id="smoothingIntensityValue">3</div>
+                <button class="stepper-button" onclick="increaseSmoothingIntensity()" id="increaseSmoothingIntensityBtn">+</button>
+            </div>
+            <div style="font-size: 10px; color: #666; margin-top: 5px; line-height: 1.2;">Strength of smoothing effect (0 = off, 10 = maximum)</div>
+            <button class="stepper-button" onclick="resetSmoothingIntensity()" id="resetSmoothingIntensityBtn" style="width: 100%; margin-top: 10px; font-size: 14px;">Reset</button>
         </div>
         
         <div class="stroke-control">
@@ -367,9 +379,20 @@
         let eraserSensitivity = 5; // How quickly eraser grows (1-10 scale)
         const defaultEraserSensitivity = 5; // Default sensitivity value
         let eraserDecreaseTimer = null;
-        let strokeSmoothing = 3; // Stroke smoothing level (0 = off, 1-10 = smoothness)
-        const defaultStrokeSmoothing = 3; // Default smoothing value
+        let smoothingType = 2; // Smoothing algorithm type (0-4)
+        const defaultSmoothingType = 2; // Default to Natural Curves
+        let smoothingIntensity = 3; // Smoothing intensity level (0 = off, 1-10 = strength)
+        const defaultSmoothingIntensity = 3; // Default intensity value
         let smoothingBuffer = []; // Buffer for points used in smoothing
+        
+        // Smoothing algorithm definitions
+        const smoothingAlgorithms = [
+            { name: "None", description: "Raw pen input, no smoothing" },
+            { name: "Light Smoothing", description: "Simple averaging, fast performance" },
+            { name: "Natural Curves", description: "Catmull-Rom splines, smooth natural feel" },
+            { name: "Artistic Curves", description: "Bezier curves, artistic drawing style" },
+            { name: "Anti-Shake", description: "Kalman filter, reduces hand tremor" }
+        ];
         
         // Stroke size settings
         let currentStrokeSize = 2;
@@ -637,13 +660,32 @@
                 inkCtx.lineWidth = currentStrokeSize;
                 
                 // Add starting point to smoothing buffer for drawing mode
-                if (strokeSmoothing > 0) {
+                if (smoothingIntensity > 0) {
                     smoothingBuffer.push(lastPoint);
                 }
             }
             
             inkCtx.beginPath();
             inkCtx.moveTo(lastPoint.x, lastPoint.y);
+        }
+
+        // Moving Average smoothing
+        function movingAverageSmooth(points, windowSize) {
+            if (points.length < windowSize) return points;
+            
+            const smoothed = [];
+            for (let i = windowSize - 1; i < points.length; i++) {
+                let avgX = 0, avgY = 0;
+                for (let j = 0; j < windowSize; j++) {
+                    avgX += points[i - j].x;
+                    avgY += points[i - j].y;
+                }
+                smoothed.push({
+                    x: avgX / windowSize,
+                    y: avgY / windowSize
+                });
+            }
+            return smoothed;
         }
 
         // Catmull-Rom spline interpolation function
@@ -657,28 +699,144 @@
             };
         }
 
-        // Draw smooth curve using Catmull-Rom splines
-        function drawSmoothedStroke() {
-            if (smoothingBuffer.length < 4) return;
+        // Bezier curve interpolation
+        function bezierCurve(p0, p1, p2, p3, t) {
+            const u = 1 - t;
+            const tt = t * t;
+            const uu = u * u;
+            const uuu = uu * u;
+            const ttt = tt * t;
             
-            const numSegments = strokeSmoothing * 2; // More segments = smoother curve
+            return {
+                x: uuu * p0.x + 3 * uu * t * p1.x + 3 * u * tt * p2.x + ttt * p3.x,
+                y: uuu * p0.y + 3 * uu * t * p1.y + 3 * u * tt * p2.y + ttt * p3.y
+            };
+        }
+
+        // Kalman filter for Anti-Shake smoothing
+        let kalmanState = { x: 0, y: 0, vx: 0, vy: 0 };
+        let kalmanP = { x: 1, y: 1, vx: 1, vy: 1 };
+        
+        function kalmanFilter(measurement, intensity) {
+            const processNoise = 0.01 / intensity; // Less noise = more smoothing
+            const measurementNoise = 1;
             
-            // Draw curve between the middle two points using outer points as control points
-            const p0 = smoothingBuffer[smoothingBuffer.length - 4];
-            const p1 = smoothingBuffer[smoothingBuffer.length - 3];
-            const p2 = smoothingBuffer[smoothingBuffer.length - 2];
-            const p3 = smoothingBuffer[smoothingBuffer.length - 1];
+            // Predict
+            kalmanState.x += kalmanState.vx;
+            kalmanState.y += kalmanState.vy;
+            kalmanP.x += processNoise;
+            kalmanP.y += processNoise;
             
-            inkCtx.beginPath();
-            inkCtx.moveTo(p1.x, p1.y);
+            // Update
+            const kx = kalmanP.x / (kalmanP.x + measurementNoise);
+            const ky = kalmanP.y / (kalmanP.y + measurementNoise);
             
-            for (let i = 1; i <= numSegments; i++) {
-                const t = i / numSegments;
-                const point = catmullRomSpline(p0, p1, p2, p3, t);
-                inkCtx.lineTo(point.x, point.y);
+            kalmanState.x += kx * (measurement.x - kalmanState.x);
+            kalmanState.y += ky * (measurement.y - kalmanState.y);
+            kalmanState.vx = (measurement.x - kalmanState.x) * 0.1;
+            kalmanState.vy = (measurement.y - kalmanState.y) * 0.1;
+            
+            kalmanP.x *= (1 - kx);
+            kalmanP.y *= (1 - ky);
+            
+            return { x: kalmanState.x, y: kalmanState.y };
+        }
+
+        // Main smoothing function that dispatches to the selected algorithm
+        function applySmoothingAlgorithm(currentPoint) {
+            if (smoothingIntensity === 0) return currentPoint; // No smoothing
+            
+            switch (smoothingType) {
+                case 0: // None
+                    return currentPoint;
+                    
+                case 1: // Light Smoothing (Moving Average)
+                    smoothingBuffer.push(currentPoint);
+                    if (smoothingBuffer.length > 10) smoothingBuffer.shift();
+                    
+                    const windowSize = Math.min(smoothingIntensity, smoothingBuffer.length);
+                    const smoothed = movingAverageSmooth(smoothingBuffer, windowSize);
+                    return smoothed.length > 0 ? smoothed[smoothed.length - 1] : currentPoint;
+                    
+                case 2: // Natural Curves (Catmull-Rom)
+                    smoothingBuffer.push(currentPoint);
+                    if (smoothingBuffer.length > 6) smoothingBuffer.shift();
+                    
+                    if (smoothingBuffer.length >= 4) {
+                        const p0 = smoothingBuffer[smoothingBuffer.length - 4];
+                        const p1 = smoothingBuffer[smoothingBuffer.length - 3];
+                        const p2 = smoothingBuffer[smoothingBuffer.length - 2];
+                        const p3 = smoothingBuffer[smoothingBuffer.length - 1];
+                        
+                        const t = Math.min(smoothingIntensity / 10, 0.8);
+                        return catmullRomSpline(p0, p1, p2, p3, t);
+                    }
+                    return currentPoint;
+                    
+                case 3: // Artistic Curves (Bezier)
+                    smoothingBuffer.push(currentPoint);
+                    if (smoothingBuffer.length > 6) smoothingBuffer.shift();
+                    
+                    if (smoothingBuffer.length >= 4) {
+                        const p0 = smoothingBuffer[smoothingBuffer.length - 4];
+                        const p1 = smoothingBuffer[smoothingBuffer.length - 3];
+                        const p2 = smoothingBuffer[smoothingBuffer.length - 2];
+                        const p3 = smoothingBuffer[smoothingBuffer.length - 1];
+                        
+                        // Create control points for more artistic curves
+                        const cp1 = { x: p1.x + (p2.x - p0.x) * 0.3, y: p1.y + (p2.y - p0.y) * 0.3 };
+                        const cp2 = { x: p2.x - (p3.x - p1.x) * 0.3, y: p2.y - (p3.y - p1.y) * 0.3 };
+                        
+                        const t = Math.min(smoothingIntensity / 10, 0.8);
+                        return bezierCurve(p1, cp1, cp2, p2, t);
+                    }
+                    return currentPoint;
+                    
+                case 4: // Anti-Shake (Kalman Filter)
+                    return kalmanFilter(currentPoint, smoothingIntensity);
+                    
+                default:
+                    return currentPoint;
             }
+        }
+
+        // Draw smooth curve using the selected algorithm
+        function drawSmoothedStroke(currentPoint) {
+            const smoothedPoint = applySmoothingAlgorithm(currentPoint);
             
-            inkCtx.stroke();
+            if (smoothingType === 2 || smoothingType === 3) { // Spline-based algorithms
+                if (smoothingBuffer.length >= 4) {
+                    const numSegments = smoothingIntensity * 2;
+                    const p0 = smoothingBuffer[smoothingBuffer.length - 4];
+                    const p1 = smoothingBuffer[smoothingBuffer.length - 3];
+                    const p2 = smoothingBuffer[smoothingBuffer.length - 2];
+                    const p3 = smoothingBuffer[smoothingBuffer.length - 1];
+                    
+                    inkCtx.beginPath();
+                    inkCtx.moveTo(p1.x, p1.y);
+                    
+                    for (let i = 1; i <= numSegments; i++) {
+                        const t = i / numSegments;
+                        let point;
+                        
+                        if (smoothingType === 2) {
+                            point = catmullRomSpline(p0, p1, p2, p3, t);
+                        } else {
+                            const cp1 = { x: p1.x + (p2.x - p0.x) * 0.3, y: p1.y + (p2.y - p0.y) * 0.3 };
+                            const cp2 = { x: p2.x - (p3.x - p1.x) * 0.3, y: p2.y - (p3.y - p1.y) * 0.3 };
+                            point = bezierCurve(p1, cp1, cp2, p2, t);
+                        }
+                        
+                        inkCtx.lineTo(point.x, point.y);
+                    }
+                    
+                    inkCtx.stroke();
+                }
+            } else {
+                // Point-based algorithms (Moving Average, Kalman Filter)
+                inkCtx.lineTo(smoothedPoint.x, smoothedPoint.y);
+                inkCtx.stroke();
+            }
         }
 
         function draw(e) {
@@ -709,25 +867,8 @@
                 inkCtx.stroke();
             } else {
                 // Drawing mode - apply smoothing if enabled
-                if (strokeSmoothing > 0) {
-                    // Add point to smoothing buffer
-                    smoothingBuffer.push(currentPoint);
-                    
-                    // Keep buffer size manageable
-                    if (smoothingBuffer.length > 6) {
-                        smoothingBuffer.shift();
-                    }
-                    
-                    // Draw smoothed curve when we have enough points
-                    if (smoothingBuffer.length >= 4) {
-                        drawSmoothedStroke();
-                    } else if (smoothingBuffer.length === 2) {
-                        // First segment - draw direct line
-                        inkCtx.beginPath();
-                        inkCtx.moveTo(smoothingBuffer[0].x, smoothingBuffer[0].y);
-                        inkCtx.lineTo(smoothingBuffer[1].x, smoothingBuffer[1].y);
-                        inkCtx.stroke();
-                    }
+                if (smoothingIntensity > 0) {
+                    drawSmoothedStroke(currentPoint);
                 } else {
                     // No smoothing - direct drawing
                     inkCtx.lineTo(currentPoint.x, currentPoint.y);
@@ -921,33 +1062,63 @@
             document.getElementById('increaseSensitivityBtn').disabled = eraserSensitivity >= 10;
         }
 
-        // Stroke smoothing functions
-        function increaseSmoothing() {
-            if (strokeSmoothing < 10) { // Max smoothing of 10
-                strokeSmoothing++;
-                updateSmoothing();
+        // Smoothing type functions
+        function increaseSmoothingType() {
+            if (smoothingType < smoothingAlgorithms.length - 1) {
+                smoothingType++;
+                updateSmoothingType();
             }
         }
 
-        function decreaseSmoothing() {
-            if (strokeSmoothing > 0) { // Min smoothing of 0 (off)
-                strokeSmoothing--;
-                updateSmoothing();
+        function decreaseSmoothingType() {
+            if (smoothingType > 0) {
+                smoothingType--;
+                updateSmoothingType();
             }
         }
 
-        function resetSmoothing() {
-            strokeSmoothing = defaultStrokeSmoothing;
-            updateSmoothing();
+        function resetSmoothingType() {
+            smoothingType = defaultSmoothingType;
+            updateSmoothingType();
         }
 
-        function updateSmoothing() {
+        function updateSmoothingType() {
             // Update the display
-            document.getElementById('smoothingValue').textContent = strokeSmoothing;
+            document.getElementById('smoothingTypeValue').textContent = smoothingAlgorithms[smoothingType].name;
+            document.getElementById('smoothingTypeDesc').textContent = smoothingAlgorithms[smoothingType].description;
             
             // Update button states
-            document.getElementById('decreaseSmoothingBtn').disabled = strokeSmoothing <= 0;
-            document.getElementById('increaseSmoothingBtn').disabled = strokeSmoothing >= 10;
+            document.getElementById('decreaseSmoothingTypeBtn').disabled = smoothingType <= 0;
+            document.getElementById('increaseSmoothingTypeBtn').disabled = smoothingType >= smoothingAlgorithms.length - 1;
+        }
+
+        // Smoothing intensity functions
+        function increaseSmoothingIntensity() {
+            if (smoothingIntensity < 10) {
+                smoothingIntensity++;
+                updateSmoothingIntensity();
+            }
+        }
+
+        function decreaseSmoothingIntensity() {
+            if (smoothingIntensity > 0) {
+                smoothingIntensity--;
+                updateSmoothingIntensity();
+            }
+        }
+
+        function resetSmoothingIntensity() {
+            smoothingIntensity = defaultSmoothingIntensity;
+            updateSmoothingIntensity();
+        }
+
+        function updateSmoothingIntensity() {
+            // Update the display
+            document.getElementById('smoothingIntensityValue').textContent = smoothingIntensity;
+            
+            // Update button states
+            document.getElementById('decreaseSmoothingIntensityBtn').disabled = smoothingIntensity <= 0;
+            document.getElementById('increaseSmoothingIntensityBtn').disabled = smoothingIntensity >= 10;
         }
 
         // Keyboard navigation
