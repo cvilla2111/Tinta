@@ -190,7 +190,7 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: rgba(0, 0, 0, 0.5);
+            background: transparent;
             z-index: 1999;
             display: none;
         }
@@ -325,6 +325,8 @@
             </div>
             <button class="stepper-button" onclick="resetSensitivity()" id="resetSensitivityBtn" style="width: 100%; margin-top: 10px; font-size: 14px;">Reset</button>
         </div>
+        
+
     </div>
 
     <script>
@@ -512,9 +514,6 @@
             
             lastTimestamp = currentTime;
             
-            // Debug logging to see actual speed values
-            console.log('Speed:', speed.toFixed(2), 'Distance:', distance.toFixed(2), 'TimeDelta:', timeDelta.toFixed(2));
-            
             return speed;
         }
 
@@ -530,7 +529,6 @@
             const normalizedSpeed = Math.min(speedRange / maxSpeedForMapping, 1);
             
             const size = minEraserSize + (normalizedSpeed * (maxEraserSize - minEraserSize));
-            console.log('Calculated size:', size.toFixed(2), 'from speed:', speed.toFixed(2));
             
             return size;
         }
@@ -565,8 +563,6 @@
             eraserIndicator.style.width = exactSize + 'px';
             eraserIndicator.style.height = exactSize + 'px';
             eraserIndicator.style.borderRadius = '50%';
-            
-            console.log('Current eraser size:', currentEraserSize.toFixed(2), 'Speed:', speed.toFixed(2), 'Sensitivity:', eraserSensitivity, 'Factor:', sensitivityFactor.toFixed(2), 'Canvas lineWidth:', inkCtx.lineWidth, 'Visual indicator:', exactSize);
         }
 
         function showEraserIndicator(x, y) {
@@ -1090,6 +1086,8 @@
             document.getElementById('decreaseSmoothingIntensityBtn').disabled = smoothingIntensity <= 0;
             document.getElementById('increaseSmoothingIntensityBtn').disabled = smoothingIntensity >= 10;
         }
+
+
 
         // Keyboard navigation
         document.addEventListener('keydown', (e) => {
