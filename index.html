@@ -520,18 +520,31 @@
                     timestamp: timestamp
                 };
                 
+                // Calculate distance and speed to determine drawing method
+                const distance = Math.sqrt(
+                    Math.pow(currentPoint.x - this.lastPoint.x, 2) + 
+                    Math.pow(currentPoint.y - this.lastPoint.y, 2)
+                );
+                
+                const timeDelta = timestamp - this.lastTimestamp;
+                const speed = timeDelta > 0 ? distance / timeDelta : 0;
+                
                 // Add to point history for smoothing
                 this.pointHistory.push(currentPoint);
                 if (this.pointHistory.length > 4) {
                     this.pointHistory.shift();
                 }
                 
-                // Draw smooth curves when we have enough points
+                // Choose drawing method based on speed and distance
                 if (this.currentTool === 'eraser') {
                     this.erase(canvas, currentPoint);
                 } else {
-                    if (this.pointHistory.length >= 3) {
-                        this.drawSmoothCurve(canvas);
+                    // If moving fast or large distance, use direct line drawing
+                    if (speed > 2 || distance > 25 * scaleRatio) {
+                        this.drawLineWithPressure(canvas, this.lastPoint, currentPoint);
+                    } else if (this.pointHistory.length >= 3) {
+                        // For slow/medium speed, use smooth curves
+                        this.drawAdaptiveCurve(canvas);
                     } else {
                         // For the first few points, draw direct lines
                         this.drawLineWithPressure(canvas, this.lastPoint, currentPoint);
@@ -542,7 +555,7 @@
                 this.lastTimestamp = timestamp;
             }
 
-            drawSmoothCurve(canvas) {
+            drawAdaptiveCurve(canvas) {
                 const ctx = canvas.getContext('2d');
                 const scaleRatio = parseFloat(canvas.dataset.scaleRatio) || 1;
                 
@@ -553,11 +566,22 @@
                 const p1 = this.pointHistory[this.pointHistory.length - 2];
                 const p2 = this.pointHistory[this.pointHistory.length - 1];
                 
-                // Calculate control point for quadratic curve (midpoint smoothing)
+                // Check if the points are reasonable for curve smoothing
+                const dist01 = Math.sqrt(Math.pow(p1.x - p0.x, 2) + Math.pow(p1.y - p0.y, 2));
+                const dist12 = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+                
+                // If points are too far apart, fall back to direct line
+                if (dist01 > 20 * scaleRatio || dist12 > 20 * scaleRatio) {
+                    this.drawLineWithPressure(canvas, p1, p2);
+                    return;
+                }
+                
+                // Calculate control point for quadratic curve with limited smoothing
+                const smoothingFactor = 0.3; // Reduce smoothing to prevent overshooting
                 const cp = {
-                    x: (p0.x + p2.x) / 2,
-                    y: (p0.y + p2.y) / 2,
-                    pressure: (p0.pressure + p2.pressure) / 2
+                    x: p1.x + (p0.x + p2.x - 2 * p1.x) * smoothingFactor,
+                    y: p1.y + (p0.y + p2.y - 2 * p1.y) * smoothingFactor,
+                    pressure: (p0.pressure + p1.pressure + p2.pressure) / 3
                 };
                 
                 // Calculate smooth pressure transition
@@ -578,10 +602,10 @@
                     ctx.strokeStyle = this.currentColor;
                 }
                 
-                // Draw smooth quadratic curve
+                // Draw conservative smooth curve
                 ctx.beginPath();
                 ctx.moveTo(p0.x, p0.y);
-                ctx.quadraticCurveTo(p1.x, p1.y, cp.x, cp.y);
+                ctx.quadraticCurveTo(cp.x, cp.y, p1.x, p1.y);
                 ctx.stroke();
                 
                 ctx.restore();
