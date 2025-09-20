@@ -190,7 +190,7 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: transparent;
+            background: rgba(0, 0, 0, 0.5);
             z-index: 1999;
             display: none;
         }
@@ -325,8 +325,6 @@
             </div>
             <button class="stepper-button" onclick="resetSensitivity()" id="resetSensitivityBtn" style="width: 100%; margin-top: 10px; font-size: 14px;">Reset</button>
         </div>
-        
-
     </div>
 
     <script>
@@ -1092,8 +1090,6 @@
             document.getElementById('decreaseSmoothingIntensityBtn').disabled = smoothingIntensity <= 0;
             document.getElementById('increaseSmoothingIntensityBtn').disabled = smoothingIntensity >= 10;
         }
-
-
 
         // Keyboard navigation
         document.addEventListener('keydown', (e) => {
