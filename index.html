@@ -21,6 +21,62 @@
             background-color: #5D5CDE;
             color: white;
         }
+        .drawer {
+            transform: translateX(-100%);
+            transition: transform 0.3s ease-in-out;
+        }
+        .drawer.open {
+            transform: translateX(0);
+        }
+        .drawer-overlay {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .drawer-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .menu-button {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 50;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        .dark .menu-button {
+            background: rgba(31, 41, 55, 0.9);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+        .page-controls {
+            position: fixed;
+            bottom: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 40;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        .dark .page-controls {
+            background: rgba(31, 41, 55, 0.9);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+        .zoom-controls {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            z-index: 40;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        .dark .zoom-controls {
+            background: rgba(31, 41, 55, 0.9);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
     </style>
     <script>
         tailwind.config = {
@@ -35,111 +91,168 @@
         }
     </script>
 </head>
-<body class="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen">
-    <!-- Header -->
-    <div class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-16">
-                <h1 class="text-xl font-semibold">PDF Annotator</h1>
-                <div class="flex items-center space-x-4">
-                    <input type="file" id="pdfInput" accept=".pdf" class="hidden">
-                    <button onclick="document.getElementById('pdfInput').click()" 
-                            class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-base">
-                        Load PDF
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen overflow-hidden">
+    <!-- Menu Button -->
+    <button id="menuButton" class="menu-button w-12 h-12 rounded-lg flex items-center justify-center shadow-lg hover:bg-opacity-100 transition-all">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+        </svg>
+    </button>
+
+    <!-- Drawer Overlay -->
+    <div id="drawerOverlay" class="drawer-overlay fixed inset-0 bg-black bg-opacity-50 z-40"></div>
+
+    <!-- Left Drawer -->
+    <div id="drawer" class="drawer fixed left-0 top-0 h-full w-80 bg-white dark:bg-gray-800 shadow-2xl z-50 overflow-y-auto">
+        <div class="p-6">
+            <!-- Header -->
+            <div class="flex items-center justify-between mb-6">
+                <h1 class="text-xl font-bold">PDF Annotator</h1>
+                <button id="closeDrawer" class="w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- File Upload -->
+            <div class="mb-6">
+                <h3 class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3 uppercase tracking-wider">Document</h3>
+                <input type="file" id="pdfInput" accept=".pdf" class="hidden">
+                <button onclick="document.getElementById('pdfInput').click()" 
+                        class="w-full px-4 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-base font-medium">
+                    📁 Load PDF
+                </button>
+            </div>
+
+            <!-- Drawing Tools -->
+            <div id="toolsSection" class="hidden mb-6">
+                <h3 class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3 uppercase tracking-wider">Tools</h3>
+                <div class="space-y-2">
+                    <button id="penTool" class="tool-button w-full px-4 py-3 rounded-lg text-left font-medium transition-colors active bg-primary text-white">
+                        ✏️ Pen
+                    </button>
+                    <button id="highlighterTool" class="tool-button w-full px-4 py-3 rounded-lg text-left font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-700">
+                        🖍️ Highlighter
+                    </button>
+                    <button id="eraserTool" class="tool-button w-full px-4 py-3 rounded-lg text-left font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-700">
+                        🧹 Eraser
                     </button>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Toolbar -->
-    <div id="toolbar" class="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 hidden">
-        <div class="flex items-center justify-center space-x-2 flex-wrap gap-2">
-            <!-- Drawing Tools -->
-            <div class="flex items-center space-x-1 bg-white dark:bg-gray-700 rounded-lg p-1 shadow-sm">
-                <button id="penTool" class="tool-button px-3 py-2 rounded-md text-sm font-medium transition-colors active">
-                    ✏️ Pen
-                </button>
-                <button id="highlighterTool" class="tool-button px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                    🖍️ Highlighter
-                </button>
-                <button id="eraserTool" class="tool-button px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                    🧹 Eraser
-                </button>
             </div>
 
             <!-- Colors -->
-            <div class="flex items-center space-x-1 bg-white dark:bg-gray-700 rounded-lg p-1 shadow-sm">
-                <button class="color-btn w-8 h-8 rounded-full border-2 border-gray-300 active" style="background-color: #000000" data-color="#000000"></button>
-                <button class="color-btn w-8 h-8 rounded-full border-2 border-gray-300" style="background-color: #ff0000" data-color="#ff0000"></button>
-                <button class="color-btn w-8 h-8 rounded-full border-2 border-gray-300" style="background-color: #0000ff" data-color="#0000ff"></button>
-                <button class="color-btn w-8 h-8 rounded-full border-2 border-gray-300" style="background-color: #00ff00" data-color="#00ff00"></button>
-                <button class="color-btn w-8 h-8 rounded-full border-2 border-gray-300" style="background-color: #ffff00" data-color="#ffff00"></button>
+            <div id="colorsSection" class="hidden mb-6">
+                <h3 class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3 uppercase tracking-wider">Colors</h3>
+                <div class="grid grid-cols-5 gap-2">
+                    <button class="color-btn w-12 h-12 rounded-lg border-2 border-gray-300 active" style="background-color: #000000" data-color="#000000"></button>
+                    <button class="color-btn w-12 h-12 rounded-lg border-2 border-gray-300" style="background-color: #ff0000" data-color="#ff0000"></button>
+                    <button class="color-btn w-12 h-12 rounded-lg border-2 border-gray-300" style="background-color: #0000ff" data-color="#0000ff"></button>
+                    <button class="color-btn w-12 h-12 rounded-lg border-2 border-gray-300" style="background-color: #00ff00" data-color="#00ff00"></button>
+                    <button class="color-btn w-12 h-12 rounded-lg border-2 border-gray-300" style="background-color: #ffff00" data-color="#ffff00"></button>
+                </div>
             </div>
 
-            <!-- Size -->
-            <div class="flex items-center space-x-2 bg-white dark:bg-gray-700 rounded-lg p-2 shadow-sm">
-                <label class="text-sm font-medium">Size:</label>
-                <input type="range" id="brushSize" min="1" max="20" value="3" class="w-20">
-                <span id="brushSizeDisplay" class="text-sm w-6">3</span>
+            <!-- Brush Size -->
+            <div id="sizeSection" class="hidden mb-6">
+                <h3 class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3 uppercase tracking-wider">Brush Size</h3>
+                <div class="space-y-3">
+                    <input type="range" id="brushSize" min="1" max="20" value="3" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700">
+                    <div class="text-center">
+                        <span id="brushSizeDisplay" class="text-sm font-medium bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full">3px</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <div id="navigationSection" class="hidden mb-6">
+                <h3 class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3 uppercase tracking-wider">Navigation</h3>
+                <div class="space-y-2">
+                    <div class="flex items-center space-x-2">
+                        <button id="prevPage" class="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 text-sm" disabled>
+                            ← Previous
+                        </button>
+                        <button id="nextPage" class="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 text-sm" disabled>
+                            Next →
+                        </button>
+                    </div>
+                    <div class="text-center">
+                        <span id="pageInfo" class="text-sm font-medium bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full">Page 1 of 1</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Zoom -->
+            <div id="zoomSection" class="hidden mb-6">
+                <h3 class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3 uppercase tracking-wider">Zoom</h3>
+                <select id="zoomSelect" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-base">
+                    <option value="0.5">50%</option>
+                    <option value="0.75">75%</option>
+                    <option value="1" selected>100%</option>
+                    <option value="1.25">125%</option>
+                    <option value="1.5">150%</option>
+                    <option value="2">200%</option>
+                </select>
             </div>
 
             <!-- Actions -->
-            <div class="flex items-center space-x-1 bg-white dark:bg-gray-700 rounded-lg p-1 shadow-sm">
-                <button id="clearBtn" class="px-3 py-2 rounded-md text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-colors">
-                    🗑️ Clear
+            <div id="actionsSection" class="hidden space-y-2">
+                <h3 class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3 uppercase tracking-wider">Actions</h3>
+                <button id="clearBtn" class="w-full px-4 py-3 rounded-lg text-white bg-red-500 hover:bg-red-600 transition-colors font-medium">
+                    🗑️ Clear All
                 </button>
-                <button id="downloadBtn" class="px-3 py-2 rounded-md text-sm font-medium bg-green-500 text-white hover:bg-green-600 transition-colors">
-                    💾 Save
+                <button id="downloadBtn" class="w-full px-4 py-3 rounded-lg text-white bg-green-500 hover:bg-green-600 transition-colors font-medium">
+                    💾 Save Annotations
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Main Content -->
-    <div class="flex-1 overflow-auto">
-        <div id="loadingArea" class="flex flex-col items-center justify-center min-h-96 text-center p-8">
+    <!-- Main PDF Viewer -->
+    <div class="w-full h-screen flex items-center justify-center bg-gray-200 dark:bg-gray-800">
+        <div id="loadingArea" class="text-center p-8">
             <div class="text-6xl mb-4">📄</div>
             <h2 class="text-2xl font-semibold mb-2">Load a PDF to start annotating</h2>
-            <p class="text-gray-600 dark:text-gray-400 mb-4">Select a PDF file to view and annotate with pen, highlighter, and drawing tools.</p>
-            <button onclick="document.getElementById('pdfInput').click()" 
-                    class="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-base">
-                Choose PDF File
+            <p class="text-gray-600 dark:text-gray-400 mb-4">Open the menu to select a PDF file</p>
+            <button id="openMenuBtn" class="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-base font-medium">
+                📁 Open Menu
             </button>
         </div>
 
-        <div id="pdfViewer" class="hidden p-4">
-            <div class="flex items-center justify-between mb-4">
-                <div class="flex items-center space-x-4">
-                    <button id="prevPage" class="px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50" disabled>
-                        ← Previous
-                    </button>
-                    <span id="pageInfo" class="text-sm font-medium">Page 1 of 1</span>
-                    <button id="nextPage" class="px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50" disabled>
-                        Next →
-                    </button>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <label class="text-sm font-medium">Zoom:</label>
-                    <select id="zoomSelect" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-base">
-                        <option value="0.5">50%</option>
-                        <option value="0.75">75%</option>
-                        <option value="1" selected>100%</option>
-                        <option value="1.25">125%</option>
-                        <option value="1.5">150%</option>
-                        <option value="2">200%</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div id="pdfContainer" class="flex justify-center">
+        <div id="pdfViewer" class="hidden w-full h-full overflow-auto flex items-center justify-center">
+            <div id="pdfContainer">
                 <!-- PDF pages will be rendered here -->
             </div>
         </div>
     </div>
 
+    <!-- Floating Page Controls -->
+    <div id="pageControls" class="page-controls hidden rounded-lg px-4 py-2 shadow-lg">
+        <div class="flex items-center space-x-4">
+            <button id="prevPageFloat" class="px-3 py-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors disabled:opacity-50" disabled>
+                ←
+            </button>
+            <span id="pageInfoFloat" class="text-sm font-medium">1 / 1</span>
+            <button id="nextPageFloat" class="px-3 py-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors disabled:opacity-50" disabled>
+                →
+            </button>
+        </div>
+    </div>
+
+    <!-- Floating Zoom Controls -->
+    <div id="zoomControls" class="zoom-controls hidden rounded-lg px-3 py-2 shadow-lg">
+        <select id="zoomSelectFloat" class="text-sm bg-transparent border-none outline-none">
+            <option value="0.5">50%</option>
+            <option value="0.75">75%</option>
+            <option value="1" selected>100%</option>
+            <option value="1.25">125%</option>
+            <option value="1.5">150%</option>
+            <option value="2">200%</option>
+        </select>
+    </div>
+
     <!-- API Support Warning -->
-    <div id="apiWarning" class="hidden fixed bottom-4 right-4 bg-yellow-100 dark:bg-yellow-900 border border-yellow-400 text-yellow-800 dark:text-yellow-200 px-4 py-3 rounded-lg shadow-lg max-w-sm">
+    <div id="apiWarning" class="hidden fixed bottom-4 left-4 bg-yellow-100 dark:bg-yellow-900 border border-yellow-400 text-yellow-800 dark:text-yellow-200 px-4 py-3 rounded-lg shadow-lg max-w-sm z-30">
         <p class="text-sm"><strong>Note:</strong> Web Ink API not supported. Using fallback drawing mode.</p>
     </div>
 
@@ -170,8 +283,7 @@
                 this.brushSize = 3;
                 this.isDrawing = false;
                 this.lastPoint = null;
-                this.paths = [];
-                this.currentPath = [];
+                this.drawerOpen = false;
                 
                 // Check for Ink API support
                 this.inkApiSupported = 'ink' in navigator;
@@ -183,24 +295,48 @@
             }
 
             initializeEventListeners() {
+                // Drawer controls
+                document.getElementById('menuButton').addEventListener('click', () => this.openDrawer());
+                document.getElementById('openMenuBtn').addEventListener('click', () => this.openDrawer());
+                document.getElementById('closeDrawer').addEventListener('click', () => this.closeDrawer());
+                document.getElementById('drawerOverlay').addEventListener('click', () => this.closeDrawer());
+
                 // File input
                 document.getElementById('pdfInput').addEventListener('change', (e) => {
                     this.loadPDF(e.target.files[0]);
+                    this.closeDrawer();
                 });
 
-                // Navigation
+                // Navigation (drawer)
                 document.getElementById('prevPage').addEventListener('click', () => this.previousPage());
                 document.getElementById('nextPage').addEventListener('click', () => this.nextPage());
+                
+                // Navigation (floating)
+                document.getElementById('prevPageFloat').addEventListener('click', () => this.previousPage());
+                document.getElementById('nextPageFloat').addEventListener('click', () => this.nextPage());
+
+                // Zoom controls
                 document.getElementById('zoomSelect').addEventListener('change', (e) => {
                     this.scale = parseFloat(e.target.value);
+                    document.getElementById('zoomSelectFloat').value = e.target.value;
+                    this.renderCurrentPage();
+                });
+                
+                document.getElementById('zoomSelectFloat').addEventListener('change', (e) => {
+                    this.scale = parseFloat(e.target.value);
+                    document.getElementById('zoomSelect').value = e.target.value;
                     this.renderCurrentPage();
                 });
 
                 // Tools
                 document.querySelectorAll('.tool-button').forEach(btn => {
                     btn.addEventListener('click', (e) => {
-                        document.querySelectorAll('.tool-button').forEach(b => b.classList.remove('active'));
-                        e.target.classList.add('active');
+                        document.querySelectorAll('.tool-button').forEach(b => {
+                            b.classList.remove('active', 'bg-primary', 'text-white');
+                            b.classList.add('hover:bg-gray-100', 'dark:hover:bg-gray-700');
+                        });
+                        e.target.classList.add('active', 'bg-primary', 'text-white');
+                        e.target.classList.remove('hover:bg-gray-100', 'dark:hover:bg-gray-700');
                         this.currentTool = e.target.id.replace('Tool', '').toLowerCase();
                     });
                 });
@@ -208,8 +344,8 @@
                 // Colors
                 document.querySelectorAll('.color-btn').forEach(btn => {
                     btn.addEventListener('click', (e) => {
-                        document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
-                        e.target.classList.add('active');
+                        document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active', 'ring-4', 'ring-primary'));
+                        e.target.classList.add('active', 'ring-4', 'ring-primary');
                         this.currentColor = e.target.dataset.color;
                     });
                 });
@@ -219,12 +355,33 @@
                 const brushSizeDisplay = document.getElementById('brushSizeDisplay');
                 brushSize.addEventListener('input', (e) => {
                     this.brushSize = parseInt(e.target.value);
-                    brushSizeDisplay.textContent = this.brushSize;
+                    brushSizeDisplay.textContent = this.brushSize + 'px';
                 });
 
                 // Actions
                 document.getElementById('clearBtn').addEventListener('click', () => this.clearAnnotations());
                 document.getElementById('downloadBtn').addEventListener('click', () => this.downloadAnnotatedPDF());
+
+                // Keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') this.closeDrawer();
+                    if (e.key === 'ArrowLeft') this.previousPage();
+                    if (e.key === 'ArrowRight') this.nextPage();
+                });
+            }
+
+            openDrawer() {
+                this.drawerOpen = true;
+                document.getElementById('drawer').classList.add('open');
+                document.getElementById('drawerOverlay').classList.add('open');
+                document.body.style.overflow = 'hidden';
+            }
+
+            closeDrawer() {
+                this.drawerOpen = false;
+                document.getElementById('drawer').classList.remove('open');
+                document.getElementById('drawerOverlay').classList.remove('open');
+                document.body.style.overflow = '';
             }
 
             async loadPDF(file) {
@@ -238,7 +395,13 @@
                     
                     document.getElementById('loadingArea').classList.add('hidden');
                     document.getElementById('pdfViewer').classList.remove('hidden');
-                    document.getElementById('toolbar').classList.remove('hidden');
+                    document.getElementById('pageControls').classList.remove('hidden');
+                    document.getElementById('zoomControls').classList.remove('hidden');
+                    
+                    // Show drawer sections
+                    ['toolsSection', 'colorsSection', 'sizeSection', 'navigationSection', 'zoomSection', 'actionsSection'].forEach(id => {
+                        document.getElementById(id).classList.remove('hidden');
+                    });
                     
                     this.renderCurrentPage();
                 } catch (error) {
@@ -286,16 +449,22 @@
                 this.setupAnnotationCanvas(annotationCanvas);
                 
                 // Update page info
-                document.getElementById('pageInfo').textContent = `Page ${this.currentPage} of ${this.totalPages}`;
-                document.getElementById('prevPage').disabled = this.currentPage <= 1;
-                document.getElementById('nextPage').disabled = this.currentPage >= this.totalPages;
+                const pageText = `Page ${this.currentPage} of ${this.totalPages}`;
+                const pageTextFloat = `${this.currentPage} / ${this.totalPages}`;
+                document.getElementById('pageInfo').textContent = pageText;
+                document.getElementById('pageInfoFloat').textContent = pageTextFloat;
+                
+                // Update navigation buttons
+                const prevDisabled = this.currentPage <= 1;
+                const nextDisabled = this.currentPage >= this.totalPages;
+                
+                document.getElementById('prevPage').disabled = prevDisabled;
+                document.getElementById('nextPage').disabled = nextDisabled;
+                document.getElementById('prevPageFloat').disabled = prevDisabled;
+                document.getElementById('nextPageFloat').disabled = nextDisabled;
             }
 
             setupAnnotationCanvas(canvas) {
-                const ctx = canvas.getContext('2d');
-                let isDrawing = false;
-                let lastPoint = null;
-
                 // Mouse events
                 canvas.addEventListener('mousedown', (e) => this.startDrawing(e, canvas));
                 canvas.addEventListener('mousemove', (e) => this.draw(e, canvas));
@@ -324,8 +493,7 @@
                 
                 canvas.addEventListener('touchend', (e) => {
                     e.preventDefault();
-                    const mouseEvent = new MouseEvent('mouseup', {});
-                    canvas.dispatchEvent(mouseEvent);
+                    canvas.dispatchEvent(new MouseEvent('mouseup', {}));
                 });
 
                 // Try to use Ink API if supported
