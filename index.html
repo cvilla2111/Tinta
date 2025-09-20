@@ -520,28 +520,18 @@
                     timestamp: timestamp
                 };
                 
-                // Calculate distance between points to detect high-speed drawing
-                const distance = Math.sqrt(
-                    Math.pow(currentPoint.x - this.lastPoint.x, 2) + 
-                    Math.pow(currentPoint.y - this.lastPoint.y, 2)
-                );
-                
-                // If moving fast, draw direct line to fill gaps
-                if (distance > 20 * scaleRatio) {
+                // Always draw a line from last point to current point
+                if (this.currentTool === 'eraser') {
+                    this.erase(canvas, currentPoint);
+                } else {
+                    // Always ensure continuity by drawing from lastPoint to currentPoint
                     this.drawLineWithPressure(canvas, this.lastPoint, currentPoint);
                 }
                 
-                // Add to point history for smoothing and prediction
+                // Add to point history for smoothing
                 this.pointHistory.push(currentPoint);
                 if (this.pointHistory.length > 5) {
                     this.pointHistory.shift();
-                }
-                
-                // Immediate visual feedback with prediction for normal distances
-                if (this.currentTool === 'eraser') {
-                    this.erase(canvas, currentPoint);
-                } else if (distance <= 20 * scaleRatio) {
-                    this.predictiveDrawing(canvas, this.lastPoint, currentPoint);
                 }
                 
                 this.lastPoint = currentPoint;
