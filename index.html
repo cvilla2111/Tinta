@@ -1,577 +1,871 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>Smooth Ink — Compact Drawer, Stylus/Mouse Only</title>
-<style>
-  :root {
-    --bg: #ffffff;
-    --drawer-bg: #f7f9fc;
-    --drawer-border: #d9e1ef;
-    --text: #0b1220;
-    --muted: #5a6a85;
-    --accent: #3b82f6;
-    --ok: #16a34a;
-    --warn: #f59e0b;
-  }
-  * { box-sizing: border-box; }
-  html, body {
-    height: 100%; margin: 0; background: var(--bg); color: var(--text);
-    font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-    overscroll-behavior: none;
-  }
-  .app { position: relative; width: 100%; height: 100%; overflow: hidden; }
-  .surface { position: absolute; inset: 0; background: var(--bg); }
-  canvas {
-    position: absolute; inset: 0; width: 100%; height: 100%;
-    display: block; background: #fff; cursor: crosshair;
-    /* Disable finger drawing: allow pan/zoom with fingers, but we’ll filter in JS too */
-    touch-action: pan-x pan-y;
-  }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Annotator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-  /* Compact Drawer and scrim */
-  .drawer-toggle {
-    position: absolute; top: env(safe-area-inset-top, 8px); left: env(safe-area-inset-left, 8px);
-    z-index: 50; border: 1px solid var(--drawer-border); background: rgba(255,255,255,0.9);
-    backdrop-filter: blur(6px); color: var(--text); border-radius: 8px; padding: 8px 9px;
-    font-size: .95rem; line-height: 1; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.06);
-  }
-  .scrim {
-    position: absolute; inset: 0; background: rgba(0,0,0,0.25);
-    opacity: 0; pointer-events: none; transition: opacity 180ms ease; z-index: 40;
-  }
-  .scrim.visible { opacity: 1; pointer-events: auto; }
-  .drawer {
-    position: absolute; top: 0; bottom: 0; left: 0; width: min(84vw, 320px); max-width: 92%;
-    background: var(--drawer-bg); border-right: 1px solid var(--drawer-border);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.10);
-    transform: translateX(-100%); transition: transform 200ms cubic-bezier(.2,.7,.2,1);
-    z-index: 60; display: flex; flex-direction: column;
-  }
-  .drawer.open { transform: translateX(0); }
-  .drawer-header {
-    padding: calc(6px + env(safe-area-inset-top, 0px)) 8px 6px 8px;
-    display: flex; gap: 6px; align-items: center; border-bottom: 1px solid var(--drawer-border);
-  }
-  .drawer-title { margin: 0; font-size: .85rem; font-weight: 700; letter-spacing: .2px; }
-  .status {
-    margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
-    background: #fff; border: 1px solid var(--drawer-border);
-    padding: 3px 6px; border-radius: 7px; color: var(--muted); white-space: nowrap; font-size: .78rem;
-  }
-  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); }
-  .dot.ok { background: var(--ok); }
-  .drawer-body { padding: 8px; overflow: auto; display: grid; gap: 8px; }
-  .group {
-    border: 1px solid var(--drawer-border); background: #fff; border-radius: 8px;
-    padding: 8px; display: grid; gap: 6px;
-  }
-  .group h3 { margin: 0; font-size: .8rem; color: var(--muted); font-weight: 700; letter-spacing: .2px; }
-  .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: white;
+            color: black;
+            overflow: hidden;
+        }
 
-  .btn {
-    appearance: none; background: #ffffff; border: 1px solid var(--drawer-border);
-    color: var(--text); border-radius: 8px; padding: 6px 8px; font-size: .85rem; cursor: pointer;
-  }
-  .btn:hover { border-color: var(--accent); }
-  .btn[aria-pressed="true"] { outline: 2px solid var(--accent); outline-offset: 0; }
+        .homescreen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            width: 100vw;
+        }
 
-  input[type="color"], input[type="range"], input[type="checkbox"], select { accent-color: var(--accent); }
-  input[type="color"], input[type="range"], select {
-    appearance: none; background: #ffffff; color: var(--text); border: 1px solid var(--drawer-border);
-    border-radius: 8px; padding: 4px 6px; font-size: .85rem;
-  }
-  input[type="range"] { padding: 3px; width: 100%; }
-  select { padding-right: 18px; }
-  label { font-size: .85rem; color: var(--text); display: inline-flex; gap: 6px; align-items: center; }
+        .load-button {
+            padding: 16px 32px;
+            font-size: 18px;
+            background: black;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            margin-bottom: 20px;
+        }
 
-  /* Compact toggle switch */
-  .toggle { display: inline-flex; align-items: center; gap: 6px; user-select: none; }
-  .switch {
-    --w: 36px; --h: 20px; --pad: 2px;
-    position: relative; width: var(--w); height: var(--h); border-radius: calc(var(--h)/2);
-    background: #e5ebf6; border: 1px solid var(--drawer-border);
-    transition: background 140ms ease, border-color 140ms ease; cursor: pointer; flex: 0 0 auto;
-  }
-  .switch::after {
-    content: ""; position: absolute; top: var(--pad); left: var(--pad);
-    width: calc(var(--h) - var(--pad) * 2); height: calc(var(--h) - var(--pad) * 2);
-    background: #fff; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,.2);
-    transition: transform 150ms ease;
-  }
-  .switch.on { background: #d7e7ff; border-color: #c4dafd; }
-  .switch.on::after { transform: translateX(calc(36px - 20px)); }
-  .switch.off::after { transform: translateX(0); }
-  .switch.disabled { opacity: 0.5; cursor: not-allowed; }
+        .load-button:hover {
+            background: #333;
+        }
 
-  /* Edge swipe area */
-  .edge-hit { position: absolute; top: 0; bottom: 0; left: 0; width: 14px; z-index: 30; touch-action: pan-y; }
+        .file-input {
+            display: none;
+        }
 
-  /* Floating Clear button */
-  .clear-fab {
-    position: absolute; top: env(safe-area-inset-top, 8px); right: env(safe-area-inset-right, 8px); z-index: 50;
-    background: rgba(255,255,255,0.9); color: var(--text); border: 1px solid var(--drawer-border); border-radius: 8px;
-    padding: 6px 9px; font-size: .9rem; line-height: 1; cursor: pointer; backdrop-filter: blur(6px);
-    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
-  }
-  .clear-fab:hover { border-color: var(--accent); }
-</style>
+        .pdf-viewer {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pdf-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: white;
+        }
+
+        .ink-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: auto;
+            touch-action: none;
+        }
+
+        .instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: black;
+            font-size: 14px;
+            z-index: 1000;
+        }
+
+        .clear-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: black;
+            color: white;
+            border: none;
+            padding: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+        }
+
+        .clear-button:hover {
+            background: #333;
+        }
+
+        .eraser-indicator {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 1px dashed black;
+            border-radius: 50%;
+            background-color: rgba(128, 128, 128, 0.2);
+            pointer-events: none;
+            z-index: 1001;
+            display: none;
+            transform: translate(-50%, -50%);
+        }
+
+        .menu-button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: black;
+            color: white;
+            border: none;
+            padding: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+        }
+
+        .menu-button:hover {
+            background: #333;
+        }
+
+        .drawer {
+            position: fixed;
+            top: 0;
+            left: -300px;
+            width: 300px;
+            height: 100vh;
+            background: white;
+            border-right: 2px solid black;
+            z-index: 2000;
+            transition: left 0.3s ease;
+            padding: 80px 20px 20px 20px;
+        }
+
+        .drawer.open {
+            left: 0;
+        }
+
+        .drawer-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1999;
+            display: none;
+        }
+
+        .drawer-overlay.visible {
+            display: block;
+        }
+
+        .stroke-control {
+            margin-bottom: 30px;
+        }
+
+        .stroke-control h3 {
+            font-size: 16px;
+            font-weight: normal;
+            margin-bottom: 15px;
+            color: black;
+        }
+
+        .stepper {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .stepper-button {
+            width: 40px;
+            height: 40px;
+            background: black;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .stepper-button:hover {
+            background: #333;
+        }
+
+        .stepper-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .stepper-value {
+            font-size: 18px;
+            font-weight: bold;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .size-reference {
+            position: absolute;
+            bottom: 80px;
+            left: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .size-dot {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .dot {
+            background-color: rgba(128, 128, 128, 0.3);
+            border: 1px dashed black;
+            border-radius: 50%;
+        }
+
+        .dot-label {
+            font-size: 12px;
+            color: black;
+            font-weight: bold;
+        }
+
+        .dot-10 { width: 10px; height: 10px; }
+        .dot-20 { width: 20px; height: 20px; }
+        .dot-30 { width: 30px; height: 30px; }
+        .dot-50 { width: 50px; height: 50px; }
+        .dot-90 { width: 90px; height: 90px; }
+    </style>
 </head>
 <body>
-  <div class="app">
-    <div class="edge-hit" id="edgeHit"></div>
-
-    <aside class="drawer" id="drawer" aria-hidden="true">
-      <div class="drawer-header">
-        <h2 class="drawer-title">Tools</h2>
-        <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">Checking…</span></div>
-      </div>
-      <div class="drawer-body">
-        <div class="group">
-          <h3>Render</h3>
-          <div class="row">
-            <label class="toggle" id="inkToggleWrap" title="Delegated Ink API">
-              <div class="switch off" id="inkSwitch" role="switch" aria-checked="false" tabindex="0">
-                <input type="checkbox" id="inkToggle" aria-hidden="true" />
-              </div>
-              <span style="font-size:.85rem" id="inkModeLabel">Canvas</span>
-            </label>
-            <span style="font-size:.78rem;color:var(--muted)" id="inkSupportNote">Detecting…</span>
-          </div>
-        </div>
-
-        <div class="group">
-          <h3>Tool</h3>
-          <div class="row">
-            <button id="toolPen" class="btn" aria-pressed="true" title="P">Pen</button>
-            <button id="toolEraser" class="btn" aria-pressed="false" title="E">Erase</button>
-            <label>Color <input id="color" type="color" value="#2b2b2b" /></label>
-            <label style="flex:1">Width <input id="width" type="range" min="1" max="40" step="1" value="6" /></label>
-            <label><input id="pressure" type="checkbox" checked /> Pressure</label>
-          </div>
-        </div>
-
-        <div class="group">
-          <h3>Smoothing</h3>
-          <div class="row">
-            <label><input type="checkbox" id="optResample" checked /> Resample</label>
-            <label style="flex:1">Spacing <input type="range" id="resampleDist" min="0.5" max="8" step="0.5" value="1.5" /></label>
-          </div>
-          <div class="row">
-            <label><input type="checkbox" id="optCurves" checked /> Curves</label>
-            <span style="font-size:.78rem;color:var(--muted)">Midpoint quadratic</span>
-          </div>
-          <div class="row">
-            <label><input type="checkbox" id="optRoundCaps" checked /> Round caps</label>
-            <label><input type="checkbox" id="optMinWidth" checked /> Min width</label>
-            <label style="flex:1">Min px <input type="range" id="minWidthPx" min="0.5" max="3" step="0.1" value="1.2" /></label>
-          </div>
-          <div class="row">
-            <label><input type="checkbox" id="optPressureSmooth" checked /> Smooth pressure</label>
-            <label style="flex:1">Strength <input type="range" id="pressureAlpha" min="0.05" max="0.8" step="0.05" value="0.2" /></label>
-          </div>
-        </div>
-
-        <div class="group">
-          <h3>Display</h3>
-          <div class="row">
-            <label><input type="checkbox" id="optHidpi" checked /> HiDPI</label>
-            <label style="flex:1">Scale <input type="range" id="hidpiScale" min="1" max="3" step="0.25" value="2" /></label>
-          </div>
-        </div>
-
-        <div class="group">
-          <h3>History</h3>
-          <div class="row">
-            <button id="undo" class="btn" title="Ctrl+Z">Undo</button>
-            <button id="redo" class="btn" title="Ctrl+Y">Redo</button>
-            <button id="export" class="btn">Export PNG</button>
-          </div>
-        </div>
-
-        <div class="group">
-          <h3>Input</h3>
-          <div class="row">
-            <span class="note" style="font-size:.78rem;color:var(--muted)">Finger input disabled. Use pen or mouse.</span>
-          </div>
-        </div>
-      </div>
-    </aside>
-
-    <div class="scrim" id="scrim" role="button" aria-label="Close drawer"></div>
-    <button class="drawer-toggle" id="drawerToggle" aria-label="Open drawer" aria-expanded="false">☰</button>
-    <button class="clear-fab" id="clearFab" type="button" title="Clear canvas">Clear</button>
-
-    <div class="surface">
-      <canvas id="canvas" aria-label="Drawing canvas"></canvas>
+    <div class="homescreen" id="homescreen">
+        <h1 style="margin-bottom: 40px; font-weight: normal;">PDF Annotator</h1>
+        <button class="load-button" onclick="document.getElementById('fileInput').click()">
+            Load PDF
+        </button>
+        <input type="file" id="fileInput" class="file-input" accept=".pdf" onchange="loadPDF(event)">
+        <p style="margin-top: 20px; color: #666; font-size: 14px;">Select a PDF file to start annotating</p>
     </div>
-  </div>
 
-<script>
-  // Elements
-  const drawer = document.getElementById('drawer');
-  const scrim = document.getElementById('scrim');
-  const toggleBtn = document.getElementById('drawerToggle');
-  const edgeHit = document.getElementById('edgeHit');
+    <div class="pdf-viewer" id="pdfViewer">
+        <button class="menu-button" onclick="toggleDrawer()" title="Settings">
+            <i data-lucide="menu"></i>
+        </button>
+        <button class="clear-button" onclick="clearAnnotations()" title="Clear annotations">
+            <i data-lucide="trash-2"></i>
+        </button>
+        <div class="instructions">Use arrow keys to navigate • Surface Pen to annotate • Barrel button to erase</div>
+        
+        <div class="size-reference">
+            <div class="size-dot">
+                <div class="dot dot-10"></div>
+                <span class="dot-label">10px</span>
+            </div>
+            <div class="size-dot">
+                <div class="dot dot-20"></div>
+                <span class="dot-label">20px</span>
+            </div>
+            <div class="size-dot">
+                <div class="dot dot-30"></div>
+                <span class="dot-label">30px</span>
+            </div>
+            <div class="size-dot">
+                <div class="dot dot-50"></div>
+                <span class="dot-label">50px</span>
+            </div>
+            <div class="size-dot">
+                <div class="dot dot-90"></div>
+                <span class="dot-label">90px</span>
+            </div>
+        </div>
+        
+        <canvas id="pdfCanvas" class="pdf-canvas"></canvas>
+        <canvas id="inkCanvas" class="ink-canvas"></canvas>
+        <div id="eraserIndicator" class="eraser-indicator"></div>
+    </div>
 
-  const canvas = document.getElementById('canvas');
-  const ctx = canvas.getContext('2d');
+    <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+    <div class="drawer" id="drawer">
+        <div class="stroke-control">
+            <h3>Stroke Size</h3>
+            <div class="stepper">
+                <button class="stepper-button" onclick="decreaseStrokeSize()" id="decreaseBtn">-</button>
+                <div class="stepper-value" id="strokeSizeValue">2</div>
+                <button class="stepper-button" onclick="increaseStrokeSize()" id="increaseBtn">+</button>
+            </div>
+        </div>
+        
+        <div class="stroke-control">
+            <h3>Eraser Threshold</h3>
+            <div class="stepper">
+                <button class="stepper-button" onclick="decreaseThreshold()" id="decreaseThresholdBtn">-</button>
+                <div class="stepper-value" id="thresholdValue">10</div>
+                <button class="stepper-button" onclick="increaseThreshold()" id="increaseThresholdBtn">+</button>
+            </div>
+            <button class="stepper-button" onclick="resetThreshold()" id="resetThresholdBtn" style="width: 100%; margin-top: 10px; font-size: 14px;">Reset</button>
+        </div>
+        
+        <div class="stroke-control">
+            <h3>Eraser Sensitivity</h3>
+            <div class="stepper">
+                <button class="stepper-button" onclick="decreaseSensitivity()" id="decreaseSensitivityBtn">-</button>
+                <div class="stepper-value" id="sensitivityValue">5</div>
+                <button class="stepper-button" onclick="increaseSensitivity()" id="increaseSensitivityBtn">+</button>
+            </div>
+            <button class="stepper-button" onclick="resetSensitivity()" id="resetSensitivityBtn" style="width: 100%; margin-top: 10px; font-size: 14px;">Reset</button>
+        </div>
+    </div>
 
-  const toolPen = document.getElementById('toolPen');
-  const toolEraser = document.getElementById('toolEraser');
-  const colorInput = document.getElementById('color');
-  const widthInput = document.getElementById('width');
-  const pressureToggle = document.getElementById('pressure');
+    <script>
+        // PDF.js setup
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-  const undoBtn = document.getElementById('undo');
-  const redoBtn = document.getElementById('redo');
-  const exportBtn = document.getElementById('export');
-  const clearFab = document.getElementById('clearFab');
+        let pdfDocument = null;
+        let currentPage = 1;
+        let totalPages = 0;
+        let pageAnnotations = new Map(); // Store annotations per page
+        let isDrawing = false;
+        let lastPoint = null;
+        let isErasing = false;
+        let inkPresenter = null;
+        let lastTimestamp = 0;
+        let currentSpeed = 0;
+        let currentEraserSize = 20; // Default eraser size
+        const minEraserSize = 10;
+        const maxEraserSize = 130;
+        let speedThreshold = 10; // Threshold before size starts increasing (adjustable)
+        const defaultSpeedThreshold = 10; // Default threshold value
+        let eraserSensitivity = 5; // How quickly eraser grows (1-10 scale)
+        const defaultEraserSensitivity = 5; // Default sensitivity value
+        let eraserDecreaseTimer = null;
+        
+        // Stroke size settings
+        let currentStrokeSize = 2;
+        const minStrokeSize = 1;
+        const maxStrokeSize = 20;
 
-  // Compact drawer interactions
-  function openDrawer() {
-    drawer.classList.add('open'); drawer.setAttribute('aria-hidden', 'false');
-    scrim.classList.add('visible'); toggleBtn.setAttribute('aria-expanded', 'true');
-  }
-  function closeDrawer() {
-    drawer.classList.remove('open'); drawer.setAttribute('aria-hidden', 'true');
-    scrim.classList.remove('visible'); toggleBtn.setAttribute('aria-expanded', 'false');
-  }
-  toggleBtn.addEventListener('click', () => drawer.classList.contains('open') ? closeDrawer() : openDrawer());
-  scrim.addEventListener('click', closeDrawer);
-  let startX=null, swiping=false;
-  edgeHit.addEventListener('touchstart', e => { if (drawer.classList.contains('open')) return; startX = e.touches[0].clientX; swiping = true; }, { passive: true });
-  edgeHit.addEventListener('touchmove', e => { if (!swiping) return; const dx = e.touches[0].clientX - startX; if (dx > 28) { openDrawer(); swiping = false; } }, { passive: true });
-  edgeHit.addEventListener('touchend', () => { swiping=false; startX=null; });
+        const pdfCanvas = document.getElementById('pdfCanvas');
+        const inkCanvas = document.getElementById('inkCanvas');
+        const eraserIndicator = document.getElementById('eraserIndicator');
+        const pdfCtx = pdfCanvas.getContext('2d');
+        const inkCtx = inkCanvas.getContext('2d');
 
-  // HiDPI sizing
-  const optHidpi = document.getElementById('optHidpi');
-  const hidpiScale = document.getElementById('hidpiScale');
+        // Ink canvas setup
+        inkCtx.strokeStyle = 'black';
+        inkCtx.lineWidth = 2;
+        inkCtx.lineCap = 'round';
+        inkCtx.lineJoin = 'round';
 
-  function targetDpr() {
-    return optHidpi.checked ? Math.max(1, Number(hidpiScale.value)) : 1;
-  }
-  function resizeCanvas() {
-    const dpr = targetDpr();
-    const rect = canvas.getBoundingClientRect();
-    const w = Math.max(1, Math.floor(rect.width * dpr));
-    const h = Math.max(1, Math.floor(rect.height * dpr));
-    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    repaintAll();
-  }
-  window.addEventListener('resize', resizeCanvas);
-  window.addEventListener('orientationchange', resizeCanvas);
-  optHidpi.addEventListener('change', resizeCanvas);
-  hidpiScale.addEventListener('input', resizeCanvas);
-
-  // Ink API
-  const statusDot = document.getElementById('statusDot');
-  const statusText = document.getElementById('statusText');
-  const inkToggle = document.getElementById('inkToggle');
-  const inkSwitch = document.getElementById('inkSwitch');
-  const inkToggleWrap = document.getElementById('inkToggleWrap');
-  const inkModeLabel = document.getElementById('inkModeLabel');
-  const inkSupportNote = document.getElementById('inkSupportNote');
-  let presenterPromise = null;
-  let inkSupported = false;
-
-  function setSwitchState(on, { disabled=false }={}) {
-    inkToggle.checked = on;
-    inkSwitch.classList.toggle('on', on);
-    inkSwitch.classList.toggle('off', !on);
-    inkSwitch.classList.toggle('disabled', disabled);
-    inkSwitch.setAttribute('aria-checked', String(on));
-    inkToggle.disabled = disabled;
-    inkModeLabel.textContent = on ? 'Ink' : 'Canvas';
-    updateStatus();
-  }
-  function updateStatus() {
-    const usingInk = inkSupported && inkToggle.checked;
-    statusDot.classList.toggle('ok', usingInk);
-    statusText.textContent = usingInk ? 'Ink: ON' : (inkSupported ? 'Ink available — Canvas' : 'Ink not available');
-  }
-  function detectInk() {
-    if ('ink' in navigator && navigator.ink && typeof navigator.ink.requestPresenter === 'function') {
-      inkSupported = true; inkSupportNote.textContent = 'Ink API supported.'; setSwitchState(false);
-    } else {
-      inkSupported = false; inkSupportNote.textContent = 'Ink API not available.'; setSwitchState(false, { disabled: true }); presenterPromise = null;
-    }
-  }
-  function toggleInk() {
-    if (!inkSupported || inkToggle.disabled) return;
-    const next = !inkToggle.checked;
-    if (next) {
-      try { presenterPromise = navigator.ink.requestPresenter({ presentationArea: canvas }); setSwitchState(true); }
-      catch { presenterPromise = null; setSwitchState(false); }
-    } else { presenterPromise = null; setSwitchState(false); }
-  }
-  inkToggleWrap.addEventListener('click', (e) => { e.preventDefault(); toggleInk(); });
-  inkSwitch.addEventListener('keydown', (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleInk(); } });
-
-  // Tools
-  let tool = 'pen';
-  function setTool(next) {
-    tool = next;
-    toolPen.setAttribute('aria-pressed', String(next === 'pen'));
-    toolEraser.setAttribute('aria-pressed', String(next === 'eraser'));
-  }
-  toolPen.addEventListener('click', () => setTool('pen'));
-  toolEraser.addEventListener('click', () => setTool('eraser'));
-
-  // History and export
-  const strokes = [];
-  const redoStack = [];
-  function pushStroke(s) { strokes.push(s); redoStack.length = 0; }
-  function undo() { if (strokes.length) { redoStack.push(strokes.pop()); repaintAll(); } }
-  function redo() { if (redoStack.length) { strokes.push(redoStack.pop()); repaintAll(); } }
-  undoBtn.addEventListener('click', undo);
-  redoBtn.addEventListener('click', redo);
-
-  exportBtn.addEventListener('click', () => {
-    const dpr = targetDpr();
-    const rect = canvas.getBoundingClientRect();
-    const out = document.createElement('canvas');
-    out.width = Math.floor(rect.width * dpr);
-    out.height = Math.floor(rect.height * dpr);
-    const octx = out.getContext('2d');
-    octx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    octx.fillStyle = '#ffffff'; octx.fillRect(0, 0, out.width, out.height);
-    paintStrokes(octx);
-    const url = out.toDataURL('image/png');
-    const a = document.createElement('a'); a.href = url; a.download = 'drawing.png'; a.click();
-  });
-
-  function clearAll() {
-    ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
-    ctx.save(); ctx.globalCompositeOperation='source-over'; ctx.fillStyle='#ffffff';
-    ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height); ctx.restore();
-    strokes.length = 0; redoStack.length = 0;
-  }
-  clearFab.addEventListener('click', clearAll);
-
-  // Keyboard
-  window.addEventListener('keydown', (e) => {
-    if (e.key.toLowerCase() === 'p') setTool('pen');
-    if (e.key.toLowerCase() === 'e') setTool('eraser');
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { undo(); e.preventDefault(); }
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { redo(); e.preventDefault(); }
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { clearAll(); e.preventDefault(); }
-  });
-
-  // Smoothing controls
-  const optResample = document.getElementById('optResample');
-  const resampleDist = document.getElementById('resampleDist');
-  const optCurves = document.getElementById('optCurves');
-  const optRoundCaps = document.getElementById('optRoundCaps');
-  const optMinWidth = document.getElementById('optMinWidth');
-  const minWidthPx = document.getElementById('minWidthPx');
-  const optPressureSmooth = document.getElementById('optPressureSmooth');
-  const pressureAlpha = document.getElementById('pressureAlpha');
-
-  [optResample, resampleDist, optCurves, optRoundCaps, optMinWidth, minWidthPx, optPressureSmooth, pressureAlpha]
-    .forEach(el => {
-      el.addEventListener('change', repaintAll);
-      if (el.tagName === 'INPUT' && el.type === 'range') el.addEventListener('input', repaintAll);
-    });
-
-  // Drawing state
-  let drawing = false;
-  let currentStroke = null;
-  let pressurePrev = null;
-
-  function minStrokeWidth(base, p) {
-    const withPressure = pressureToggle.checked ? base * (p || 0.5) : base;
-    const minPxVal = optMinWidth.checked ? Number(minWidthPx.value) : 0.1;
-    return Math.max(minPxVal, withPressure);
-  }
-
-  function styleFromEvent(evt) {
-    let p = evt.pressure ?? 0.5;
-    if (optPressureSmooth.checked) {
-      const a = Number(pressureAlpha.value);
-      pressurePrev = pressurePrev == null ? p : pressurePrev + a * (p - pressurePrev);
-      p = pressurePrev;
-    }
-    const base = parseFloat(widthInput.value) || 6;
-    const width = minStrokeWidth(base, p);
-    return { color: colorInput.value, base, width, p, diameter: width };
-  }
-
-  function addPointToStroke(stroke, x, y, p) {
-    stroke.points.push({ x, y, p });
-  }
-
-  function resampleSegment(a, b, spacing) {
-    const pts = [];
-    const dx = b.x - a.x, dy = b.y - a.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist <= spacing) return [b];
-    const steps = Math.floor(dist / spacing);
-    const inv = 1 / dist;
-    for (let i = 1; i <= steps; i++) {
-      const t = (i * spacing) * inv;
-      pts.push({ x: a.x + dx * t, y: a.y + dy * t, p: a.p + (b.p - a.p) * t });
-    }
-    return pts;
-  }
-
-  function drawLiveSegment(a, b, stroke) {
-    ctx.save();
-    if (optRoundCaps.checked) { ctx.lineCap = 'round'; ctx.lineJoin = 'round'; }
-    if (stroke.tool === 'eraser') {
-      ctx.globalCompositeOperation = 'destination-out'; ctx.strokeStyle = '#000';
-    } else {
-      ctx.globalCompositeOperation = 'source-over'; ctx.strokeStyle = stroke.color;
-    }
-    if (optCurves.checked) {
-      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-      ctx.lineWidth = minStrokeWidth(stroke.baseWidth, b.p);
-      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.quadraticCurveTo(a.x, a.y, mx, my); ctx.stroke();
-    } else {
-      ctx.lineWidth = minStrokeWidth(stroke.baseWidth, b.p);
-      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-    }
-    ctx.restore();
-  }
-
-  function paintStroke(ctx2, stroke) {
-    const pts = stroke.points;
-    if (!pts.length) return;
-    ctx2.save();
-    if (optRoundCaps.checked) { ctx2.lineCap = 'round'; ctx2.lineJoin = 'round'; }
-    if (stroke.tool === 'eraser') {
-      ctx2.globalCompositeOperation = 'destination-out'; ctx2.strokeStyle = '#000';
-    } else {
-      ctx2.globalCompositeOperation = 'source-over'; ctx2.strokeStyle = stroke.color;
-    }
-    if (pts.length === 1) {
-      ctx2.lineWidth = minStrokeWidth(stroke.baseWidth, pts[0].p);
-      ctx2.beginPath(); ctx2.moveTo(pts[0].x, pts[0].y); ctx2.lineTo(pts[0].x + 0.01, pts[0].y); ctx2.stroke();
-      ctx2.restore(); return;
-    }
-    if (optCurves.checked) {
-      ctx2.beginPath();
-      ctx2.moveTo(pts[0].x, pts[0].y);
-      for (let i = 1; i < pts.length; i++) {
-        const p0 = pts[i - 1], p1 = pts[i];
-        const mx = (p0.x + p1.x) / 2, my = (p0.y + p1.y) / 2;
-        ctx2.lineWidth = minStrokeWidth(stroke.baseWidth, p1.p);
-        ctx2.quadraticCurveTo(p0.x, p0.y, mx, my);
-      }
-      ctx2.stroke();
-    } else {
-      ctx2.beginPath();
-      ctx2.moveTo(pts[0].x, pts[0].y);
-      for (let i = 1; i < pts.length; i++) {
-        ctx2.lineWidth = minStrokeWidth(stroke.baseWidth, pts[i].p);
-        ctx2.lineTo(pts[i].x, pts[i].y);
-      }
-      ctx2.stroke();
-    }
-    ctx2.restore();
-  }
-
-  function paintStrokes(targetCtx) {
-    for (const s of strokes) paintStroke(targetCtx, s);
-  }
-
-  function repaintAll() {
-    ctx.save(); ctx.globalCompositeOperation='source-over'; ctx.fillStyle='#ffffff';
-    ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height); ctx.restore();
-    paintStrokes(ctx);
-  }
-
-  // Pointer handling with finger disabled
-  function isAllowedPointer(evt) {
-    // Allow pen and mouse only
-    const t = evt.pointerType;
-    if (t === 'pen' || t === 'mouse') return true;
-    // Finger/touch not allowed
-    return false;
-  }
-
-  canvas.addEventListener('pointerdown', (evt) => {
-    if (!isAllowedPointer(evt)) return; // ignore finger
-    drawing = true;
-    pressurePrev = null;
-    canvas.setPointerCapture(evt.pointerId);
-
-    const baseWidth = parseFloat(widthInput.value) || 6;
-    currentStroke = { tool, color: colorInput.value, baseWidth, points: [] };
-
-    const s = styleFromEvent(evt);
-    addPointToStroke(currentStroke, evt.offsetX, evt.offsetY, s.p);
-
-    // Seed tiny mark
-    ctx.save();
-    if (optRoundCaps.checked) { ctx.lineCap='round'; ctx.lineJoin='round'; }
-    ctx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over';
-    ctx.strokeStyle = tool === 'eraser' ? '#000' : currentStroke.color;
-    ctx.lineWidth = s.width;
-    const p0 = currentStroke.points[0];
-    ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p0.x + 0.01, p0.y); ctx.stroke();
-    ctx.restore();
-  });
-
-  canvas.addEventListener('pointermove', (evt) => {
-    if (!drawing || !isAllowedPointer(evt)) return;
-
-    const events = (typeof evt.getCoalescedEvents === 'function') ? evt.getCoalescedEvents() : [evt];
-    const spacing = optResample.checked ? Number(resampleDist.value) : 0;
-    let last = currentStroke.points[currentStroke.points.length - 1];
-
-    for (const e of events) {
-      const rect = canvas.getBoundingClientRect();
-      const x = e.offsetX ?? (e.clientX - rect.left);
-      const y = e.offsetY ?? (e.clientY - rect.top);
-      const s = styleFromEvent(e);
-      const next = { x, y, p: s.p };
-
-      if (optResample.checked && last) {
-        const inserted = resampleSegment(last, next, spacing);
-        for (const ip of inserted) {
-          addPointToStroke(currentStroke, ip.x, ip.y, ip.p);
-          drawLiveSegment(last, ip, currentStroke);
-          last = ip;
+        function resizeCanvases() {
+            const rect = document.getElementById('pdfViewer').getBoundingClientRect();
+            pdfCanvas.width = rect.width;
+            pdfCanvas.height = rect.height;
+            inkCanvas.width = rect.width;
+            inkCanvas.height = rect.height;
         }
-        addPointToStroke(currentStroke, next.x, next.y, next.p);
-        drawLiveSegment(last, next, currentStroke);
-        last = next;
-      } else {
-        addPointToStroke(currentStroke, next.x, next.y, next.p);
-        drawLiveSegment(last, next, currentStroke);
-        last = next;
-      }
 
-      // Delegated Ink
-      if (inkSupported && inkToggle.checked && tool === 'pen' && presenterPromise) {
-        presenterPromise.then(p => { try { p.updateInkTrailStartPoint(e, { color: s.color, diameter: s.diameter }); } catch {} });
-      }
-    }
-  });
+        async function loadPDF(event) {
+            const file = event.target.files[0];
+            if (!file) return;
 
-  function endStroke(evt) {
-    if (!drawing) return;
-    drawing = false;
-    canvas.releasePointerCapture?.(evt.pointerId);
-    if (currentStroke) { pushStroke(currentStroke); currentStroke = null; }
-  }
-  canvas.addEventListener('pointerup', endStroke);
-  canvas.addEventListener('pointercancel', endStroke);
-  canvas.addEventListener('lostpointercapture', (e) => { if (drawing) endStroke(e); });
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                pdfDocument = await pdfjsLib.getDocument(arrayBuffer).promise;
+                totalPages = pdfDocument.numPages;
+                currentPage = 1;
+                
+                document.getElementById('homescreen').style.display = 'none';
+                document.getElementById('pdfViewer').style.display = 'block';
+                
+                resizeCanvases();
+                renderPage(currentPage);
+                setupInkEvents();
+                
+                // Initialize Lucide icons
+                lucide.createIcons();
+            } catch (error) {
+                console.error('Error loading PDF:', error);
+            }
+        }
 
-  // Prevent default touch gestures on canvas if desired; here we allow page scroll/zoom but ignore drawing with finger.
-  // If you want to block panning/zooming over the canvas, uncomment the following:
-  // canvas.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+        async function renderPage(pageNum) {
+            if (!pdfDocument) return;
 
-  // Init
-  function initBackground() {
-    ctx.save(); ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.restore();
-  }
-  function init() { detectInk(); resizeCanvas(); initBackground(); }
-  window.addEventListener('load', init, { once: true });
-</script>
+            const page = await pdfDocument.getPage(pageNum);
+            const viewport = page.getViewport({ scale: 1 });
+            
+            // Calculate scale to fit the page to screen
+            const scaleX = pdfCanvas.width / viewport.width;
+            const scaleY = pdfCanvas.height / viewport.height;
+            const scale = Math.min(scaleX, scaleY);
+            
+            const scaledViewport = page.getViewport({ scale });
+            
+            // Center the page
+            const offsetX = (pdfCanvas.width - scaledViewport.width) / 2;
+            const offsetY = (pdfCanvas.height - scaledViewport.height) / 2;
+            
+            // Clear and render PDF
+            pdfCtx.fillStyle = 'white';
+            pdfCtx.fillRect(0, 0, pdfCanvas.width, pdfCanvas.height);
+            
+            pdfCtx.save();
+            pdfCtx.translate(offsetX, offsetY);
+            
+            await page.render({
+                canvasContext: pdfCtx,
+                viewport: scaledViewport
+            }).promise;
+            
+            pdfCtx.restore();
+            
+            // Restore annotations for this page
+            restorePageAnnotations(pageNum);
+        }
+
+        function savePageAnnotations(pageNum) {
+            const imageData = inkCtx.getImageData(0, 0, inkCanvas.width, inkCanvas.height);
+            pageAnnotations.set(pageNum, imageData);
+        }
+
+        function restorePageAnnotations(pageNum) {
+            // Clear ink canvas
+            inkCtx.clearRect(0, 0, inkCanvas.width, inkCanvas.height);
+            
+            // Restore annotations if they exist
+            const annotations = pageAnnotations.get(pageNum);
+            if (annotations) {
+                inkCtx.putImageData(annotations, 0, 0);
+            }
+        }
+
+        async function initWebInkAPI() {
+            // Initialize Web Ink API if available
+            if ('ink' in navigator) {
+                try {
+                    inkPresenter = await navigator.ink.requestPresenter({ 
+                        presentationArea: inkCanvas 
+                    });
+                    console.log('Web Ink API initialized successfully');
+                } catch (error) {
+                    console.log('Web Ink API not available, falling back to canvas rendering:', error);
+                    inkPresenter = null;
+                }
+            } else {
+                console.log('Web Ink API not supported, using canvas fallback');
+                inkPresenter = null;
+            }
+        }
+
+        function setupInkEvents() {
+            // Initialize Web Ink API
+            initWebInkAPI();
+            
+            // Disable context menu
+            inkCanvas.addEventListener('contextmenu', e => e.preventDefault());
+            
+            // Pointer events for Surface Pen
+            inkCanvas.addEventListener('pointerdown', startDrawing);
+            inkCanvas.addEventListener('pointermove', draw);
+            inkCanvas.addEventListener('pointerup', stopDrawing);
+            inkCanvas.addEventListener('pointerout', stopDrawing);
+        }
+
+        function calculateSpeed(currentPoint, currentTime) {
+            if (!lastPoint || !lastTimestamp) {
+                lastTimestamp = currentTime;
+                return 0;
+            }
+            
+            const distance = Math.sqrt(
+                Math.pow(currentPoint.x - lastPoint.x, 2) + 
+                Math.pow(currentPoint.y - lastPoint.y, 2)
+            );
+            
+            const timeDelta = currentTime - lastTimestamp;
+            const speed = timeDelta > 0 ? distance / (timeDelta / 16.67) : 0; // Pixels per frame (~60fps)
+            
+            lastTimestamp = currentTime;
+            
+            // Debug logging to see actual speed values
+            console.log('Speed:', speed.toFixed(2), 'Distance:', distance.toFixed(2), 'TimeDelta:', timeDelta.toFixed(2));
+            
+            return speed;
+        }
+
+        function calculateEraserSize(speed) {
+            // Much more responsive thresholds
+            if (speed <= speedThreshold) {
+                return minEraserSize;
+            }
+            
+            // Map speed above threshold to size range
+            const speedRange = Math.max(speed - speedThreshold, 0);
+            const maxSpeedForMapping = 50; // Much lower max speed for easier triggering
+            const normalizedSpeed = Math.min(speedRange / maxSpeedForMapping, 1);
+            
+            const size = minEraserSize + (normalizedSpeed * (maxEraserSize - minEraserSize));
+            console.log('Calculated size:', size.toFixed(2), 'from speed:', speed.toFixed(2));
+            
+            return size;
+        }
+
+        function updateEraserSize(speed) {
+            const targetSize = calculateEraserSize(speed);
+            
+            // Calculate sensitivity-based growth rate
+            // Sensitivity 1 = 30% new size, Sensitivity 10 = 90% new size
+            const sensitivityFactor = 0.2 + (eraserSensitivity / 10) * 0.7; // Maps 1-10 to 0.3-0.9
+            
+            // Asymmetric smoothing: adjustable increase, slow decrease when moving
+            if (targetSize > currentEraserSize) {
+                // Sensitivity-based response when size should increase
+                currentEraserSize = currentEraserSize * (1 - sensitivityFactor) + targetSize * sensitivityFactor;
+            } else if (speed > 1) {
+                // Very slow response when size should decrease while moving
+                currentEraserSize = currentEraserSize * 0.99 + targetSize * 0.01;
+            } else {
+                // Faster decrease when pen is stopped (speed near zero)
+                currentEraserSize = currentEraserSize * 0.95 + minEraserSize * 0.05;
+            }
+            
+            // Always update canvas line width immediately during erasing
+            if (isErasing) {
+                inkCtx.lineWidth = currentEraserSize;
+            }
+            
+            // Update visual indicator to match the exact eraser area
+            // For canvas strokes with round lineCap, the effective diameter is lineWidth
+            const exactSize = Math.round(currentEraserSize);
+            eraserIndicator.style.width = exactSize + 'px';
+            eraserIndicator.style.height = exactSize + 'px';
+            eraserIndicator.style.borderRadius = '50%';
+            
+            console.log('Current eraser size:', currentEraserSize.toFixed(2), 'Speed:', speed.toFixed(2), 'Sensitivity:', eraserSensitivity, 'Factor:', sensitivityFactor.toFixed(2), 'Canvas lineWidth:', inkCtx.lineWidth, 'Visual indicator:', exactSize);
+        }
+
+        function showEraserIndicator(x, y) {
+            eraserIndicator.style.left = x + 'px';
+            eraserIndicator.style.top = y + 'px';
+            eraserIndicator.style.display = 'block';
+        }
+
+        function hideEraserIndicator() {
+            eraserIndicator.style.display = 'none';
+        }
+
+        function updateEraserIndicator(e) {
+            if (e.pointerType !== 'pen') return;
+            
+            const isBarrelPressed = (e.buttons & 32) !== 0;
+            
+            if (isBarrelPressed) {
+                const rect = inkCanvas.getBoundingClientRect();
+                const x = e.clientX - rect.left + rect.left;
+                const y = e.clientY - rect.top + rect.top;
+                showEraserIndicator(x, y);
+            } else {
+                hideEraserIndicator();
+            }
+        }
+
+        function startDrawing(e) {
+            // Only allow pen input, disable finger/mouse
+            if (e.pointerType !== 'pen') return;
+            
+            e.preventDefault();
+            isDrawing = true;
+            
+            // Check if barrel button is pressed (button 32 = bit 5)
+            isErasing = (e.buttons & 32) !== 0;
+            
+            const rect = inkCanvas.getBoundingClientRect();
+            lastPoint = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+            
+            // Reset speed tracking for new stroke
+            lastTimestamp = performance.now();
+            currentSpeed = 0;
+            
+            // Set up drawing context based on mode
+            if (isErasing) {
+                inkCtx.globalCompositeOperation = 'destination-out';
+                currentEraserSize = minEraserSize; // Start with minimum size
+                inkCtx.lineWidth = currentEraserSize;
+                showEraserIndicator(e.clientX, e.clientY);
+                updateEraserSize(0); // Initialize size
+            } else {
+                inkCtx.globalCompositeOperation = 'source-over';
+                inkCtx.strokeStyle = 'black';
+                inkCtx.lineWidth = currentStrokeSize;
+            }
+            
+            inkCtx.beginPath();
+            inkCtx.moveTo(lastPoint.x, lastPoint.y);
+        }
+
+        function draw(e) {
+            if (!isDrawing || e.pointerType !== 'pen') return;
+            
+            e.preventDefault();
+            
+            const rect = inkCanvas.getBoundingClientRect();
+            const currentPoint = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+            
+            // Calculate speed and update eraser size if in eraser mode
+            if (isErasing) {
+                const currentTime = performance.now();
+                currentSpeed = calculateSpeed(currentPoint, currentTime);
+                updateEraserSize(currentSpeed);
+                showEraserIndicator(e.clientX, e.clientY);
+                
+                // End current path and start new one with updated line width
+                inkCtx.stroke();
+                inkCtx.beginPath();
+                inkCtx.moveTo(lastPoint.x, lastPoint.y);
+            }
+            
+            inkCtx.lineTo(currentPoint.x, currentPoint.y);
+            inkCtx.stroke();
+            
+            lastPoint = currentPoint;
+        }
+
+        function continueEraserDecrease() {
+            if (currentEraserSize > minEraserSize + 0.5) {
+                // Continue decreasing size more aggressively when stopped
+                currentEraserSize = currentEraserSize * 0.95;
+                
+                // Update visual indicator
+                const exactSize = Math.round(currentEraserSize);
+                eraserIndicator.style.width = exactSize + 'px';
+                eraserIndicator.style.height = exactSize + 'px';
+                
+                // Continue the animation
+                eraserDecreaseTimer = requestAnimationFrame(continueEraserDecrease);
+            } else {
+                // Reached minimum size, hide indicator
+                currentEraserSize = minEraserSize;
+                hideEraserIndicator();
+                eraserDecreaseTimer = null;
+            }
+        }
+
+        function stopDrawing(e) {
+            if (!isDrawing) return;
+            
+            isDrawing = false;
+            lastPoint = null;
+            
+            // Hide eraser indicator immediately when pen is lifted
+            hideEraserIndicator();
+            
+            // Save annotations for current page
+            savePageAnnotations(currentPage);
+        }
+
+        function nextPage() {
+            if (currentPage < totalPages) {
+                savePageAnnotations(currentPage);
+                currentPage++;
+                renderPage(currentPage);
+            }
+        }
+
+        function prevPage() {
+            if (currentPage > 1) {
+                savePageAnnotations(currentPage);
+                currentPage--;
+                renderPage(currentPage);
+            }
+        }
+
+        function clearAnnotations() {
+            // Clear annotations for current page
+            inkCtx.clearRect(0, 0, inkCanvas.width, inkCanvas.height);
+            // Remove from stored annotations
+            pageAnnotations.delete(currentPage);
+        }
+
+        function goHome() {
+            document.getElementById('pdfViewer').style.display = 'none';
+            document.getElementById('homescreen').style.display = 'flex';
+            
+            // Reset
+            pdfDocument = null;
+            currentPage = 1;
+            totalPages = 0;
+            pageAnnotations.clear();
+            document.getElementById('fileInput').value = '';
+        }
+
+        // Drawer functions
+        function toggleDrawer() {
+            const drawer = document.getElementById('drawer');
+            const overlay = document.getElementById('drawerOverlay');
+            
+            if (drawer.classList.contains('open')) {
+                closeDrawer();
+            } else {
+                openDrawer();
+            }
+        }
+
+        function openDrawer() {
+            const drawer = document.getElementById('drawer');
+            const overlay = document.getElementById('drawerOverlay');
+            
+            drawer.classList.add('open');
+            overlay.classList.add('visible');
+        }
+
+        function closeDrawer() {
+            const drawer = document.getElementById('drawer');
+            const overlay = document.getElementById('drawerOverlay');
+            
+            drawer.classList.remove('open');
+            overlay.classList.remove('visible');
+        }
+
+        // Stroke size functions
+        function increaseStrokeSize() {
+            if (currentStrokeSize < maxStrokeSize) {
+                currentStrokeSize++;
+                updateStrokeSize();
+            }
+        }
+
+        function decreaseStrokeSize() {
+            if (currentStrokeSize > minStrokeSize) {
+                currentStrokeSize--;
+                updateStrokeSize();
+            }
+        }
+
+        function updateStrokeSize() {
+            // Update the display
+            document.getElementById('strokeSizeValue').textContent = currentStrokeSize;
+            
+            // Update button states
+            document.getElementById('decreaseBtn').disabled = currentStrokeSize <= minStrokeSize;
+            document.getElementById('increaseBtn').disabled = currentStrokeSize >= maxStrokeSize;
+            
+            // Apply the new stroke size to drawing (not erasing)
+            if (!isErasing && inkCtx) {
+                inkCtx.lineWidth = currentStrokeSize;
+            }
+        }
+
+        // Eraser threshold functions
+        function increaseThreshold() {
+            if (speedThreshold < 50) { // Max threshold of 50
+                speedThreshold++;
+                updateThreshold();
+            }
+        }
+
+        function decreaseThreshold() {
+            if (speedThreshold > 1) { // Min threshold of 1
+                speedThreshold--;
+                updateThreshold();
+            }
+        }
+
+        function resetThreshold() {
+            speedThreshold = defaultSpeedThreshold;
+            updateThreshold();
+        }
+
+        function updateThreshold() {
+            // Update the display
+            document.getElementById('thresholdValue').textContent = speedThreshold;
+            
+            // Update button states
+            document.getElementById('decreaseThresholdBtn').disabled = speedThreshold <= 1;
+            document.getElementById('increaseThresholdBtn').disabled = speedThreshold >= 50;
+        }
+
+        // Eraser sensitivity functions
+        function increaseSensitivity() {
+            if (eraserSensitivity < 10) { // Max sensitivity of 10
+                eraserSensitivity++;
+                updateSensitivity();
+            }
+        }
+
+        function decreaseSensitivity() {
+            if (eraserSensitivity > 1) { // Min sensitivity of 1
+                eraserSensitivity--;
+                updateSensitivity();
+            }
+        }
+
+        function resetSensitivity() {
+            eraserSensitivity = defaultEraserSensitivity;
+            updateSensitivity();
+        }
+
+        function updateSensitivity() {
+            // Update the display
+            document.getElementById('sensitivityValue').textContent = eraserSensitivity;
+            
+            // Update button states
+            document.getElementById('decreaseSensitivityBtn').disabled = eraserSensitivity <= 1;
+            document.getElementById('increaseSensitivityBtn').disabled = eraserSensitivity >= 10;
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (document.getElementById('pdfViewer').style.display === 'block') {
+                switch(e.key) {
+                    case 'ArrowRight':
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        nextPage();
+                        break;
+                    case 'ArrowLeft':
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        prevPage();
+                        break;
+                    case 'Escape':
+                        goHome();
+                        break;
+                }
+            }
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (pdfDocument && document.getElementById('pdfViewer').style.display === 'block') {
+                resizeCanvases();
+                renderPage(currentPage);
+            }
+        });
+    </script>
 </body>
 </html>
