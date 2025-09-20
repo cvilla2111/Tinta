@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Ink API Demo</title>
+    <title>Simple Ink API Demo2</title>
     <style>
         * {
             margin: 0;
@@ -158,24 +158,17 @@
             stopDrawing();
         });
         
-        // Touch Events (fallback - no Ink API)
+        // Prevent touch events (disable finger drawing)
         canvas.addEventListener('touchstart', (evt) => {
             evt.preventDefault();
-            const rect = canvas.getBoundingClientRect();
-            const touch = evt.touches[0];
-            startDrawing(touch.clientX - rect.left, touch.clientY - rect.top);
         });
         
         canvas.addEventListener('touchmove', (evt) => {
             evt.preventDefault();
-            const rect = canvas.getBoundingClientRect();
-            const touch = evt.touches[0];
-            draw(touch.clientX - rect.left, touch.clientY - rect.top);
         });
         
         canvas.addEventListener('touchend', (evt) => {
             evt.preventDefault();
-            stopDrawing();
         });
         
         // Clear canvas on double click
