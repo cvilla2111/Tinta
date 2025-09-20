@@ -875,10 +875,11 @@
                 inkCtx.lineTo(currentPoint.x, currentPoint.y);
                 inkCtx.stroke();
             } else {
-                // Drawing mode - update pressure-based line width if enabled
+                // Drawing mode - update pressure-based line width if enabled (with throttling)
                 if (pressureSensitivity && e.pressure !== undefined) {
                     const pressureWidth = calculatePressureStrokeWidth(e.pressure);
-                    if (Math.abs(pressureWidth - inkCtx.lineWidth) > 0.5) {
+                    // Only update if significant change (higher threshold) and not too frequently
+                    if (Math.abs(pressureWidth - inkCtx.lineWidth) > 1.5) {
                         // End current path and start new one with updated line width
                         inkCtx.stroke();
                         inkCtx.lineWidth = pressureWidth;
