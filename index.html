@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Ink API Demo</title>
+    <title>Web Ink API Demo</title>
     <style>
         * {
             margin: 0;
@@ -43,46 +43,43 @@
         const ctx = canvas.getContext('2d');
         const errorDiv = document.getElementById('error');
         
-        // Set canvas to fullscreen
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        
-        // Resize canvas when window resizes
-        window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        });
-        
         let presenter = null;
         let isDrawing = false;
         let lastX = 0;
         let lastY = 0;
         
+        // Canvas setup
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
         // Initialize Ink API
         async function initInkAPI() {
-            if (navigator.ink) {
-                try {
-                    presenter = await navigator.ink.requestPresenter({ presentationArea: canvas });
-                    console.log('Ink API ready');
-                } catch (err) {
-                    console.error('Ink API failed:', err);
-                    errorDiv.textContent = 'Ink API failed to initialize';
-                    errorDiv.style.display = 'block';
-                }
-            } else {
+            if (!navigator.ink) {
                 errorDiv.style.display = 'block';
-                console.log('Ink API not supported');
+                return;
+            }
+            
+            try {
+                presenter = await navigator.ink.requestPresenter({ presentationArea: canvas });
+                console.log('Ink API ready');
+            } catch (err) {
+                console.error('Ink API failed:', err);
+                errorDiv.textContent = 'Ink API failed to initialize';
+                errorDiv.style.display = 'block';
             }
         }
-        
         initInkAPI();
         
+        // Drawing functions
         function startDrawing(x, y) {
             isDrawing = true;
             lastX = x;
             lastY = y;
             
-            // Set stroke properties
             ctx.strokeStyle = 'black';
             ctx.lineWidth = 3;
             ctx.lineCap = 'round';
@@ -92,30 +89,26 @@
         function draw(x, y) {
             if (!isDrawing) return;
             
-            // Draw only the new segment from last position to current
             ctx.beginPath();
             ctx.moveTo(lastX, lastY);
             ctx.lineTo(x, y);
             ctx.stroke();
             
-            // Update last position
             lastX = x;
             lastY = y;
         }
         
         function stopDrawing() {
             isDrawing = false;
-            // Path will be automatically closed when we start a new one
         }
         
-        // Pointer Events (with Ink API support) - Only pen and mouse, no finger
+        // Pointer Events (stylus/pen with Ink API)
         canvas.addEventListener('pointerdown', (evt) => {
             evt.preventDefault();
-            // Only allow pen and mouse, block finger touches
             if (evt.pointerType === 'touch') return;
+            
             startDrawing(evt.offsetX, evt.offsetY);
             
-            // Initialize Ink API trail on pen down only
             if (presenter) {
                 try {
                     presenter.updateInkTrailStartPoint(evt, {
@@ -130,11 +123,10 @@
         
         canvas.addEventListener('pointermove', (evt) => {
             evt.preventDefault();
-            // Only allow pen and mouse, block finger touches
             if (evt.pointerType === 'touch') return;
+            
             draw(evt.offsetX, evt.offsetY);
             
-            // Update Ink API less frequently to reduce thick tip effect
             if (presenter && isDrawing) {
                 try {
                     presenter.updateInkTrailStartPoint(evt, {
@@ -149,19 +141,17 @@
         
         canvas.addEventListener('pointerup', (evt) => {
             evt.preventDefault();
-            // Only allow pen and mouse, block finger touches
             if (evt.pointerType === 'touch') return;
             stopDrawing();
         });
         
         canvas.addEventListener('pointerleave', (evt) => {
             evt.preventDefault();
-            // Only allow pen and mouse, block finger touches
             if (evt.pointerType === 'touch') return;
             stopDrawing();
         });
         
-        // Mouse Events (fallback - no Ink API)
+        // Mouse Events (fallback)
         canvas.addEventListener('mousedown', (evt) => {
             evt.preventDefault();
             startDrawing(evt.offsetX, evt.offsetY);
@@ -182,20 +172,12 @@
             stopDrawing();
         });
         
-        // Prevent touch events (disable finger drawing)
-        canvas.addEventListener('touchstart', (evt) => {
-            evt.preventDefault();
+        // Disable touch events
+        ['touchstart', 'touchmove', 'touchend'].forEach(event => {
+            canvas.addEventListener(event, (evt) => evt.preventDefault());
         });
         
-        canvas.addEventListener('touchmove', (evt) => {
-            evt.preventDefault();
-        });
-        
-        canvas.addEventListener('touchend', (evt) => {
-            evt.preventDefault();
-        });
-        
-        // Clear canvas on double click
+        // Clear canvas
         canvas.addEventListener('dblclick', () => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
         });
