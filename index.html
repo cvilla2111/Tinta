@@ -315,6 +315,16 @@
         </div>
         
         <div class="stroke-control">
+            <h3>Stroke Smoothing</h3>
+            <div class="stepper">
+                <button class="stepper-button" onclick="decreaseSmoothing()" id="decreaseSmoothingBtn">-</button>
+                <div class="stepper-value" id="smoothingValue">3</div>
+                <button class="stepper-button" onclick="increaseSmoothing()" id="increaseSmoothingBtn">+</button>
+            </div>
+            <button class="stepper-button" onclick="resetSmoothing()" id="resetSmoothingBtn" style="width: 100%; margin-top: 10px; font-size: 14px;">Reset</button>
+        </div>
+        
+        <div class="stroke-control">
             <h3>Eraser Threshold</h3>
             <div class="stepper">
                 <button class="stepper-button" onclick="decreaseThreshold()" id="decreaseThresholdBtn">-</button>
@@ -357,6 +367,9 @@
         let eraserSensitivity = 5; // How quickly eraser grows (1-10 scale)
         const defaultEraserSensitivity = 5; // Default sensitivity value
         let eraserDecreaseTimer = null;
+        let strokeSmoothing = 3; // Stroke smoothing level (0 = off, 1-10 = smoothness)
+        const defaultStrokeSmoothing = 3; // Default smoothing value
+        let smoothingBuffer = []; // Buffer for points used in smoothing
         
         // Stroke size settings
         let currentStrokeSize = 2;
@@ -608,6 +621,9 @@
             lastTimestamp = performance.now();
             currentSpeed = 0;
             
+            // Clear smoothing buffer for new stroke
+            smoothingBuffer = [];
+            
             // Set up drawing context based on mode
             if (isErasing) {
                 inkCtx.globalCompositeOperation = 'destination-out';
@@ -619,10 +635,50 @@
                 inkCtx.globalCompositeOperation = 'source-over';
                 inkCtx.strokeStyle = 'black';
                 inkCtx.lineWidth = currentStrokeSize;
+                
+                // Add starting point to smoothing buffer for drawing mode
+                if (strokeSmoothing > 0) {
+                    smoothingBuffer.push(lastPoint);
+                }
             }
             
             inkCtx.beginPath();
             inkCtx.moveTo(lastPoint.x, lastPoint.y);
+        }
+
+        // Catmull-Rom spline interpolation function
+        function catmullRomSpline(p0, p1, p2, p3, t) {
+            const t2 = t * t;
+            const t3 = t2 * t;
+            
+            return {
+                x: 0.5 * ((2 * p1.x) + (-p0.x + p2.x) * t + (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 + (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3),
+                y: 0.5 * ((2 * p1.y) + (-p0.y + p2.y) * t + (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 + (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3)
+            };
+        }
+
+        // Draw smooth curve using Catmull-Rom splines
+        function drawSmoothedStroke() {
+            if (smoothingBuffer.length < 4) return;
+            
+            const numSegments = strokeSmoothing * 2; // More segments = smoother curve
+            
+            // Draw curve between the middle two points using outer points as control points
+            const p0 = smoothingBuffer[smoothingBuffer.length - 4];
+            const p1 = smoothingBuffer[smoothingBuffer.length - 3];
+            const p2 = smoothingBuffer[smoothingBuffer.length - 2];
+            const p3 = smoothingBuffer[smoothingBuffer.length - 1];
+            
+            inkCtx.beginPath();
+            inkCtx.moveTo(p1.x, p1.y);
+            
+            for (let i = 1; i <= numSegments; i++) {
+                const t = i / numSegments;
+                const point = catmullRomSpline(p0, p1, p2, p3, t);
+                inkCtx.lineTo(point.x, point.y);
+            }
+            
+            inkCtx.stroke();
         }
 
         function draw(e) {
@@ -647,10 +703,37 @@
                 inkCtx.stroke();
                 inkCtx.beginPath();
                 inkCtx.moveTo(lastPoint.x, lastPoint.y);
+                
+                // For erasing, use direct drawing (no smoothing)
+                inkCtx.lineTo(currentPoint.x, currentPoint.y);
+                inkCtx.stroke();
+            } else {
+                // Drawing mode - apply smoothing if enabled
+                if (strokeSmoothing > 0) {
+                    // Add point to smoothing buffer
+                    smoothingBuffer.push(currentPoint);
+                    
+                    // Keep buffer size manageable
+                    if (smoothingBuffer.length > 6) {
+                        smoothingBuffer.shift();
+                    }
+                    
+                    // Draw smoothed curve when we have enough points
+                    if (smoothingBuffer.length >= 4) {
+                        drawSmoothedStroke();
+                    } else if (smoothingBuffer.length === 2) {
+                        // First segment - draw direct line
+                        inkCtx.beginPath();
+                        inkCtx.moveTo(smoothingBuffer[0].x, smoothingBuffer[0].y);
+                        inkCtx.lineTo(smoothingBuffer[1].x, smoothingBuffer[1].y);
+                        inkCtx.stroke();
+                    }
+                } else {
+                    // No smoothing - direct drawing
+                    inkCtx.lineTo(currentPoint.x, currentPoint.y);
+                    inkCtx.stroke();
+                }
             }
-            
-            inkCtx.lineTo(currentPoint.x, currentPoint.y);
-            inkCtx.stroke();
             
             lastPoint = currentPoint;
         }
@@ -836,6 +919,35 @@
             // Update button states
             document.getElementById('decreaseSensitivityBtn').disabled = eraserSensitivity <= 1;
             document.getElementById('increaseSensitivityBtn').disabled = eraserSensitivity >= 10;
+        }
+
+        // Stroke smoothing functions
+        function increaseSmoothing() {
+            if (strokeSmoothing < 10) { // Max smoothing of 10
+                strokeSmoothing++;
+                updateSmoothing();
+            }
+        }
+
+        function decreaseSmoothing() {
+            if (strokeSmoothing > 0) { // Min smoothing of 0 (off)
+                strokeSmoothing--;
+                updateSmoothing();
+            }
+        }
+
+        function resetSmoothing() {
+            strokeSmoothing = defaultStrokeSmoothing;
+            updateSmoothing();
+        }
+
+        function updateSmoothing() {
+            // Update the display
+            document.getElementById('smoothingValue').textContent = strokeSmoothing;
+            
+            // Update button states
+            document.getElementById('decreaseSmoothingBtn').disabled = strokeSmoothing <= 0;
+            document.getElementById('increaseSmoothingBtn').disabled = strokeSmoothing >= 10;
         }
 
         // Keyboard navigation
