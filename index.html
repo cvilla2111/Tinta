@@ -622,31 +622,75 @@
             }
 
             predictiveDrawing(canvas, from, to) {
-                // Calculate velocity for prediction
-                if (this.pointHistory.length >= 2) {
-                    const recent = this.pointHistory[this.pointHistory.length - 1];
-                    const previous = this.pointHistory[this.pointHistory.length - 2];
+                // Use smoothed drawing instead of aggressive prediction
+                if (this.pointHistory.length >= 3) {
+                    // Use quadratic smoothing for curves
+                    const p0 = this.pointHistory[this.pointHistory.length - 3];
+                    const p1 = this.pointHistory[this.pointHistory.length - 2];
+                    const p2 = this.pointHistory[this.pointHistory.length - 1];
                     
-                    const deltaTime = recent.timestamp - previous.timestamp;
-                    if (deltaTime > 0) {
-                        const velocityX = (recent.x - previous.x) / deltaTime;
-                        const velocityY = (recent.y - previous.y) / deltaTime;
-                        
-                        // Predict next point for reduced latency
-                        const predictedTime = 16; // ~1 frame ahead
-                        const predictedPoint = {
-                            x: recent.x + velocityX * predictedTime,
-                            y: recent.y + velocityY * predictedTime,
-                            pressure: recent.pressure
-                        };
-                        
-                        // Draw immediate line with slight prediction
-                        this.drawLineWithPressure(canvas, from, predictedPoint);
+                    // Calculate curve curvature to detect sharp turns
+                    const curvature = this.calculateCurvature(p0, p1, p2);
+                    
+                    if (curvature > 0.1) {
+                        // High curvature - use conservative smoothing, no prediction
+                        const smoothedPoint = this.smoothPoint(p1, p2, 0.7);
+                        this.drawLineWithPressure(canvas, from, smoothedPoint);
+                    } else {
+                        // Low curvature - safe to use minimal prediction
+                        const deltaTime = p2.timestamp - p1.timestamp;
+                        if (deltaTime > 0 && deltaTime < 50) { // Only predict if reasonable time delta
+                            const velocityX = (p2.x - p1.x) / deltaTime;
+                            const velocityY = (p2.y - p1.y) / deltaTime;
+                            
+                            // Very conservative prediction (0.5 frame ahead)
+                            const predictedTime = 8;
+                            const predictedPoint = {
+                                x: p2.x + velocityX * predictedTime * 0.3, // Reduced prediction strength
+                                y: p2.y + velocityY * predictedTime * 0.3,
+                                pressure: p2.pressure
+                            };
+                            
+                            // Smooth the predicted point
+                            const finalPoint = this.smoothPoint(to, predictedPoint, 0.8);
+                            this.drawLineWithPressure(canvas, from, finalPoint);
+                        } else {
+                            this.drawLineWithPressure(canvas, from, to);
+                        }
                     }
                 } else {
-                    // Fallback to regular drawing
+                    // Not enough points for smoothing - use direct drawing
                     this.drawLineWithPressure(canvas, from, to);
                 }
+            }
+
+            calculateCurvature(p0, p1, p2) {
+                // Calculate the curvature using the three points
+                const dx1 = p1.x - p0.x;
+                const dy1 = p1.y - p0.y;
+                const dx2 = p2.x - p1.x;
+                const dy2 = p2.y - p1.y;
+                
+                // Cross product to measure direction change
+                const cross = Math.abs(dx1 * dy2 - dy1 * dx2);
+                
+                // Distance between points
+                const dist1 = Math.sqrt(dx1 * dx1 + dy1 * dy1);
+                const dist2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+                
+                if (dist1 === 0 || dist2 === 0) return 0;
+                
+                // Normalized curvature
+                return cross / (dist1 * dist2);
+            }
+
+            smoothPoint(p1, p2, factor) {
+                return {
+                    x: p1.x * factor + p2.x * (1 - factor),
+                    y: p1.y * factor + p2.y * (1 - factor),
+                    pressure: p1.pressure * factor + p2.pressure * (1 - factor),
+                    timestamp: p2.timestamp
+                };
             }
 
             drawInstantFeedback(canvas, point) {
