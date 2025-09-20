@@ -325,6 +325,36 @@
             </div>
             <button class="stepper-button" onclick="resetSensitivity()" id="resetSensitivityBtn" style="width: 100%; margin-top: 10px; font-size: 14px;">Reset</button>
         </div>
+        
+        <div class="stroke-control">
+            <h3>Pressure Sensitivity</h3>
+            <div class="stepper">
+                <button class="stepper-button" onclick="togglePressureSensitivity()" id="pressureSwitchBtn" style="width: 100%;">OFF</button>
+            </div>
+            <div style="font-size: 10px; color: #666; margin-top: 5px; line-height: 1.2;">Varies stroke width based on pen pressure</div>
+        </div>
+        
+        <div class="stroke-control">
+            <h3>Pressure Low</h3>
+            <div class="stepper">
+                <button class="stepper-button" onclick="decreasePressureLow()" id="decreasePressureLowBtn">-</button>
+                <div class="stepper-value" id="pressureLowValue">2</div>
+                <button class="stepper-button" onclick="increasePressureLow()" id="increasePressureLowBtn">+</button>
+            </div>
+            <div style="font-size: 10px; color: #666; margin-top: 5px; line-height: 1.2;">Minimum stroke width at light pressure (1-10)</div>
+            <button class="stepper-button" onclick="resetPressureLow()" id="resetPressureLowBtn" style="width: 100%; margin-top: 10px; font-size: 14px;">Reset</button>
+        </div>
+        
+        <div class="stroke-control">
+            <h3>Pressure High</h3>
+            <div class="stepper">
+                <button class="stepper-button" onclick="decreasePressureHigh()" id="decreasePressureHighBtn">-</button>
+                <div class="stepper-value" id="pressureHighValue">8</div>
+                <button class="stepper-button" onclick="increasePressureHigh()" id="increasePressureHighBtn">+</button>
+            </div>
+            <div style="font-size: 10px; color: #666; margin-top: 5px; line-height: 1.2;">Maximum stroke width at hard pressure (1-10)</div>
+            <button class="stepper-button" onclick="resetPressureHigh()" id="resetPressureHighBtn" style="width: 100%; margin-top: 10px; font-size: 14px;">Reset</button>
+        </div>
     </div>
 
     <script>
@@ -354,6 +384,12 @@
         let smoothingIntensity = 3; // Smoothing intensity level (0 = off, 1-10 = strength)
         const defaultSmoothingIntensity = 3; // Default intensity value
         let smoothingBuffer = []; // Buffer for points used in smoothing
+        let pressureSensitivity = false; // Pressure sensitivity on/off
+        const defaultPressureSensitivity = false; // Default pressure sensitivity
+        let pressureLow = 2; // Minimum pressure threshold (1-10)
+        const defaultPressureLow = 2; // Default low pressure
+        let pressureHigh = 8; // Maximum pressure threshold (1-10) 
+        const defaultPressureHigh = 8; // Default high pressure
         
         // Smoothing algorithm definitions
         const smoothingAlgorithms = [
@@ -627,7 +663,10 @@
             } else {
                 inkCtx.globalCompositeOperation = 'source-over';
                 inkCtx.strokeStyle = 'black';
-                inkCtx.lineWidth = currentStrokeSize;
+                
+                // Set line width based on pressure if enabled
+                const pressureWidth = calculatePressureStrokeWidth(e.pressure);
+                inkCtx.lineWidth = pressureWidth;
                 
                 // Add starting point to smoothing buffer for drawing mode
                 if (smoothingIntensity > 0) {
@@ -1089,6 +1128,97 @@
             // Update button states
             document.getElementById('decreaseSmoothingIntensityBtn').disabled = smoothingIntensity <= 0;
             document.getElementById('increaseSmoothingIntensityBtn').disabled = smoothingIntensity >= 10;
+        }
+
+        // Pressure sensitivity functions
+        function togglePressureSensitivity() {
+            pressureSensitivity = !pressureSensitivity;
+            updatePressureSensitivity();
+        }
+
+        function updatePressureSensitivity() {
+            // Update the display
+            document.getElementById('pressureSwitchBtn').textContent = pressureSensitivity ? 'ON' : 'OFF';
+            document.getElementById('pressureSwitchBtn').style.backgroundColor = pressureSensitivity ? '#4CAF50' : '#000';
+        }
+
+        // Pressure low functions
+        function increasePressureLow() {
+            if (pressureLow < 10 && pressureLow < pressureHigh) {
+                pressureLow++;
+                updatePressureLow();
+            }
+        }
+
+        function decreasePressureLow() {
+            if (pressureLow > 1) {
+                pressureLow--;
+                updatePressureLow();
+            }
+        }
+
+        function resetPressureLow() {
+            pressureLow = defaultPressureLow;
+            updatePressureLow();
+        }
+
+        function updatePressureLow() {
+            // Update the display
+            document.getElementById('pressureLowValue').textContent = pressureLow;
+            
+            // Update button states
+            document.getElementById('decreasePressureLowBtn').disabled = pressureLow <= 1;
+            document.getElementById('increasePressureLowBtn').disabled = pressureLow >= 10 || pressureLow >= pressureHigh;
+        }
+
+        // Pressure high functions
+        function increasePressureHigh() {
+            if (pressureHigh < 10) {
+                pressureHigh++;
+                updatePressureHigh();
+                updatePressureLow(); // Update low buttons in case they were disabled
+            }
+        }
+
+        function decreasePressureHigh() {
+            if (pressureHigh > 1 && pressureHigh > pressureLow) {
+                pressureHigh--;
+                updatePressureHigh();
+            }
+        }
+
+        function resetPressureHigh() {
+            pressureHigh = defaultPressureHigh;
+            updatePressureHigh();
+            updatePressureLow(); // Update low buttons in case they were disabled
+        }
+
+        function updatePressureHigh() {
+            // Update the display
+            document.getElementById('pressureHighValue').textContent = pressureHigh;
+            
+            // Update button states
+            document.getElementById('decreasePressureHighBtn').disabled = pressureHigh <= 1 || pressureHigh <= pressureLow;
+            document.getElementById('increasePressureHighBtn').disabled = pressureHigh >= 10;
+        }
+
+        // Calculate pressure-based stroke width
+        function calculatePressureStrokeWidth(pressure) {
+            if (!pressureSensitivity || pressure === undefined || pressure === 0) {
+                return currentStrokeSize;
+            }
+            
+            // Map pressure (0-1) to our pressure range (pressureLow - pressureHigh)
+            const minWidth = pressureLow;
+            const maxWidth = pressureHigh;
+            
+            // Clamp pressure between 0 and 1
+            const clampedPressure = Math.max(0, Math.min(1, pressure));
+            
+            // Linear interpolation between min and max width
+            const pressureWidth = minWidth + (clampedPressure * (maxWidth - minWidth));
+            
+            return Math.round(pressureWidth);
         }
 
         // Keyboard navigation
