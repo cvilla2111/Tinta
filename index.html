@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Ink API Demo2</title>
+    <title>Simple Ink API Demo</title>
     <style>
         * {
             margin: 0;
@@ -81,15 +81,18 @@
             isDrawing = true;
             lastX = x;
             lastY = y;
+            
+            // Set stroke properties
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
         }
         
         function draw(x, y) {
             if (!isDrawing) return;
             
-            // Draw line from last point to current point
-            ctx.strokeStyle = 'black';
-            ctx.lineWidth = 3;
-            ctx.lineCap = 'round';
+            // Draw only the new segment from last position to current
             ctx.beginPath();
             ctx.moveTo(lastX, lastY);
             ctx.lineTo(x, y);
@@ -102,24 +105,41 @@
         
         function stopDrawing() {
             isDrawing = false;
+            // Path will be automatically closed when we start a new one
         }
         
-        // Pointer Events (with Ink API support)
+        // Pointer Events (with Ink API support) - Only pen and mouse, no finger
         canvas.addEventListener('pointerdown', (evt) => {
             evt.preventDefault();
+            // Only allow pen and mouse, block finger touches
+            if (evt.pointerType === 'touch') return;
             startDrawing(evt.offsetX, evt.offsetY);
+            
+            // Initialize Ink API trail on pen down only
+            if (presenter) {
+                try {
+                    presenter.updateInkTrailStartPoint(evt, {
+                        color: 'black',
+                        diameter: 2
+                    });
+                } catch (err) {
+                    console.error('Ink API update failed:', err);
+                }
+            }
         });
         
         canvas.addEventListener('pointermove', (evt) => {
             evt.preventDefault();
+            // Only allow pen and mouse, block finger touches
+            if (evt.pointerType === 'touch') return;
             draw(evt.offsetX, evt.offsetY);
             
-            // Only call Ink API with real PointerEvents
+            // Update Ink API less frequently to reduce thick tip effect
             if (presenter && isDrawing) {
                 try {
                     presenter.updateInkTrailStartPoint(evt, {
                         color: 'black',
-                        diameter: 6
+                        diameter: 2
                     });
                 } catch (err) {
                     console.error('Ink API update failed:', err);
@@ -129,11 +149,15 @@
         
         canvas.addEventListener('pointerup', (evt) => {
             evt.preventDefault();
+            // Only allow pen and mouse, block finger touches
+            if (evt.pointerType === 'touch') return;
             stopDrawing();
         });
         
         canvas.addEventListener('pointerleave', (evt) => {
             evt.preventDefault();
+            // Only allow pen and mouse, block finger touches
+            if (evt.pointerType === 'touch') return;
             stopDrawing();
         });
         
