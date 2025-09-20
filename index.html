@@ -875,7 +875,19 @@
                 inkCtx.lineTo(currentPoint.x, currentPoint.y);
                 inkCtx.stroke();
             } else {
-                // Drawing mode - apply smoothing if enabled
+                // Drawing mode - update pressure-based line width if enabled
+                if (pressureSensitivity && e.pressure !== undefined) {
+                    const pressureWidth = calculatePressureStrokeWidth(e.pressure);
+                    if (Math.abs(pressureWidth - inkCtx.lineWidth) > 0.5) {
+                        // End current path and start new one with updated line width
+                        inkCtx.stroke();
+                        inkCtx.lineWidth = pressureWidth;
+                        inkCtx.beginPath();
+                        inkCtx.moveTo(lastPoint.x, lastPoint.y);
+                    }
+                }
+                
+                // Apply smoothing if enabled
                 if (smoothingIntensity > 0) {
                     drawSmoothedStroke(currentPoint);
                 } else {
