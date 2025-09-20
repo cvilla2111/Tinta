@@ -429,36 +429,16 @@
             }
 
             setupAnnotationCanvas(canvas) {
-                // Mouse events
-                canvas.addEventListener('mousedown', (e) => this.startDrawing(e, canvas));
-                canvas.addEventListener('mousemove', (e) => this.draw(e, canvas));
-                canvas.addEventListener('mouseup', () => this.stopDrawing());
+                // Set up unified pointer events for all input types
+                canvas.addEventListener('pointerdown', (e) => this.startDrawingUnified(e, canvas));
+                canvas.addEventListener('pointermove', (e) => this.drawUnified(e, canvas));
+                canvas.addEventListener('pointerup', (e) => this.stopDrawingUnified(e, canvas));
+                canvas.addEventListener('pointercancel', (e) => this.stopDrawingUnified(e, canvas));
                 
-                // Touch events
-                canvas.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    const touch = e.touches[0];
-                    const mouseEvent = new MouseEvent('mousedown', {
-                        clientX: touch.clientX,
-                        clientY: touch.clientY
-                    });
-                    canvas.dispatchEvent(mouseEvent);
-                });
-                
-                canvas.addEventListener('touchmove', (e) => {
-                    e.preventDefault();
-                    const touch = e.touches[0];
-                    const mouseEvent = new MouseEvent('mousemove', {
-                        clientX: touch.clientX,
-                        clientY: touch.clientY
-                    });
-                    canvas.dispatchEvent(mouseEvent);
-                });
-                
-                canvas.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                    canvas.dispatchEvent(new MouseEvent('mouseup', {}));
-                });
+                // Prevent default touch behavior to avoid scrolling
+                canvas.addEventListener('touchstart', (e) => e.preventDefault());
+                canvas.addEventListener('touchmove', (e) => e.preventDefault());
+                canvas.addEventListener('touchend', (e) => e.preventDefault());
 
                 // Try to use Ink API if supported
                 if (this.inkApiSupported) {
@@ -475,49 +455,57 @@
                         // Remove API warning since it's working
                         document.getElementById('apiWarning').classList.add('hidden');
                         
-                        // Pointer events with ink-specific properties
-                        canvas.addEventListener('pointerdown', (e) => {
-                            if (e.pointerType === 'pen') {
-                                this.isDrawing = true;
-                                const rect = canvas.getBoundingClientRect();
-                                this.lastPoint = {
-                                    x: e.clientX - rect.left,
-                                    y: e.clientY - rect.top,
-                                    pressure: e.pressure || 0.5
-                                };
-                            }
-                        });
-                        
-                        canvas.addEventListener('pointermove', (e) => {
-                            if (this.isDrawing && e.pointerType === 'pen') {
-                                const rect = canvas.getBoundingClientRect();
-                                const currentPoint = {
-                                    x: e.clientX - rect.left,
-                                    y: e.clientY - rect.top,
-                                    pressure: e.pressure || 0.5
-                                };
-                                
-                                if (this.currentTool === 'eraser') {
-                                    this.erase(canvas, currentPoint);
-                                } else {
-                                    this.drawLineWithPressure(canvas, this.lastPoint, currentPoint);
-                                }
-                                this.lastPoint = currentPoint;
-                            }
-                        });
-                        
-                        canvas.addEventListener('pointerup', (e) => {
-                            if (e.pointerType === 'pen') {
-                                this.isDrawing = false;
-                                this.lastPoint = null;
-                            }
-                        });
-                        
                         console.log('Web Ink API successfully configured');
                     }
                 } catch (error) {
                     console.log('Ink API setup failed:', error);
                 }
+            }
+
+            startDrawingUnified(e, canvas) {
+                e.preventDefault();
+                this.isDrawing = true;
+                const rect = canvas.getBoundingClientRect();
+                this.lastPoint = {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top,
+                    pressure: e.pressure || 0.5
+                };
+                
+                if (this.currentTool === 'eraser') {
+                    this.erase(canvas, this.lastPoint);
+                }
+            }
+
+            drawUnified(e, canvas) {
+                if (!this.isDrawing || !this.lastPoint) return;
+                
+                e.preventDefault();
+                const rect = canvas.getBoundingClientRect();
+                const currentPoint = {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top,
+                    pressure: e.pressure || 0.5
+                };
+                
+                if (this.currentTool === 'eraser') {
+                    this.erase(canvas, currentPoint);
+                } else {
+                    // Use pressure-sensitive drawing for pen, regular drawing for touch/mouse
+                    if (e.pointerType === 'pen' && (e.pressure !== undefined && e.pressure > 0)) {
+                        this.drawLineWithPressure(canvas, this.lastPoint, currentPoint);
+                    } else {
+                        this.drawLine(canvas, this.lastPoint, currentPoint);
+                    }
+                }
+                
+                this.lastPoint = currentPoint;
+            }
+
+            stopDrawingUnified(e, canvas) {
+                e.preventDefault();
+                this.isDrawing = false;
+                this.lastPoint = null;
             }
 
             startDrawing(e, canvas) {
