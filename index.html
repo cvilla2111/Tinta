@@ -511,21 +511,33 @@
                         // Remove API warning since it's working
                         document.getElementById('apiWarning').classList.add('hidden');
                         
+                        let inkDrawing = false;
+                        let inkLastPoint = null;
+                        
                         // Pointer events with ink-specific properties
                         canvas.addEventListener('pointerdown', (e) => {
                             if (e.pointerType === 'pen') {
-                                this.isDrawing = true;
+                                e.preventDefault();
+                                inkDrawing = true;
                                 const rect = canvas.getBoundingClientRect();
-                                this.lastPoint = {
+                                inkLastPoint = {
                                     x: e.clientX - rect.left,
                                     y: e.clientY - rect.top,
                                     pressure: e.pressure || 0.5
                                 };
+                                
+                                // Start the path for smooth drawing
+                                if (this.currentTool === 'eraser') {
+                                    this.erase(canvas, inkLastPoint);
+                                } else {
+                                    this.startInkPath(canvas, inkLastPoint);
+                                }
                             }
                         });
                         
                         canvas.addEventListener('pointermove', (e) => {
-                            if (this.isDrawing && e.pointerType === 'pen') {
+                            if (inkDrawing && e.pointerType === 'pen' && inkLastPoint) {
+                                e.preventDefault();
                                 const rect = canvas.getBoundingClientRect();
                                 const currentPoint = {
                                     x: e.clientX - rect.left,
@@ -536,16 +548,26 @@
                                 if (this.currentTool === 'eraser') {
                                     this.erase(canvas, currentPoint);
                                 } else {
-                                    this.drawLineWithPressure(canvas, this.lastPoint, currentPoint);
+                                    this.continueInkPath(canvas, inkLastPoint, currentPoint);
                                 }
-                                this.lastPoint = currentPoint;
+                                inkLastPoint = currentPoint;
                             }
                         });
                         
                         canvas.addEventListener('pointerup', (e) => {
                             if (e.pointerType === 'pen') {
-                                this.isDrawing = false;
-                                this.lastPoint = null;
+                                e.preventDefault();
+                                inkDrawing = false;
+                                inkLastPoint = null;
+                                this.endInkPath(canvas);
+                            }
+                        });
+                        
+                        canvas.addEventListener('pointercancel', (e) => {
+                            if (e.pointerType === 'pen') {
+                                inkDrawing = false;
+                                inkLastPoint = null;
+                                this.endInkPath(canvas);
                             }
                         });
                         
@@ -652,6 +674,62 @@
             stopDrawing() {
                 this.isDrawing = false;
                 this.lastPoint = null;
+            }
+
+            startInkPath(canvas, point) {
+                const ctx = canvas.getContext('2d');
+                ctx.save();
+                
+                // Set up the path properties
+                const pressureMultiplier = point.pressure || 0.5;
+                const dynamicWidth = this.brushSize * (0.5 + pressureMultiplier);
+                
+                ctx.lineWidth = dynamicWidth;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                
+                if (this.currentTool === 'highlighter') {
+                    ctx.globalCompositeOperation = 'multiply';
+                    ctx.strokeStyle = this.currentColor + '80';
+                    ctx.lineWidth = dynamicWidth * 3;
+                } else {
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.strokeStyle = this.currentColor;
+                }
+                
+                // Begin the path
+                ctx.beginPath();
+                ctx.moveTo(point.x, point.y);
+                
+                // Store the context for continuation
+                canvas._inkContext = ctx;
+            }
+
+            continueInkPath(canvas, fromPoint, toPoint) {
+                const ctx = canvas._inkContext || canvas.getContext('2d');
+                
+                if (fromPoint && toPoint) {
+                    // Update line width based on current pressure
+                    const pressureMultiplier = toPoint.pressure || 0.5;
+                    const dynamicWidth = this.brushSize * (0.5 + pressureMultiplier);
+                    
+                    ctx.lineWidth = dynamicWidth;
+                    
+                    if (this.currentTool === 'highlighter') {
+                        ctx.lineWidth = dynamicWidth * 3;
+                    }
+                    
+                    // Continue the path
+                    ctx.lineTo(toPoint.x, toPoint.y);
+                    ctx.stroke();
+                }
+            }
+
+            endInkPath(canvas) {
+                if (canvas._inkContext) {
+                    canvas._inkContext.restore();
+                    canvas._inkContext = null;
+                }
             }
 
             clearAnnotations() {
