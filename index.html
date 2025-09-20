@@ -235,6 +235,12 @@
                 this.lastPoint = null;
                 this.drawerOpen = false;
                 
+                // Latency reduction optimizations
+                this.pointHistory = [];
+                this.animationId = null;
+                this.pendingPoints = [];
+                this.lastTimestamp = 0;
+                
                 // Check for Ink API support
                 this.inkApiSupported = 'ink' in navigator;
                 if (!this.inkApiSupported) {
@@ -474,15 +480,27 @@
                 this.isDrawing = true;
                 const rect = canvas.getBoundingClientRect();
                 const scaleRatio = parseFloat(canvas.dataset.scaleRatio) || 1;
+                const timestamp = performance.now();
                 
-                this.lastPoint = {
+                const point = {
                     x: (e.clientX - rect.left) * scaleRatio,
                     y: (e.clientY - rect.top) * scaleRatio,
-                    pressure: e.pressure || 0.5
+                    pressure: e.pressure || 0.5,
+                    timestamp: timestamp
                 };
                 
+                this.lastPoint = point;
+                this.pointHistory = [point];
+                this.lastTimestamp = timestamp;
+                
+                // Start the optimized drawing loop
+                this.startOptimizedDrawing(canvas);
+                
                 if (this.currentTool === 'eraser') {
-                    this.erase(canvas, this.lastPoint);
+                    this.erase(canvas, point);
+                } else {
+                    // Draw immediate feedback dot for instant response
+                    this.drawInstantFeedback(canvas, point);
                 }
             }
 
@@ -493,21 +511,33 @@
                 e.preventDefault();
                 const rect = canvas.getBoundingClientRect();
                 const scaleRatio = parseFloat(canvas.dataset.scaleRatio) || 1;
+                const timestamp = performance.now();
                 
                 const currentPoint = {
                     x: (e.clientX - rect.left) * scaleRatio,
                     y: (e.clientY - rect.top) * scaleRatio,
-                    pressure: e.pressure || 0.5
+                    pressure: e.pressure || 0.5,
+                    timestamp: timestamp
                 };
                 
+                // Add to point history for smoothing and prediction
+                this.pointHistory.push(currentPoint);
+                if (this.pointHistory.length > 5) {
+                    this.pointHistory.shift();
+                }
+                
+                // Queue point for processing
+                this.pendingPoints.push(currentPoint);
+                
+                // Immediate visual feedback with prediction
                 if (this.currentTool === 'eraser') {
                     this.erase(canvas, currentPoint);
                 } else {
-                    // Use pressure-sensitive drawing for pen
-                    this.drawLineWithPressure(canvas, this.lastPoint, currentPoint);
+                    this.predictiveDrawing(canvas, this.lastPoint, currentPoint);
                 }
                 
                 this.lastPoint = currentPoint;
+                this.lastTimestamp = timestamp;
             }
 
             stopDrawingUnified(e, canvas) {
@@ -516,7 +546,128 @@
                 
                 e.preventDefault();
                 this.isDrawing = false;
+                
+                // Process any remaining points
+                this.processRemainingPoints(canvas);
+                
+                // Clean up
                 this.lastPoint = null;
+                this.pointHistory = [];
+                this.pendingPoints = [];
+                
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                    this.animationId = null;
+                }
+            }
+
+            startOptimizedDrawing(canvas) {
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                }
+                
+                const optimizedLoop = () => {
+                    if (this.isDrawing && this.pendingPoints.length > 0) {
+                        this.processPendingPoints(canvas);
+                    }
+                    
+                    if (this.isDrawing) {
+                        this.animationId = requestAnimationFrame(optimizedLoop);
+                    }
+                };
+                
+                this.animationId = requestAnimationFrame(optimizedLoop);
+            }
+
+            processPendingPoints(canvas) {
+                const ctx = canvas.getContext('2d');
+                const scaleRatio = parseFloat(canvas.dataset.scaleRatio) || 1;
+                
+                // Process multiple points at once for efficiency
+                const batchSize = Math.min(this.pendingPoints.length, 3);
+                
+                ctx.save();
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                
+                if (this.currentTool === 'highlighter') {
+                    ctx.globalCompositeOperation = 'multiply';
+                    ctx.strokeStyle = this.currentColor + '80';
+                } else {
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.strokeStyle = this.currentColor;
+                }
+                
+                for (let i = 0; i < batchSize && this.pendingPoints.length > 0; i++) {
+                    const point = this.pendingPoints.shift();
+                    if (this.lastPoint && point) {
+                        this.drawOptimizedLine(ctx, this.lastPoint, point, scaleRatio);
+                    }
+                }
+                
+                ctx.restore();
+            }
+
+            drawOptimizedLine(ctx, from, to, scaleRatio) {
+                const pressure = (from.pressure + to.pressure) / 2;
+                const scaledBrushSize = this.brushSize * scaleRatio;
+                const dynamicWidth = scaledBrushSize * (0.5 + pressure);
+                
+                ctx.lineWidth = this.currentTool === 'highlighter' ? dynamicWidth * 3 : dynamicWidth;
+                
+                ctx.beginPath();
+                ctx.moveTo(from.x, from.y);
+                ctx.lineTo(to.x, to.y);
+                ctx.stroke();
+            }
+
+            predictiveDrawing(canvas, from, to) {
+                // Calculate velocity for prediction
+                if (this.pointHistory.length >= 2) {
+                    const recent = this.pointHistory[this.pointHistory.length - 1];
+                    const previous = this.pointHistory[this.pointHistory.length - 2];
+                    
+                    const deltaTime = recent.timestamp - previous.timestamp;
+                    if (deltaTime > 0) {
+                        const velocityX = (recent.x - previous.x) / deltaTime;
+                        const velocityY = (recent.y - previous.y) / deltaTime;
+                        
+                        // Predict next point for reduced latency
+                        const predictedTime = 16; // ~1 frame ahead
+                        const predictedPoint = {
+                            x: recent.x + velocityX * predictedTime,
+                            y: recent.y + velocityY * predictedTime,
+                            pressure: recent.pressure
+                        };
+                        
+                        // Draw immediate line with slight prediction
+                        this.drawLineWithPressure(canvas, from, predictedPoint);
+                    }
+                } else {
+                    // Fallback to regular drawing
+                    this.drawLineWithPressure(canvas, from, to);
+                }
+            }
+
+            drawInstantFeedback(canvas, point) {
+                const ctx = canvas.getContext('2d');
+                const scaleRatio = parseFloat(canvas.dataset.scaleRatio) || 1;
+                const scaledBrushSize = this.brushSize * scaleRatio;
+                
+                ctx.save();
+                ctx.fillStyle = this.currentColor;
+                ctx.globalCompositeOperation = this.currentTool === 'highlighter' ? 'multiply' : 'source-over';
+                
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, scaledBrushSize * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            processRemainingPoints(canvas) {
+                while (this.pendingPoints.length > 0) {
+                    this.processPendingPoints(canvas);
+                }
             }
 
             startDrawing(e, canvas) {
