@@ -174,7 +174,7 @@
                 this.currentPath = [];
                 
                 // Check for Ink API support
-                this.inkApiSupported = 'Ink' in window && 'requestPresenter' in navigator;
+                this.inkApiSupported = 'ink' in navigator;
                 if (!this.inkApiSupported) {
                     document.getElementById('apiWarning').classList.remove('hidden');
                 }
@@ -336,37 +336,55 @@
 
             async setupInkAPI(canvas) {
                 try {
-                    if ('Ink' in window && 'requestPresenter' in navigator) {
-                        const presenter = await navigator.requestPresenter({ presentationArea: canvas });
+                    if (navigator.ink && navigator.ink.requestPresenter) {
+                        console.log('Web Ink API detected, setting up...');
+                        const presenter = await navigator.ink.requestPresenter({ presentationArea: canvas });
                         
-                        presenter.addEventListener('inkstart', (e) => {
-                            this.isDrawing = true;
-                            const rect = canvas.getBoundingClientRect();
-                            this.lastPoint = {
-                                x: e.x - rect.left,
-                                y: e.y - rect.top
-                            };
+                        // Remove API warning since it's working
+                        document.getElementById('apiWarning').classList.add('hidden');
+                        
+                        // Pointer events with ink-specific properties
+                        canvas.addEventListener('pointerdown', (e) => {
+                            if (e.pointerType === 'pen') {
+                                this.isDrawing = true;
+                                const rect = canvas.getBoundingClientRect();
+                                this.lastPoint = {
+                                    x: e.clientX - rect.left,
+                                    y: e.clientY - rect.top,
+                                    pressure: e.pressure || 0.5
+                                };
+                            }
                         });
                         
-                        presenter.addEventListener('inkstroke', (e) => {
-                            if (this.isDrawing) {
+                        canvas.addEventListener('pointermove', (e) => {
+                            if (this.isDrawing && e.pointerType === 'pen') {
                                 const rect = canvas.getBoundingClientRect();
                                 const currentPoint = {
-                                    x: e.x - rect.left,
-                                    y: e.y - rect.top
+                                    x: e.clientX - rect.left,
+                                    y: e.clientY - rect.top,
+                                    pressure: e.pressure || 0.5
                                 };
-                                this.drawLine(canvas, this.lastPoint, currentPoint);
+                                
+                                if (this.currentTool === 'eraser') {
+                                    this.erase(canvas, currentPoint);
+                                } else {
+                                    this.drawLineWithPressure(canvas, this.lastPoint, currentPoint);
+                                }
                                 this.lastPoint = currentPoint;
                             }
                         });
                         
-                        presenter.addEventListener('inkend', () => {
-                            this.isDrawing = false;
-                            this.lastPoint = null;
+                        canvas.addEventListener('pointerup', (e) => {
+                            if (e.pointerType === 'pen') {
+                                this.isDrawing = false;
+                                this.lastPoint = null;
+                            }
                         });
+                        
+                        console.log('Web Ink API successfully configured');
                     }
                 } catch (error) {
-                    console.log('Ink API setup failed, using fallback');
+                    console.log('Ink API setup failed:', error);
                 }
             }
 
@@ -413,6 +431,34 @@
                     ctx.globalCompositeOperation = 'multiply';
                     ctx.strokeStyle = this.currentColor + '80'; // Add transparency
                     ctx.lineWidth = this.brushSize * 3;
+                } else {
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.strokeStyle = this.currentColor;
+                }
+                
+                ctx.beginPath();
+                ctx.moveTo(from.x, from.y);
+                ctx.lineTo(to.x, to.y);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            drawLineWithPressure(canvas, from, to) {
+                const ctx = canvas.getContext('2d');
+                
+                ctx.save();
+                // Use pressure to modify line width
+                const pressureMultiplier = (from.pressure + to.pressure) / 2;
+                const dynamicWidth = this.brushSize * (0.5 + pressureMultiplier);
+                
+                ctx.lineWidth = dynamicWidth;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                
+                if (this.currentTool === 'highlighter') {
+                    ctx.globalCompositeOperation = 'multiply';
+                    ctx.strokeStyle = this.currentColor + '80';
+                    ctx.lineWidth = dynamicWidth * 3;
                 } else {
                     ctx.globalCompositeOperation = 'source-over';
                     ctx.strokeStyle = this.currentColor;
