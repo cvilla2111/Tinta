@@ -463,6 +463,9 @@
             }
 
             startDrawingUnified(e, canvas) {
+                // Only allow pen input for drawing
+                if (e.pointerType !== 'pen') return;
+                
                 e.preventDefault();
                 this.isDrawing = true;
                 const rect = canvas.getBoundingClientRect();
@@ -478,7 +481,8 @@
             }
 
             drawUnified(e, canvas) {
-                if (!this.isDrawing || !this.lastPoint) return;
+                // Only allow pen input for drawing
+                if (e.pointerType !== 'pen' || !this.isDrawing || !this.lastPoint) return;
                 
                 e.preventDefault();
                 const rect = canvas.getBoundingClientRect();
@@ -491,18 +495,17 @@
                 if (this.currentTool === 'eraser') {
                     this.erase(canvas, currentPoint);
                 } else {
-                    // Use pressure-sensitive drawing for pen, regular drawing for touch/mouse
-                    if (e.pointerType === 'pen' && (e.pressure !== undefined && e.pressure > 0)) {
-                        this.drawLineWithPressure(canvas, this.lastPoint, currentPoint);
-                    } else {
-                        this.drawLine(canvas, this.lastPoint, currentPoint);
-                    }
+                    // Use pressure-sensitive drawing for pen
+                    this.drawLineWithPressure(canvas, this.lastPoint, currentPoint);
                 }
                 
                 this.lastPoint = currentPoint;
             }
 
             stopDrawingUnified(e, canvas) {
+                // Only allow pen input for drawing
+                if (e.pointerType !== 'pen') return;
+                
                 e.preventDefault();
                 this.isDrawing = false;
                 this.lastPoint = null;
