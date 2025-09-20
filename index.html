@@ -4,1118 +4,503 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PDF Annotator</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: white;
-            color: black;
-            overflow: hidden;
-        }
-
-        .homescreen {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            width: 100vw;
-        }
-
-        .load-button {
-            padding: 16px 32px;
-            font-size: 18px;
-            background: black;
-            color: white;
-            border: none;
-            cursor: pointer;
-            font-family: inherit;
-            margin-bottom: 20px;
-        }
-
-        .load-button:hover {
-            background: #333;
-        }
-
-        .file-input {
-            display: none;
-        }
-
-        .pdf-viewer {
-            display: none;
-            width: 100vw;
-            height: 100vh;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .pdf-canvas {
+        .annotation-canvas {
             position: absolute;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            background: white;
-        }
-
-        .ink-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
             pointer-events: auto;
-            touch-action: none;
         }
-
-        .instructions {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            color: black;
-            font-size: 14px;
-            z-index: 1000;
+        .pdf-container {
+            position: relative;
+            display: inline-block;
         }
-
-        .clear-button {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: black;
+        .tool-button.active {
+            background-color: #5D5CDE;
             color: white;
-            border: none;
-            padding: 8px;
-            cursor: pointer;
-            font-family: inherit;
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 40px;
-            height: 40px;
-        }
-
-        .clear-button:hover {
-            background: #333;
-        }
-
-        .eraser-indicator {
-            position: absolute;
-            width: 20px;
-            height: 20px;
-            border: 1px dashed black;
-            border-radius: 50%;
-            background-color: rgba(128, 128, 128, 0.2);
-            pointer-events: none;
-            z-index: 1001;
-            display: none;
-            transform: translate(-50%, -50%);
-        }
-
-        .menu-button {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background: black;
-            color: white;
-            border: none;
-            padding: 8px;
-            cursor: pointer;
-            font-family: inherit;
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 40px;
-            height: 40px;
-        }
-
-        .menu-button:hover {
-            background: #333;
-        }
-
-        .drawer {
-            position: fixed;
-            top: 0;
-            left: -280px;
-            width: 280px;
-            height: 100vh;
-            background: white;
-            border-right: 2px solid black;
-            z-index: 2000;
-            transition: left 0.3s ease;
-            overflow-y: auto;
-            padding: 60px 15px 15px 15px;
-        }
-
-        .drawer.open {
-            left: 0;
-        }
-
-        /* Custom thin scrollbar */
-        .drawer::-webkit-scrollbar {
-            width: 3px;
-        }
-
-        .drawer::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-
-        .drawer::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 2px;
-        }
-
-        .drawer::-webkit-scrollbar-thumb:hover {
-            background: #555;
-        }
-
-        /* Firefox scrollbar */
-        .drawer {
-            scrollbar-width: thin;
-            scrollbar-color: #888 #f1f1f1;
-        }
-
-        .drawer-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: transparent;
-            z-index: 1999;
-            display: none;
-        }
-
-        .drawer-overlay.visible {
-            display: block;
-        }
-
-        .stroke-control {
-            margin-bottom: 20px;
-        }
-
-        .stroke-control h3 {
-            font-size: 14px;
-            font-weight: normal;
-            margin-bottom: 8px;
-            color: black;
-        }
-
-        .stepper {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .stepper-button {
-            width: 32px;
-            height: 32px;
-            background: black;
-            color: white;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .stepper-button:hover {
-            background: #333;
-        }
-
-        .stepper-button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-
-        .stepper-value {
-            font-size: 14px;
-            font-weight: bold;
-            min-width: 35px;
-            text-align: center;
         }
     </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE'
+                    }
+                }
+            }
+        }
+    </script>
 </head>
-<body>
-    <div class="homescreen" id="homescreen">
-        <h1 style="margin-bottom: 40px; font-weight: normal;">PDF Annotator</h1>
-        <button class="load-button" onclick="document.getElementById('fileInput').click()">
-            Load PDF
-        </button>
-        <input type="file" id="fileInput" class="file-input" accept=".pdf" onchange="loadPDF(event)">
-        <p style="margin-top: 20px; color: #666; font-size: 14px;">Select a PDF file to start annotating</p>
+<body class="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen">
+    <!-- Header -->
+    <div class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <h1 class="text-xl font-semibold">PDF Annotator</h1>
+                <div class="flex items-center space-x-4">
+                    <input type="file" id="pdfInput" accept=".pdf" class="hidden">
+                    <button onclick="document.getElementById('pdfInput').click()" 
+                            class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-base">
+                        Load PDF
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="pdf-viewer" id="pdfViewer">
-        <button class="menu-button" onclick="toggleDrawer()" title="Settings">
-            <i data-lucide="menu"></i>
-        </button>
-        <button class="clear-button" onclick="clearAnnotations()" title="Clear annotations">
-            <i data-lucide="trash-2"></i>
-        </button>
-        <div class="instructions">Use arrow keys to navigate • Surface Pen to annotate • Barrel button to erase</div>
-        
+    <!-- Toolbar -->
+    <div id="toolbar" class="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 hidden">
+        <div class="flex items-center justify-center space-x-2 flex-wrap gap-2">
+            <!-- Drawing Tools -->
+            <div class="flex items-center space-x-1 bg-white dark:bg-gray-700 rounded-lg p-1 shadow-sm">
+                <button id="penTool" class="tool-button px-3 py-2 rounded-md text-sm font-medium transition-colors active">
+                    ✏️ Pen
+                </button>
+                <button id="highlighterTool" class="tool-button px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                    🖍️ Highlighter
+                </button>
+                <button id="eraserTool" class="tool-button px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                    🧹 Eraser
+                </button>
+            </div>
 
-        
-        <canvas id="pdfCanvas" class="pdf-canvas"></canvas>
-        <canvas id="inkCanvas" class="ink-canvas"></canvas>
-        <div id="eraserIndicator" class="eraser-indicator"></div>
+            <!-- Colors -->
+            <div class="flex items-center space-x-1 bg-white dark:bg-gray-700 rounded-lg p-1 shadow-sm">
+                <button class="color-btn w-8 h-8 rounded-full border-2 border-gray-300 active" style="background-color: #000000" data-color="#000000"></button>
+                <button class="color-btn w-8 h-8 rounded-full border-2 border-gray-300" style="background-color: #ff0000" data-color="#ff0000"></button>
+                <button class="color-btn w-8 h-8 rounded-full border-2 border-gray-300" style="background-color: #0000ff" data-color="#0000ff"></button>
+                <button class="color-btn w-8 h-8 rounded-full border-2 border-gray-300" style="background-color: #00ff00" data-color="#00ff00"></button>
+                <button class="color-btn w-8 h-8 rounded-full border-2 border-gray-300" style="background-color: #ffff00" data-color="#ffff00"></button>
+            </div>
+
+            <!-- Size -->
+            <div class="flex items-center space-x-2 bg-white dark:bg-gray-700 rounded-lg p-2 shadow-sm">
+                <label class="text-sm font-medium">Size:</label>
+                <input type="range" id="brushSize" min="1" max="20" value="3" class="w-20">
+                <span id="brushSizeDisplay" class="text-sm w-6">3</span>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center space-x-1 bg-white dark:bg-gray-700 rounded-lg p-1 shadow-sm">
+                <button id="clearBtn" class="px-3 py-2 rounded-md text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-colors">
+                    🗑️ Clear
+                </button>
+                <button id="downloadBtn" class="px-3 py-2 rounded-md text-sm font-medium bg-green-500 text-white hover:bg-green-600 transition-colors">
+                    💾 Save
+                </button>
+            </div>
+        </div>
     </div>
 
-    <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
-    <div class="drawer" id="drawer">
-        <div class="stroke-control">
-            <h3>Stroke Size</h3>
-            <div class="stepper">
-                <button class="stepper-button" onclick="decreaseStrokeSize()" id="decreaseBtn">-</button>
-                <div class="stepper-value" id="strokeSizeValue">2</div>
-                <button class="stepper-button" onclick="increaseStrokeSize()" id="increaseBtn">+</button>
-            </div>
+    <!-- Main Content -->
+    <div class="flex-1 overflow-auto">
+        <div id="loadingArea" class="flex flex-col items-center justify-center min-h-96 text-center p-8">
+            <div class="text-6xl mb-4">📄</div>
+            <h2 class="text-2xl font-semibold mb-2">Load a PDF to start annotating</h2>
+            <p class="text-gray-600 dark:text-gray-400 mb-4">Select a PDF file to view and annotate with pen, highlighter, and drawing tools.</p>
+            <button onclick="document.getElementById('pdfInput').click()" 
+                    class="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-base">
+                Choose PDF File
+            </button>
         </div>
-        
-        <div class="stroke-control">
-            <h3>Smoothing Type</h3>
-            <div class="stepper">
-                <button class="stepper-button" onclick="decreaseSmoothingType()" id="decreaseSmoothingTypeBtn">-</button>
-                <div class="stepper-value" id="smoothingTypeValue" style="font-size: 12px; min-width: 100px;">Natural Curves</div>
-                <button class="stepper-button" onclick="increaseSmoothingType()" id="increaseSmoothingTypeBtn">+</button>
-            </div>
-            <div style="font-size: 10px; color: #666; margin-top: 5px; line-height: 1.2;" id="smoothingTypeDesc">Catmull-Rom splines, smooth natural feel</div>
-            <button class="stepper-button" onclick="resetSmoothingType()" id="resetSmoothingTypeBtn" style="width: 100%; margin-top: 10px; font-size: 14px;">Reset</button>
-        </div>
-        
-        <div class="stroke-control">
-            <h3>Smoothing Intensity</h3>
-            <div class="stepper">
-                <button class="stepper-button" onclick="decreaseSmoothingIntensity()" id="decreaseSmoothingIntensityBtn">-</button>
-                <div class="stepper-value" id="smoothingIntensityValue">3</div>
-                <button class="stepper-button" onclick="increaseSmoothingIntensity()" id="increaseSmoothingIntensityBtn">+</button>
-            </div>
-            <div style="font-size: 10px; color: #666; margin-top: 5px; line-height: 1.2;">Strength of smoothing effect (0 = off, 10 = maximum)</div>
-            <button class="stepper-button" onclick="resetSmoothingIntensity()" id="resetSmoothingIntensityBtn" style="width: 100%; margin-top: 10px; font-size: 14px;">Reset</button>
-        </div>
-        
-        <div class="stroke-control">
-            <h3>Eraser Threshold</h3>
-            <div class="stepper">
-                <button class="stepper-button" onclick="decreaseThreshold()" id="decreaseThresholdBtn">-</button>
-                <div class="stepper-value" id="thresholdValue">10</div>
-                <button class="stepper-button" onclick="increaseThreshold()" id="increaseThresholdBtn">+</button>
-            </div>
-            <button class="stepper-button" onclick="resetThreshold()" id="resetThresholdBtn" style="width: 100%; margin-top: 10px; font-size: 14px;">Reset</button>
-        </div>
-        
-        <div class="stroke-control">
-            <h3>Eraser Sensitivity</h3>
-            <div class="stepper">
-                <button class="stepper-button" onclick="decreaseSensitivity()" id="decreaseSensitivityBtn">-</button>
-                <div class="stepper-value" id="sensitivityValue">5</div>
-                <button class="stepper-button" onclick="increaseSensitivity()" id="increaseSensitivityBtn">+</button>
-            </div>
-            <button class="stepper-button" onclick="resetSensitivity()" id="resetSensitivityBtn" style="width: 100%; margin-top: 10px; font-size: 14px;">Reset</button>
-        </div>
-        
 
+        <div id="pdfViewer" class="hidden p-4">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center space-x-4">
+                    <button id="prevPage" class="px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50" disabled>
+                        ← Previous
+                    </button>
+                    <span id="pageInfo" class="text-sm font-medium">Page 1 of 1</span>
+                    <button id="nextPage" class="px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50" disabled>
+                        Next →
+                    </button>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <label class="text-sm font-medium">Zoom:</label>
+                    <select id="zoomSelect" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-base">
+                        <option value="0.5">50%</option>
+                        <option value="0.75">75%</option>
+                        <option value="1" selected>100%</option>
+                        <option value="1.25">125%</option>
+                        <option value="1.5">150%</option>
+                        <option value="2">200%</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div id="pdfContainer" class="flex justify-center">
+                <!-- PDF pages will be rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- API Support Warning -->
+    <div id="apiWarning" class="hidden fixed bottom-4 right-4 bg-yellow-100 dark:bg-yellow-900 border border-yellow-400 text-yellow-800 dark:text-yellow-200 px-4 py-3 rounded-lg shadow-lg max-w-sm">
+        <p class="text-sm"><strong>Note:</strong> Web Ink API not supported. Using fallback drawing mode.</p>
     </div>
 
     <script>
-        // PDF.js setup
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
-        let pdfDocument = null;
-        let currentPage = 1;
-        let totalPages = 0;
-        let pageAnnotations = new Map(); // Store annotations per page
-        let isDrawing = false;
-        let lastPoint = null;
-        let isErasing = false;
-        let inkPresenter = null;
-        let lastTimestamp = 0;
-        let currentSpeed = 0;
-        let currentEraserSize = 20; // Default eraser size
-        const minEraserSize = 10;
-        const maxEraserSize = 130;
-        let speedThreshold = 10; // Threshold before size starts increasing (adjustable)
-        const defaultSpeedThreshold = 10; // Default threshold value
-        let eraserSensitivity = 5; // How quickly eraser grows (1-10 scale)
-        const defaultEraserSensitivity = 5; // Default sensitivity value
-        let eraserDecreaseTimer = null;
-        let smoothingType = 2; // Smoothing algorithm type (0-4)
-        const defaultSmoothingType = 2; // Default to Natural Curves
-        let smoothingIntensity = 3; // Smoothing intensity level (0 = off, 1-10 = strength)
-        const defaultSmoothingIntensity = 3; // Default intensity value
-        let smoothingBuffer = []; // Buffer for points used in smoothing
-        
-        // Smoothing algorithm definitions
-        const smoothingAlgorithms = [
-            { name: "None", description: "Raw pen input, no smoothing" },
-            { name: "Light Smoothing", description: "Simple averaging, fast performance" },
-            { name: "Natural Curves", description: "Catmull-Rom splines, smooth natural feel" },
-            { name: "Artistic Curves", description: "Bezier curves, artistic drawing style" },
-            { name: "Anti-Shake", description: "Kalman filter, reduces hand tremor" }
-        ];
-        
-        // Stroke size settings
-        let currentStrokeSize = 2;
-        const minStrokeSize = 1;
-        const maxStrokeSize = 20;
-
-        const pdfCanvas = document.getElementById('pdfCanvas');
-        const inkCanvas = document.getElementById('inkCanvas');
-        const eraserIndicator = document.getElementById('eraserIndicator');
-        const pdfCtx = pdfCanvas.getContext('2d');
-        const inkCtx = inkCanvas.getContext('2d');
-
-        // Ink canvas setup
-        inkCtx.strokeStyle = 'black';
-        inkCtx.lineWidth = 2;
-        inkCtx.lineCap = 'round';
-        inkCtx.lineJoin = 'round';
-
-        function resizeCanvases() {
-            const rect = document.getElementById('pdfViewer').getBoundingClientRect();
-            pdfCanvas.width = rect.width;
-            pdfCanvas.height = rect.height;
-            inkCanvas.width = rect.width;
-            inkCanvas.height = rect.height;
+        // Dark mode setup
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
         }
-
-        async function loadPDF(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            try {
-                const arrayBuffer = await file.arrayBuffer();
-                pdfDocument = await pdfjsLib.getDocument(arrayBuffer).promise;
-                totalPages = pdfDocument.numPages;
-                currentPage = 1;
-                
-                document.getElementById('homescreen').style.display = 'none';
-                document.getElementById('pdfViewer').style.display = 'block';
-                
-                resizeCanvases();
-                renderPage(currentPage);
-                setupInkEvents();
-                
-                // Initialize Lucide icons
-                lucide.createIcons();
-            } catch (error) {
-                console.error('Error loading PDF:', error);
-            }
-        }
-
-        async function renderPage(pageNum) {
-            if (!pdfDocument) return;
-
-            const page = await pdfDocument.getPage(pageNum);
-            const viewport = page.getViewport({ scale: 1 });
-            
-            // Calculate scale to fit the page to screen
-            const scaleX = pdfCanvas.width / viewport.width;
-            const scaleY = pdfCanvas.height / viewport.height;
-            const scale = Math.min(scaleX, scaleY);
-            
-            const scaledViewport = page.getViewport({ scale });
-            
-            // Center the page
-            const offsetX = (pdfCanvas.width - scaledViewport.width) / 2;
-            const offsetY = (pdfCanvas.height - scaledViewport.height) / 2;
-            
-            // Clear and render PDF
-            pdfCtx.fillStyle = 'white';
-            pdfCtx.fillRect(0, 0, pdfCanvas.width, pdfCanvas.height);
-            
-            pdfCtx.save();
-            pdfCtx.translate(offsetX, offsetY);
-            
-            await page.render({
-                canvasContext: pdfCtx,
-                viewport: scaledViewport
-            }).promise;
-            
-            pdfCtx.restore();
-            
-            // Restore annotations for this page
-            restorePageAnnotations(pageNum);
-        }
-
-        function savePageAnnotations(pageNum) {
-            const imageData = inkCtx.getImageData(0, 0, inkCanvas.width, inkCanvas.height);
-            pageAnnotations.set(pageNum, imageData);
-        }
-
-        function restorePageAnnotations(pageNum) {
-            // Clear ink canvas
-            inkCtx.clearRect(0, 0, inkCanvas.width, inkCanvas.height);
-            
-            // Restore annotations if they exist
-            const annotations = pageAnnotations.get(pageNum);
-            if (annotations) {
-                inkCtx.putImageData(annotations, 0, 0);
-            }
-        }
-
-        async function initWebInkAPI() {
-            // Initialize Web Ink API if available
-            if ('ink' in navigator) {
-                try {
-                    inkPresenter = await navigator.ink.requestPresenter({ 
-                        presentationArea: inkCanvas 
-                    });
-                    console.log('Web Ink API initialized successfully');
-                } catch (error) {
-                    console.log('Web Ink API not available, falling back to canvas rendering:', error);
-                    inkPresenter = null;
-                }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
             } else {
-                console.log('Web Ink API not supported, using canvas fallback');
-                inkPresenter = null;
-            }
-        }
-
-        function setupInkEvents() {
-            // Initialize Web Ink API
-            initWebInkAPI();
-            
-            // Disable context menu
-            inkCanvas.addEventListener('contextmenu', e => e.preventDefault());
-            
-            // Pointer events for Surface Pen
-            inkCanvas.addEventListener('pointerdown', startDrawing);
-            inkCanvas.addEventListener('pointermove', draw);
-            inkCanvas.addEventListener('pointerup', stopDrawing);
-            inkCanvas.addEventListener('pointerout', stopDrawing);
-        }
-
-        function calculateSpeed(currentPoint, currentTime) {
-            if (!lastPoint || !lastTimestamp) {
-                lastTimestamp = currentTime;
-                return 0;
-            }
-            
-            const distance = Math.sqrt(
-                Math.pow(currentPoint.x - lastPoint.x, 2) + 
-                Math.pow(currentPoint.y - lastPoint.y, 2)
-            );
-            
-            const timeDelta = currentTime - lastTimestamp;
-            const speed = timeDelta > 0 ? distance / (timeDelta / 16.67) : 0; // Pixels per frame (~60fps)
-            
-            lastTimestamp = currentTime;
-            
-            return speed;
-        }
-
-        function calculateEraserSize(speed) {
-            // Much more responsive thresholds
-            if (speed <= speedThreshold) {
-                return minEraserSize;
-            }
-            
-            // Map speed above threshold to size range
-            const speedRange = Math.max(speed - speedThreshold, 0);
-            const maxSpeedForMapping = 50; // Much lower max speed for easier triggering
-            const normalizedSpeed = Math.min(speedRange / maxSpeedForMapping, 1);
-            
-            const size = minEraserSize + (normalizedSpeed * (maxEraserSize - minEraserSize));
-            
-            return size;
-        }
-
-        function updateEraserSize(speed) {
-            const targetSize = calculateEraserSize(speed);
-            
-            // Calculate sensitivity-based growth rate
-            // Sensitivity 1 = 30% new size, Sensitivity 10 = 90% new size
-            const sensitivityFactor = 0.2 + (eraserSensitivity / 10) * 0.7; // Maps 1-10 to 0.3-0.9
-            
-            // Asymmetric smoothing: adjustable increase, slow decrease when moving
-            if (targetSize > currentEraserSize) {
-                // Sensitivity-based response when size should increase
-                currentEraserSize = currentEraserSize * (1 - sensitivityFactor) + targetSize * sensitivityFactor;
-            } else if (speed > 1) {
-                // Very slow response when size should decrease while moving
-                currentEraserSize = currentEraserSize * 0.99 + targetSize * 0.01;
-            } else {
-                // Faster decrease when pen is stopped (speed near zero)
-                currentEraserSize = currentEraserSize * 0.95 + minEraserSize * 0.05;
-            }
-            
-            // Always update canvas line width immediately during erasing
-            if (isErasing) {
-                inkCtx.lineWidth = currentEraserSize;
-            }
-            
-            // Update visual indicator to match the exact eraser area
-            // For canvas strokes with round lineCap, the effective diameter is lineWidth
-            const exactSize = Math.round(currentEraserSize);
-            eraserIndicator.style.width = exactSize + 'px';
-            eraserIndicator.style.height = exactSize + 'px';
-            eraserIndicator.style.borderRadius = '50%';
-        }
-
-        function showEraserIndicator(x, y) {
-            eraserIndicator.style.left = x + 'px';
-            eraserIndicator.style.top = y + 'px';
-            eraserIndicator.style.display = 'block';
-        }
-
-        function hideEraserIndicator() {
-            eraserIndicator.style.display = 'none';
-        }
-
-        function updateEraserIndicator(e) {
-            if (e.pointerType !== 'pen') return;
-            
-            const isBarrelPressed = (e.buttons & 32) !== 0;
-            
-            if (isBarrelPressed) {
-                const rect = inkCanvas.getBoundingClientRect();
-                const x = e.clientX - rect.left + rect.left;
-                const y = e.clientY - rect.top + rect.top;
-                showEraserIndicator(x, y);
-            } else {
-                hideEraserIndicator();
-            }
-        }
-
-        function startDrawing(e) {
-            // Only allow pen input, disable finger/mouse
-            if (e.pointerType !== 'pen') return;
-            
-            e.preventDefault();
-            isDrawing = true;
-            
-            // Check if barrel button is pressed (button 32 = bit 5)
-            isErasing = (e.buttons & 32) !== 0;
-            
-            const rect = inkCanvas.getBoundingClientRect();
-            lastPoint = {
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top
-            };
-            
-            // Reset speed tracking for new stroke
-            lastTimestamp = performance.now();
-            currentSpeed = 0;
-            
-            // Clear smoothing buffer for new stroke
-            smoothingBuffer = [];
-            
-            // Set up drawing context based on mode
-            if (isErasing) {
-                inkCtx.globalCompositeOperation = 'destination-out';
-                currentEraserSize = minEraserSize; // Start with minimum size
-                inkCtx.lineWidth = currentEraserSize;
-                showEraserIndicator(e.clientX, e.clientY);
-                updateEraserSize(0); // Initialize size
-            } else {
-                inkCtx.globalCompositeOperation = 'source-over';
-                inkCtx.strokeStyle = 'black';
-                inkCtx.lineWidth = currentStrokeSize;
-                
-                // Add starting point to smoothing buffer for drawing mode
-                if (smoothingIntensity > 0) {
-                    smoothingBuffer.push(lastPoint);
-                }
-            }
-            
-            inkCtx.beginPath();
-            inkCtx.moveTo(lastPoint.x, lastPoint.y);
-        }
-
-        // Moving Average smoothing
-        function movingAverageSmooth(points, windowSize) {
-            if (points.length < windowSize) return points;
-            
-            const smoothed = [];
-            for (let i = windowSize - 1; i < points.length; i++) {
-                let avgX = 0, avgY = 0;
-                for (let j = 0; j < windowSize; j++) {
-                    avgX += points[i - j].x;
-                    avgY += points[i - j].y;
-                }
-                smoothed.push({
-                    x: avgX / windowSize,
-                    y: avgY / windowSize
-                });
-            }
-            return smoothed;
-        }
-
-        // Catmull-Rom spline interpolation function
-        function catmullRomSpline(p0, p1, p2, p3, t) {
-            const t2 = t * t;
-            const t3 = t2 * t;
-            
-            return {
-                x: 0.5 * ((2 * p1.x) + (-p0.x + p2.x) * t + (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 + (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3),
-                y: 0.5 * ((2 * p1.y) + (-p0.y + p2.y) * t + (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 + (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3)
-            };
-        }
-
-        // Bezier curve interpolation
-        function bezierCurve(p0, p1, p2, p3, t) {
-            const u = 1 - t;
-            const tt = t * t;
-            const uu = u * u;
-            const uuu = uu * u;
-            const ttt = tt * t;
-            
-            return {
-                x: uuu * p0.x + 3 * uu * t * p1.x + 3 * u * tt * p2.x + ttt * p3.x,
-                y: uuu * p0.y + 3 * uu * t * p1.y + 3 * u * tt * p2.y + ttt * p3.y
-            };
-        }
-
-        // Kalman filter for Anti-Shake smoothing
-        let kalmanState = { x: 0, y: 0, vx: 0, vy: 0 };
-        let kalmanP = { x: 1, y: 1, vx: 1, vy: 1 };
-        
-        function kalmanFilter(measurement, intensity) {
-            const processNoise = 0.01 / intensity; // Less noise = more smoothing
-            const measurementNoise = 1;
-            
-            // Predict
-            kalmanState.x += kalmanState.vx;
-            kalmanState.y += kalmanState.vy;
-            kalmanP.x += processNoise;
-            kalmanP.y += processNoise;
-            
-            // Update
-            const kx = kalmanP.x / (kalmanP.x + measurementNoise);
-            const ky = kalmanP.y / (kalmanP.y + measurementNoise);
-            
-            kalmanState.x += kx * (measurement.x - kalmanState.x);
-            kalmanState.y += ky * (measurement.y - kalmanState.y);
-            kalmanState.vx = (measurement.x - kalmanState.x) * 0.1;
-            kalmanState.vy = (measurement.y - kalmanState.y) * 0.1;
-            
-            kalmanP.x *= (1 - kx);
-            kalmanP.y *= (1 - ky);
-            
-            return { x: kalmanState.x, y: kalmanState.y };
-        }
-
-        // Main smoothing function that dispatches to the selected algorithm
-        function applySmoothingAlgorithm(currentPoint) {
-            if (smoothingIntensity === 0) return currentPoint; // No smoothing
-            
-            switch (smoothingType) {
-                case 0: // None
-                    return currentPoint;
-                    
-                case 1: // Light Smoothing (Moving Average)
-                    smoothingBuffer.push(currentPoint);
-                    if (smoothingBuffer.length > 10) smoothingBuffer.shift();
-                    
-                    const windowSize = Math.min(smoothingIntensity, smoothingBuffer.length);
-                    const smoothed = movingAverageSmooth(smoothingBuffer, windowSize);
-                    return smoothed.length > 0 ? smoothed[smoothed.length - 1] : currentPoint;
-                    
-                case 2: // Natural Curves (Catmull-Rom)
-                    smoothingBuffer.push(currentPoint);
-                    if (smoothingBuffer.length > 6) smoothingBuffer.shift();
-                    
-                    if (smoothingBuffer.length >= 4) {
-                        const p0 = smoothingBuffer[smoothingBuffer.length - 4];
-                        const p1 = smoothingBuffer[smoothingBuffer.length - 3];
-                        const p2 = smoothingBuffer[smoothingBuffer.length - 2];
-                        const p3 = smoothingBuffer[smoothingBuffer.length - 1];
-                        
-                        const t = Math.min(smoothingIntensity / 10, 0.8);
-                        return catmullRomSpline(p0, p1, p2, p3, t);
-                    }
-                    return currentPoint;
-                    
-                case 3: // Artistic Curves (Bezier)
-                    smoothingBuffer.push(currentPoint);
-                    if (smoothingBuffer.length > 6) smoothingBuffer.shift();
-                    
-                    if (smoothingBuffer.length >= 4) {
-                        const p0 = smoothingBuffer[smoothingBuffer.length - 4];
-                        const p1 = smoothingBuffer[smoothingBuffer.length - 3];
-                        const p2 = smoothingBuffer[smoothingBuffer.length - 2];
-                        const p3 = smoothingBuffer[smoothingBuffer.length - 1];
-                        
-                        // Create control points for more artistic curves
-                        const cp1 = { x: p1.x + (p2.x - p0.x) * 0.3, y: p1.y + (p2.y - p0.y) * 0.3 };
-                        const cp2 = { x: p2.x - (p3.x - p1.x) * 0.3, y: p2.y - (p3.y - p1.y) * 0.3 };
-                        
-                        const t = Math.min(smoothingIntensity / 10, 0.8);
-                        return bezierCurve(p1, cp1, cp2, p2, t);
-                    }
-                    return currentPoint;
-                    
-                case 4: // Anti-Shake (Kalman Filter)
-                    return kalmanFilter(currentPoint, smoothingIntensity);
-                    
-                default:
-                    return currentPoint;
-            }
-        }
-
-        // Draw smooth curve using the selected algorithm
-        function drawSmoothedStroke(currentPoint) {
-            const smoothedPoint = applySmoothingAlgorithm(currentPoint);
-            
-            if (smoothingType === 2 || smoothingType === 3) { // Spline-based algorithms
-                if (smoothingBuffer.length >= 4) {
-                    const numSegments = smoothingIntensity * 2;
-                    const p0 = smoothingBuffer[smoothingBuffer.length - 4];
-                    const p1 = smoothingBuffer[smoothingBuffer.length - 3];
-                    const p2 = smoothingBuffer[smoothingBuffer.length - 2];
-                    const p3 = smoothingBuffer[smoothingBuffer.length - 1];
-                    
-                    inkCtx.beginPath();
-                    inkCtx.moveTo(p1.x, p1.y);
-                    
-                    for (let i = 1; i <= numSegments; i++) {
-                        const t = i / numSegments;
-                        let point;
-                        
-                        if (smoothingType === 2) {
-                            point = catmullRomSpline(p0, p1, p2, p3, t);
-                        } else {
-                            const cp1 = { x: p1.x + (p2.x - p0.x) * 0.3, y: p1.y + (p2.y - p0.y) * 0.3 };
-                            const cp2 = { x: p2.x - (p3.x - p1.x) * 0.3, y: p2.y - (p3.y - p1.y) * 0.3 };
-                            point = bezierCurve(p1, cp1, cp2, p2, t);
-                        }
-                        
-                        inkCtx.lineTo(point.x, point.y);
-                    }
-                    
-                    inkCtx.stroke();
-                }
-            } else {
-                // Point-based algorithms (Moving Average, Kalman Filter)
-                inkCtx.lineTo(smoothedPoint.x, smoothedPoint.y);
-                inkCtx.stroke();
-            }
-        }
-
-        function draw(e) {
-            if (!isDrawing || e.pointerType !== 'pen') return;
-            
-            e.preventDefault();
-            
-            const rect = inkCanvas.getBoundingClientRect();
-            const currentPoint = {
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top
-            };
-            
-            // Calculate speed and update eraser size if in eraser mode
-            if (isErasing) {
-                const currentTime = performance.now();
-                currentSpeed = calculateSpeed(currentPoint, currentTime);
-                updateEraserSize(currentSpeed);
-                showEraserIndicator(e.clientX, e.clientY);
-                
-                // End current path and start new one with updated line width
-                inkCtx.stroke();
-                inkCtx.beginPath();
-                inkCtx.moveTo(lastPoint.x, lastPoint.y);
-                
-                // For erasing, use direct drawing (no smoothing)
-                inkCtx.lineTo(currentPoint.x, currentPoint.y);
-                inkCtx.stroke();
-            } else {
-                // Drawing mode - apply smoothing if enabled
-                if (smoothingIntensity > 0) {
-                    drawSmoothedStroke(currentPoint);
-                } else {
-                    // No smoothing - direct drawing
-                    inkCtx.lineTo(currentPoint.x, currentPoint.y);
-                    inkCtx.stroke();
-                }
-            }
-            
-            lastPoint = currentPoint;
-        }
-
-        function continueEraserDecrease() {
-            if (currentEraserSize > minEraserSize + 0.5) {
-                // Continue decreasing size more aggressively when stopped
-                currentEraserSize = currentEraserSize * 0.95;
-                
-                // Update visual indicator
-                const exactSize = Math.round(currentEraserSize);
-                eraserIndicator.style.width = exactSize + 'px';
-                eraserIndicator.style.height = exactSize + 'px';
-                
-                // Continue the animation
-                eraserDecreaseTimer = requestAnimationFrame(continueEraserDecrease);
-            } else {
-                // Reached minimum size, hide indicator
-                currentEraserSize = minEraserSize;
-                hideEraserIndicator();
-                eraserDecreaseTimer = null;
-            }
-        }
-
-        function stopDrawing(e) {
-            if (!isDrawing) return;
-            
-            isDrawing = false;
-            lastPoint = null;
-            
-            // Hide eraser indicator immediately when pen is lifted
-            hideEraserIndicator();
-            
-            // Save annotations for current page
-            savePageAnnotations(currentPage);
-        }
-
-        function nextPage() {
-            if (currentPage < totalPages) {
-                savePageAnnotations(currentPage);
-                currentPage++;
-                renderPage(currentPage);
-            }
-        }
-
-        function prevPage() {
-            if (currentPage > 1) {
-                savePageAnnotations(currentPage);
-                currentPage--;
-                renderPage(currentPage);
-            }
-        }
-
-        function clearAnnotations() {
-            // Clear annotations for current page
-            inkCtx.clearRect(0, 0, inkCanvas.width, inkCanvas.height);
-            // Remove from stored annotations
-            pageAnnotations.delete(currentPage);
-        }
-
-        function goHome() {
-            document.getElementById('pdfViewer').style.display = 'none';
-            document.getElementById('homescreen').style.display = 'flex';
-            
-            // Reset
-            pdfDocument = null;
-            currentPage = 1;
-            totalPages = 0;
-            pageAnnotations.clear();
-            document.getElementById('fileInput').value = '';
-        }
-
-        // Drawer functions
-        function toggleDrawer() {
-            const drawer = document.getElementById('drawer');
-            const overlay = document.getElementById('drawerOverlay');
-            
-            if (drawer.classList.contains('open')) {
-                closeDrawer();
-            } else {
-                openDrawer();
-            }
-        }
-
-        function openDrawer() {
-            const drawer = document.getElementById('drawer');
-            const overlay = document.getElementById('drawerOverlay');
-            
-            drawer.classList.add('open');
-            overlay.classList.add('visible');
-        }
-
-        function closeDrawer() {
-            const drawer = document.getElementById('drawer');
-            const overlay = document.getElementById('drawerOverlay');
-            
-            drawer.classList.remove('open');
-            overlay.classList.remove('visible');
-        }
-
-        // Stroke size functions
-        function increaseStrokeSize() {
-            if (currentStrokeSize < maxStrokeSize) {
-                currentStrokeSize++;
-                updateStrokeSize();
-            }
-        }
-
-        function decreaseStrokeSize() {
-            if (currentStrokeSize > minStrokeSize) {
-                currentStrokeSize--;
-                updateStrokeSize();
-            }
-        }
-
-        function updateStrokeSize() {
-            // Update the display
-            document.getElementById('strokeSizeValue').textContent = currentStrokeSize;
-            
-            // Update button states
-            document.getElementById('decreaseBtn').disabled = currentStrokeSize <= minStrokeSize;
-            document.getElementById('increaseBtn').disabled = currentStrokeSize >= maxStrokeSize;
-            
-            // Apply the new stroke size to drawing (not erasing)
-            if (!isErasing && inkCtx) {
-                inkCtx.lineWidth = currentStrokeSize;
-            }
-        }
-
-        // Eraser threshold functions
-        function increaseThreshold() {
-            if (speedThreshold < 50) { // Max threshold of 50
-                speedThreshold++;
-                updateThreshold();
-            }
-        }
-
-        function decreaseThreshold() {
-            if (speedThreshold > 1) { // Min threshold of 1
-                speedThreshold--;
-                updateThreshold();
-            }
-        }
-
-        function resetThreshold() {
-            speedThreshold = defaultSpeedThreshold;
-            updateThreshold();
-        }
-
-        function updateThreshold() {
-            // Update the display
-            document.getElementById('thresholdValue').textContent = speedThreshold;
-            
-            // Update button states
-            document.getElementById('decreaseThresholdBtn').disabled = speedThreshold <= 1;
-            document.getElementById('increaseThresholdBtn').disabled = speedThreshold >= 50;
-        }
-
-        // Eraser sensitivity functions
-        function increaseSensitivity() {
-            if (eraserSensitivity < 10) { // Max sensitivity of 10
-                eraserSensitivity++;
-                updateSensitivity();
-            }
-        }
-
-        function decreaseSensitivity() {
-            if (eraserSensitivity > 1) { // Min sensitivity of 1
-                eraserSensitivity--;
-                updateSensitivity();
-            }
-        }
-
-        function resetSensitivity() {
-            eraserSensitivity = defaultEraserSensitivity;
-            updateSensitivity();
-        }
-
-        function updateSensitivity() {
-            // Update the display
-            document.getElementById('sensitivityValue').textContent = eraserSensitivity;
-            
-            // Update button states
-            document.getElementById('decreaseSensitivityBtn').disabled = eraserSensitivity <= 1;
-            document.getElementById('increaseSensitivityBtn').disabled = eraserSensitivity >= 10;
-        }
-
-        // Smoothing type functions
-        function increaseSmoothingType() {
-            if (smoothingType < smoothingAlgorithms.length - 1) {
-                smoothingType++;
-                updateSmoothingType();
-            }
-        }
-
-        function decreaseSmoothingType() {
-            if (smoothingType > 0) {
-                smoothingType--;
-                updateSmoothingType();
-            }
-        }
-
-        function resetSmoothingType() {
-            smoothingType = defaultSmoothingType;
-            updateSmoothingType();
-        }
-
-        function updateSmoothingType() {
-            // Update the display
-            document.getElementById('smoothingTypeValue').textContent = smoothingAlgorithms[smoothingType].name;
-            document.getElementById('smoothingTypeDesc').textContent = smoothingAlgorithms[smoothingType].description;
-            
-            // Update button states
-            document.getElementById('decreaseSmoothingTypeBtn').disabled = smoothingType <= 0;
-            document.getElementById('increaseSmoothingTypeBtn').disabled = smoothingType >= smoothingAlgorithms.length - 1;
-        }
-
-        // Smoothing intensity functions
-        function increaseSmoothingIntensity() {
-            if (smoothingIntensity < 10) {
-                smoothingIntensity++;
-                updateSmoothingIntensity();
-            }
-        }
-
-        function decreaseSmoothingIntensity() {
-            if (smoothingIntensity > 0) {
-                smoothingIntensity--;
-                updateSmoothingIntensity();
-            }
-        }
-
-        function resetSmoothingIntensity() {
-            smoothingIntensity = defaultSmoothingIntensity;
-            updateSmoothingIntensity();
-        }
-
-        function updateSmoothingIntensity() {
-            // Update the display
-            document.getElementById('smoothingIntensityValue').textContent = smoothingIntensity;
-            
-            // Update button states
-            document.getElementById('decreaseSmoothingIntensityBtn').disabled = smoothingIntensity <= 0;
-            document.getElementById('increaseSmoothingIntensityBtn').disabled = smoothingIntensity >= 10;
-        }
-
-
-
-        // Keyboard navigation
-        document.addEventListener('keydown', (e) => {
-            if (document.getElementById('pdfViewer').style.display === 'block') {
-                switch(e.key) {
-                    case 'ArrowRight':
-                    case 'ArrowDown':
-                        e.preventDefault();
-                        nextPage();
-                        break;
-                    case 'ArrowLeft':
-                    case 'ArrowUp':
-                        e.preventDefault();
-                        prevPage();
-                        break;
-                    case 'Escape':
-                        goHome();
-                        break;
-                }
+                document.documentElement.classList.remove('dark');
             }
         });
 
-        // Handle window resize
-        window.addEventListener('resize', () => {
-            if (pdfDocument && document.getElementById('pdfViewer').style.display === 'block') {
-                resizeCanvases();
-                renderPage(currentPage);
+        // PDF.js setup
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+
+        class PDFAnnotator {
+            constructor() {
+                this.pdf = null;
+                this.currentPage = 1;
+                this.totalPages = 0;
+                this.scale = 1;
+                this.currentTool = 'pen';
+                this.currentColor = '#000000';
+                this.brushSize = 3;
+                this.isDrawing = false;
+                this.lastPoint = null;
+                this.paths = [];
+                this.currentPath = [];
+                
+                // Check for Ink API support
+                this.inkApiSupported = 'Ink' in window && 'requestPresenter' in navigator;
+                if (!this.inkApiSupported) {
+                    document.getElementById('apiWarning').classList.remove('hidden');
+                }
+                
+                this.initializeEventListeners();
             }
+
+            initializeEventListeners() {
+                // File input
+                document.getElementById('pdfInput').addEventListener('change', (e) => {
+                    this.loadPDF(e.target.files[0]);
+                });
+
+                // Navigation
+                document.getElementById('prevPage').addEventListener('click', () => this.previousPage());
+                document.getElementById('nextPage').addEventListener('click', () => this.nextPage());
+                document.getElementById('zoomSelect').addEventListener('change', (e) => {
+                    this.scale = parseFloat(e.target.value);
+                    this.renderCurrentPage();
+                });
+
+                // Tools
+                document.querySelectorAll('.tool-button').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('.tool-button').forEach(b => b.classList.remove('active'));
+                        e.target.classList.add('active');
+                        this.currentTool = e.target.id.replace('Tool', '').toLowerCase();
+                    });
+                });
+
+                // Colors
+                document.querySelectorAll('.color-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+                        e.target.classList.add('active');
+                        this.currentColor = e.target.dataset.color;
+                    });
+                });
+
+                // Brush size
+                const brushSize = document.getElementById('brushSize');
+                const brushSizeDisplay = document.getElementById('brushSizeDisplay');
+                brushSize.addEventListener('input', (e) => {
+                    this.brushSize = parseInt(e.target.value);
+                    brushSizeDisplay.textContent = this.brushSize;
+                });
+
+                // Actions
+                document.getElementById('clearBtn').addEventListener('click', () => this.clearAnnotations());
+                document.getElementById('downloadBtn').addEventListener('click', () => this.downloadAnnotatedPDF());
+            }
+
+            async loadPDF(file) {
+                if (!file) return;
+
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    this.pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+                    this.totalPages = this.pdf.numPages;
+                    this.currentPage = 1;
+                    
+                    document.getElementById('loadingArea').classList.add('hidden');
+                    document.getElementById('pdfViewer').classList.remove('hidden');
+                    document.getElementById('toolbar').classList.remove('hidden');
+                    
+                    this.renderCurrentPage();
+                } catch (error) {
+                    console.error('Error loading PDF:', error);
+                    this.showAlert('Error loading PDF file. Please try a different file.');
+                }
+            }
+
+            async renderCurrentPage() {
+                if (!this.pdf) return;
+
+                const container = document.getElementById('pdfContainer');
+                container.innerHTML = '';
+                
+                const page = await this.pdf.getPage(this.currentPage);
+                const viewport = page.getViewport({ scale: this.scale });
+                
+                // Create PDF canvas
+                const pdfCanvas = document.createElement('canvas');
+                const pdfContext = pdfCanvas.getContext('2d');
+                pdfCanvas.width = viewport.width;
+                pdfCanvas.height = viewport.height;
+                
+                // Create annotation canvas
+                const annotationCanvas = document.createElement('canvas');
+                const annotationContext = annotationCanvas.getContext('2d');
+                annotationCanvas.width = viewport.width;
+                annotationCanvas.height = viewport.height;
+                annotationCanvas.className = 'annotation-canvas';
+                
+                // Create container for both canvases
+                const pageContainer = document.createElement('div');
+                pageContainer.className = 'pdf-container';
+                pageContainer.appendChild(pdfCanvas);
+                pageContainer.appendChild(annotationCanvas);
+                container.appendChild(pageContainer);
+                
+                // Render PDF
+                await page.render({
+                    canvasContext: pdfContext,
+                    viewport: viewport
+                }).promise;
+                
+                // Setup annotation canvas
+                this.setupAnnotationCanvas(annotationCanvas);
+                
+                // Update page info
+                document.getElementById('pageInfo').textContent = `Page ${this.currentPage} of ${this.totalPages}`;
+                document.getElementById('prevPage').disabled = this.currentPage <= 1;
+                document.getElementById('nextPage').disabled = this.currentPage >= this.totalPages;
+            }
+
+            setupAnnotationCanvas(canvas) {
+                const ctx = canvas.getContext('2d');
+                let isDrawing = false;
+                let lastPoint = null;
+
+                // Mouse events
+                canvas.addEventListener('mousedown', (e) => this.startDrawing(e, canvas));
+                canvas.addEventListener('mousemove', (e) => this.draw(e, canvas));
+                canvas.addEventListener('mouseup', () => this.stopDrawing());
+                
+                // Touch events
+                canvas.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    const mouseEvent = new MouseEvent('mousedown', {
+                        clientX: touch.clientX,
+                        clientY: touch.clientY
+                    });
+                    canvas.dispatchEvent(mouseEvent);
+                });
+                
+                canvas.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    const mouseEvent = new MouseEvent('mousemove', {
+                        clientX: touch.clientX,
+                        clientY: touch.clientY
+                    });
+                    canvas.dispatchEvent(mouseEvent);
+                });
+                
+                canvas.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    const mouseEvent = new MouseEvent('mouseup', {});
+                    canvas.dispatchEvent(mouseEvent);
+                });
+
+                // Try to use Ink API if supported
+                if (this.inkApiSupported) {
+                    this.setupInkAPI(canvas);
+                }
+            }
+
+            async setupInkAPI(canvas) {
+                try {
+                    if ('Ink' in window && 'requestPresenter' in navigator) {
+                        const presenter = await navigator.requestPresenter({ presentationArea: canvas });
+                        
+                        presenter.addEventListener('inkstart', (e) => {
+                            this.isDrawing = true;
+                            const rect = canvas.getBoundingClientRect();
+                            this.lastPoint = {
+                                x: e.x - rect.left,
+                                y: e.y - rect.top
+                            };
+                        });
+                        
+                        presenter.addEventListener('inkstroke', (e) => {
+                            if (this.isDrawing) {
+                                const rect = canvas.getBoundingClientRect();
+                                const currentPoint = {
+                                    x: e.x - rect.left,
+                                    y: e.y - rect.top
+                                };
+                                this.drawLine(canvas, this.lastPoint, currentPoint);
+                                this.lastPoint = currentPoint;
+                            }
+                        });
+                        
+                        presenter.addEventListener('inkend', () => {
+                            this.isDrawing = false;
+                            this.lastPoint = null;
+                        });
+                    }
+                } catch (error) {
+                    console.log('Ink API setup failed, using fallback');
+                }
+            }
+
+            startDrawing(e, canvas) {
+                this.isDrawing = true;
+                const rect = canvas.getBoundingClientRect();
+                this.lastPoint = {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top
+                };
+                
+                if (this.currentTool === 'eraser') {
+                    this.erase(canvas, this.lastPoint);
+                }
+            }
+
+            draw(e, canvas) {
+                if (!this.isDrawing || !this.lastPoint) return;
+                
+                const rect = canvas.getBoundingClientRect();
+                const currentPoint = {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top
+                };
+                
+                if (this.currentTool === 'eraser') {
+                    this.erase(canvas, currentPoint);
+                } else {
+                    this.drawLine(canvas, this.lastPoint, currentPoint);
+                }
+                
+                this.lastPoint = currentPoint;
+            }
+
+            drawLine(canvas, from, to) {
+                const ctx = canvas.getContext('2d');
+                
+                ctx.save();
+                ctx.lineWidth = this.brushSize;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                
+                if (this.currentTool === 'highlighter') {
+                    ctx.globalCompositeOperation = 'multiply';
+                    ctx.strokeStyle = this.currentColor + '80'; // Add transparency
+                    ctx.lineWidth = this.brushSize * 3;
+                } else {
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.strokeStyle = this.currentColor;
+                }
+                
+                ctx.beginPath();
+                ctx.moveTo(from.x, from.y);
+                ctx.lineTo(to.x, to.y);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            erase(canvas, point) {
+                const ctx = canvas.getContext('2d');
+                ctx.save();
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, this.brushSize * 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            stopDrawing() {
+                this.isDrawing = false;
+                this.lastPoint = null;
+            }
+
+            clearAnnotations() {
+                const canvas = document.querySelector('.annotation-canvas');
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+
+            previousPage() {
+                if (this.currentPage > 1) {
+                    this.currentPage--;
+                    this.renderCurrentPage();
+                }
+            }
+
+            nextPage() {
+                if (this.currentPage < this.totalPages) {
+                    this.currentPage++;
+                    this.renderCurrentPage();
+                }
+            }
+
+            async downloadAnnotatedPDF() {
+                const canvas = document.querySelector('.annotation-canvas');
+                if (!canvas) return;
+                
+                // Create a download link for the annotation layer
+                canvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `annotations-page-${this.currentPage}.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                });
+            }
+
+            showAlert(message) {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'fixed top-4 right-4 bg-red-100 dark:bg-red-900 border border-red-400 text-red-800 dark:text-red-200 px-4 py-3 rounded-lg shadow-lg z-50';
+                alertDiv.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span>${message}</span>
+                        <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-red-600 hover:text-red-800">×</button>
+                    </div>
+                `;
+                document.body.appendChild(alertDiv);
+                
+                setTimeout(() => {
+                    if (alertDiv.parentElement) {
+                        alertDiv.remove();
+                    }
+                }, 5000);
+            }
+        }
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', () => {
+            new PDFAnnotator();
         });
     </script>
 </body>
