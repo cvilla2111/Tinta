@@ -54,45 +54,128 @@
         });
         
         let presenter = null;
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
         
-        // Check if Ink API is available
-        if (navigator.ink) {
-            // Request ink presenter
-            navigator.ink.requestPresenter({ presentationArea: canvas })
-                .then(inkPresenter => {
-                    presenter = inkPresenter;
-                    console.log('Ink API initialized successfully');
-                })
-                .catch(err => {
-                    console.error('Failed to initialize Ink API:', err);
+        // Initialize Ink API
+        async function initInkAPI() {
+            if (navigator.ink) {
+                try {
+                    presenter = await navigator.ink.requestPresenter({ presentationArea: canvas });
+                    console.log('Ink API ready');
+                } catch (err) {
+                    console.error('Ink API failed:', err);
+                    errorDiv.textContent = 'Ink API failed to initialize';
                     errorDiv.style.display = 'block';
-                });
-        } else {
-            errorDiv.style.display = 'block';
-            console.log('Ink API not supported');
+                }
+            } else {
+                errorDiv.style.display = 'block';
+                console.log('Ink API not supported');
+            }
         }
         
-        // Simple drawing with Ink API
-        canvas.addEventListener('pointermove', async (evt) => {
-            if (evt.pressure > 0 || evt.buttons > 0) {
-                // Draw on canvas (fallback)
-                ctx.fillStyle = 'black';
-                ctx.beginPath();
-                ctx.arc(evt.offsetX, evt.offsetY, 2, 0, 2 * Math.PI);
-                ctx.fill();
-                
-                // Use Ink API for low-latency rendering
-                if (presenter) {
-                    try {
-                        presenter.updateInkTrailStartPoint(evt, {
-                            color: 'black',
-                            diameter: 4
-                        });
-                    } catch (err) {
-                        console.error('Ink API error:', err);
-                    }
+        initInkAPI();
+        
+        function startDrawing(x, y) {
+            isDrawing = true;
+            lastX = x;
+            lastY = y;
+        }
+        
+        function draw(x, y) {
+            if (!isDrawing) return;
+            
+            // Draw line from last point to current point
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            
+            // Update Ink API - only if presenter is ready
+            if (presenter) {
+                try {
+                    presenter.updateInkTrailStartPoint({ offsetX: x, offsetY: y }, {
+                        color: 'black',
+                        diameter: 6
+                    });
+                } catch (err) {
+                    console.error('Ink API update failed:', err);
                 }
             }
+            
+            // Update last position
+            lastX = x;
+            lastY = y;
+        }
+        
+        function stopDrawing() {
+            isDrawing = false;
+        }
+        
+        // Pointer Events
+        canvas.addEventListener('pointerdown', (evt) => {
+            evt.preventDefault();
+            startDrawing(evt.offsetX, evt.offsetY);
+        });
+        
+        canvas.addEventListener('pointermove', (evt) => {
+            evt.preventDefault();
+            draw(evt.offsetX, evt.offsetY);
+        });
+        
+        canvas.addEventListener('pointerup', (evt) => {
+            evt.preventDefault();
+            stopDrawing();
+        });
+        
+        canvas.addEventListener('pointerleave', (evt) => {
+            evt.preventDefault();
+            stopDrawing();
+        });
+        
+        // Mouse Events (fallback)
+        canvas.addEventListener('mousedown', (evt) => {
+            evt.preventDefault();
+            startDrawing(evt.offsetX, evt.offsetY);
+        });
+        
+        canvas.addEventListener('mousemove', (evt) => {
+            evt.preventDefault();
+            draw(evt.offsetX, evt.offsetY);
+        });
+        
+        canvas.addEventListener('mouseup', (evt) => {
+            evt.preventDefault();
+            stopDrawing();
+        });
+        
+        canvas.addEventListener('mouseleave', (evt) => {
+            evt.preventDefault();
+            stopDrawing();
+        });
+        
+        // Touch Events (fallback)
+        canvas.addEventListener('touchstart', (evt) => {
+            evt.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const touch = evt.touches[0];
+            startDrawing(touch.clientX - rect.left, touch.clientY - rect.top);
+        });
+        
+        canvas.addEventListener('touchmove', (evt) => {
+            evt.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const touch = evt.touches[0];
+            draw(touch.clientX - rect.left, touch.clientY - rect.top);
+        });
+        
+        canvas.addEventListener('touchend', (evt) => {
+            evt.preventDefault();
+            stopDrawing();
         });
         
         // Clear canvas on double click
