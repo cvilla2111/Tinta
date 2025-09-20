@@ -153,13 +153,44 @@
                 </div>
             </div>
 
-            <!-- Brush Size -->
+            <!-- Brush Settings -->
             <div id="sizeSection" class="hidden mb-6">
-                <h3 class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3 uppercase tracking-wider">Brush Size</h3>
-                <div class="space-y-3">
-                    <input type="range" id="brushSize" min="1" max="20" value="3" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700">
-                    <div class="text-center">
-                        <span id="brushSizeDisplay" class="text-sm font-medium bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full">3px</span>
+                <h3 class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3 uppercase tracking-wider">Brush Settings</h3>
+                <div class="space-y-4">
+                    <!-- Base Size -->
+                    <div>
+                        <label class="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Base Size</label>
+                        <input type="range" id="brushSize" min="1" max="20" value="3" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700">
+                        <div class="text-center mt-1">
+                            <span id="brushSizeDisplay" class="text-xs font-medium bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">3px</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Min/Max Stroke Width -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Min Width</label>
+                            <input type="range" id="minStroke" min="0.5" max="10" value="1" step="0.5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700">
+                            <div class="text-center mt-1">
+                                <span id="minStrokeDisplay" class="text-xs font-medium bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">1px</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Max Width</label>
+                            <input type="range" id="maxStroke" min="2" max="50" value="10" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700">
+                            <div class="text-center mt-1">
+                                <span id="maxStrokeDisplay" class="text-xs font-medium bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">10px</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Smoothing -->
+                    <div>
+                        <label class="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Stroke Smoothing</label>
+                        <input type="range" id="smoothing" min="0" max="100" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700">
+                        <div class="text-center mt-1">
+                            <span id="smoothingDisplay" class="text-xs font-medium bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">50%</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -281,9 +312,14 @@
                 this.currentTool = 'pen';
                 this.currentColor = '#000000';
                 this.brushSize = 3;
+                this.minStroke = 1;
+                this.maxStroke = 10;
+                this.smoothing = 50;
                 this.isDrawing = false;
                 this.lastPoint = null;
                 this.drawerOpen = false;
+                this.strokePoints = [];
+                this.smoothPoints = [];
                 
                 // Check for Ink API support
                 this.inkApiSupported = 'ink' in navigator;
@@ -350,12 +386,33 @@
                     });
                 });
 
-                // Brush size
+                // Brush controls
                 const brushSize = document.getElementById('brushSize');
                 const brushSizeDisplay = document.getElementById('brushSizeDisplay');
                 brushSize.addEventListener('input', (e) => {
                     this.brushSize = parseInt(e.target.value);
                     brushSizeDisplay.textContent = this.brushSize + 'px';
+                });
+
+                const minStroke = document.getElementById('minStroke');
+                const minStrokeDisplay = document.getElementById('minStrokeDisplay');
+                minStroke.addEventListener('input', (e) => {
+                    this.minStroke = parseFloat(e.target.value);
+                    minStrokeDisplay.textContent = this.minStroke + 'px';
+                });
+
+                const maxStroke = document.getElementById('maxStroke');
+                const maxStrokeDisplay = document.getElementById('maxStrokeDisplay');
+                maxStroke.addEventListener('input', (e) => {
+                    this.maxStroke = parseFloat(e.target.value);
+                    maxStrokeDisplay.textContent = this.maxStroke + 'px';
+                });
+
+                const smoothing = document.getElementById('smoothing');
+                const smoothingDisplay = document.getElementById('smoothingDisplay');
+                smoothing.addEventListener('input', (e) => {
+                    this.smoothing = parseInt(e.target.value);
+                    smoothingDisplay.textContent = this.smoothing + '%';
                 });
 
                 // Actions
@@ -583,11 +640,17 @@
                 const rect = canvas.getBoundingClientRect();
                 this.lastPoint = {
                     x: e.clientX - rect.left,
-                    y: e.clientY - rect.top
+                    y: e.clientY - rect.top,
+                    pressure: 0.5
                 };
+                
+                // Reset stroke points for smoothing
+                this.strokePoints = [this.lastPoint];
                 
                 if (this.currentTool === 'eraser') {
                     this.erase(canvas, this.lastPoint);
+                } else {
+                    this.startSmoothPath(canvas, this.lastPoint);
                 }
             }
 
@@ -597,13 +660,21 @@
                 const rect = canvas.getBoundingClientRect();
                 const currentPoint = {
                     x: e.clientX - rect.left,
-                    y: e.clientY - rect.top
+                    y: e.clientY - rect.top,
+                    pressure: 0.5
                 };
+                
+                // Add point to stroke points for smoothing
+                this.strokePoints.push(currentPoint);
                 
                 if (this.currentTool === 'eraser') {
                     this.erase(canvas, currentPoint);
                 } else {
-                    this.drawLine(canvas, this.lastPoint, currentPoint);
+                    if (this.smoothing > 0) {
+                        this.drawSmoothStroke(canvas, currentPoint);
+                    } else {
+                        this.drawLine(canvas, this.lastPoint, currentPoint);
+                    }
                 }
                 
                 this.lastPoint = currentPoint;
@@ -730,6 +801,107 @@
                     canvas._inkContext.restore();
                     canvas._inkContext = null;
                 }
+            }
+
+            // Bézier smoothing functions
+            startSmoothPath(canvas, point) {
+                this.strokePoints = [point];
+                this.smoothPoints = [];
+                
+                // Initialize drawing context
+                const ctx = canvas.getContext('2d');
+                ctx.save();
+                this.setupBrushStyle(ctx, point);
+                ctx.beginPath();
+                ctx.moveTo(point.x, point.y);
+                canvas._smoothContext = ctx;
+            }
+
+            drawSmoothStroke(canvas, currentPoint) {
+                if (this.strokePoints.length < 2) return;
+                
+                const ctx = canvas._smoothContext || canvas.getContext('2d');
+                const smoothingFactor = this.smoothing / 100;
+                
+                if (this.strokePoints.length >= 3) {
+                    // Use quadratic Bézier curves for smoothing
+                    const p0 = this.strokePoints[this.strokePoints.length - 3];
+                    const p1 = this.strokePoints[this.strokePoints.length - 2];
+                    const p2 = this.strokePoints[this.strokePoints.length - 1];
+                    
+                    // Calculate control point for smooth curve
+                    const cp = this.getControlPoint(p0, p1, p2, smoothingFactor);
+                    
+                    // Update brush style with pressure
+                    this.updateBrushStyle(ctx, p1, p2);
+                    
+                    // Draw quadratic curve
+                    ctx.quadraticCurveTo(cp.x, cp.y, 
+                        (p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
+                    ctx.stroke();
+                } else {
+                    // For the first few points, draw straight lines
+                    const p1 = this.strokePoints[this.strokePoints.length - 2];
+                    const p2 = this.strokePoints[this.strokePoints.length - 1];
+                    
+                    this.updateBrushStyle(ctx, p1, p2);
+                    ctx.lineTo(p2.x, p2.y);
+                    ctx.stroke();
+                }
+            }
+
+            getControlPoint(p0, p1, p2, smoothing) {
+                // Calculate the control point for quadratic Bézier curve
+                // Higher smoothing = more curved path
+                const d1 = Math.sqrt((p1.x - p0.x) ** 2 + (p1.y - p0.y) ** 2);
+                const d2 = Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
+                
+                if (d1 + d2 === 0) return p1;
+                
+                const fa = smoothing * d1 / (d1 + d2);
+                const fb = smoothing * d2 / (d1 + d2);
+                
+                const cp = {
+                    x: p1.x + fa * (p0.x - p2.x),
+                    y: p1.y + fa * (p0.y - p2.y),
+                    pressure: p1.pressure || 0.5
+                };
+                
+                return cp;
+            }
+
+            setupBrushStyle(ctx, point) {
+                const pressure = point.pressure || 0.5;
+                const width = this.calculateStrokeWidth(pressure);
+                
+                ctx.lineWidth = width;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                
+                if (this.currentTool === 'highlighter') {
+                    ctx.globalCompositeOperation = 'multiply';
+                    ctx.strokeStyle = this.currentColor + '80';
+                    ctx.lineWidth = width * 3;
+                } else {
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.strokeStyle = this.currentColor;
+                }
+            }
+
+            updateBrushStyle(ctx, p1, p2) {
+                const avgPressure = ((p1.pressure || 0.5) + (p2.pressure || 0.5)) / 2;
+                const width = this.calculateStrokeWidth(avgPressure);
+                
+                ctx.lineWidth = width;
+                
+                if (this.currentTool === 'highlighter') {
+                    ctx.lineWidth = width * 3;
+                }
+            }
+
+            calculateStrokeWidth(pressure) {
+                // Map pressure (0-1) to stroke width range (minStroke-maxStroke)
+                return this.minStroke + (this.maxStroke - this.minStroke) * pressure;
             }
 
             clearAnnotations() {
