@@ -271,6 +271,11 @@
                 <input type="range" id="pressureSensitivity" min="0.1" max="2" step="0.1" value="1.7">
                 <span id="sensitivityValue">1.7x</span>
             </div>
+            <div class="control-group">
+                <label for="smoothing">Stroke Smoothing</label>
+                <input type="range" id="smoothing" min="0" max="1" step="0.1" value="0.5">
+                <span id="smoothingValue">0.5</span>
+            </div>
         </div>
     </div>
     
@@ -298,6 +303,7 @@
         let maxStrokeSize = 5;
         let pressureSensitivity = 1.7;
         let pressureEnabled = true;
+        let smoothingFactor = 0.5;
         
         // Canvas setup with high-DPI support
         function resizeCanvas() {
@@ -376,16 +382,45 @@
             // Set line width for this segment
             ctx.lineWidth = lineWidth;
             
-            // Draw individual line segment (each with its own pressure)
-            ctx.beginPath();
-            ctx.moveTo(lastX, lastY);
-            ctx.lineTo(x, y);
-            ctx.stroke();
-            
-            // Update positions and pressure for next segment
-            lastX = x;
-            lastY = y;
-            lastPressure = pressure;
+            if (smoothingFactor === 0) {
+                // No smoothing - draw straight lines
+                ctx.beginPath();
+                ctx.moveTo(lastX, lastY);
+                ctx.lineTo(x, y);
+                ctx.stroke();
+                
+                lastX = x;
+                lastY = y;
+            } else {
+                // Standard quadratic curve smoothing for drawing apps
+                const currentX = x;
+                const currentY = y;
+                
+                // Calculate midpoint between last and current position
+                const midX = (lastX + currentX) / 2;
+                const midY = (lastY + currentY) / 2;
+                
+                // For the first segment after starting, draw a line to the first midpoint
+                if (prevX === lastX && prevY === lastY) {
+                    ctx.beginPath();
+                    ctx.moveTo(lastX, lastY);
+                    ctx.lineTo(midX, midY);
+                    ctx.stroke();
+                } else {
+                    // Draw quadratic curve using the previous midpoint to current midpoint
+                    // with the last actual point as the control point
+                    ctx.beginPath();
+                    ctx.moveTo(prevX, prevY);
+                    ctx.quadraticCurveTo(lastX, lastY, midX, midY);
+                    ctx.stroke();
+                }
+                
+                // Update positions
+                prevX = midX;
+                prevY = midY;
+                lastX = currentX;
+                lastY = currentY;
+            }
         }
         
         function stopDrawing() {
@@ -506,9 +541,11 @@
         const pressureToggle = document.getElementById('pressureToggle');
         const pressureControls = document.getElementById('pressureControls');
         const clearBtn = document.getElementById('clearBtn');
+        const smoothingSlider = document.getElementById('smoothing');
         const minValueDisplay = document.getElementById('minValue');
         const maxValueDisplay = document.getElementById('maxValue');
         const sensitivityValueDisplay = document.getElementById('sensitivityValue');
+        const smoothingValueDisplay = document.getElementById('smoothingValue');
         
         // Toggle drawer
         menuBtn.addEventListener('click', () => {
@@ -568,6 +605,13 @@
             } else {
                 pressureControls.classList.add('disabled');
             }
+        });
+        
+        // Update smoothing
+        smoothingSlider.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            smoothingFactor = value;
+            smoothingValueDisplay.textContent = value.toFixed(1);
         });
         
         // Clear button functionality
