@@ -370,10 +370,21 @@
             let lineWidth;
             
             if (pressureEnabled) {
-                // Apply pressure sensitivity multiplier
-                const adjustedPressure = Math.min(1, Math.max(0, pressure * pressureSensitivity));
-                // Calculate pressure-sensitive line width using configurable min/max
-                lineWidth = minStrokeSize + (maxStrokeSize - minStrokeSize) * adjustedPressure;
+                const minPressureThreshold = 0.02; // Below this = exactly minimum stroke
+                
+                if (pressure <= minPressureThreshold) {
+                    // Very light pressure = exactly minimum stroke (preserve the floor)
+                    lineWidth = minStrokeSize;
+                } else {
+                    // Map pressure above threshold to 0-1 range
+                    const normalizedPressure = Math.min(1, (pressure - minPressureThreshold) / (1 - minPressureThreshold));
+                    
+                    // Apply sensitivity curve (higher sensitivity = easier to reach max)
+                    const adjustedPressure = Math.pow(normalizedPressure, 1 / pressureSensitivity);
+                    
+                    // Map to stroke range (starting from minimum)
+                    lineWidth = minStrokeSize + (maxStrokeSize - minStrokeSize) * adjustedPressure;
+                }
             } else {
                 // Use fixed line width (average of min and max)
                 lineWidth = (minStrokeSize + maxStrokeSize) / 2;
