@@ -105,7 +105,9 @@
             
             <!-- Brush Size -->
             <div class="flex items-center space-x-1">
+                <label class="text-xs text-gray-600 dark:text-gray-400 w-8">Size:</label>
                 <input type="range" id="brush-size" min="1" max="20" value="3" class="flex-1 h-2">
+                <span id="brush-size-value" class="text-xs text-gray-600 dark:text-gray-400 w-6">3</span>
                 <div class="flex flex-col items-center">
                     <div id="size-preview" class="size-indicator" style="width: 6px; height: 6px; background-color: #000000;"></div>
                     <div id="pressure-indicator" class="pressure-indicator hidden">
@@ -118,28 +120,38 @@
                 </div>
             </div>
             
+            <!-- Eraser Size -->
+            <div class="flex items-center space-x-1">
+                <label class="text-xs text-gray-600 dark:text-gray-400 w-8">Erase:</label>
+                <input type="range" id="eraser-size" min="5" max="50" value="10" class="flex-1 h-2">
+                <span id="eraser-size-value" class="text-xs text-gray-600 dark:text-gray-400 w-6">10</span>
+                <div class="flex flex-col items-center">
+                    <div id="eraser-preview" class="size-indicator" style="width: 20px; height: 20px; background-color: transparent; border: 2px dashed #6b7280;"></div>
+                </div>
+            </div>
+            
             <!-- Pressure Sensitivity Toggle -->
             <div class="flex items-center space-x-1">
-                <input type="checkbox" id="pressure-toggle" class="w-3 h-3">
+                <input type="checkbox" id="pressure-toggle" checked class="w-3 h-3">
                 <label for="pressure-toggle" class="text-xs text-gray-700 dark:text-gray-300">Pressure</label>
             </div>
             
             <!-- Pressure Range Controls -->
-            <div id="pressure-controls" class="space-y-1 hidden">
+            <div id="pressure-controls" class="space-y-1">
                 <div class="flex items-center space-x-1">
                     <label class="text-xs text-gray-600 dark:text-gray-400 w-8">Min:</label>
-                    <input type="range" id="pressure-min" min="0.1" max="1" step="0.1" value="0.2" class="flex-1 h-1">
-                    <span id="pressure-min-value" class="text-xs text-gray-600 dark:text-gray-400 w-6">0.2</span>
+                    <input type="range" id="pressure-min" min="0.1" max="1" step="0.1" value="0.1" class="flex-1 h-1">
+                    <span id="pressure-min-value" class="text-xs text-gray-600 dark:text-gray-400 w-6">0.1</span>
                 </div>
                 <div class="flex items-center space-x-1">
                     <label class="text-xs text-gray-600 dark:text-gray-400 w-8">Max:</label>
-                    <input type="range" id="pressure-max" min="1" max="5" step="0.1" value="2.0" class="flex-1 h-1">
-                    <span id="pressure-max-value" class="text-xs text-gray-600 dark:text-gray-400 w-6">2.0</span>
+                    <input type="range" id="pressure-max" min="1" max="5" step="0.1" value="2.6" class="flex-1 h-1">
+                    <span id="pressure-max-value" class="text-xs text-gray-600 dark:text-gray-400 w-6">2.6</span>
                 </div>
                 <div class="flex items-center space-x-1">
                     <label class="text-xs text-gray-600 dark:text-gray-400 w-8">Curve:</label>
-                    <input type="range" id="pressure-curve" min="0.5" max="3" step="0.1" value="1.0" class="flex-1 h-1">
-                    <span id="pressure-curve-value" class="text-xs text-gray-600 dark:text-gray-400 w-6">1.0</span>
+                    <input type="range" id="pressure-curve" min="0.5" max="3" step="0.1" value="1.7" class="flex-1 h-1">
+                    <span id="pressure-curve-value" class="text-xs text-gray-600 dark:text-gray-400 w-6">1.7</span>
                 </div>
             </div>
             
@@ -149,9 +161,15 @@
                 <label for="interpolation-toggle" class="text-xs text-gray-700 dark:text-gray-300">Smooth</label>
             </div>
             
+            <!-- Manual Eraser Toggle (for testing) -->
+            <div class="flex items-center space-x-1">
+                <input type="checkbox" id="manual-eraser-toggle" class="w-3 h-3">
+                <label for="manual-eraser-toggle" class="text-xs text-gray-700 dark:text-gray-300">Manual Eraser</label>
+            </div>
+            
             <!-- Ink Preview Debug Toggle -->
             <div class="flex items-center space-x-1">
-                <input type="checkbox" id="debug-preview-toggle" checked class="w-3 h-3">
+                <input type="checkbox" id="debug-preview-toggle" class="w-3 h-3">
                 <label for="debug-preview-toggle" class="text-xs text-gray-700 dark:text-gray-300">Red Preview</label>
             </div>
             
@@ -174,18 +192,23 @@
                 this.lastPoint = null;
                 this.previousPoint = null;
                 this.interpolationEnabled = true;
-                this.debugPreviewEnabled = true;
+                this.debugPreviewEnabled = false;
                 
                 // Pressure sensitivity properties
-                this.pressureEnabled = false;
-                this.pressureMin = 0.2;
-                this.pressureMax = 2.0;
-                this.pressureCurve = 1.0;
+                this.pressureEnabled = true;
+                this.pressureMin = 0.1;
+                this.pressureMax = 2.6;
+                this.pressureCurve = 1.7;
                 this.currentPressure = 0.5;
                 
                 // Pointer tracking to prevent finger interference
                 this.activePointerId = null;
                 this.activePointerType = null;
+                
+                // Eraser mode tracking
+                this.isErasing = false;
+                this.eraserSize = 10;
+                this.manualEraserMode = false;
                 
                 this.setupCanvas();
                 this.setupInkAPI();
@@ -297,10 +320,27 @@
                 
                 // Brush size slider
                 const brushSize = document.getElementById('brush-size');
+                const brushSizeValue = document.getElementById('brush-size-value');
+                
                 brushSize.addEventListener('input', (e) => {
                     this.currentSize = parseInt(e.target.value);
+                    brushSizeValue.textContent = this.currentSize;
                     this.updateLineWidth();
                     this.updateSizePreview();
+                });
+                
+                // Eraser size slider
+                const eraserSize = document.getElementById('eraser-size');
+                const eraserSizeValue = document.getElementById('eraser-size-value');
+                
+                eraserSize.addEventListener('input', (e) => {
+                    this.eraserSize = parseInt(e.target.value);
+                    eraserSizeValue.textContent = this.eraserSize;
+                    this.updateEraserPreview();
+                    // Update cursor if currently in eraser mode
+                    if (this.isErasing) {
+                        this.canvas.style.cursor = this.generateEraserCursor(this.eraserSize);
+                    }
                 });
                 
                 // Pressure sensitivity toggle
@@ -353,6 +393,15 @@
                     this.interpolationEnabled = e.target.checked;
                 });
                 
+                // Manual eraser toggle (for testing)
+                const manualEraserToggle = document.getElementById('manual-eraser-toggle');
+                manualEraserToggle.addEventListener('change', (e) => {
+                    this.manualEraserMode = e.target.checked;
+                    this.setDrawingMode(e.target.checked);
+                    console.log('Manual eraser mode:', e.target.checked);
+                    console.log('Cursor applied:', this.canvas.style.cursor);
+                });
+                
                 // Debug preview toggle
                 const debugPreviewToggle = document.getElementById('debug-preview-toggle');
                 debugPreviewToggle.addEventListener('change', (e) => {
@@ -369,8 +418,10 @@
             }
             
             calculatePressureSize(pressure) {
+                const baseSize = this.isErasing ? this.eraserSize : this.currentSize;
+                
                 if (!this.pressureEnabled) {
-                    return this.currentSize;
+                    return baseSize;
                 }
                 
                 // Apply pressure curve (exponential)
@@ -379,12 +430,19 @@
                 // Map to min/max range
                 const pressureMultiplier = this.pressureMin + (this.pressureMax - this.pressureMin) * normalizedPressure;
                 
-                return this.currentSize * pressureMultiplier;
+                return baseSize * pressureMultiplier;
             }
             
             updateLineWidth(pressure = 0.5) {
                 const size = this.calculatePressureSize(pressure);
                 this.ctx.lineWidth = size;
+            }
+            
+            updateEraserPreview() {
+                const preview = document.getElementById('eraser-preview');
+                const size = this.eraserSize * 2;
+                preview.style.width = `${size}px`;
+                preview.style.height = `${size}px`;
             }
             
             updateSizePreview() {
@@ -432,6 +490,102 @@
                 };
             }
             
+            detectEraser(e) {
+                // Debug: log all pointer event properties for stylus detection
+                if (e.pointerType === 'pen') {
+                    console.log('Stylus event detected:', {
+                        button: e.button,
+                        buttons: e.buttons,
+                        pointerType: e.pointerType,
+                        pressure: e.pressure,
+                        // Check if this is an eraser event
+                        isPrimaryButton: e.button === 0,
+                        isSecondaryButton: e.button === 2,
+                        isBarrelButton: e.button === 5,
+                        buttonsPressed: e.buttons.toString(2), // Binary representation
+                        hasButton32: !!(e.buttons & 32),
+                        hasButton4: !!(e.buttons & 4)
+                    });
+                }
+                
+                // Check multiple ways to detect eraser:
+                // 1. Button 5 (barrel button/eraser button on stylus)
+                // 2. Button 2 with pen pointer type (some styluses)  
+                // 3. Buttons bitmask 32 (button 5)
+                // 4. Buttons bitmask 4 (button 2)
+                // 5. Right mouse button with pen type
+                const isEraser = (e.button === 5) || 
+                               (e.button === 2 && e.pointerType === 'pen') || 
+                               (e.buttons & 32) || // Button 5 in buttons bitmask
+                               (e.buttons & 4) ||  // Button 2 in buttons bitmask
+                               (e.pointerType === 'pen' && e.buttons === 32) ||
+                               (e.pointerType === 'pen' && e.buttons === 4);
+                
+                if (isEraser) {
+                    console.log('ERASER DETECTED!', {
+                        button: e.button,
+                        buttons: e.buttons,
+                        detection: 'stylus eraser button'
+                    });
+                }
+                
+                return isEraser;
+            }
+            
+            generateEraserCursor(size) {
+                // Pre-calculate cursor size (clamp to reasonable range for performance)
+                const cursorSize = Math.min(Math.max(size * 2, 16), 64);
+                const center = cursorSize / 2;
+                const radius = center - 3;
+                
+                // Create highly visible SVG with white background and black dotted circle
+                const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${cursorSize}" height="${cursorSize}" viewBox="0 0 ${cursorSize} ${cursorSize}">
+                    <circle cx="${center}" cy="${center}" r="${radius + 1}" fill="white" stroke="black" stroke-width="1" opacity="0.9"/>
+                    <circle cx="${center}" cy="${center}" r="${radius}" fill="none" stroke="red" stroke-width="2" stroke-dasharray="3,2" opacity="1"/>
+                    <circle cx="${center}" cy="${center}" r="2" fill="red" opacity="1"/>
+                    <circle cx="${center}" cy="${center}" r="1" fill="white" opacity="1"/>
+                </svg>`;
+                
+                // Convert to data URI and log for debugging
+                const encodedSvg = encodeURIComponent(svg);
+                const cursorUrl = `url("data:image/svg+xml,${encodedSvg}") ${center} ${center}, cell`;
+                
+                // Debug: log the full SVG and cursor URL
+                console.log('Generated eraser cursor SVG:', svg);
+                console.log('Cursor URL:', cursorUrl);
+                
+                return cursorUrl;
+            }
+            
+            setDrawingMode(isErasing) {
+                this.isErasing = isErasing;
+                
+                if (isErasing) {
+                    // Set eraser mode - this removes existing content
+                    this.ctx.globalCompositeOperation = 'destination-out';
+                    // Set custom eraser cursor with dotted circle
+                    const cursorUrl = this.generateEraserCursor(this.eraserSize);
+                    this.canvas.style.cursor = cursorUrl;
+                    
+                    console.log('ERASER MODE ACTIVATED - Cursor set to:', cursorUrl);
+                    console.log('Canvas cursor style after setting:', this.canvas.style.cursor);
+                    
+                    // Force cursor update after a short delay to ensure it takes effect
+                    setTimeout(() => {
+                        this.canvas.style.cursor = cursorUrl;
+                        console.log('Cursor re-applied after timeout:', this.canvas.style.cursor);
+                    }, 10);
+                    
+                } else {
+                    // Set normal drawing mode
+                    this.ctx.globalCompositeOperation = 'source-over';
+                    this.ctx.strokeStyle = this.currentColor;
+                    // Restore normal cursor
+                    this.canvas.style.cursor = 'crosshair';
+                    console.log('DRAWING MODE ACTIVATED - Cursor set to crosshair');
+                }
+            }
+            
             startDrawing(e) {
                 // Only allow pen/stylus input, ignore finger touches
                 if (e.pointerType === 'touch') {
@@ -450,6 +604,10 @@
                 
                 // Capture this pointer to ensure we get all its events
                 this.canvas.setPointerCapture(e.pointerId);
+                
+                // Check if we're in eraser mode - manual mode takes precedence
+                const isErasing = this.manualEraserMode || this.detectEraser(e);
+                this.setDrawingMode(isErasing);
                 
                 const pos = this.getPointerPosition(e);
                 this.lastPoint = pos;
