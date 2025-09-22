@@ -183,6 +183,10 @@
                 this.pressureCurve = 1.0;
                 this.currentPressure = 0.5;
                 
+                // Pointer tracking to prevent finger interference
+                this.activePointerId = null;
+                this.activePointerType = null;
+                
                 this.setupCanvas();
                 this.setupInkAPI();
                 this.setupEventListeners();
@@ -264,8 +268,9 @@
                 // Pointer events for drawing
                 this.canvas.addEventListener('pointerdown', (e) => this.startDrawing(e));
                 this.canvas.addEventListener('pointermove', (e) => this.draw(e));
-                this.canvas.addEventListener('pointerup', () => this.stopDrawing());
-                this.canvas.addEventListener('pointerleave', () => this.stopDrawing());
+                this.canvas.addEventListener('pointerup', (e) => this.stopDrawing(e));
+                this.canvas.addEventListener('pointerleave', (e) => this.stopDrawing(e));
+                this.canvas.addEventListener('pointercancel', (e) => this.stopDrawing(e));
                 
                 // Prevent default touch behaviors
                 this.canvas.addEventListener('touchstart', (e) => e.preventDefault());
@@ -433,7 +438,19 @@
                     return;
                 }
                 
+                // If already drawing with another pointer, ignore this one
+                if (this.isDrawing && this.activePointerId !== null && this.activePointerId !== e.pointerId) {
+                    return;
+                }
+                
+                // Set active pointer tracking
                 this.isDrawing = true;
+                this.activePointerId = e.pointerId;
+                this.activePointerType = e.pointerType;
+                
+                // Capture this pointer to ensure we get all its events
+                this.canvas.setPointerCapture(e.pointerId);
+                
                 const pos = this.getPointerPosition(e);
                 this.lastPoint = pos;
                 this.previousPoint = null;
@@ -453,7 +470,10 @@
             }
             
             async draw(e) {
-                if (!this.isDrawing) return;
+                // Only process events from the active pointer
+                if (!this.isDrawing || e.pointerId !== this.activePointerId) {
+                    return;
+                }
                 
                 const pos = this.getPointerPosition(e);
                 
@@ -505,12 +525,30 @@
                 this.lastPoint = pos;
             }
             
-            stopDrawing() {
+            stopDrawing(e) {
+                // Only stop drawing if this is the active pointer or no specific event
+                if (e && e.pointerId !== this.activePointerId) {
+                    return;
+                }
+                
                 if (!this.isDrawing) return;
                 
                 this.isDrawing = false;
                 this.ctx.beginPath();
                 this.lastPoint = null;
+                
+                // Reset active pointer tracking
+                this.activePointerId = null;
+                this.activePointerType = null;
+                
+                // Release pointer capture if we have an event
+                if (e) {
+                    try {
+                        this.canvas.releasePointerCapture(e.pointerId);
+                    } catch (error) {
+                        // Ignore release errors
+                    }
+                }
                 
                 // Reset pressure indicator
                 if (this.pressureEnabled) {
