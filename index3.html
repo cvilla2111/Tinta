@@ -458,7 +458,10 @@
             }
             
             async startPresentation() {
-                if (!this.presentationRequest) return;
+                if (!this.presentationRequest) {
+                    this.openPresentationWindow();
+                    return;
+                }
                 
                 const statusElement = document.getElementById('presentation-status');
                 const buttonElement = document.getElementById('presentation-btn');
@@ -493,7 +496,6 @@
                     
                 } catch (error) {
                     console.error('Failed to start presentation:', error);
-                    // Fallback to regular window
                     this.openPresentationWindow();
                 }
             }
@@ -521,12 +523,14 @@
             }
             
             initializePresentationDisplay() {
-                // For simplicity, use fallback window method
                 this.openPresentationWindow();
             }
             
             openPresentationWindow() {
-                const html = `<!DOCTYPE html>
+                this.presentationWindow = window.open('', 'presentation', 'width=1200,height=800,scrollbars=no,resizable=yes');
+                
+                if (this.presentationWindow) {
+                    this.presentationWindow.document.write(`<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
@@ -578,14 +582,10 @@
         if (window.opener) {
             window.opener.postMessage({ type: 'presentationReady' }, '*');
         }
-    </script>
+    </` + `script>
 </body>
-</html>`;
-                
-                this.presentationWindow = window.open('', 'presentation', 'width=1200,height=800,scrollbars=no,resizable=yes');
-                
-                if (this.presentationWindow) {
-                    this.presentationWindow.document.write(html);
+</html>`);
+                    
                     this.presentationWindow.document.close();
                     
                     window.addEventListener('message', (event) => {
@@ -637,7 +637,6 @@
             }
             
             setupControls() {
-                // Color swatches
                 document.querySelectorAll('.color-swatch').forEach(swatch => {
                     swatch.addEventListener('click', (e) => {
                         document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
@@ -648,7 +647,6 @@
                     });
                 });
                 
-                // Brush size slider
                 const brushSize = document.getElementById('brush-size');
                 const brushSizeValue = document.getElementById('brush-size-value');
                 
@@ -659,7 +657,6 @@
                     this.updateSizePreview();
                 });
                 
-                // Eraser size slider
                 const eraserSize = document.getElementById('eraser-size');
                 const eraserSizeValue = document.getElementById('eraser-size-value');
                 
@@ -670,7 +667,6 @@
                     this.updateEraserCursorSize();
                 });
                 
-                // Pressure sensitivity toggle
                 const pressureToggle = document.getElementById('pressure-toggle');
                 const pressureControls = document.getElementById('pressure-controls');
                 const pressureIndicator = document.getElementById('pressure-indicator');
@@ -688,7 +684,6 @@
                     this.updateSizePreview();
                 });
                 
-                // Pressure range controls
                 const pressureMin = document.getElementById('pressure-min');
                 const pressureMax = document.getElementById('pressure-max');
                 const pressureCurve = document.getElementById('pressure-curve');
@@ -714,7 +709,6 @@
                     this.updateSizePreview();
                 });
                 
-                // Dynamic eraser toggle
                 const dynamicEraserToggle = document.getElementById('dynamic-eraser-toggle');
                 const dynamicEraserControls = document.getElementById('dynamic-eraser-controls');
                 
@@ -729,7 +723,6 @@
                     }
                 });
                 
-                // Dynamic eraser range controls
                 const eraserMin = document.getElementById('eraser-min');
                 const eraserMax = document.getElementById('eraser-max');
                 const eraserSpeedThreshold = document.getElementById('eraser-speed-threshold');
@@ -752,7 +745,6 @@
                     eraserSpeedValue.textContent = this.speedThreshold.toFixed(1);
                 });
                 
-                // Other toggles
                 const interpolationToggle = document.getElementById('interpolation-toggle');
                 interpolationToggle.addEventListener('change', (e) => {
                     this.interpolationEnabled = e.target.checked;
@@ -763,7 +755,6 @@
                     this.debugPreviewEnabled = e.target.checked;
                 });
                 
-                // Presentation button
                 document.getElementById('presentation-btn').addEventListener('click', () => {
                     if (this.isPresentationActive) {
                         this.stopPresentation();
@@ -772,22 +763,18 @@
                     }
                 });
                 
-                // Clear button
                 document.getElementById('clear-btn').addEventListener('click', () => {
                     this.clearCanvas();
                 });
                 
-                // Hide controls button
                 document.getElementById('hide-controls-btn').addEventListener('click', () => {
                     this.toggleControls();
                 });
                 
-                // Toggle controls button
                 document.getElementById('toggle-controls-btn').addEventListener('click', () => {
                     this.toggleControls();
                 });
                 
-                // Keyboard shortcuts
                 document.addEventListener('keydown', (e) => {
                     if (e.target.tagName.toLowerCase() === 'input') return;
                     
@@ -816,7 +803,6 @@
                     }
                 });
                 
-                // Initialize size preview and eraser cursor
                 this.updateSizePreview();
                 this.updateEraserCursorSize();
             }
@@ -1146,12 +1132,10 @@
             }
         }
         
-        // Initialize the app when DOM is ready
         document.addEventListener('DOMContentLoaded', () => {
             new InkDrawingApp();
         });
         
-        // Dark mode support
         if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
             document.documentElement.classList.add('dark');
         }
