@@ -313,8 +313,6 @@
                 this.presentationRequest = null;
                 this.presentationConnection = null;
                 this.presentationWindow = null;
-                this.presentationCanvas = null;
-                this.presentationCtx = null;
                 this.isPresentationActive = false;
                 
                 // Pressure sensitivity properties
@@ -336,13 +334,13 @@
                 this.lastTimestamp = 0;
                 this.currentSpeed = 0;
                 this.speedHistory = [];
-                this.maxSpeedHistory = 8; // Increased for smoother transitions
+                this.maxSpeedHistory = 8;
                 this.speedMultiplier = 1;
                 this.minSpeedMultiplier = 0.1;
                 this.maxSpeedMultiplier = 28.8;
                 this.speedThreshold = 4.0;
                 this.dynamicEraserEnabled = true;
-                this.decayFactor = 0.95; // Factor for slow size decrease
+                this.decayFactor = 0.95;
                 
                 // Eraser cursor elements
                 this.eraserCursor = document.getElementById('eraser-cursor');
@@ -356,10 +354,7 @@
             }
             
             setupCanvas() {
-                // Set canvas size to full viewport with high DPI support
                 this.resizeCanvas();
-                
-                // Set canvas drawing properties for smooth rendering
                 this.ctx.lineCap = 'round';
                 this.ctx.lineJoin = 'round';
                 this.ctx.strokeStyle = this.currentColor;
@@ -367,31 +362,20 @@
                 this.ctx.imageSmoothingEnabled = true;
                 this.ctx.imageSmoothingQuality = 'high';
                 
-                // Handle window resize
                 window.addEventListener('resize', () => this.resizeCanvas());
             }
             
             resizeCanvas() {
-                // Get device pixel ratio for high DPI displays
                 const dpr = window.devicePixelRatio || 1;
-                const rect = this.canvas.getBoundingClientRect();
-                
-                // Set display size (CSS pixels)
                 const displayWidth = window.innerWidth;
                 const displayHeight = window.innerHeight;
                 
-                // Set actual canvas size in memory (scaled for DPI)
                 this.canvas.width = displayWidth * dpr;
                 this.canvas.height = displayHeight * dpr;
-                
-                // Scale the canvas back down using CSS
                 this.canvas.style.width = displayWidth + 'px';
                 this.canvas.style.height = displayHeight + 'px';
                 
-                // Scale the drawing context so everything draws at the correct size
                 this.ctx.scale(dpr, dpr);
-                
-                // Restore drawing properties after resize
                 this.ctx.lineCap = 'round';
                 this.ctx.lineJoin = 'round';
                 this.ctx.strokeStyle = this.currentColor;
@@ -399,7 +383,6 @@
                 this.ctx.imageSmoothingEnabled = true;
                 this.ctx.imageSmoothingQuality = 'high';
                 
-                // Sync with presentation if active
                 if (this.isPresentationActive) {
                     this.syncPresentationCanvas();
                 }
@@ -409,12 +392,10 @@
                 const statusText = document.getElementById('status-text');
                 
                 try {
-                    // Check if Ink API is supported
                     if ('ink' in navigator) {
                         statusText.textContent = 'Ink API supported';
                         statusText.className = 'text-green-600 dark:text-green-400';
                         
-                        // Request presenter
                         this.presenter = await navigator.ink.requestPresenter({
                             presentationArea: this.canvas
                         });
@@ -436,16 +417,13 @@
                 const buttonElement = document.getElementById('presentation-btn');
                 
                 try {
-                    // Check if Presentation API is supported
                     if ('presentation' in navigator && 'PresentationRequest' in window) {
-                        // Create presentation request
-                        this.presentationRequest = new PresentationRequest(['presentation.html', 'about:blank']);
+                        this.presentationRequest = new PresentationRequest(['about:blank']);
                         
                         statusElement.textContent = 'Available';
                         statusElement.className = 'presentation-status inactive';
                         buttonElement.disabled = false;
                         
-                        // Listen for available displays
                         try {
                             const availability = await this.presentationRequest.getAvailability();
                             availability.addEventListener('change', () => {
@@ -490,10 +468,8 @@
                     statusElement.className = 'presentation-status inactive';
                     buttonElement.disabled = true;
                     
-                    // Start presentation
                     this.presentationConnection = await this.presentationRequest.start();
                     
-                    // Set up event listeners
                     this.presentationConnection.addEventListener('connect', () => {
                         console.log('Presentation connected');
                         this.isPresentationActive = true;
@@ -517,15 +493,16 @@
                     
                 } catch (error) {
                     console.error('Failed to start presentation:', error);
-                    statusElement.textContent = 'Failed';
-                    statusElement.className = 'presentation-status error';
-                    buttonElement.disabled = false;
+                    // Fallback to regular window
+                    this.openPresentationWindow();
                 }
             }
             
             stopPresentation() {
                 if (this.presentationConnection) {
                     this.presentationConnection.terminate();
+                } else if (this.presentationWindow) {
+                    this.presentationWindow.close();
                 }
             }
             
@@ -533,8 +510,6 @@
                 this.isPresentationActive = false;
                 this.presentationConnection = null;
                 this.presentationWindow = null;
-                this.presentationCanvas = null;
-                this.presentationCtx = null;
                 
                 const statusElement = document.getElementById('presentation-status');
                 const buttonElement = document.getElementById('presentation-btn');
@@ -546,135 +521,89 @@
             }
             
             initializePresentationDisplay() {
-                if (!this.presentationConnection) return;
-                
-                // Create HTML content for the presentation display
-                const presentationHTML = `
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <meta charset="UTF-8">
-                        <title>Drawing Presentation</title>
-                        <style>
-                            body {
-                                margin: 0;
-                                padding: 0;
-                                background: #000;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                min-height: 100vh;
-                                overflow: hidden;
-                            }
-                            #presentationCanvas {
-                                max-width: 100vw;
-                                max-height: 100vh;
-                                background: white;
-                                border-radius: 8px;
-                                box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
-                            }
-                            .info {
-                                position: absolute;
-                                top: 20px;
-                                left: 20px;
-                                color: white;
-                                font-family: Arial, sans-serif;
-                                font-size: 14px;
-                                opacity: 0.7;
-                            }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="info">Drawing Presentation - Connected</div>
-                        <canvas id="presentationCanvas"></canvas>
-                        <script>
-                            // Initialize presentation canvas
-                            const canvas = document.getElementById('presentationCanvas');
-                            const ctx = canvas.getContext('2d');
-                            
-                            // Set canvas size to fit presentation screen
-                            canvas.width = Math.min(window.innerWidth - 40, 1920);
-                            canvas.height = Math.min(window.innerHeight - 40, 1080);
-                            
-                            // Set drawing properties
-                            ctx.lineCap = 'round';
-                            ctx.lineJoin = 'round';
-                            ctx.imageSmoothingEnabled = true;
-                            ctx.imageSmoothingQuality = 'high';
-                            
-                            // Listen for drawing data from main window
-                            window.addEventListener('message', (event) => {
-                                if (event.data.type === 'drawingUpdate') {
-                                    const imageData = event.data.imageData;
-                                    const img = new Image();
-                                    img.onload = () => {
-                                        ctx.clearRect(0, 0, canvas.width, canvas.height);
-                                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                                    };
-                                    img.src = imageData;
-                                } else if (event.data.type === 'clearCanvas') {
-                                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                                }
-                            });
-                            
-                            // Notify main window that presentation is ready
-                            if (window.opener) {
-                                window.opener.postMessage({ type: 'presentationReady' }, '*');
-                            }
-                        </script>
-                    </body>
-                    </html>
-                `;
-                
-                // Write HTML to presentation window
-                if (this.presentationConnection.state === 'connected') {
-                    try {
-                        // For Presentation API, we send messages to control the display
-                        this.presentationConnection.send(JSON.stringify({
-                            type: 'initializeDisplay',
-                            html: presentationHTML
-                        }));
-                        
-                        // Start syncing the canvas content
-                        this.syncPresentationCanvas();
-                        
-                        // Set up periodic sync
-                        this.presentationSyncInterval = setInterval(() => {
-                            if (this.isPresentationActive) {
-                                this.syncPresentationCanvas();
-                            }
-                        }, 100); // Sync every 100ms
-                        
-                    } catch (error) {
-                        console.warn('Failed to initialize presentation display:', error);
-                        // Fallback: open a regular window for presentation
-                        this.openPresentationWindow(presentationHTML);
-                    }
-                } else {
-                    // Fallback: open a regular window for presentation
-                    this.openPresentationWindow(presentationHTML);
-                }
+                // For simplicity, use fallback window method
+                this.openPresentationWindow();
             }
             
-            openPresentationWindow(html) {
-                // Fallback method: open a regular window
+            openPresentationWindow() {
+                const html = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Drawing Presentation</title>
+    <style>
+        body {
+            margin: 0; padding: 0; background: #000; display: flex;
+            align-items: center; justify-content: center; min-height: 100vh; overflow: hidden;
+        }
+        #presentationCanvas {
+            max-width: 100vw; max-height: 100vh; background: white;
+            border-radius: 8px; box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        }
+        .info {
+            position: absolute; top: 20px; left: 20px; color: white;
+            font-family: Arial, sans-serif; font-size: 14px; opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <div class="info">Drawing Presentation - Connected</div>
+    <canvas id="presentationCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('presentationCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = Math.min(window.innerWidth - 40, 1920);
+        canvas.height = Math.min(window.innerHeight - 40, 1080);
+        
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'drawingUpdate') {
+                const imageData = event.data.imageData;
+                const img = new Image();
+                img.onload = () => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                };
+                img.src = imageData;
+            } else if (event.data.type === 'clearCanvas') {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        });
+        
+        if (window.opener) {
+            window.opener.postMessage({ type: 'presentationReady' }, '*');
+        }
+    </script>
+</body>
+</html>`;
+                
                 this.presentationWindow = window.open('', 'presentation', 'width=1200,height=800,scrollbars=no,resizable=yes');
                 
                 if (this.presentationWindow) {
                     this.presentationWindow.document.write(html);
                     this.presentationWindow.document.close();
                     
-                    // Listen for messages from presentation window
                     window.addEventListener('message', (event) => {
                         if (event.data.type === 'presentationReady') {
                             this.syncPresentationCanvas();
                         }
                     });
                     
-                    // Handle window close
                     this.presentationWindow.addEventListener('beforeunload', () => {
                         this.cleanupPresentation();
                     });
+                    
+                    this.isPresentationActive = true;
+                    const statusElement = document.getElementById('presentation-status');
+                    const buttonElement = document.getElementById('presentation-btn');
+                    statusElement.textContent = 'Active';
+                    statusElement.className = 'presentation-status active';
+                    buttonElement.textContent = 'Stop';
                 }
             }
             
@@ -682,16 +611,9 @@
                 if (!this.isPresentationActive) return;
                 
                 try {
-                    // Convert main canvas to data URL
                     const imageData = this.canvas.toDataURL('image/png');
                     
-                    // Send to presentation display
-                    if (this.presentationConnection && this.presentationConnection.state === 'connected') {
-                        this.presentationConnection.send(JSON.stringify({
-                            type: 'drawingUpdate',
-                            imageData: imageData
-                        }));
-                    } else if (this.presentationWindow && !this.presentationWindow.closed) {
+                    if (this.presentationWindow && !this.presentationWindow.closed) {
                         this.presentationWindow.postMessage({
                             type: 'drawingUpdate',
                             imageData: imageData
@@ -703,14 +625,12 @@
             }
             
             setupEventListeners() {
-                // Pointer events for drawing
                 this.canvas.addEventListener('pointerdown', (e) => this.startDrawing(e));
                 this.canvas.addEventListener('pointermove', (e) => this.draw(e));
                 this.canvas.addEventListener('pointerup', (e) => this.stopDrawing(e));
                 this.canvas.addEventListener('pointerleave', (e) => this.stopDrawing(e));
                 this.canvas.addEventListener('pointercancel', (e) => this.stopDrawing(e));
                 
-                // Prevent default touch behaviors
                 this.canvas.addEventListener('touchstart', (e) => e.preventDefault());
                 this.canvas.addEventListener('touchmove', (e) => e.preventDefault());
                 this.canvas.addEventListener('touchend', (e) => e.preventDefault());
@@ -720,13 +640,8 @@
                 // Color swatches
                 document.querySelectorAll('.color-swatch').forEach(swatch => {
                     swatch.addEventListener('click', (e) => {
-                        // Remove active class from all swatches
                         document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
-                        
-                        // Add active class to clicked swatch
                         e.target.classList.add('active');
-                        
-                        // Update current color
                         this.currentColor = e.target.dataset.color;
                         this.ctx.strokeStyle = this.currentColor;
                         this.updateSizePreview();
@@ -799,12 +714,6 @@
                     this.updateSizePreview();
                 });
                 
-                // Interpolation toggle
-                const interpolationToggle = document.getElementById('interpolation-toggle');
-                interpolationToggle.addEventListener('change', (e) => {
-                    this.interpolationEnabled = e.target.checked;
-                });
-                
                 // Dynamic eraser toggle
                 const dynamicEraserToggle = document.getElementById('dynamic-eraser-toggle');
                 const dynamicEraserControls = document.getElementById('dynamic-eraser-controls');
@@ -815,7 +724,6 @@
                         dynamicEraserControls.classList.remove('hidden');
                     } else {
                         dynamicEraserControls.classList.add('hidden');
-                        // Reset to base size when disabled
                         this.speedMultiplier = 1;
                         this.updateEraserCursorSize();
                     }
@@ -844,7 +752,12 @@
                     eraserSpeedValue.textContent = this.speedThreshold.toFixed(1);
                 });
                 
-                // Debug preview toggle
+                // Other toggles
+                const interpolationToggle = document.getElementById('interpolation-toggle');
+                interpolationToggle.addEventListener('change', (e) => {
+                    this.interpolationEnabled = e.target.checked;
+                });
+                
                 const debugPreviewToggle = document.getElementById('debug-preview-toggle');
                 debugPreviewToggle.addEventListener('change', (e) => {
                     this.debugPreviewEnabled = e.target.checked;
@@ -869,14 +782,13 @@
                     this.toggleControls();
                 });
                 
-                // Toggle controls button (appears when hidden)
+                // Toggle controls button
                 document.getElementById('toggle-controls-btn').addEventListener('click', () => {
                     this.toggleControls();
                 });
                 
                 // Keyboard shortcuts
                 document.addEventListener('keydown', (e) => {
-                    // Only handle keyboard shortcuts when not typing in input fields
                     if (e.target.tagName.toLowerCase() === 'input') return;
                     
                     switch(e.key.toLowerCase()) {
@@ -886,7 +798,6 @@
                             break;
                         case 'c':
                             if (e.ctrlKey || e.metaKey) {
-                                // Allow default copy behavior
                                 return;
                             }
                             e.preventDefault();
@@ -905,34 +816,6 @@
                     }
                 });
                 
-                // Click outside controls to close them
-                document.addEventListener('click', (e) => {
-                    const controls = document.querySelector('.drawing-controls');
-                    const toggleBtn = document.getElementById('toggle-controls-btn');
-                    
-                    // Only handle if controls are visible
-                    if (!controls.classList.contains('hidden')) {
-                        // Check if click is outside both controls and toggle button
-                        if (!controls.contains(e.target) && !toggleBtn.contains(e.target)) {
-                            this.toggleControls();
-                        }
-                    }
-                });
-                
-                // Touch outside controls to close them (for mobile devices)
-                document.addEventListener('touchstart', (e) => {
-                    const controls = document.querySelector('.drawing-controls');
-                    const toggleBtn = document.getElementById('toggle-controls-btn');
-                    
-                    // Only handle if controls are visible
-                    if (!controls.classList.contains('hidden')) {
-                        // Check if touch is outside both controls and toggle button
-                        if (!controls.contains(e.target) && !toggleBtn.contains(e.target)) {
-                            this.toggleControls();
-                        }
-                    }
-                });
-                
                 // Initialize size preview and eraser cursor
                 this.updateSizePreview();
                 this.updateEraserCursorSize();
@@ -941,7 +824,6 @@
             calculatePressureSize(pressure) {
                 const baseSize = this.isErasing ? this.eraserSize : this.currentSize;
                 
-                // Eraser uses speed-based dynamic sizing instead of pressure
                 if (this.isErasing) {
                     return baseSize * this.speedMultiplier;
                 }
@@ -950,10 +832,7 @@
                     return baseSize;
                 }
                 
-                // Apply pressure curve (exponential)
                 const normalizedPressure = Math.pow(Math.max(0, Math.min(1, pressure)), this.pressureCurve);
-                
-                // Map to min/max range
                 const pressureMultiplier = this.pressureMin + (this.pressureMax - this.pressureMin) * normalizedPressure;
                 
                 return baseSize * pressureMultiplier;
@@ -964,62 +843,41 @@
                     return 0;
                 }
                 
-                // Calculate distance moved
                 const dx = currentPos.x - this.lastPoint.x;
                 const dy = currentPos.y - this.lastPoint.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                // Calculate time elapsed
-                const deltaTime = Math.max(1, timestamp - this.lastTimestamp); // Prevent division by zero
-                
-                // Calculate speed (pixels per millisecond)
+                const deltaTime = Math.max(1, timestamp - this.lastTimestamp);
                 const speed = distance / deltaTime;
                 
                 return speed;
             }
             
             updateSpeedMultiplier(speed) {
-                // Skip if dynamic eraser is disabled
                 if (!this.dynamicEraserEnabled) {
                     this.speedMultiplier = 1;
                     return;
                 }
                 
-                // Add current speed to history
                 this.speedHistory.push(speed);
                 
-                // Keep only recent speed values
                 if (this.speedHistory.length > this.maxSpeedHistory) {
                     this.speedHistory.shift();
                 }
                 
-                // Calculate average speed from recent history for smoother changes
                 const averageSpeed = this.speedHistory.reduce((sum, s) => sum + s, 0) / this.speedHistory.length;
-                
-                // Use configurable speed threshold
                 const normalizedSpeed = Math.min(averageSpeed / this.speedThreshold, 1.0);
-                
-                // Apply easing curve to make the transition smoother
                 const easedSpeed = Math.pow(normalizedSpeed, 0.7);
                 
-                // Calculate target multiplier using configurable min/max values
                 const targetMultiplier = this.minSpeedMultiplier + 
                     (this.maxSpeedMultiplier - this.minSpeedMultiplier) * easedSpeed;
                 
-                // Apply gradual decay for smooth size transitions
-                // When speed increases, respond quickly. When speed decreases, respond slowly.
                 if (targetMultiplier > this.speedMultiplier) {
-                    // Fast increase when speeding up
                     this.speedMultiplier = this.speedMultiplier * 0.7 + targetMultiplier * 0.3;
                 } else {
-                    // Slow decrease when slowing down - use decay factor
                     this.speedMultiplier = this.speedMultiplier * this.decayFactor + targetMultiplier * (1 - this.decayFactor);
                 }
                 
-                // Ensure we don't go below minimum
                 this.speedMultiplier = Math.max(this.speedMultiplier, this.minSpeedMultiplier);
-                
-                // Store current speed for debugging
                 this.currentSpeed = averageSpeed;
             }
             
@@ -1036,12 +894,9 @@
             }
             
             updateEraserCursorSize() {
-                // Use speed-based dynamic sizing for eraser
                 const effectiveSize = this.eraserSize * this.speedMultiplier;
-                
-                // Canvas lineWidth represents diameter, so radius is half
                 const radius = effectiveSize / 2;
-                const svgSize = effectiveSize + 20; // Add padding
+                const svgSize = effectiveSize + 20;
                 
                 this.eraserCursor.setAttribute('width', svgSize);
                 this.eraserCursor.setAttribute('height', svgSize);
@@ -1054,7 +909,6 @@
                 const preview = document.getElementById('size-preview');
                 
                 if (this.pressureEnabled) {
-                    // Show pressure range with min size
                     const minSize = this.calculatePressureSize(0) * 2;
                     const maxSize = this.calculatePressureSize(1) * 2;
                     
@@ -1089,7 +943,6 @@
             
             updateEraserCursorPosition(e) {
                 if (this.isErasing && this.isDrawing) {
-                    const rect = this.canvas.getBoundingClientRect();
                     const x = e.clientX;
                     const y = e.clientY;
                     
@@ -1110,13 +963,9 @@
             }
             
             detectEraser(e) {
-                // Check multiple ways to detect eraser:
-                // 1. Button 5 (barrel button/eraser button on stylus)
-                // 2. Button 2 with pen pointer type (some styluses)
-                // 3. Specific eraser pointer type (if supported)
                 return (e.button === 5) || 
                        (e.button === 2 && e.pointerType === 'pen') || 
-                       (e.buttons & 32) || // Button 5 in buttons bitmask
+                       (e.buttons & 32) || 
                        (e.pointerType === 'pen' && e.buttons === 32);
             }
             
@@ -1124,39 +973,30 @@
                 this.isErasing = isErasing;
                 
                 if (isErasing) {
-                    // Set eraser mode - this removes existing content
                     this.ctx.globalCompositeOperation = 'destination-out';
-                    // Change cursor to indicate eraser mode
-                    this.canvas.style.cursor = 'none'; // Hide cursor when showing eraser circle
+                    this.canvas.style.cursor = 'none';
                 } else {
-                    // Set normal drawing mode
                     this.ctx.globalCompositeOperation = 'source-over';
                     this.ctx.strokeStyle = this.currentColor;
-                    // Restore normal cursor
                     this.canvas.style.cursor = 'crosshair';
                 }
             }
             
             startDrawing(e) {
-                // Only allow pen/stylus input, ignore finger touches
                 if (e.pointerType === 'touch') {
                     return;
                 }
                 
-                // If already drawing with another pointer, ignore this one
                 if (this.isDrawing && this.activePointerId !== null && this.activePointerId !== e.pointerId) {
                     return;
                 }
                 
-                // Set active pointer tracking
                 this.isDrawing = true;
                 this.activePointerId = e.pointerId;
                 this.activePointerType = e.pointerType;
                 
-                // Capture this pointer to ensure we get all its events
                 this.canvas.setPointerCapture(e.pointerId);
                 
-                // Check if we're in eraser mode
                 const isErasing = this.detectEraser(e);
                 this.setDrawingMode(isErasing);
                 
@@ -1164,32 +1004,25 @@
                 this.lastPoint = pos;
                 this.previousPoint = null;
                 
-                // Get pressure from pointer event
                 this.currentPressure = e.pressure || 0.5;
                 this.updateLineWidth(this.currentPressure);
                 this.updatePressureIndicator(this.currentPressure);
                 
-                // Update eraser cursor size and position
                 if (this.isErasing) {
-                    // Reset eraser to minimum size when starting a new erasing session
                     this.speedMultiplier = this.minSpeedMultiplier;
-                    this.speedHistory = []; // Clear speed history for fresh start
-                    this.updateLineWidth(this.currentPressure); // Update actual eraser size
+                    this.speedHistory = [];
+                    this.updateLineWidth(this.currentPressure);
                     this.updateEraserCursorSize();
                     this.updateEraserCursorPosition(e);
                 }
                 
-                // Begin new path
                 this.ctx.beginPath();
                 this.ctx.moveTo(pos.x, pos.y);
-                
-                // Draw starting point
                 this.ctx.lineTo(pos.x + 0.1, pos.y + 0.1);
                 this.ctx.stroke();
             }
             
             async draw(e) {
-                // Only process events from the active pointer
                 if (!this.isDrawing || e.pointerId !== this.activePointerId) {
                     return;
                 }
@@ -1197,10 +1030,8 @@
                 const pos = this.getPointerPosition(e);
                 const timestamp = performance.now();
                 
-                // Update pressure
                 this.currentPressure = e.pressure || 0.5;
                 
-                // Calculate and update speed for eraser dynamics
                 if (this.isErasing) {
                     const speed = this.calculateSpeed(pos, timestamp);
                     this.updateSpeedMultiplier(speed);
@@ -1209,17 +1040,14 @@
                 this.updateLineWidth(this.currentPressure);
                 this.updatePressureIndicator(this.currentPressure);
                 
-                // Update eraser cursor position and size if in eraser mode
                 if (this.isErasing) {
                     this.updateEraserCursorSize();
                     this.updateEraserCursorPosition(e);
                 }
                 
-                // Store timestamp for next speed calculation
                 this.lastTimestamp = timestamp;
                 
                 if (this.interpolationEnabled && this.lastPoint && this.previousPoint) {
-                    // Use quadratic interpolation for smoother curves
                     const controlPoint = {
                         x: this.lastPoint.x,
                         y: this.lastPoint.y
@@ -1233,16 +1061,13 @@
                     this.ctx.quadraticCurveTo(controlPoint.x, controlPoint.y, midPoint.x, midPoint.y);
                     this.ctx.stroke();
                     
-                    // Move to the end point for next curve
                     this.ctx.beginPath();
                     this.ctx.moveTo(midPoint.x, midPoint.y);
                 } else {
-                    // Simple linear drawing
                     this.ctx.lineTo(pos.x, pos.y);
                     this.ctx.stroke();
                 }
                 
-                // Use Ink API if available for low-latency rendering
                 if (this.presenter) {
                     try {
                         const style = {
@@ -1256,13 +1081,11 @@
                     }
                 }
                 
-                // Update point history for interpolation
                 this.previousPoint = this.lastPoint;
                 this.lastPoint = pos;
             }
             
             stopDrawing(e) {
-                // Only stop drawing if this is the active pointer or no specific event
                 if (e && e.pointerId !== this.activePointerId) {
                     return;
                 }
@@ -1273,17 +1096,13 @@
                 this.ctx.beginPath();
                 this.lastPoint = null;
                 
-                // Hide eraser cursor
                 this.eraserCursor.classList.add('hidden');
                 
-                // Reset active pointer tracking
                 this.activePointerId = null;
                 this.activePointerType = null;
                 
-                // Restore normal cursor
                 this.canvas.style.cursor = 'crosshair';
                 
-                // Release pointer capture if we have an event
                 if (e) {
                     try {
                         this.canvas.releasePointerCapture(e.pointerId);
@@ -1292,12 +1111,10 @@
                     }
                 }
                 
-                // Reset pressure indicator
                 if (this.pressureEnabled) {
                     this.updatePressureIndicator(0);
                 }
                 
-                // Sync with presentation after drawing is complete
                 if (this.isPresentationActive) {
                     setTimeout(() => this.syncPresentationCanvas(), 50);
                 }
@@ -1306,13 +1123,8 @@
             clearCanvas() {
                 this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
                 
-                // Clear presentation canvas as well
                 if (this.isPresentationActive) {
-                    if (this.presentationConnection && this.presentationConnection.state === 'connected') {
-                        this.presentationConnection.send(JSON.stringify({
-                            type: 'clearCanvas'
-                        }));
-                    } else if (this.presentationWindow && !this.presentationWindow.closed) {
+                    if (this.presentationWindow && !this.presentationWindow.closed) {
                         this.presentationWindow.postMessage({
                             type: 'clearCanvas'
                         }, '*');
@@ -1325,11 +1137,9 @@
                 const toggleBtn = document.getElementById('toggle-controls-btn');
                 
                 if (controls.classList.contains('hidden')) {
-                    // Show controls
                     controls.classList.remove('hidden');
                     toggleBtn.classList.remove('visible');
                 } else {
-                    // Hide controls
                     controls.classList.add('hidden');
                     toggleBtn.classList.add('visible');
                 }
