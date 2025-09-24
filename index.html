@@ -3,1482 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ink Drawing App</title>
+    <title>Ultra Low Latency Drawing App</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE'
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        * {
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
+        /* Optimize canvas for performance */
+        #drawingCanvas {
+            touch-action: none;
             user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
         }
         
-        canvas {
-            touch-action: none;
+        /* Smooth drawing cursor */
+        .drawing-cursor {
             cursor: crosshair;
         }
         
-        .drawing-tools {
-            backdrop-filter: blur(10px);
+        /* Hide scrollbars during drawing */
+        body.drawing {
+            overflow: hidden;
         }
     </style>
 </head>
-<body class="bg-white text-black overflow-hidden">
-    <div class="h-screen w-screen relative">
-        <!-- Canvas for drawing -->
-        <canvas id="drawingCanvas" class="absolute inset-0 bg-white"></canvas>
-        
-        <!-- Floating toolbar -->
-        <div class="drawing-tools absolute top-4 left-4 bg-white bg-opacity-90 border border-gray-300 rounded-lg shadow-lg p-3 flex flex-col gap-3">
-            <!-- Brush size -->
-            <div class="flex items-center gap-2">
-                <span class="text-xs font-medium">Size</span>
-                <input 
-                    type="range" 
-                    id="brushSize" 
-                    min="1" 
-                    max="20" 
-                    value="3" 
-                    class="w-16 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                >
-                <span id="sizeDisplay" class="text-xs w-6 text-center">3</span>
-            </div>
-            
-            <!-- Tools -->
-            <div class="flex gap-2">
-                <button 
-                    id="penTool" 
-                    class="tool-btn active w-8 h-8 rounded border border-gray-300 flex items-center justify-center text-sm hover:bg-gray-100"
-                    title="Pen"
-                >
-                    ✎
-                </button>
-                <button 
-                    id="eraserTool" 
-                    class="tool-btn w-8 h-8 rounded border border-gray-300 flex items-center justify-center text-sm hover:bg-gray-100"
-                    title="Eraser"
-                >
-                    🧽
-                </button>
-            </div>
-            
-            <!-- Curve Type -->
-            <div class="border-t pt-2">
-                <div class="text-xs font-medium mb-2">Curve Type</div>
-                <div class="flex flex-col gap-1">
-                    <label class="flex items-center gap-2 text-xs">
-                        <input 
-                            type="radio" 
-                            name="curveType" 
-                            value="none" 
-                            class="w-3 h-3"
-                        >
-                        <span>Sharp Lines</span>
-                    </label>
-                    <label class="flex items-center gap-2 text-xs">
-                        <input 
-                            type="radio" 
-                            name="curveType" 
-                            value="quadratic" 
-                            class="w-3 h-3"
-                            checked
-                        >
-                        <span>Quadratic</span>
-                    </label>
-                    <label class="flex items-center gap-2 text-xs">
-                        <input 
-                            type="radio" 
-                            name="curveType" 
-                            value="cubic" 
-                            class="w-3 h-3"
-                        >
-                        <span>Cubic Bézier</span>
-                    </label>
-                    <label class="flex items-center gap-2 text-xs">
-                        <input 
-                            type="radio" 
-                            name="curveType" 
-                            value="catmull" 
-                            class="w-3 h-3"
-                        >
-                        <span>Catmull-Rom</span>
-                    </label>
-                    <label class="flex items-center gap-2 text-xs">
-                        <input 
-                            type="radio" 
-                            name="curveType" 
-                            value="bspline" 
-                            class="w-3 h-3"
-                        >
-                        <span>B-Spline</span>
-                    </label>
-                    <label class="flex items-center gap-2 text-xs">
-                        <input 
-                            type="radio" 
-                            name="curveType" 
-                            value="average" 
-                            class="w-3 h-3"
-                        >
-                        <span>Moving Average</span>
-                    </label>
-                    <label class="flex items-center gap-2 text-xs">
-                        <input 
-                            type="radio" 
-                            name="curveType" 
-                            value="kalman" 
-                            class="w-3 h-3"
-                        >
-                        <span>Kalman Filter</span>
-                    </label>
-                    <label class="flex items-center gap-2 text-xs">
-                        <input 
-                            type="radio" 
-                            name="curveType" 
-                            value="exponential" 
-                            class="w-3 h-3"
-                        >
-                        <span>Exponential</span>
-                    </label>
-                    <label class="flex items-center gap-2 text-xs">
-                        <input 
-                            type="radio" 
-                            name="curveType" 
-                            value="douglas" 
-                            class="w-3 h-3"
-                        >
-                        <span>Douglas-Peucker</span>
-                    </label>
-                    <label class="flex items-center gap-2 text-xs">
-                        <input 
-                            type="radio" 
-                            name="curveType" 
-                            value="chaikin" 
-                            class="w-3 h-3"
-                        >
-                        <span>Chaikin</span>
-                    </label>
-                    <label class="flex items-center gap-2 text-xs">
-                        <input 
-                            type="radio" 
-                            name="curveType" 
-                            value="temporal" 
-                            class="w-3 h-3"
-                        >
-                        <span>Temporal</span>
-                    </label>
-                </div>
-            </div>
-            
-            <!-- Curve Tension (for cubic) -->
-            <div id="tensionControl" class="border-t pt-2" style="display: none;">
+<body class="bg-white dark:bg-gray-900 transition-colors duration-200">
+    <div class="min-h-screen flex flex-col">
+        <!-- Toolbar -->
+        <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+            <div class="flex flex-wrap items-center gap-4">
+                <!-- Brush Size -->
                 <div class="flex items-center gap-2">
-                    <span class="text-xs font-medium">Tension</span>
-                    <input 
-                        type="range" 
-                        id="curveTension" 
-                        min="0.1" 
-                        max="1.0" 
-                        step="0.1" 
-                        value="0.4" 
-                        class="w-16 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                    >
-                    <span id="tensionDisplay" class="text-xs w-8 text-center">0.4</span>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Size:</label>
+                    <input type="range" id="brushSize" min="1" max="50" value="3" 
+                           class="w-20 h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer">
+                    <span id="sizeDisplay" class="text-sm text-gray-600 dark:text-gray-400 w-8">3px</span>
                 </div>
-            </div>
-            
-            <!-- Average Window (for moving average) -->
-            <div id="averageControl" class="border-t pt-2" style="display: none;">
+                
+                <!-- Color Picker -->
                 <div class="flex items-center gap-2">
-                    <span class="text-xs font-medium">Window</span>
-                    <input 
-                        type="range" 
-                        id="averageWindow" 
-                        min="3" 
-                        max="15" 
-                        step="1" 
-                        value="5" 
-                        class="w-16 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                    >
-                    <span id="windowDisplay" class="text-xs w-6 text-center">5</span>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Color:</label>
+                    <input type="color" id="colorPicker" value="#000000" 
+                           class="w-10 h-8 rounded border border-gray-300 dark:border-gray-600 cursor-pointer">
                 </div>
-            </div>
-            
-            <!-- Kalman Controls (for kalman filter) -->
-            <div id="kalmanControl" class="border-t pt-2" style="display: none;">
-                <div class="flex flex-col gap-2">
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs font-medium">Process</span>
-                        <input 
-                            type="range" 
-                            id="processNoise" 
-                            min="0.1" 
-                            max="2.0" 
-                            step="0.1" 
-                            value="0.5" 
-                            class="w-12 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                        >
-                        <span id="processDisplay" class="text-xs w-6 text-center">0.5</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs font-medium">Measure</span>
-                        <input 
-                            type="range" 
-                            id="measureNoise" 
-                            min="0.1" 
-                            max="2.0" 
-                            step="0.1" 
-                            value="1.0" 
-                            class="w-12 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                        >
-                        <span id="measureDisplay" class="text-xs w-6 text-center">1.0</span>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Exponential Controls (for exponential smoothing) -->
-            <div id="exponentialControl" class="border-t pt-2" style="display: none;">
+                
+                <!-- Opacity -->
                 <div class="flex items-center gap-2">
-                    <span class="text-xs font-medium">Alpha</span>
-                    <input 
-                        type="range" 
-                        id="exponentialAlpha" 
-                        min="0.05" 
-                        max="1.0" 
-                        step="0.05" 
-                        value="0.3" 
-                        class="w-16 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                    >
-                    <span id="alphaDisplay" class="text-xs w-8 text-center">0.3</span>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Opacity:</label>
+                    <input type="range" id="opacity" min="0.1" max="1" step="0.1" value="1" 
+                           class="w-20 h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer">
+                    <span id="opacityDisplay" class="text-sm text-gray-600 dark:text-gray-400 w-8">100%</span>
                 </div>
-            </div>
-            
-            <!-- Douglas-Peucker Controls -->
-            <div id="douglasControl" class="border-t pt-2" style="display: none;">
+                
+                <!-- Tools -->
                 <div class="flex items-center gap-2">
-                    <span class="text-xs font-medium">Epsilon</span>
-                    <input 
-                        type="range" 
-                        id="douglasEpsilon" 
-                        min="1" 
-                        max="20" 
-                        step="1" 
-                        value="5" 
-                        class="w-16 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                    >
-                    <span id="epsilonDisplay" class="text-xs w-6 text-center">5</span>
+                    <button id="penTool" class="px-3 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors">
+                        Pen
+                    </button>
+                    <button id="eraserTool" class="px-3 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors">
+                        Eraser
+                    </button>
+                    <button id="clearCanvas" class="px-3 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-colors">
+                        Clear
+                    </button>
                 </div>
-            </div>
-            
-            <!-- Chaikin Controls -->
-            <div id="chaikinControl" class="border-t pt-2" style="display: none;">
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-medium">Iterations</span>
-                    <input 
-                        type="range" 
-                        id="chaikinIterations" 
-                        min="1" 
-                        max="4" 
-                        step="1" 
-                        value="2" 
-                        class="w-16 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                    >
-                    <span id="iterationsDisplay" class="text-xs w-6 text-center">2</span>
-                </div>
-            </div>
-            
-            <!-- Temporal Controls -->
-            <div id="temporalControl" class="border-t pt-2" style="display: none;">
-                <div class="flex flex-col gap-2">
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs font-medium">Velocity</span>
-                        <input 
-                            type="range" 
-                            id="velocityFactor" 
-                            min="0.1" 
-                            max="1.0" 
-                            step="0.05" 
-                            value="0.5" 
-                            class="w-12 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                        >
-                        <span id="velocityDisplay" class="text-xs w-8 text-center">0.5</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs font-medium">Accel</span>
-                        <input 
-                            type="range" 
-                            id="accelerationFactor" 
-                            min="0.1" 
-                            max="1.0" 
-                            step="0.05" 
-                            value="0.3" 
-                            class="w-12 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                        >
-                        <span id="accelDisplay" class="text-xs w-8 text-center">0.3</span>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Debug mode -->
-            <div class="border-t pt-2">
-                <label class="flex items-center gap-2 text-xs">
-                    <input 
-                        type="checkbox" 
-                        id="debugMode" 
-                        class="w-3 h-3"
-                    >
-                    <span>Red Preview</span>
-                </label>
-            </div>
-            
-            <!-- Actions -->
-            <div class="border-t pt-2 flex gap-2">
-                <button 
-                    id="clearCanvas" 
-                    class="w-16 h-6 text-xs border border-gray-300 rounded hover:bg-gray-100"
-                    title="Clear canvas"
-                >
-                    Clear
-                </button>
             </div>
         </div>
         
-        <!-- API Status -->
-        <div id="apiStatus" class="absolute top-4 right-4 text-xs bg-white bg-opacity-90 border border-gray-300 rounded px-2 py-1">
-            <span id="statusText">Checking Ink API...</span>
+        <!-- Drawing Area -->
+        <div class="flex-1 relative">
+            <canvas id="drawingCanvas" class="block w-full h-full drawing-cursor"></canvas>
         </div>
         
-        <!-- Instructions -->
-        <div class="absolute bottom-4 left-4 text-xs text-gray-600 bg-white bg-opacity-90 border border-gray-300 rounded px-3 py-2 max-w-xs">
-            <p class="font-medium mb-1">Drawing Instructions:</p>
-            <p>• Stylus/pen input only</p>
-            <p>• Finger touch disabled</p>
-            <p>• Mouse still supported</p>
-            <p>• Adjust brush size with slider</p>
+        <!-- Status Bar -->
+        <div class="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-2">
+            <div class="text-xs text-gray-500 dark:text-gray-400">
+                Ultra Low Latency Drawing • <span id="coordinates">Move cursor to see coordinates</span>
+            </div>
         </div>
     </div>
 
     <script>
-        class InkDrawingApp {
-            constructor() {
-                this.canvas = document.getElementById('drawingCanvas');
-                this.ctx = this.canvas.getContext('2d');
-                this.isDrawing = false;
-                this.currentTool = 'pen';
-                this.brushSize = 3;
-                this.inkPresenter = null;
-                this.lastPointerEvent = null;
-                this.debugMode = false;
-                this.curveType = 'quadratic';
-                this.curveTension = 0.4;
-                this.averageWindow = 5;
-                this.processNoise = 0.5;
-                this.measureNoise = 1.0;
-                this.kalmanFilter = null;
-                this.exponentialAlpha = 0.3;
-                this.exponentialState = null;
-                this.douglasEpsilon = 5;
-                this.douglasSegmentLength = 20;
-                this.chaikinIterations = 2;
-                this.velocityFactor = 0.5;
-                this.accelerationFactor = 0.3;
-                this.temporalHistory = [];
-                this.lastX = 0;
-                this.lastY = 0;
-                this.currentX = 0;
-                this.currentY = 0;
-                this.prevX = 0;
-                this.prevY = 0;
-                this.pointHistory = [];
-                
-                this.setupCanvas();
-                this.setupEventListeners();
-                this.checkInkAPISupport();
-                this.setupInkAPI();
-            }
-            
-            setupCanvas() {
-                this.resizeCanvas();
-                window.addEventListener('resize', () => this.resizeCanvas());
-                
-                // Configure canvas context
-                this.ctx.lineCap = 'round';
-                this.ctx.lineJoin = 'round';
-                this.ctx.imageSmoothingEnabled = true;
-            }
-            
-            resizeCanvas() {
-                this.canvas.width = window.innerWidth;
-                this.canvas.height = window.innerHeight;
-                
-                // Restore drawing settings after resize
-                this.ctx.lineCap = 'round';
-                this.ctx.lineJoin = 'round';
-                this.ctx.imageSmoothingEnabled = true;
-            }
-            
-            async checkInkAPISupport() {
-                const statusText = document.getElementById('statusText');
-                
-                if ('ink' in navigator) {
-                    try {
-                        await navigator.ink.requestPresenter({ presentationArea: this.canvas });
-                        statusText.textContent = 'Ink API: Supported ✓';
-                        statusText.className = 'text-green-600';
-                    } catch (error) {
-                        statusText.textContent = 'Ink API: Limited';
-                        statusText.className = 'text-orange-600';
-                    }
-                } else {
-                    statusText.textContent = 'Ink API: Not supported';
-                    statusText.className = 'text-gray-600';
-                }
-            }
-            
-            async setupInkAPI() {
-                if ('ink' in navigator) {
-                    try {
-                        this.inkPresenter = await navigator.ink.requestPresenter({ 
-                            presentationArea: this.canvas 
-                        });
-                    } catch (error) {
-                        console.log('Ink API not available, using fallback rendering');
-                    }
-                }
-            }
-            
-            setupEventListeners() {
-                // Tool selection
-                document.getElementById('penTool').addEventListener('click', () => this.selectTool('pen'));
-                document.getElementById('eraserTool').addEventListener('click', () => this.selectTool('eraser'));
-                
-                // Brush size
-                const brushSizeSlider = document.getElementById('brushSize');
-                const sizeDisplay = document.getElementById('sizeDisplay');
-                
-                brushSizeSlider.addEventListener('input', (e) => {
-                    this.brushSize = parseInt(e.target.value);
-                    sizeDisplay.textContent = this.brushSize;
-                });
-                
-                // Curve type selection
-                const curveRadios = document.querySelectorAll('input[name="curveType"]');
-                curveRadios.forEach(radio => {
-                    radio.addEventListener('change', (e) => {
-                        this.curveType = e.target.value;
-                        const tensionControl = document.getElementById('tensionControl');
-                        const averageControl = document.getElementById('averageControl');
-                        
-                        // Show/hide controls based on selected curve type
-                        if (e.target.value === 'cubic') {
-                            tensionControl.style.display = 'block';
-                            averageControl.style.display = 'none';
-                        } else if (e.target.value === 'average') {
-                            tensionControl.style.display = 'none';
-                            averageControl.style.display = 'block';
-                            kalmanControl.style.display = 'none';
-                        } else if (e.target.value === 'kalman') {
-                            tensionControl.style.display = 'none';
-                            averageControl.style.display = 'none';
-                            kalmanControl.style.display = 'block';
-                            exponentialControl.style.display = 'none';
-                        } else if (e.target.value === 'exponential') {
-                            tensionControl.style.display = 'none';
-                            averageControl.style.display = 'none';
-                            kalmanControl.style.display = 'none';
-                            exponentialControl.style.display = 'block';
-                            douglasControl.style.display = 'none';
-                        } else if (e.target.value === 'douglas') {
-                            tensionControl.style.display = 'none';
-                            averageControl.style.display = 'none';
-                            kalmanControl.style.display = 'none';
-                            exponentialControl.style.display = 'none';
-                            douglasControl.style.display = 'block';
-                            chaikinControl.style.display = 'none';
-                        } else if (e.target.value === 'chaikin') {
-                            tensionControl.style.display = 'none';
-                            averageControl.style.display = 'none';
-                            kalmanControl.style.display = 'none';
-                            exponentialControl.style.display = 'none';
-                            douglasControl.style.display = 'none';
-                            chaikinControl.style.display = 'block';
-                            temporalControl.style.display = 'none';
-                        } else if (e.target.value === 'temporal') {
-                            tensionControl.style.display = 'none';
-                            averageControl.style.display = 'none';
-                            kalmanControl.style.display = 'none';
-                            exponentialControl.style.display = 'none';
-                            douglasControl.style.display = 'none';
-                            chaikinControl.style.display = 'none';
-                            temporalControl.style.display = 'block';
-                        } else {
-                            tensionControl.style.display = 'none';
-                            averageControl.style.display = 'none';
-                            kalmanControl.style.display = 'none';
-                            exponentialControl.style.display = 'none';
-                            douglasControl.style.display = 'none';
-                            chaikinControl.style.display = 'none';
-                            temporalControl.style.display = 'none';
-                        }
-                    });
-                });
-                
-                // Curve tension
-                const tensionSlider = document.getElementById('curveTension');
-                const tensionDisplay = document.getElementById('tensionDisplay');
-                
-                tensionSlider.addEventListener('input', (e) => {
-                    this.curveTension = parseFloat(e.target.value);
-                    tensionDisplay.textContent = this.curveTension;
-                });
-                
-                // Average window
-                const averageSlider = document.getElementById('averageWindow');
-                const windowDisplay = document.getElementById('windowDisplay');
-                
-                averageSlider.addEventListener('input', (e) => {
-                    this.averageWindow = parseInt(e.target.value);
-                    windowDisplay.textContent = this.averageWindow;
-                });
-                
-                // Kalman filter controls
-                const processSlider = document.getElementById('processNoise');
-                const processDisplay = document.getElementById('processDisplay');
-                const measureSlider = document.getElementById('measureNoise');
-                const measureDisplay = document.getElementById('measureDisplay');
-                
-                processSlider.addEventListener('input', (e) => {
-                    this.processNoise = parseFloat(e.target.value);
-                    processDisplay.textContent = this.processNoise;
-                    // Reset filter when parameters change
-                    this.kalmanFilter = null;
-                });
-                
-                measureSlider.addEventListener('input', (e) => {
-                    this.measureNoise = parseFloat(e.target.value);
-                    measureDisplay.textContent = this.measureNoise;
-                    // Reset filter when parameters change
-                    this.kalmanFilter = null;
-                });
-                
-                // Exponential smoothing controls
-                const alphaSlider = document.getElementById('exponentialAlpha');
-                const alphaDisplay = document.getElementById('alphaDisplay');
-                
-                alphaSlider.addEventListener('input', (e) => {
-                    this.exponentialAlpha = parseFloat(e.target.value);
-                    alphaDisplay.textContent = this.exponentialAlpha;
-                    // Reset state when parameters change
-                    this.exponentialState = null;
-                });
-                
-                // Douglas-Peucker controls
-                const epsilonSlider = document.getElementById('douglasEpsilon');
-                const epsilonDisplay = document.getElementById('epsilonDisplay');
-                
-                epsilonSlider.addEventListener('input', (e) => {
-                    this.douglasEpsilon = parseInt(e.target.value);
-                    epsilonDisplay.textContent = this.douglasEpsilon;
-                });
-                
-                // Chaikin controls
-                const iterationsSlider = document.getElementById('chaikinIterations');
-                const iterationsDisplay = document.getElementById('iterationsDisplay');
-                
-                iterationsSlider.addEventListener('input', (e) => {
-                    this.chaikinIterations = parseInt(e.target.value);
-                    iterationsDisplay.textContent = this.chaikinIterations;
-                });
-                
-                // Temporal controls
-                const velocitySlider = document.getElementById('velocityFactor');
-                const velocityDisplay = document.getElementById('velocityDisplay');
-                const accelerationSlider = document.getElementById('accelerationFactor');
-                const accelDisplay = document.getElementById('accelDisplay');
-                
-                velocitySlider.addEventListener('input', (e) => {
-                    this.velocityFactor = parseFloat(e.target.value);
-                    velocityDisplay.textContent = this.velocityFactor;
-                });
-                
-                accelerationSlider.addEventListener('input', (e) => {
-                    this.accelerationFactor = parseFloat(e.target.value);
-                    accelDisplay.textContent = this.accelerationFactor;
-                });
-                
-                // Debug mode
-                const debugModeCheckbox = document.getElementById('debugMode');
-                debugModeCheckbox.addEventListener('change', (e) => {
-                    this.debugMode = e.target.checked;
-                });
-                
-                // Clear canvas
-                document.getElementById('clearCanvas').addEventListener('click', () => this.clearCanvas());
-                
-                // Drawing events
-                this.canvas.addEventListener('pointerdown', (e) => this.startDrawing(e));
-                this.canvas.addEventListener('pointermove', (e) => this.draw(e));
-                this.canvas.addEventListener('pointerup', () => this.stopDrawing());
-                this.canvas.addEventListener('pointerout', () => this.stopDrawing());
-                this.canvas.addEventListener('pointercancel', () => this.stopDrawing());
-                
-                // Prevent context menu and scrolling
-                this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-                document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
-            }
-            
-            selectTool(tool) {
-                this.currentTool = tool;
-                
-                // Update UI
-                document.querySelectorAll('.tool-btn').forEach(btn => {
-                    btn.classList.remove('active', 'bg-black', 'text-white');
-                    btn.classList.add('bg-white', 'text-black');
-                });
-                
-                const selectedBtn = document.getElementById(tool + 'Tool');
-                selectedBtn.classList.add('active', 'bg-black', 'text-white');
-                selectedBtn.classList.remove('bg-white', 'text-black');
-                
-                // Update cursor
-                this.canvas.style.cursor = tool === 'eraser' ? 'grab' : 'crosshair';
-            }
-            
-            startDrawing(e) {
-                // Only allow pen/stylus input, disable finger touch
-                if (e.pointerType === 'touch') {
-                    return;
-                }
-                
-                this.isDrawing = true;
-                this.lastPointerEvent = e;
-                
-                // Get position relative to canvas
-                const rect = this.canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                
-                // Initialize drawing coordinates and history
-                this.lastX = x;
-                this.lastY = y;
-                this.currentX = x;
-                this.currentY = y;
-                this.prevX = x;
-                this.prevY = y;
-                this.pointHistory = [{x, y}];
-                
-                // Start new path
-                this.ctx.beginPath();
-                this.ctx.moveTo(x, y);
-                
-                // Configure drawing style for smooth strokes
-                this.ctx.globalCompositeOperation = this.currentTool === 'eraser' ? 'destination-out' : 'source-over';
-                this.ctx.strokeStyle = '#000000';
-                this.ctx.lineWidth = this.brushSize;
-            }
-            
-            async draw(e) {
-                if (!this.isDrawing) return;
-                
-                // Get position relative to canvas
-                const rect = this.canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                
-                // Update current position
-                this.currentX = x;
-                this.currentY = y;
-                
-                // Configure drawing style
-                this.ctx.globalCompositeOperation = this.currentTool === 'eraser' ? 'destination-out' : 'source-over';
-                this.ctx.strokeStyle = '#000000';
-                this.ctx.lineWidth = this.brushSize;
-                
-                // Add current point to history
-                this.pointHistory.push({x, y});
-                
-                if (this.curveType === 'none') {
-                    // Use straight lines for sharp drawing
-                    this.ctx.lineTo(x, y);
-                    this.ctx.stroke();
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(x, y);
-                } else if (this.curveType === 'quadratic') {
-                    // Use quadratic curves for smooth drawing
-                    const midX = (this.lastX + this.currentX) / 2;
-                    const midY = (this.lastY + this.currentY) / 2;
-                    
-                    // Draw quadratic curve from last midpoint to current midpoint
-                    // using the last recorded point as control point
-                    this.ctx.quadraticCurveTo(this.lastX, this.lastY, midX, midY);
-                    this.ctx.stroke();
-                    
-                    // Start new path from current midpoint
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(midX, midY);
-                } else if (this.curveType === 'cubic') {
-                    // Use cubic Bézier curves for advanced smoothing
-                    if (this.pointHistory.length >= 4) {
-                        const p0 = this.pointHistory[this.pointHistory.length - 4];
-                        const p1 = this.pointHistory[this.pointHistory.length - 3];
-                        const p2 = this.pointHistory[this.pointHistory.length - 2];
-                        const p3 = this.pointHistory[this.pointHistory.length - 1];
-                        
-                        // Calculate control points for smooth cubic curve
-                        const tension = this.curveTension;
-                        
-                        // Control point 1: extend from p0 towards p2
-                        const cp1x = p1.x + (p2.x - p0.x) * tension;
-                        const cp1y = p1.y + (p2.y - p0.y) * tension;
-                        
-                        // Control point 2: extend from p3 towards p1
-                        const cp2x = p2.x - (p3.x - p1.x) * tension;
-                        const cp2y = p2.y - (p3.y - p1.y) * tension;
-                        
-                        // Draw cubic Bézier curve from p1 to p2
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(p1.x, p1.y);
-                        this.ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
-                        this.ctx.stroke();
-                    } else {
-                        // Not enough points yet, use simple line
-                        this.ctx.lineTo(x, y);
-                        this.ctx.stroke();
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(x, y);
-                    }
-                    
-                    // Limit history to prevent memory issues
-                    if (this.pointHistory.length > 50) {
-                        this.pointHistory.shift();
-                    }
-                } else if (this.curveType === 'catmull') {
-                    // Use Catmull-Rom splines for natural smoothing that passes through all points
-                    if (this.pointHistory.length >= 4) {
-                        const p0 = this.pointHistory[this.pointHistory.length - 4];
-                        const p1 = this.pointHistory[this.pointHistory.length - 3];
-                        const p2 = this.pointHistory[this.pointHistory.length - 2];
-                        const p3 = this.pointHistory[this.pointHistory.length - 1];
-                        
-                        // Draw Catmull-Rom spline from p1 to p2
-                        this.drawCatmullRomSegment(p0, p1, p2, p3);
-                    } else {
-                        // Not enough points yet, use simple line
-                        this.ctx.lineTo(x, y);
-                        this.ctx.stroke();
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(x, y);
-                    }
-                    
-                    // Limit history to prevent memory issues
-                    if (this.pointHistory.length > 50) {
-                        this.pointHistory.shift();
-                    }
-                } else if (this.curveType === 'bspline') {
-                    // Use B-splines for ultra-smooth curves that don't pass through control points
-                    if (this.pointHistory.length >= 3) {
-                        // Get the last few points for B-spline calculation
-                        const points = this.pointHistory.slice(-Math.min(this.pointHistory.length, 10));
-                        
-                        // Draw B-spline segments
-                        this.drawBSplineSegments(points);
-                    } else {
-                        // Not enough points yet, use simple line
-                        this.ctx.lineTo(x, y);
-                        this.ctx.stroke();
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(x, y);
-                    }
-                    
-                    // Limit history to prevent memory issues
-                    if (this.pointHistory.length > 50) {
-                        this.pointHistory.shift();
-                    }
-                } else if (this.curveType === 'average') {
-                    // Use moving average for jitter reduction
-                    if (this.pointHistory.length >= this.averageWindow) {
-                        // Calculate moving average of recent points
-                        const recentPoints = this.pointHistory.slice(-this.averageWindow);
-                        const avgPoint = this.calculateMovingAverage(recentPoints);
-                        
-                        // Draw line to averaged position
-                        this.ctx.lineTo(avgPoint.x, avgPoint.y);
-                        this.ctx.stroke();
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(avgPoint.x, avgPoint.y);
-                    } else {
-                        // Not enough points yet, use simple line
-                        this.ctx.lineTo(x, y);
-                        this.ctx.stroke();
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(x, y);
-                    }
-                    
-                    // Limit history to prevent memory issues
-                    if (this.pointHistory.length > 50) {
-                        this.pointHistory.shift();
-                    }
-                } else if (this.curveType === 'kalman') {
-                    // Use Kalman filter for predictive smoothing
-                    if (!this.kalmanFilter) {
-                        // Initialize Kalman filter with current position
-                        this.kalmanFilter = this.createKalmanFilter(x, y);
-                    }
-                    
-                    // Update Kalman filter with measurement and get filtered position
-                    const filteredPoint = this.updateKalmanFilter(x, y);
-                    
-                    // Draw line to filtered position
-                    this.ctx.lineTo(filteredPoint.x, filteredPoint.y);
-                    this.ctx.stroke();
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(filteredPoint.x, filteredPoint.y);
-                } else if (this.curveType === 'exponential') {
-                    // Use exponential smoothing for weighted historical averaging
-                    if (!this.exponentialState) {
-                        // Initialize exponential smoothing state with current position
-                        this.exponentialState = { x: x, y: y };
-                    }
-                    
-                    // Update exponential smoothing and get smoothed position
-                    const smoothedPoint = this.updateExponentialSmoothing(x, y);
-                    
-                    // Draw line to smoothed position
-                    this.ctx.lineTo(smoothedPoint.x, smoothedPoint.y);
-                    this.ctx.stroke();
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(smoothedPoint.x, smoothedPoint.y);
-                } else if (this.curveType === 'douglas') {
-                    // Use Douglas-Peucker algorithm for line simplification
-                    if (this.pointHistory.length >= this.douglasSegmentLength) {
-                        // Apply Douglas-Peucker to recent segment
-                        const recentPoints = this.pointHistory.slice(-this.douglasSegmentLength);
-                        const simplifiedPoints = this.douglasPeucker(recentPoints, this.douglasEpsilon);
-                        
-                        // Draw simplified path
-                        if (simplifiedPoints.length > 1) {
-                            this.ctx.beginPath();
-                            this.ctx.moveTo(simplifiedPoints[0].x, simplifiedPoints[0].y);
-                            for (let i = 1; i < simplifiedPoints.length; i++) {
-                                this.ctx.lineTo(simplifiedPoints[i].x, simplifiedPoints[i].y);
-                            }
-                            this.ctx.stroke();
-                            
-                            // Update position to last simplified point
-                            const lastPoint = simplifiedPoints[simplifiedPoints.length - 1];
-                            this.ctx.beginPath();
-                            this.ctx.moveTo(lastPoint.x, lastPoint.y);
-                        }
-                    } else {
-                        // Not enough points yet, use simple line
-                        this.ctx.lineTo(x, y);
-                        this.ctx.stroke();
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(x, y);
-                    }
-                    
-                    // Limit history to prevent memory issues
-                    if (this.pointHistory.length > 100) {
-                        this.pointHistory.shift();
-                    }
-                } else if (this.curveType === 'chaikin') {
-                    // Use Chaikin's corner cutting algorithm for iterative smoothing
-                    if (this.pointHistory.length >= 4) {
-                        // Apply Chaikin corner cutting to recent points
-                        const recentPoints = this.pointHistory.slice(-Math.min(this.pointHistory.length, 15));
-                        const smoothedPoints = this.chaikinCornerCutting(recentPoints, this.chaikinIterations);
-                        
-                        // Draw smoothed path
-                        if (smoothedPoints.length > 1) {
-                            this.ctx.beginPath();
-                            this.ctx.moveTo(smoothedPoints[0].x, smoothedPoints[0].y);
-                            for (let i = 1; i < smoothedPoints.length; i++) {
-                                this.ctx.lineTo(smoothedPoints[i].x, smoothedPoints[i].y);
-                            }
-                            this.ctx.stroke();
-                            
-                            // Update position to last smoothed point
-                            const lastPoint = smoothedPoints[smoothedPoints.length - 1];
-                            this.ctx.beginPath();
-                            this.ctx.moveTo(lastPoint.x, lastPoint.y);
-                        }
-                    } else {
-                        // Not enough points yet, use simple line
-                        this.ctx.lineTo(x, y);
-                        this.ctx.stroke();
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(x, y);
-                    }
-                    
-                    // Limit history to prevent memory issues
-                    if (this.pointHistory.length > 50) {
-                        this.pointHistory.shift();
-                    }
-                } else if (this.curveType === 'temporal') {
-                    // Use temporal smoothing with velocity/acceleration consideration
-                    const currentTime = performance.now();
-                    
-                    // Add point with temporal data
-                    this.temporalHistory.push({
-                        x: x,
-                        y: y,
-                        timestamp: currentTime
-                    });
-                    
-                    if (this.temporalHistory.length >= 3) {
-                        // Apply temporal smoothing based on velocity and acceleration
-                        const smoothedPoint = this.temporalSmoothing();
-                        
-                        // Draw line to temporally smoothed position
-                        this.ctx.lineTo(smoothedPoint.x, smoothedPoint.y);
-                        this.ctx.stroke();
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(smoothedPoint.x, smoothedPoint.y);
-                    } else {
-                        // Not enough temporal data yet, use simple line
-                        this.ctx.lineTo(x, y);
-                        this.ctx.stroke();
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(x, y);
-                    }
-                    
-                    // Limit temporal history to prevent memory issues
-                    if (this.temporalHistory.length > 20) {
-                        this.temporalHistory.shift();
-                    }
-                }
-                
-                // Update last position
-                this.lastX = this.currentX;
-                this.lastY = this.currentY;
-                
-                // Use Ink API if available for low-latency rendering
-                if (this.inkPresenter && this.currentTool === 'pen' && e.isTrusted) {
-                    try {
-                        const previewColor = this.debugMode ? '#ff0000' : '#000000';
-                        await this.inkPresenter.updateInkTrailStartPoint(e, {
-                            color: previewColor,
-                            diameter: this.brushSize
-                        });
-                    } catch (error) {
-                        // Fallback to regular canvas rendering
-                    }
-                }
-                
-                this.lastPointerEvent = e;
-            }
-            
-            drawPoint(x, y) {
-                this.ctx.globalCompositeOperation = this.currentTool === 'eraser' ? 'destination-out' : 'source-over';
-                this.ctx.fillStyle = '#000000';
-                
-                this.ctx.beginPath();
-                this.ctx.arc(x, y, this.brushSize / 2, 0, 2 * Math.PI);
-                this.ctx.fill();
-            }
-            
-            stopDrawing() {
-                this.isDrawing = false;
-                this.ctx.beginPath();
-            }
-            
-            drawCatmullRomSegment(p0, p1, p2, p3) {
-                // Catmull-Rom spline implementation
-                // Creates a smooth curve from p1 to p2, using p0 and p3 as influence points
-                const steps = 10; // Number of subdivisions for smooth curve
-                
-                this.ctx.beginPath();
-                this.ctx.moveTo(p1.x, p1.y);
-                
-                for (let i = 0; i <= steps; i++) {
-                    const t = i / steps;
-                    const t2 = t * t;
-                    const t3 = t2 * t;
-                    
-                    // Catmull-Rom spline formula
-                    const x = 0.5 * (
-                        (2 * p1.x) +
-                        (-p0.x + p2.x) * t +
-                        (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 +
-                        (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3
-                    );
-                    
-                    const y = 0.5 * (
-                        (2 * p1.y) +
-                        (-p0.y + p2.y) * t +
-                        (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 +
-                        (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3
-                    );
-                    
-                    this.ctx.lineTo(x, y);
-                }
-                
-                this.ctx.stroke();
-            }
-            
-            drawBSplineSegments(points) {
-                // B-spline implementation using uniform quadratic basis functions
-                // Creates ultra-smooth curves that approximate but don't pass through control points
-                if (points.length < 3) return;
-                
-                this.ctx.beginPath();
-                
-                // Start from the first approximated point
-                let startPoint = this.getBSplinePoint(points, 0, 0);
-                this.ctx.moveTo(startPoint.x, startPoint.y);
-                
-                // Draw B-spline curve segments
-                for (let i = 0; i < points.length - 2; i++) {
-                    const steps = 10; // Number of subdivisions per segment
-                    
-                    for (let j = 1; j <= steps; j++) {
-                        const t = j / steps;
-                        const point = this.getBSplinePoint(points, i, t);
-                        this.ctx.lineTo(point.x, point.y);
-                    }
-                }
-                
-                this.ctx.stroke();
-            }
-            
-            getBSplinePoint(points, i, t) {
-                // Quadratic B-spline basis functions
-                const b0 = (1 - t) * (1 - t) / 2;           // B₀(t)
-                const b1 = (-2 * t * t + 2 * t + 1) / 2;    // B₁(t)  
-                const b2 = t * t / 2;                       // B₂(t)
-                
-                // Get control points (with bounds checking)
-                const p0 = points[Math.max(0, i)];
-                const p1 = points[Math.max(0, Math.min(points.length - 1, i + 1))];
-                const p2 = points[Math.max(0, Math.min(points.length - 1, i + 2))];
-                
-                // Calculate B-spline point using basis functions
-                const x = b0 * p0.x + b1 * p1.x + b2 * p2.x;
-                const y = b0 * p0.y + b1 * p1.y + b2 * p2.y;
-                
-                return { x, y };
-            }
-            
-            calculateMovingAverage(points) {
-                // Calculate simple moving average of points
-                let sumX = 0;
-                let sumY = 0;
-                
-                for (let i = 0; i < points.length; i++) {
-                    sumX += points[i].x;
-                    sumY += points[i].y;
-                }
-                
-                return {
-                    x: sumX / points.length,
-                    y: sumY / points.length
-                };
-            }
-            
-            createKalmanFilter(initialX, initialY) {
-                // Create a 2D Kalman filter for position and velocity tracking
-                // State vector: [x, y, vx, vy] - position and velocity
-                return {
-                    // State estimate (position and velocity)
-                    x: [initialX, initialY, 0, 0],
-                    
-                    // Error covariance matrix (4x4)
-                    P: [
-                        [1000, 0, 0, 0],
-                        [0, 1000, 0, 0],
-                        [0, 0, 1000, 0],
-                        [0, 0, 0, 1000]
-                    ],
-                    
-                    // Last timestamp for dt calculation
-                    lastTime: performance.now()
-                };
-            }
-            
-            updateKalmanFilter(measureX, measureY) {
-                const currentTime = performance.now();
-                const dt = Math.max(0.001, (currentTime - this.kalmanFilter.lastTime) / 1000); // Convert to seconds
-                this.kalmanFilter.lastTime = currentTime;
-                
-                // State transition matrix (position + velocity * dt)
-                const F = [
-                    [1, 0, dt, 0],
-                    [0, 1, 0, dt],
-                    [0, 0, 1, 0],
-                    [0, 0, 0, 1]
-                ];
-                
-                // Process noise covariance matrix
-                const dt2 = dt * dt;
-                const dt3 = dt2 * dt;
-                const dt4 = dt2 * dt2;
-                const processVar = this.processNoise * this.processNoise;
-                
-                const Q = [
-                    [dt4/4 * processVar, 0, dt3/2 * processVar, 0],
-                    [0, dt4/4 * processVar, 0, dt3/2 * processVar],
-                    [dt3/2 * processVar, 0, dt2 * processVar, 0],
-                    [0, dt3/2 * processVar, 0, dt2 * processVar]
-                ];
-                
-                // Measurement matrix (we only observe position)
-                const H = [
-                    [1, 0, 0, 0],
-                    [0, 1, 0, 0]
-                ];
-                
-                // Measurement noise covariance
-                const measureVar = this.measureNoise * this.measureNoise;
-                const R = [
-                    [measureVar, 0],
-                    [0, measureVar]
-                ];
-                
-                // Prediction step
-                const x_pred = this.matrixVectorMultiply(F, this.kalmanFilter.x);
-                const P_pred = this.matrixAdd(this.matrixMultiply(F, this.matrixMultiply(this.kalmanFilter.P, this.matrixTranspose(F))), Q);
-                
-                // Update step
-                const z = [measureX, measureY]; // Measurement
-                const y = this.vectorSubtract(z, this.matrixVectorMultiply(H, x_pred)); // Innovation
-                const S = this.matrixAdd(this.matrixMultiply(H, this.matrixMultiply(P_pred, this.matrixTranspose(H))), R); // Innovation covariance
-                const K = this.matrixMultiply(P_pred, this.matrixMultiply(this.matrixTranspose(H), this.matrixInverse2x2(S))); // Kalman gain
-                
-                // Updated state and covariance
-                this.kalmanFilter.x = this.vectorAdd(x_pred, this.matrixVectorMultiply(K, y));
-                const I_KH = this.matrixSubtract(this.identityMatrix(4), this.matrixMultiply(K, H));
-                this.kalmanFilter.P = this.matrixMultiply(I_KH, P_pred);
-                
-                return {
-                    x: this.kalmanFilter.x[0],
-                    y: this.kalmanFilter.x[1]
-                };
-            }
-            
-            // Matrix operations for Kalman filter
-            matrixMultiply(A, B) {
-                const result = [];
-                for (let i = 0; i < A.length; i++) {
-                    result[i] = [];
-                    for (let j = 0; j < B[0].length; j++) {
-                        let sum = 0;
-                        for (let k = 0; k < B.length; k++) {
-                            sum += A[i][k] * B[k][j];
-                        }
-                        result[i][j] = sum;
-                    }
-                }
-                return result;
-            }
-            
-            matrixVectorMultiply(A, v) {
-                const result = [];
-                for (let i = 0; i < A.length; i++) {
-                    let sum = 0;
-                    for (let j = 0; j < v.length; j++) {
-                        sum += A[i][j] * v[j];
-                    }
-                    result[i] = sum;
-                }
-                return result;
-            }
-            
-            matrixAdd(A, B) {
-                const result = [];
-                for (let i = 0; i < A.length; i++) {
-                    result[i] = [];
-                    for (let j = 0; j < A[i].length; j++) {
-                        result[i][j] = A[i][j] + B[i][j];
-                    }
-                }
-                return result;
-            }
-            
-            matrixSubtract(A, B) {
-                const result = [];
-                for (let i = 0; i < A.length; i++) {
-                    result[i] = [];
-                    for (let j = 0; j < A[i].length; j++) {
-                        result[i][j] = A[i][j] - B[i][j];
-                    }
-                }
-                return result;
-            }
-            
-            matrixTranspose(A) {
-                const result = [];
-                for (let i = 0; i < A[0].length; i++) {
-                    result[i] = [];
-                    for (let j = 0; j < A.length; j++) {
-                        result[i][j] = A[j][i];
-                    }
-                }
-                return result;
-            }
-            
-            vectorAdd(a, b) {
-                return a.map((val, i) => val + b[i]);
-            }
-            
-            vectorSubtract(a, b) {
-                return a.map((val, i) => val - b[i]);
-            }
-            
-            identityMatrix(n) {
-                const result = [];
-                for (let i = 0; i < n; i++) {
-                    result[i] = [];
-                    for (let j = 0; j < n; j++) {
-                        result[i][j] = i === j ? 1 : 0;
-                    }
-                }
-                return result;
-            }
-            
-            matrixInverse2x2(A) {
-                // 2x2 matrix inverse
-                const det = A[0][0] * A[1][1] - A[0][1] * A[1][0];
-                if (Math.abs(det) < 1e-10) {
-                    // Singular matrix, return identity
-                    return [[1, 0], [0, 1]];
-                }
-                return [
-                    [A[1][1] / det, -A[0][1] / det],
-                    [-A[1][0] / det, A[0][0] / det]
-                ];
-            }
-            
-            updateExponentialSmoothing(measureX, measureY) {
-                // Exponential smoothing: S(t) = α * X(t) + (1-α) * S(t-1)
-                // where α is the smoothing factor (0 < α ≤ 1)
-                const alpha = this.exponentialAlpha;
-                const oneMinusAlpha = 1 - alpha;
-                
-                // Update smoothed position using exponential smoothing formula
-                this.exponentialState.x = alpha * measureX + oneMinusAlpha * this.exponentialState.x;
-                this.exponentialState.y = alpha * measureY + oneMinusAlpha * this.exponentialState.y;
-                
-                return {
-                    x: this.exponentialState.x,
-                    y: this.exponentialState.y
-                };
-            }
-            
-            douglasPeucker(points, epsilon) {
-                // Douglas-Peucker line simplification algorithm
-                if (points.length <= 2) {
-                    return points;
-                }
-                
-                // Find the point with the maximum distance from the line segment
-                let maxDistance = 0;
-                let maxIndex = 0;
-                const start = points[0];
-                const end = points[points.length - 1];
-                
-                for (let i = 1; i < points.length - 1; i++) {
-                    const distance = this.perpendicularDistance(points[i], start, end);
-                    if (distance > maxDistance) {
-                        maxDistance = distance;
-                        maxIndex = i;
-                    }
-                }
-                
-                // If the maximum distance is greater than epsilon, recursively simplify
-                if (maxDistance > epsilon) {
-                    // Recursive call on the left side
-                    const leftPoints = this.douglasPeucker(points.slice(0, maxIndex + 1), epsilon);
-                    // Recursive call on the right side
-                    const rightPoints = this.douglasPeucker(points.slice(maxIndex), epsilon);
-                    
-                    // Combine results (remove duplicate point at junction)
-                    return leftPoints.slice(0, -1).concat(rightPoints);
-                } else {
-                    // All points are within epsilon distance, return only endpoints
-                    return [start, end];
-                }
-            }
-            
-            perpendicularDistance(point, lineStart, lineEnd) {
-                // Calculate perpendicular distance from point to line segment
-                const A = point.x - lineStart.x;
-                const B = point.y - lineStart.y;
-                const C = lineEnd.x - lineStart.x;
-                const D = lineEnd.y - lineStart.y;
-                
-                const dot = A * C + B * D;
-                const lenSq = C * C + D * D;
-                
-                if (lenSq === 0) {
-                    // Line segment is actually a point
-                    return Math.sqrt(A * A + B * B);
-                }
-                
-                let param = dot / lenSq;
-                
-                let xx, yy;
-                
-                if (param < 0) {
-                    xx = lineStart.x;
-                    yy = lineStart.y;
-                } else if (param > 1) {
-                    xx = lineEnd.x;
-                    yy = lineEnd.y;
-                } else {
-                    xx = lineStart.x + param * C;
-                    yy = lineStart.y + param * D;
-                }
-                
-                const dx = point.x - xx;
-                const dy = point.y - yy;
-                
-                return Math.sqrt(dx * dx + dy * dy);
-            }
-            
-            chaikinCornerCutting(points, iterations) {
-                // Chaikin's Corner Cutting Algorithm
-                // Iteratively smooths polygonal chains by cutting corners
-                if (points.length < 3) {
-                    return points;
-                }
-                
-                let currentPoints = [...points]; // Copy original points
-                
-                // Apply corner cutting for specified number of iterations
-                for (let iter = 0; iter < iterations; iter++) {
-                    if (currentPoints.length < 2) break;
-                    
-                    const newPoints = [];
-                    
-                    // For closed curves, you would include the first point at the end
-                    // For open curves (drawing strokes), we keep endpoints
-                    
-                    // Add first point (keep endpoint for open curve)
-                    newPoints.push(currentPoints[0]);
-                    
-                    // Process each line segment
-                    for (let i = 0; i < currentPoints.length - 1; i++) {
-                        const p1 = currentPoints[i];
-                        const p2 = currentPoints[i + 1];
-                        
-                        // Calculate corner cutting points at 1/4 and 3/4 of the segment
-                        const q = {
-                            x: p1.x * 0.75 + p2.x * 0.25, // Q point (25% from p1 to p2)
-                            y: p1.y * 0.75 + p2.y * 0.25
-                        };
-                        
-                        const r = {
-                            x: p1.x * 0.25 + p2.x * 0.75, // R point (75% from p1 to p2)
-                            y: p1.y * 0.25 + p2.y * 0.75
-                        };
-                        
-                        // Add the corner cutting points
-                        if (i > 0) { // Don't duplicate the first point
-                            newPoints.push(q);
-                        }
-                        newPoints.push(r);
-                    }
-                    
-                    // Add last point (keep endpoint for open curve)
-                    newPoints.push(currentPoints[currentPoints.length - 1]);
-                    
-                    // Update for next iteration
-                    currentPoints = newPoints;
-                }
-                
-                return currentPoints;
-            }
-            
-            temporalSmoothing() {
-                // Temporal Smoothing with Velocity/Acceleration Consideration
-                // Analyzes drawing speed and timing to provide intelligent smoothing
-                if (this.temporalHistory.length < 3) {
-                    return this.temporalHistory[this.temporalHistory.length - 1];
-                }
-                
-                const n = this.temporalHistory.length;
-                const current = this.temporalHistory[n - 1];
-                const previous = this.temporalHistory[n - 2];
-                const beforePrev = this.temporalHistory[n - 3];
-                
-                // Calculate time intervals (in milliseconds)
-                const dt1 = Math.max(1, current.timestamp - previous.timestamp);
-                const dt2 = Math.max(1, previous.timestamp - beforePrev.timestamp);
-                
-                // Calculate velocities (pixels per millisecond)
-                const vx1 = (current.x - previous.x) / dt1;
-                const vy1 = (current.y - previous.y) / dt1;
-                const vx2 = (previous.x - beforePrev.x) / dt2;
-                const vy2 = (previous.y - beforePrev.y) / dt2;
-                
-                // Calculate speed magnitudes
-                const speed1 = Math.sqrt(vx1 * vx1 + vy1 * vy1);
-                const speed2 = Math.sqrt(vx2 * vx2 + vy2 * vy2);
-                
-                // Calculate acceleration (change in velocity)
-                const avgDt = (dt1 + dt2) / 2;
-                const accelX = (vx1 - vx2) / avgDt;
-                const accelY = (vy1 - vy2) / avgDt;
-                const acceleration = Math.sqrt(accelX * accelX + accelY * accelY);
-                
-                // Normalize speed and acceleration for smoothing factor calculation
-                const maxSpeed = 5.0; // pixels per millisecond (adjust based on typical drawing speeds)
-                const maxAccel = 0.5; // acceleration threshold
-                
-                const normalizedSpeed = Math.min(speed1 / maxSpeed, 1.0);
-                const normalizedAccel = Math.min(acceleration / maxAccel, 1.0);
-                
-                // Calculate adaptive smoothing factors
-                // Higher speed -> more smoothing (reduce jitter from fast movement)
-                // Higher acceleration -> more smoothing (reduce artifacts from direction changes)
-                const velocitySmoothing = normalizedSpeed * this.velocityFactor;
-                const accelSmoothing = normalizedAccel * this.accelerationFactor;
-                
-                // Combine smoothing factors (weighted average)
-                const totalSmoothing = Math.min(velocitySmoothing + accelSmoothing, 0.9);
-                
-                // Apply temporal smoothing using weighted average
-                // Less smoothing preserves intentional movements
-                // More smoothing reduces jitter and noise
-                let smoothedX, smoothedY;
-                
-                if (totalSmoothing < 0.1) {
-                    // Very little smoothing - preserve sharp movements
-                    smoothedX = current.x;
-                    smoothedY = current.y;
-                } else {
-                    // Apply weighted average smoothing
-                    // Use multiple previous points for smoother result
-                    const weights = [1.0 - totalSmoothing, totalSmoothing * 0.6, totalSmoothing * 0.4];
-                    const totalWeight = weights.reduce((sum, w) => sum + w, 0);
-                    
-                    smoothedX = (current.x * weights[0] + previous.x * weights[1] + beforePrev.x * weights[2]) / totalWeight;
-                    smoothedY = (current.y * weights[0] + previous.y * weights[1] + beforePrev.y * weights[2]) / totalWeight;
-                }
-                
-                // Predictive component based on velocity
-                // Add slight prediction for natural feel (optional)
-                if (speed1 > 0.1 && totalSmoothing < 0.5) {
-                    const predictionFactor = 0.1 * (1.0 - totalSmoothing);
-                    smoothedX += vx1 * dt1 * predictionFactor;
-                    smoothedY += vy1 * dt1 * predictionFactor;
-                }
-                
-                return {
-                    x: smoothedX,
-                    y: smoothedY
-                };
-            }
-            
-            clearCanvas() {
-                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-            }
-        }
-        
-        // Initialize the app when DOM is loaded
-        document.addEventListener('DOMContentLoaded', () => {
-            new InkDrawingApp();
-        });
-        
-        // Dark mode support
+        // Dark mode detection
         if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
             document.documentElement.classList.add('dark');
         }
@@ -1488,6 +104,375 @@
             } else {
                 document.documentElement.classList.remove('dark');
             }
+        });
+
+        class UltraLowLatencyDrawing {
+            constructor() {
+                this.canvas = document.getElementById('drawingCanvas');
+                // Create dual-layer system for instant feedback
+                this.overlayCanvas = document.createElement('canvas');
+                this.overlayCanvas.style.position = 'absolute';
+                this.overlayCanvas.style.top = '0';
+                this.overlayCanvas.style.left = '0';
+                this.overlayCanvas.style.pointerEvents = 'none';
+                this.canvas.parentNode.appendChild(this.overlayCanvas);
+                
+                // Ultra-high performance context settings
+                this.ctx = this.canvas.getContext('2d', {
+                    alpha: false,
+                    willReadFrequently: false,
+                    desynchronized: true
+                });
+                this.overlayCtx = this.overlayCanvas.getContext('2d', {
+                    alpha: true,
+                    willReadFrequently: false,
+                    desynchronized: true
+                });
+                
+                this.isDrawing = false;
+                this.currentTool = 'pen';
+                
+                // High-performance coordinate tracking with Float32Arrays
+                this.coords = new Float32Array(6); // [prevX, prevY, lastX, lastY, currentX, currentY]
+                this.inputBuffer = new Float32Array(1000); // Circular buffer for input smoothing
+                this.bufferIndex = 0;
+                this.pointCount = 0; // Track number of points for interpolation
+                
+                // Cache frequently accessed elements
+                this.brushSizeEl = document.getElementById('brushSize');
+                this.colorPickerEl = document.getElementById('colorPicker');
+                this.opacityEl = document.getElementById('opacity');
+                
+                // Cache drawing properties to avoid DOM queries
+                this.cachedBrushSize = 3;
+                this.cachedColor = '#000000';
+                this.cachedOpacity = 1;
+                this.cachedColorRGB = [0, 0, 0]; // Pre-parsed RGB
+                
+                // Performance optimizations
+                this.ctx.lineCap = 'round';
+                this.ctx.lineJoin = 'round';
+                this.ctx.imageSmoothingEnabled = false;
+                this.overlayCtx.lineCap = 'round';
+                this.overlayCtx.lineJoin = 'round';
+                this.overlayCtx.imageSmoothingEnabled = false;
+                
+                // Input prediction and smoothing
+                this.velocity = new Float32Array(2); // [vx, vy]
+                this.lastTimestamp = 0;
+                
+                // Memory pooling for reduced GC pressure
+                this.pointPool = [];
+                this.activeStrokes = [];
+                
+                this.setupCanvas();
+                this.setupEventListeners();
+                this.setupControls();
+                
+                // Set initial white background
+                this.clearCanvas();
+            }
+            
+            setupCanvas() {
+                this.resizeCanvas();
+                window.addEventListener('resize', () => this.resizeCanvas());
+            }
+            
+            resizeCanvas() {
+                const rect = this.canvas.getBoundingClientRect();
+                const dpr = window.devicePixelRatio || 1;
+                
+                // Set actual canvas size for high DPI displays
+                this.canvas.width = rect.width * dpr;
+                this.canvas.height = rect.height * dpr;
+                this.overlayCanvas.width = rect.width * dpr;
+                this.overlayCanvas.height = rect.height * dpr;
+                
+                // Scale canvas back down
+                this.canvas.style.width = rect.width + 'px';
+                this.canvas.style.height = rect.height + 'px';
+                this.overlayCanvas.style.width = rect.width + 'px';
+                this.overlayCanvas.style.height = rect.height + 'px';
+                
+                // Scale drawing contexts
+                this.ctx.scale(dpr, dpr);
+                this.overlayCtx.scale(dpr, dpr);
+                
+                // Restore canvas properties after resize
+                this.ctx.lineCap = 'round';
+                this.ctx.lineJoin = 'round';
+                this.ctx.imageSmoothingEnabled = false;
+                this.overlayCtx.lineCap = 'round';
+                this.overlayCtx.lineJoin = 'round';
+                this.overlayCtx.imageSmoothingEnabled = false;
+                
+                // Fill with white background
+                this.clearCanvas();
+            }
+            
+            setupEventListeners() {
+                // Use pointer events for better performance and unified handling
+                this.canvas.addEventListener('pointerdown', (e) => {
+                    // Only allow pen/stylus and mouse input, block finger touches
+                    if (e.pointerType === 'touch') {
+                        e.preventDefault();
+                        return;
+                    }
+                    
+                    e.preventDefault();
+                    this.canvas.setPointerCapture(e.pointerId);
+                    this.startDrawing(e);
+                }, { passive: false });
+                
+                this.canvas.addEventListener('pointermove', (e) => {
+                    // Only allow pen/stylus and mouse input, block finger touches
+                    if (e.pointerType === 'touch') {
+                        e.preventDefault();
+                        return;
+                    }
+                    
+                    e.preventDefault();
+                    this.draw(e);
+                    // Update coordinates with minimal DOM manipulation
+                    const rect = this.canvas.getBoundingClientRect();
+                    const x = Math.round(e.clientX - rect.left);
+                    const y = Math.round(e.clientY - rect.top);
+                    document.getElementById('coordinates').textContent = `X: ${x}, Y: ${y}`;
+                }, { passive: false });
+                
+                this.canvas.addEventListener('pointerup', (e) => {
+                    // Only allow pen/stylus and mouse input, block finger touches
+                    if (e.pointerType === 'touch') {
+                        e.preventDefault();
+                        return;
+                    }
+                    
+                    e.preventDefault();
+                    this.canvas.releasePointerCapture(e.pointerId);
+                    this.stopDrawing();
+                }, { passive: false });
+                
+                this.canvas.addEventListener('pointercancel', (e) => {
+                    // Only allow pen/stylus and mouse input, block finger touches
+                    if (e.pointerType === 'touch') {
+                        e.preventDefault();
+                        return;
+                    }
+                    
+                    e.preventDefault();
+                    this.stopDrawing();
+                }, { passive: false });
+                
+                // Disable context menu for faster response
+                this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+            }
+            
+            setupControls() {
+                // Cache property updates for ultra-low latency
+                this.brushSizeEl.addEventListener('input', (e) => {
+                    this.cachedBrushSize = parseInt(e.target.value);
+                    document.getElementById('sizeDisplay').textContent = e.target.value + 'px';
+                });
+                
+                this.colorPickerEl.addEventListener('change', (e) => {
+                    this.cachedColor = e.target.value;
+                });
+                
+                this.opacityEl.addEventListener('input', (e) => {
+                    this.cachedOpacity = parseFloat(e.target.value);
+                    document.getElementById('opacityDisplay').textContent = Math.round(e.target.value * 100) + '%';
+                });
+                
+                // Tools
+                document.getElementById('penTool').addEventListener('click', () => {
+                    this.currentTool = 'pen';
+                    this.updateToolButtons();
+                });
+                
+                document.getElementById('eraserTool').addEventListener('click', () => {
+                    this.currentTool = 'eraser';
+                    this.updateToolButtons();
+                });
+                
+                document.getElementById('clearCanvas').addEventListener('click', () => {
+                    this.clearCanvas();
+                });
+            }
+            
+            updateToolButtons() {
+                const penBtn = document.getElementById('penTool');
+                const eraserBtn = document.getElementById('eraserTool');
+                
+                if (this.currentTool === 'pen') {
+                    penBtn.className = 'px-3 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors';
+                    eraserBtn.className = 'px-3 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors';
+                } else {
+                    eraserBtn.className = 'px-3 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors';
+                    penBtn.className = 'px-3 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors';
+                }
+            }
+            
+            getMousePos(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                return {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top
+                };
+            }
+            
+            startDrawing(e) {
+                this.isDrawing = true;
+                const pos = this.getMousePos(e);
+                
+                // Reset point counter for new stroke
+                this.pointCount = 0;
+                
+                // Initialize coordinates for quadratic interpolation
+                this.coords[0] = this.coords[2] = this.coords[4] = pos.x; // prevX, lastX, currentX
+                this.coords[1] = this.coords[3] = this.coords[5] = pos.y; // prevY, lastY, currentY
+                
+                // Reset velocity tracking
+                this.velocity[0] = this.velocity[1] = 0;
+                this.lastTimestamp = performance.now();
+                
+                // Prevent scrolling while drawing
+                document.body.classList.add('drawing');
+                
+                // Set up both contexts for dual-layer rendering
+                this.setupContexts();
+                
+                // Instant feedback on overlay layer (0ms latency)
+                this.overlayCtx.fillRect(pos.x - this.cachedBrushSize/2, pos.y - this.cachedBrushSize/2, this.cachedBrushSize, this.cachedBrushSize);
+                
+                // Also draw on main canvas for persistence
+                this.ctx.fillRect(pos.x - this.cachedBrushSize/2, pos.y - this.cachedBrushSize/2, this.cachedBrushSize, this.cachedBrushSize);
+            }
+            
+            setupContexts() {
+                // Main canvas setup
+                this.ctx.lineWidth = this.cachedBrushSize;
+                this.ctx.globalAlpha = this.cachedOpacity;
+                
+                // Overlay canvas setup for instant feedback - same as main canvas
+                this.overlayCtx.lineWidth = this.cachedBrushSize;
+                this.overlayCtx.globalAlpha = this.cachedOpacity; // Same opacity as main canvas
+                
+                if (this.currentTool === 'pen') {
+                    this.ctx.globalCompositeOperation = 'source-over';
+                    this.ctx.strokeStyle = this.cachedColor;
+                    this.ctx.fillStyle = this.cachedColor;
+                    this.overlayCtx.globalCompositeOperation = 'source-over';
+                    this.overlayCtx.strokeStyle = this.cachedColor;
+                    this.overlayCtx.fillStyle = this.cachedColor;
+                } else if (this.currentTool === 'eraser') {
+                    this.ctx.globalCompositeOperation = 'destination-out';
+                    this.overlayCtx.globalCompositeOperation = 'destination-out';
+                }
+            }
+            
+            draw(e) {
+                if (!this.isDrawing) return;
+                
+                const pos = this.getMousePos(e);
+                const now = performance.now();
+                
+                // Update velocity for prediction
+                const dt = now - this.lastTimestamp;
+                if (dt > 0) {
+                    this.velocity[0] = (pos.x - this.coords[4]) / dt;
+                    this.velocity[1] = (pos.y - this.coords[5]) / dt;
+                }
+                this.lastTimestamp = now;
+                
+                // Shift coordinates for quadratic interpolation
+                this.coords[0] = this.coords[2]; // prevX = lastX
+                this.coords[1] = this.coords[3]; // prevY = lastY
+                this.coords[2] = this.coords[4]; // lastX = currentX
+                this.coords[3] = this.coords[5]; // lastY = currentY
+                this.coords[4] = pos.x;          // currentX = new position
+                this.coords[5] = pos.y;          // currentY = new position
+                
+                this.pointCount++;
+                
+                // Clear overlay and draw instant preview
+                this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+                
+                if (this.pointCount === 1) {
+                    // First point - draw straight line for instant feedback
+                    this.overlayCtx.beginPath();
+                    this.overlayCtx.moveTo(this.coords[2], this.coords[3]);
+                    this.overlayCtx.lineTo(this.coords[4], this.coords[5]);
+                    this.overlayCtx.stroke();
+                    
+                    // Also draw on main canvas
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(this.coords[2], this.coords[3]);
+                    this.ctx.lineTo(this.coords[4], this.coords[5]);
+                    this.ctx.stroke();
+                } else {
+                    // Use quadratic interpolation for smooth curves
+                    this.drawQuadraticInterpolation();
+                }
+                
+                // Predict next point for ultra-smooth feel
+                if (this.velocity[0] !== 0 || this.velocity[1] !== 0) {
+                    const predictX = this.coords[4] + this.velocity[0] * 8; // 8ms prediction
+                    const predictY = this.coords[5] + this.velocity[1] * 8;
+                    this.overlayCtx.globalAlpha *= 0.3; // Faded prediction
+                    this.overlayCtx.beginPath();
+                    this.overlayCtx.moveTo(this.coords[4], this.coords[5]);
+                    this.overlayCtx.lineTo(predictX, predictY);
+                    this.overlayCtx.stroke();
+                    this.overlayCtx.globalAlpha = this.cachedOpacity; // Reset to same alpha as main canvas
+                }
+            }
+            
+            drawQuadraticInterpolation() {
+                // Calculate midpoints for smooth quadratic curves
+                const midX1 = (this.coords[0] + this.coords[2]) * 0.5;
+                const midY1 = (this.coords[1] + this.coords[3]) * 0.5;
+                const midX2 = (this.coords[2] + this.coords[4]) * 0.5;
+                const midY2 = (this.coords[3] + this.coords[5]) * 0.5;
+                
+                // Draw on overlay for instant feedback
+                this.overlayCtx.beginPath();
+                this.overlayCtx.moveTo(midX1, midY1);
+                this.overlayCtx.quadraticCurveTo(this.coords[2], this.coords[3], midX2, midY2);
+                this.overlayCtx.stroke();
+                
+                // Draw on main canvas with same smooth curve
+                this.ctx.beginPath();
+                this.ctx.moveTo(midX1, midY1);
+                this.ctx.quadraticCurveTo(this.coords[2], this.coords[3], midX2, midY2);
+                this.ctx.stroke();
+            }
+            
+            stopDrawing() {
+                if (!this.isDrawing) return;
+                
+                this.isDrawing = false;
+                document.body.classList.remove('drawing');
+                
+                // Clear the overlay canvas when stopping drawing to prevent leftover strokes
+                this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+                
+                // Reset composite operation
+                this.ctx.globalCompositeOperation = 'source-over';
+                this.ctx.globalAlpha = 1;
+            }
+            
+            clearCanvas() {
+                this.ctx.fillStyle = '#ffffff';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Also clear the overlay canvas
+                this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+            }
+        }
+        
+        // Initialize the drawing app when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new UltraLowLatencyDrawing();
         });
     </script>
 </body>
