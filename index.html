@@ -3,709 +3,1101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stylus Drawing - Ink API</title>
+    <title>Vector Drawing App</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <style>
         body {
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background: white;
             touch-action: none;
         }
         
-        #canvas {
-            display: block;
+        #drawingSurface {
             cursor: crosshair;
-            background: white;
         }
         
-        .controls {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 12px;
-            padding: 16px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
+        .slide-menu {
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .slide-menu.open {
+            transform: translateX(0);
+        }
+        
+        .menu-button {
+            transition: all 0.2s ease;
+        }
+        
+        .menu-button:hover {
+            background: #f5f5f5;
+        }
+        
+        .menu-button.active {
+            background: #000;
+            color: white;
+        }
+        
+        .menu-overlay {
             opacity: 0;
-            pointer-events: none;
-            z-index: 1000;
+            visibility: hidden;
+            transition: all 0.3s ease;
         }
         
-        .controls.visible {
+        .menu-overlay.open {
             opacity: 1;
-            pointer-events: all;
+            visibility: visible;
         }
         
-        .controls:hover {
-            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.15);
+        .control-group {
+            border-bottom: 1px solid #e5e5e5;
         }
         
-        .color-button {
-            width: 32px;
-            height: 32px;
+        .control-group:last-child {
+            border-bottom: none;
+        }
+        
+        .stroke-preview {
+            border: 1px solid #ddd;
             border-radius: 50%;
-            border: 2px solid #e5e7eb;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            position: relative;
         }
         
-        .color-button:hover {
-            transform: scale(1.1);
-        }
-        
-        .color-button.active {
-            border-color: #374151;
-            box-shadow: 0 0 0 2px rgba(55, 65, 81, 0.3);
-        }
-        
-        .size-slider {
+        /* Custom color picker styling */
+        .color-dot {
             -webkit-appearance: none;
+            -moz-appearance: none;
             appearance: none;
-            width: 120px;
-            height: 6px;
-            border-radius: 3px;
-            background: #e5e7eb;
+            background: none;
+            border: 1px solid #d1d5db;
+            border-radius: 50%;
+            cursor: pointer;
             outline: none;
+            width: 10px;
+            height: 10px;
+            flex-shrink: 0;
         }
         
-        .size-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: #5D5CDE;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        .size-slider::-webkit-slider-thumb:hover {
-            transform: scale(1.2);
-        }
-        
-        .toggle-button {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(255, 255, 255, 0.95);
+        .color-dot::-webkit-color-swatch-wrapper {
+            padding: 0;
             border: none;
             border-radius: 50%;
-            width: 48px;
-            height: 48px;
+        }
+        
+        .color-dot::-webkit-color-swatch {
+            border: none;
+            border-radius: 50%;
+        }
+        
+        .color-dot::-moz-color-swatch {
+            border: none;
+            border-radius: 50%;
+        }
+        
+        /* Custom range slider styling - snappy feel */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: #d1d5db;
+            height: 4px;
+            border-radius: 2px;
             cursor: pointer;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
-            z-index: 1001;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            outline: none;
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
-        .toggle-button:hover {
-            transform: scale(1.05);
-            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.15);
+        input[type="range"]::-webkit-slider-track {
+            background: #d1d5db;
+            height: 4px;
+            border-radius: 2px;
         }
         
-        .notification {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 16px 24px;
-            border-radius: 8px;
-            font-family: system-ui, -apple-system, sans-serif;
-            font-size: 14px;
-            z-index: 2000;
-            opacity: 0;
-            transition: opacity 0.3s ease;
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            background: #6b7280;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            border: 2px solid #ffffff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: all 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            transform: scale(1);
         }
         
-        .notification.show {
-            opacity: 1;
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:active {
+            transform: scale(0.95);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+        
+        input[type="range"]::-moz-range-track {
+            background: #d1d5db;
+            height: 4px;
+            border-radius: 2px;
+            border: none;
+        }
+        
+        input[type="range"]::-moz-range-thumb {
+            background: #6b7280;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            border: 2px solid #ffffff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: all 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            transform: scale(1);
+        }
+        
+        input[type="range"]::-moz-range-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+        
+        input[type="range"]::-moz-range-thumb:active {
+            transform: scale(0.95);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+        
+        /* Snappy value change animation */
+        .slider-snap {
+            animation: snapBounce 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        
+        @keyframes snapBounce {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
         }
     </style>
 </head>
-<body>
-    <canvas id="canvas"></canvas>
-    
-    <button class="toggle-button" id="toggleControls" title="Toggle Controls">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M12 1v6m0 8v6m11-7h-6m-8 0H1"></path>
-        </svg>
+<body class="bg-white">
+    <!-- Menu Toggle Button -->
+    <button id="menuToggle" class="fixed top-4 left-4 z-50 p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-colors">
+        <i data-lucide="menu" class="w-5 h-5 text-gray-600"></i>
     </button>
-    
-    <div class="controls" id="controls">
-        <div class="mb-4">
-            <h3 class="text-sm font-medium text-gray-700 mb-2">Colors</h3>
-            <div class="flex gap-2 flex-wrap">
-                <div class="color-button active" style="background: #000000" data-color="#000000"></div>
-                <div class="color-button" style="background: #5D5CDE" data-color="#5D5CDE"></div>
-                <div class="color-button" style="background: #ef4444" data-color="#ef4444"></div>
-                <div class="color-button" style="background: #10b981" data-color="#10b981"></div>
-                <div class="color-button" style="background: #f59e0b" data-color="#f59e0b"></div>
-                <div class="color-button" style="background: #8b5cf6" data-color="#8b5cf6"></div>
-            </div>
-        </div>
-        
-        <div class="mb-4">
-            <h3 class="text-sm font-medium text-gray-700 mb-2">Brush Size</h3>
-            <div class="flex items-center gap-3">
-                <span class="text-xs text-gray-500">1</span>
-                <input type="range" class="size-slider" id="brushSize" min="1" max="20" value="3">
-                <span class="text-xs text-gray-500">20</span>
-            </div>
-            <div class="text-xs text-gray-500 mt-1">Size: <span id="sizeDisplay">3</span>px</div>
-        </div>
-        
-        <div class="mb-4">
-            <button id="clearCanvas" class="w-full bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-600 transition-colors">
-                Clear Canvas
+
+    <!-- Quick Clear Button -->
+    <button id="quickClearBtn" class="fixed top-4 right-4 z-50 p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-colors">
+        <i data-lucide="trash-2" class="w-5 h-5 text-gray-600"></i>
+    </button>
+
+    <!-- Menu Overlay -->
+    <div id="menuOverlay" class="menu-overlay fixed inset-0 bg-black bg-opacity-20 z-40"></div>
+
+    <!-- Slide Menu -->
+    <div id="slideMenu" class="slide-menu fixed top-0 left-0 h-full w-72 bg-white border-r border-gray-200 z-50 overflow-y-auto">
+        <!-- Menu Header -->
+        <div class="flex items-center justify-between p-4 border-b border-gray-200">
+            <h2 class="text-sm font-medium text-gray-900">Drawing Tools</h2>
+            <button id="copyParams" class="p-1 hover:bg-gray-100 rounded transition-colors" title="Copy parameters">
+                <i data-lucide="copy" class="w-5 h-5 text-gray-600"></i>
             </button>
         </div>
-        
-        <div class="mb-4">
-            <button id="presentButton" class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-                🖥️ Present Drawing
-            </button>
-        </div>
-        
-        <div class="mb-4">
-            <div class="flex items-center justify-between">
-                <span class="text-sm font-medium text-gray-700">Smooth Curves (QI)</span>
-                <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" id="quadraticInterpolation" class="sr-only peer" checked>
-                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                </label>
+
+        <!-- Drawing Tools -->
+        <div class="control-group p-4">
+            <h3 class="text-xs font-medium text-gray-900 mb-3 flex items-center gap-2">
+                <i data-lucide="edit-3" class="w-4 h-4"></i>
+                Drawing Tools
+            </h3>
+            <div class="flex gap-2">
+                <button id="penTool" class="menu-button active w-12 h-12 flex items-center justify-center rounded-lg">
+                    <i data-lucide="pen-tool" class="w-4 h-4"></i>
+                </button>
+                <button id="eraserTool" class="menu-button w-12 h-12 flex items-center justify-center rounded-lg">
+                    <i data-lucide="eraser" class="w-4 h-4"></i>
+                </button>
             </div>
-            <div class="text-xs text-gray-500 mt-1">Quadratic interpolation for smoother strokes</div>
         </div>
-        
-        <div class="text-xs text-gray-500">
-            ✏️ Stylus only - finger touch disabled
+
+        <!-- Brush Settings -->
+        <div class="control-group p-4">
+            <h3 class="text-xs font-medium text-gray-900 mb-3 flex items-center gap-2">
+                <i data-lucide="brush" class="w-4 h-4"></i>
+                Brush Settings
+            </h3>
+            <div class="space-y-4">
+                <!-- Brush Size & Color -->
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-2">Size & Color</label>
+                    <div class="flex items-center gap-3">
+                        <input type="range" id="brushSize" min="1" max="20" step="1" value="3" class="flex-1">
+                        <input type="color" id="colorPicker" value="#000000" class="color-dot" title="Stroke Color">
+                    </div>
+                    <span id="brushSizeValue" class="text-xs text-gray-500 mt-1 block ml-2">3</span>
+                </div>
+                
+                <!-- Smoothing Control -->
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-2">Smoothing</label>
+                    <div class="flex items-center gap-3">
+                        <input type="range" id="smoothingFactor" min="0" max="100" step="5" value="30" class="flex-1">
+                        <div class="w-[10px]"></div>
+                    </div>
+                    <span id="smoothingValue" class="text-xs text-gray-500 mt-1 block ml-2">30%</span>
+                    <div class="text-xs text-gray-400 mt-1">0% = Raw strokes, 100% = Maximum smoothing</div>
+                </div>
+
+            </div>
         </div>
+
+        <!-- Live Preview -->
+        <div class="control-group p-4">
+            <h3 class="text-xs font-medium text-gray-900 mb-3 flex items-center gap-2">
+                <i data-lucide="eye" class="w-4 h-4"></i>
+                Live Preview
+            </h3>
+            <div class="space-y-4">
+                <!-- Preview Size & Color -->
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-2">Size & Color</label>
+                    <div class="flex items-center gap-3">
+                        <input type="range" id="previewSize" min="1" max="20" step="1" value="3" class="flex-1">
+                        <input type="color" id="previewColorPicker" value="#0066ff" class="color-dot" title="Preview Color">
+                    </div>
+                    <span id="previewSizeValue" class="text-xs text-gray-500 mt-1 block ml-2">3</span>
+                </div>
+                <!-- Preview Opacity -->
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-2">Opacity</label>
+                    <div class="flex items-center gap-3">
+                        <input type="range" id="previewOpacity" min="0.1" max="1" step="0.1" value="0.7" class="flex-1">
+                        <div class="w-[10px]"></div>
+                    </div>
+                    <span id="opacityValue" class="text-xs text-gray-500 mt-1 block ml-2">0.7</span>
+                </div>
+            </div>
+        </div>
+
+
     </div>
-    
-    <div id="notification" class="notification"></div>
+
+    <!-- Drawing Surface -->
+    <svg id="drawingSurface" width="100%" height="100%" class="block">
+        <defs>
+            <filter id="pressure-filter">
+                <feGaussianBlur stdDeviation="0.5" result="blur"/>
+                <feOffset in="blur" dx="0" dy="0" result="offset"/>
+                <feMerge>
+                    <feMergeNode in="offset"/>
+                    <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+            </filter>
+        </defs>
+    </svg>
 
     <script>
-        class StylusDrawingApp {
+        class VectorDrawingApp {
             constructor() {
-                this.canvas = document.getElementById('canvas');
-                this.ctx = this.canvas.getContext('2d');
-                this.presenter = null;
+                this.svg = document.getElementById('drawingSurface');
+                this.currentStroke = null;
                 this.isDrawing = false;
-                this.currentStyle = { color: '#000000', diameter: 3 };
-                this.lastPoint = null;
-                this.presentationConnection = null;
-                this.drawingActions = []; // Store drawing actions for syncing
-                this.lastSyncTime = 0;
-                this.syncThrottle = 16; // ~60fps limit for drawing sync
-                this.pendingActions = [];
+                this.currentTool = 'pen';
+                this.brushSize = 3;
+                this.color = '#000000';
+                this.previewColor = '#0066ff';
+                this.previewOpacity = 0.7;
+                this.previewSize = 3;
+                this.strokes = [];
+                this.smoothingFactor = 30; // 0-100 percentage
+
                 
-                // Quadratic interpolation variables
-                this.useQuadraticInterpolation = true;
-                this.previousPoint = null;
-                this.currentStroke = [];
-                
-                // Check if this is a presentation display
-                if (window.location.hash === '#presentation') {
-                    this.setupPresentationDisplay();
-                    return;
-                }
-                
-                this.initializeCanvas();
-                this.initializeInkAPI();
                 this.setupEventListeners();
-                this.setupUI();
-                this.setupPresentation();
-                
-                // Show initial notification
-                this.showNotification('Ready for stylus input - finger touch disabled', 3000);
-            }
-            
-            initializeCanvas() {
-                this.resizeCanvas();
-                window.addEventListener('resize', () => this.resizeCanvas());
-            }
-            
-            resizeCanvas() {
-                this.canvas.width = window.innerWidth;
-                this.canvas.height = window.innerHeight;
-                
-                // Set canvas drawing properties
-                this.ctx.lineCap = 'round';
-                this.ctx.lineJoin = 'round';
-                this.ctx.imageSmoothingEnabled = true;
-            }
-            
-            async initializeInkAPI() {
-                if ('ink' in navigator) {
-                    try {
-                        this.presenter = await navigator.ink.requestPresenter({ 
-                            presentationArea: this.canvas 
-                        });
-                        console.log('Ink API initialized successfully');
-                        this.showNotification('Enhanced stylus mode active', 2000);
-                    } catch (error) {
-                        console.warn('Ink API not available:', error);
-                        this.showNotification('Fallback drawing mode', 2000);
-                    }
-                } else {
-                    console.warn('Ink API not supported');
-                    this.showNotification('Ink API not supported - using fallback', 3000);
-                }
+                this.setupInkAPI();
             }
             
             setupEventListeners() {
-                // Drawing events - only for stylus
-                this.canvas.addEventListener('pointerdown', (e) => this.startDrawing(e));
-                this.canvas.addEventListener('pointermove', (e) => this.draw(e));
-                this.canvas.addEventListener('pointerup', () => this.stopDrawing());
-                this.canvas.addEventListener('pointerleave', () => this.stopDrawing());
-                
-                // Completely block all touch events on canvas
-                this.canvas.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }, { passive: false });
-                
-                this.canvas.addEventListener('touchmove', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }, { passive: false });
-                
-                this.canvas.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }, { passive: false });
-                
-                // Block mouse events on canvas too (optional)
-                this.canvas.addEventListener('mousedown', (e) => {
-                    e.preventDefault();
-                });
-            }
-            
-            setupUI() {
-                const toggleButton = document.getElementById('toggleControls');
-                const controls = document.getElementById('controls');
-                const colorButtons = document.querySelectorAll('.color-button');
-                const brushSize = document.getElementById('brushSize');
-                const sizeDisplay = document.getElementById('sizeDisplay');
-                const clearButton = document.getElementById('clearCanvas');
-                const presentButton = document.getElementById('presentButton');
-                
-                // Toggle controls visibility
-                toggleButton.addEventListener('click', () => {
-                    controls.classList.toggle('visible');
+                // Toolbar controls
+                document.getElementById('brushSize').addEventListener('input', (e) => {
+                    this.brushSize = parseFloat(e.target.value);
+                    document.getElementById('brushSizeValue').textContent = this.brushSize;
                 });
                 
-                // Color selection
-                colorButtons.forEach(button => {
-                    button.addEventListener('click', () => {
-                        colorButtons.forEach(b => b.classList.remove('active'));
-                        button.classList.add('active');
-                        this.currentStyle.color = button.dataset.color;
-                    });
+                document.getElementById('colorPicker').addEventListener('change', (e) => {
+                    this.color = e.target.value;
                 });
                 
-                // Brush size
-                brushSize.addEventListener('input', (e) => {
-                    this.currentStyle.diameter = parseInt(e.target.value);
-                    sizeDisplay.textContent = e.target.value;
+                // Preview controls
+                document.getElementById('previewSize').addEventListener('input', (e) => {
+                    this.previewSize = parseFloat(e.target.value);
+                    document.getElementById('previewSizeValue').textContent = this.previewSize;
                 });
                 
-                // Clear canvas
-                clearButton.addEventListener('click', () => {
+                document.getElementById('previewColorPicker').addEventListener('change', (e) => {
+                    this.previewColor = e.target.value;
+                });
+                
+                document.getElementById('previewOpacity').addEventListener('input', (e) => {
+                    this.previewOpacity = parseFloat(e.target.value);
+                    document.getElementById('opacityValue').textContent = this.previewOpacity.toFixed(1);
+                });
+                
+                // Smoothing control
+                document.getElementById('smoothingFactor').addEventListener('input', (e) => {
+                    this.smoothingFactor = parseFloat(e.target.value);
+                    document.getElementById('smoothingValue').textContent = this.smoothingFactor + '%';
+                });
+                
+
+                
+                // Menu controls
+                this.setupMenuControls();
+                
+                document.getElementById('penTool').addEventListener('click', () => {
+                    this.setTool('pen');
+                });
+                
+                document.getElementById('eraserTool').addEventListener('click', () => {
+                    this.setTool('eraser');
+                });
+                
+
+                
+                // Quick clear button
+                document.getElementById('quickClearBtn').addEventListener('click', () => {
                     this.clearCanvas();
                 });
                 
-                // Present button
-                presentButton.addEventListener('click', () => {
-                    this.startPresentation();
-                });
+                // Drawing events (fallback for non-ink devices)
+                this.svg.addEventListener('pointerdown', this.startDrawing.bind(this));
+                this.svg.addEventListener('pointermove', this.continueDrawing.bind(this));
+                this.svg.addEventListener('pointerup', this.endDrawing.bind(this));
+                this.svg.addEventListener('pointercancel', this.endDrawing.bind(this));
                 
-                // Quadratic interpolation toggle
-                const qiToggle = document.getElementById('quadraticInterpolation');
-                qiToggle.addEventListener('change', (e) => {
-                    this.useQuadraticInterpolation = e.target.checked;
-                    this.showNotification(
-                        this.useQuadraticInterpolation ? 'Smooth curves enabled' : 'Smooth curves disabled', 
-                        1500
-                    );
-                });
-                
-                // Hide controls initially after 3 seconds
-                setTimeout(() => {
-                    controls.classList.remove('visible');
-                }, 3000);
+                // Prevent context menu on long press
+                this.svg.addEventListener('contextmenu', (e) => e.preventDefault());
             }
             
-            isStylusInput(event) {
-                // Only allow pen/stylus input, block touch and mouse
-                return event.pointerType === 'pen';
+            setupInkAPI() {
+                // Check if Web Ink API is available
+                if ('ink' in navigator && 'requestPresenter' in navigator.ink) {
+                    console.log('Web Ink API available');
+                    this.setupWebInk();
+                } else {
+                    console.log('Web Ink API not available, using pointer events');
+                    this.inkSupported = false;
+                }
+            }
+            
+            async setupWebInk() {
+                try {
+                    // Request an ink presenter for low-latency preview
+                    this.inkPresenter = await navigator.ink.requestPresenter({
+                        presentationArea: this.svg
+                    });
+                    
+                    this.inkSupported = true;
+                    console.log('Web Ink presenter initialized');
+                    
+                    // Override drawing events to handle ink properly
+                    this.svg.addEventListener('pointerdown', this.startInkDrawing.bind(this));
+                    this.svg.addEventListener('pointermove', this.continueInkDrawing.bind(this));
+                    this.svg.addEventListener('pointerup', this.endInkDrawing.bind(this));
+                    this.svg.addEventListener('pointercancel', this.endInkDrawing.bind(this));
+                    
+                } catch (error) {
+                    console.log('Failed to initialize Web Ink API:', error);
+                    this.inkSupported = false;
+                }
+            }
+            
+            getInkPressure(event) {
+                // Enhanced pressure detection for stylus devices
+                if (event.pressure !== undefined && event.pressure > 0) {
+                    return event.pressure;
+                }
+                
+                // Fallback pressure calculation for devices that don't report pressure
+                if (event.pointerType === 'pen') {
+                    // For stylus, assume moderate pressure if not reported
+                    return 0.7;
+                } else if (event.pointerType === 'touch') {
+                    // For touch, use force if available, otherwise assume light pressure
+                    return event.force || 0.3;
+                }
+                
+                // Mouse or unknown input
+                return 0.5;
             }
             
             startDrawing(event) {
-                if (!this.isStylusInput(event)) {
+                if (event.button && event.button !== 0) return; // Only left mouse button
+                
+                // Only allow pen/stylus input, not finger/touch
+                if (event.pointerType === 'touch') {
                     return;
                 }
                 
                 this.isDrawing = true;
-                this.lastPoint = { x: event.clientX, y: event.clientY };
-                this.previousPoint = null;
-                this.currentStroke = [{ x: event.clientX, y: event.clientY }];
+                const point = this.getPoint(event);
                 
-                // Set drawing style
-                this.ctx.strokeStyle = this.currentStyle.color;
-                this.ctx.lineWidth = this.currentStyle.diameter;
-                this.ctx.globalCompositeOperation = 'source-over';
+                if (this.currentTool === 'pen') {
+                    this.currentStroke = this.createStroke(point);
+                    this.svg.appendChild(this.currentStroke);
+                } else if (this.currentTool === 'eraser') {
+                    this.eraseAt(point);
+                }
                 
-                // Start new path
-                this.ctx.beginPath();
-                this.ctx.moveTo(event.clientX, event.clientY);
+                event.preventDefault();
+            }
+            
+            continueDrawing(event) {
+                if (!this.isDrawing) return;
                 
-                // Send drawing action to presentation
-                this.sendDrawingAction({
-                    type: 'start',
-                    x: event.clientX,
-                    y: event.clientY,
-                    color: this.currentStyle.color,
-                    diameter: this.currentStyle.diameter,
-                    useQuadratic: this.useQuadraticInterpolation
-                });
+                const point = this.getPoint(event);
                 
-                // Use Ink API if available
-                if (this.presenter) {
-                    try {
-                        this.presenter.updateInkTrailStartPoint(event, this.currentStyle);
-                    } catch (error) {
-                        console.warn('Ink API error:', error);
+                if (this.currentTool === 'pen' && this.currentStroke) {
+                    const pressure = this.getInkPressure(event);
+                    this.addPointToStroke(point, pressure);
+                } else if (this.currentTool === 'eraser') {
+                    this.eraseAt(point);
+                }
+                
+                event.preventDefault();
+            }
+            
+            endDrawing(event) {
+                if (!this.isDrawing) return;
+                
+                this.isDrawing = false;
+                
+                if (this.currentTool === 'pen' && this.currentStroke) {
+                    this.finalizeStroke();
+                    this.strokes.push(this.currentStroke);
+                    this.currentStroke = null;
+                }
+                
+                event.preventDefault();
+            }
+            
+            getPoint(event) {
+                const rect = this.svg.getBoundingClientRect();
+                return {
+                    x: event.clientX - rect.left,
+                    y: event.clientY - rect.top,
+                    pressure: event.pressure || 0.5
+                };
+            }
+            
+            createStroke(startPoint) {
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('fill', 'none');
+                path.setAttribute('stroke', this.color);
+                path.setAttribute('stroke-width', this.brushSize);
+                path.setAttribute('stroke-linecap', 'round');
+                path.setAttribute('stroke-linejoin', 'round');
+                path.setAttribute('filter', 'url(#pressure-filter)');
+                
+                // Store initial point
+                path.points = [startPoint];
+                path.setAttribute('d', `M ${startPoint.x} ${startPoint.y}`);
+                
+                return path;
+            }
+            
+            addPointToStroke(point, pressure) {
+                if (!this.currentStroke) return;
+                
+                this.currentStroke.points.push(point);
+                
+                const points = this.currentStroke.points;
+                if (points.length < 2) return;
+                
+                // Apply real-time smoothing like professional apps
+                const pathData = this.generateRealTimeSmooth(points);
+                this.currentStroke.setAttribute('d', pathData);
+                
+                // Adjust stroke width based on pressure
+                const pressureWidth = this.brushSize * (0.5 + pressure * 0.5);
+                this.currentStroke.setAttribute('stroke-width', pressureWidth);
+            }
+            
+            generateRealTimeSmooth(points) {
+                if (points.length < 2) {
+                    return `M ${points[0].x} ${points[0].y}`;
+                }
+                
+                // If smoothing is 0%, show raw lines
+                if (this.smoothingFactor === 0) {
+                    let pathData = `M ${points[0].x} ${points[0].y}`;
+                    for (let i = 1; i < points.length; i++) {
+                        pathData += ` L ${points[i].x} ${points[i].y}`;
+                    }
+                    return pathData;
+                }
+                
+                // Simple but effective smoothing: skip points based on smoothing factor
+                const skipFactor = Math.max(1, Math.floor(this.smoothingFactor / 20)); // 0-5 points to skip
+                const smoothedPoints = [points[0]]; // Always keep first point
+                
+                // Add points with skipping
+                for (let i = skipFactor; i < points.length; i += skipFactor) {
+                    smoothedPoints.push(points[i]);
+                }
+                
+                // Always add the last point
+                if (smoothedPoints[smoothedPoints.length - 1] !== points[points.length - 1]) {
+                    smoothedPoints.push(points[points.length - 1]);
+                }
+                
+                // Now create curves between the reduced points
+                if (smoothedPoints.length < 3) {
+                    let pathData = `M ${smoothedPoints[0].x} ${smoothedPoints[0].y}`;
+                    for (let i = 1; i < smoothedPoints.length; i++) {
+                        pathData += ` L ${smoothedPoints[i].x} ${smoothedPoints[i].y}`;
+                    }
+                    return pathData;
+                }
+                
+                // Create smooth curves using the reduced points
+                let pathData = `M ${smoothedPoints[0].x} ${smoothedPoints[0].y}`;
+                
+                for (let i = 1; i < smoothedPoints.length - 1; i++) {
+                    const current = smoothedPoints[i];
+                    const next = smoothedPoints[i + 1];
+                    
+                    // Create quadratic curve to next point
+                    const midX = (current.x + next.x) / 2;
+                    const midY = (current.y + next.y) / 2;
+                    
+                    pathData += ` Q ${current.x} ${current.y} ${midX} ${midY}`;
+                }
+                
+                // Line to final point
+                const lastPoint = smoothedPoints[smoothedPoints.length - 1];
+                pathData += ` L ${lastPoint.x} ${lastPoint.y}`;
+                
+                return pathData;
+            }
+            
+            finalizeStroke() {
+                // No additional processing - smoothing is already applied in real-time
+                return;
+            }
+            
+            createSmoothStroke(points) {
+                if (points.length < 3) {
+                    let pathData = `M ${points[0].x} ${points[0].y}`;
+                    for (let i = 1; i < points.length; i++) {
+                        pathData += ` L ${points[i].x} ${points[i].y}`;
+                    }
+                    return pathData;
+                }
+                
+                // Step 1: Reduce points dramatically (keep only key points)
+                const keyPoints = this.simplifyPath(points, 5); // 5px tolerance
+                
+                if (keyPoints.length < 3) {
+                    let pathData = `M ${keyPoints[0].x} ${keyPoints[0].y}`;
+                    for (let i = 1; i < keyPoints.length; i++) {
+                        pathData += ` L ${keyPoints[i].x} ${keyPoints[i].y}`;
+                    }
+                    return pathData;
+                }
+                
+                // Step 2: Create smooth cubic bezier curves
+                return this.generateCubicPath(keyPoints);
+            }
+            
+            simplifyPath(points, tolerance) {
+                if (points.length <= 2) return points;
+                
+                const simplified = [points[0]]; // Always keep first point
+                
+                for (let i = 1; i < points.length - 1; i++) {
+                    const prev = simplified[simplified.length - 1];
+                    const current = points[i];
+                    const next = points[i + 1];
+                    
+                    // Calculate distance from current point to line between prev and next
+                    const distance = this.distanceToLine(current, prev, next);
+                    
+                    // Also check distance from previous kept point
+                    const distanceFromPrev = Math.sqrt(
+                        (current.x - prev.x) ** 2 + (current.y - prev.y) ** 2
+                    );
+                    
+                    // Keep point if it's significant or far enough from previous
+                    if (distance > tolerance || distanceFromPrev > tolerance * 2) {
+                        simplified.push(current);
                     }
                 }
+                
+                simplified.push(points[points.length - 1]); // Always keep last point
+                return simplified;
             }
             
-            draw(event) {
-                if (!this.isDrawing || !this.isStylusInput(event)) {
-                    return;
+            distanceToLine(point, lineStart, lineEnd) {
+                const dx = lineEnd.x - lineStart.x;
+                const dy = lineEnd.y - lineStart.y;
+                const length = Math.sqrt(dx * dx + dy * dy);
+                
+                if (length === 0) return Math.sqrt((point.x - lineStart.x) ** 2 + (point.y - lineStart.y) ** 2);
+                
+                const t = Math.max(0, Math.min(1, ((point.x - lineStart.x) * dx + (point.y - lineStart.y) * dy) / (length * length)));
+                const projection = {
+                    x: lineStart.x + t * dx,
+                    y: lineStart.y + t * dy
+                };
+                
+                return Math.sqrt((point.x - projection.x) ** 2 + (point.y - projection.y) ** 2);
+            }
+            
+            generateCubicPath(points) {
+                if (points.length < 2) return '';
+                
+                let path = `M ${points[0].x} ${points[0].y}`;
+                
+                if (points.length === 2) {
+                    path += ` L ${points[1].x} ${points[1].y}`;
+                    return path;
                 }
                 
-                const currentPoint = { x: event.clientX, y: event.clientY };
-                this.currentStroke.push(currentPoint);
-                
-                if (this.useQuadraticInterpolation && this.currentStroke.length >= 3) {
-                    // Use quadratic interpolation for smoother curves
-                    this.drawQuadraticCurve();
-                } else {
-                    // Fallback to linear drawing
-                    this.ctx.lineTo(currentPoint.x, currentPoint.y);
-                    this.ctx.stroke();
+                // Generate smooth cubic bezier curves
+                for (let i = 0; i < points.length - 1; i++) {
+                    const current = points[i];
+                    const next = points[i + 1];
+                    
+                    let cp1, cp2;
+                    
+                    if (i === 0) {
+                        // First segment
+                        const after = points[i + 2] || next;
+                        cp1 = {
+                            x: current.x + (next.x - current.x) * 0.25,
+                            y: current.y + (next.y - current.y) * 0.25
+                        };
+                        cp2 = {
+                            x: next.x - (after.x - current.x) * 0.25,
+                            y: next.y - (after.y - current.y) * 0.25
+                        };
+                    } else if (i === points.length - 2) {
+                        // Last segment
+                        const before = points[i - 1];
+                        cp1 = {
+                            x: current.x + (next.x - before.x) * 0.25,
+                            y: current.y + (next.y - before.y) * 0.25
+                        };
+                        cp2 = {
+                            x: next.x - (next.x - current.x) * 0.25,
+                            y: next.y - (next.y - current.y) * 0.25
+                        };
+                    } else {
+                        // Middle segments
+                        const before = points[i - 1];
+                        const after = points[i + 2];
+                        cp1 = {
+                            x: current.x + (next.x - before.x) * 0.25,
+                            y: current.y + (next.y - before.y) * 0.25
+                        };
+                        cp2 = {
+                            x: next.x - (after.x - current.x) * 0.25,
+                            y: next.y - (after.y - current.y) * 0.25
+                        };
+                    }
+                    
+                    path += ` C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${next.x} ${next.y}`;
                 }
                 
-                // Send drawing action to presentation
-                this.sendDrawingAction({
-                    type: 'draw',
-                    x: currentPoint.x,
-                    y: currentPoint.y,
-                    color: this.currentStyle.color,
-                    diameter: this.currentStyle.diameter,
-                    useQuadratic: this.useQuadraticInterpolation,
-                    previousPoint: this.previousPoint,
-                    controlPoint: this.lastPoint
+                return path;
+            }
+            
+            eraseAt(point) {
+                const eraserRadius = Math.max(this.brushSize * 0.8, 5); // Smaller eraser radius
+                
+                // Find strokes that intersect with eraser area
+                this.strokes.forEach((stroke, index) => {
+                    if (!stroke.points || stroke.points.length < 2) return;
+                    
+                    const intersectingPoints = [];
+                    const remainingPoints = [];
+                    
+                    // Check each point in the stroke
+                    stroke.points.forEach((strokePoint, pointIndex) => {
+                        const distance = Math.sqrt(
+                            Math.pow(strokePoint.x - point.x, 2) + 
+                            Math.pow(strokePoint.y - point.y, 2)
+                        );
+                        
+                        if (distance <= eraserRadius) {
+                            intersectingPoints.push(pointIndex);
+                        } else {
+                            remainingPoints.push({...strokePoint, originalIndex: pointIndex});
+                        }
+                    });
+                    
+                    // If no points intersect, skip this stroke
+                    if (intersectingPoints.length === 0) return;
+                    
+                    // If all points intersect, remove entire stroke
+                    if (intersectingPoints.length === stroke.points.length) {
+                        stroke.remove();
+                        this.strokes.splice(index, 1);
+                        return;
+                    }
+                    
+                    // Split stroke into segments
+                    this.splitStrokeAtErasedPoints(stroke, intersectingPoints, index);
                 });
+            }
+            
+            splitStrokeAtErasedPoints(originalStroke, erasedIndices, strokeIndex) {
+                const points = originalStroke.points;
+                const segments = [];
+                let currentSegment = [];
                 
-                // Use Ink API for enhanced rendering
-                if (this.presenter) {
-                    try {
-                        this.presenter.updateInkTrailStartPoint(event, this.currentStyle);
-                    } catch (error) {
-                        console.warn('Ink API error:', error);
+                // Group remaining points into continuous segments
+                for (let i = 0; i < points.length; i++) {
+                    if (!erasedIndices.includes(i)) {
+                        currentSegment.push(points[i]);
+                    } else {
+                        // End current segment if it has enough points
+                        if (currentSegment.length >= 2) {
+                            segments.push([...currentSegment]);
+                        }
+                        currentSegment = [];
                     }
                 }
                 
-                this.previousPoint = this.lastPoint;
-                this.lastPoint = currentPoint;
+                // Add final segment if it exists
+                if (currentSegment.length >= 2) {
+                    segments.push(currentSegment);
+                }
+                
+                // Remove original stroke
+                originalStroke.remove();
+                this.strokes.splice(strokeIndex, 1);
+                
+                // Create new strokes for each segment
+                segments.forEach(segmentPoints => {
+                    if (segmentPoints.length >= 2) {
+                        const newStroke = this.createStrokeFromPoints(segmentPoints, originalStroke);
+                        this.svg.appendChild(newStroke);
+                        this.strokes.push(newStroke);
+                    }
+                });
             }
             
-            drawQuadraticCurve() {
-                const len = this.currentStroke.length;
-                if (len < 3) return;
+            createStrokeFromPoints(points, originalStroke) {
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 
-                // Get the last three points
-                const p0 = this.currentStroke[len - 3];
-                const p1 = this.currentStroke[len - 2];
-                const p2 = this.currentStroke[len - 1];
+                // Copy attributes from original stroke
+                path.setAttribute('fill', 'none');
+                path.setAttribute('stroke', originalStroke.getAttribute('stroke'));
+                path.setAttribute('stroke-width', originalStroke.getAttribute('stroke-width'));
+                path.setAttribute('stroke-linecap', 'round');
+                path.setAttribute('stroke-linejoin', 'round');
+                path.setAttribute('filter', 'url(#pressure-filter)');
                 
-                // Calculate control point (midpoint between p0 and p2)
-                const controlX = (p0.x + p2.x) / 2;
-                const controlY = (p0.y + p2.y) / 2;
+                // Create path data from points
+                let pathData = `M ${points[0].x} ${points[0].y}`;
+                for (let i = 1; i < points.length; i++) {
+                    pathData += ` L ${points[i].x} ${points[i].y}`;
+                }
                 
-                // Draw quadratic curve from p0 to control point, with p1 as control point
-                this.ctx.quadraticCurveTo(p1.x, p1.y, controlX, controlY);
-                this.ctx.stroke();
+                path.setAttribute('d', pathData);
+                path.points = points;
+                
+                return path;
             }
             
-            stopDrawing() {
-                if (this.isDrawing) {
-                    this.isDrawing = false;
-                    this.ctx.closePath();
+            setupMenuControls() {
+                const menuToggle = document.getElementById('menuToggle');
+                const copyParams = document.getElementById('copyParams');
+                const menuOverlay = document.getElementById('menuOverlay');
+                const slideMenu = document.getElementById('slideMenu');
+                
+                // Open menu
+                menuToggle.addEventListener('click', () => {
+                    slideMenu.classList.add('open');
+                    menuOverlay.classList.add('open');
+                });
+                
+                // Close menu
+                const closeMenu = () => {
+                    slideMenu.classList.remove('open');
+                    menuOverlay.classList.remove('open');
+                };
+                
+                // Copy parameters to clipboard
+                copyParams.addEventListener('click', () => {
+                    this.copyParametersToClipboard();
+                });
+                
+                menuOverlay.addEventListener('click', closeMenu);
+                
+                // Close menu on escape key
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        closeMenu();
+                    }
+                });
+            }
+
+            setTool(tool) {
+                this.currentTool = tool;
+                
+                // Update UI
+                document.querySelectorAll('.menu-button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                
+                if (tool === 'pen') {
+                    document.getElementById('penTool').classList.add('active');
+                    this.svg.style.cursor = 'crosshair';
+                } else if (tool === 'eraser') {
+                    document.getElementById('eraserTool').classList.add('active');
+                    this.svg.style.cursor = 'pointer';
                 }
             }
+            
+
             
             clearCanvas() {
-                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.strokes.forEach(stroke => stroke.remove());
+                this.strokes = [];
                 
-                // Send clear action to presentation
-                if (this.presentationConnection) {
-                    const message = { type: 'clear' };
-                    this.presentationConnection.send(JSON.stringify(message));
-                }
-                
-                this.showNotification('Canvas cleared', 1500);
+                // Remove any remaining paths
+                const paths = this.svg.querySelectorAll('path');
+                paths.forEach(path => path.remove());
             }
             
-            setupPresentation() {
-                // Setup Presentation API if available
-                if ('PresentationRequest' in window) {
-                    this.presentationRequest = new PresentationRequest(window.location.href + '#presentation');
-                } else {
-                    // Hide presentation button if API not supported
-                    const presentButton = document.getElementById('presentButton');
-                    if (presentButton) {
-                        presentButton.style.display = 'none';
-                    }
-                }
+            // Helper method to convert hex color to RGBA with opacity
+            hexToRgba(hex, opacity) {
+                const r = parseInt(hex.slice(1, 3), 16);
+                const g = parseInt(hex.slice(3, 5), 16);
+                const b = parseInt(hex.slice(5, 7), 16);
+                return `rgba(${r}, ${g}, ${b}, ${opacity})`;
             }
-            
-            setupPresentationDisplay() {
-                // This runs when the app is loaded in presentation mode
-                document.body.innerHTML = `
-                    <canvas id="presentationCanvas" style="
-                        width: 100vw; 
-                        height: 100vh; 
-                        display: block; 
-                        background: white;
-                        cursor: none;
-                    "></canvas>
-                `;
+
+            // Web Ink API specific drawing handlers
+            startInkDrawing(event) {
+                if (event.button && event.button !== 0) return;
+                if (event.pointerType === 'touch') return;
                 
-                this.canvas = document.getElementById('presentationCanvas');
-                this.ctx = this.canvas.getContext('2d');
-                this.canvas.width = window.innerWidth;
-                this.canvas.height = window.innerHeight;
-                
-                // Set canvas drawing properties
-                this.ctx.lineCap = 'round';
-                this.ctx.lineJoin = 'round';
-                this.ctx.imageSmoothingEnabled = true;
-                
-                // Listen for presentation messages
-                if (navigator.presentation && navigator.presentation.receiver) {
-                    navigator.presentation.receiver.connectionList.then(list => {
-                        list.connections.forEach(connection => {
-                            connection.onmessage = event => {
-                                this.handlePresentationMessage(JSON.parse(event.data));
-                            };
-                        });
-                        
-                        list.addEventListener('connectionavailable', event => {
-                            event.connection.onmessage = event => {
-                                this.handlePresentationMessage(JSON.parse(event.data));
-                            };
-                        });
+                if (this.inkPresenter && this.currentTool === 'pen') {
+                    // Start ink presentation for live preview with custom color, opacity, and size
+                    this.inkPresenter.updateInkTrailStartPoint(event, {
+                        color: this.hexToRgba(this.previewColor, this.previewOpacity),
+                        diameter: this.previewSize
                     });
                 }
                 
-                // Handle window resize
-                window.addEventListener('resize', () => {
-                    this.canvas.width = window.innerWidth;
-                    this.canvas.height = window.innerHeight;
-                });
+                // Still call regular drawing for final stroke preparation
+                this.startDrawing(event);
             }
             
-            startPresentation() {
-                if (this.presentationRequest) {
-                    this.presentationRequest.start()
-                        .then(connection => {
-                            this.presentationConnection = connection;
-                            this.showNotification('Presentation started', 2000);
-                            
-                            // Send current canvas content to presentation
-                            this.syncCanvasToPresentation();
-                            
-                            connection.onclose = () => {
-                                this.presentationConnection = null;
-                                this.showNotification('Presentation ended', 2000);
-                            };
-                        })
-                        .catch(error => {
-                            console.error('Presentation error:', error);
-                            this.showNotification('Could not start presentation', 3000);
-                        });
-                } else {
-                    this.showNotification('Presentation API not supported', 3000);
-                }
-            }
-            
-            syncCanvasToPresentation() {
-                if (this.presentationConnection) {
-                    // Send the current canvas as image data
-                    const imageData = this.canvas.toDataURL();
-                    const message = {
-                        type: 'canvasSync',
-                        data: imageData
-                    };
-                    this.presentationConnection.send(JSON.stringify(message));
-                }
-            }
-            
-            sendDrawingAction(action) {
-                if (!this.presentationConnection) return;
+            continueInkDrawing(event) {
+                if (!this.isDrawing) return;
                 
-                // Throttle drawing actions to prevent overwhelming the connection
-                const now = Date.now();
-                
-                if (action.type === 'start') {
-                    // Always send start actions immediately
-                    this.sendMessageSafely({
-                        type: 'drawingAction',
-                        data: action
+                if (this.inkPresenter && this.currentTool === 'pen') {
+                    // Update live ink preview with pressure-sensitive diameter
+                    const pressure = this.getInkPressure(event);
+                    this.inkPresenter.updateInkTrailStartPoint(event, {
+                        color: this.hexToRgba(this.previewColor, this.previewOpacity),
+                        diameter: this.previewSize * (0.5 + pressure * 0.5)
                     });
-                } else if (action.type === 'draw') {
-                    // Throttle draw actions
-                    this.pendingActions.push(action);
-                    
-                    if (now - this.lastSyncTime >= this.syncThrottle) {
-                        this.flushPendingActions();
-                        this.lastSyncTime = now;
-                    }
                 }
-            }
-            
-            flushPendingActions() {
-                if (this.pendingActions.length === 0) return;
                 
-                // Send batched actions
-                const batch = [...this.pendingActions];
-                this.pendingActions = [];
+                // Continue building the final stroke data (but don't render yet)
+                this.collectStrokeData(event);
+            }
+            
+            endInkDrawing(event) {
+                if (!this.isDrawing) return;
                 
-                this.sendMessageSafely({
-                    type: 'batchedActions',
-                    data: batch
-                });
-            }
-            
-            sendMessageSafely(message) {
-                if (!this.presentationConnection) return;
+                if (this.inkPresenter && this.currentTool === 'pen') {
+                    // End live ink preview
+                    this.inkPresenter.updateInkTrailStartPoint(event, {
+                        color: this.hexToRgba(this.previewColor, this.previewOpacity),
+                        diameter: this.previewSize
+                    });
+                }
                 
-                try {
-                    this.presentationConnection.send(JSON.stringify(message));
-                } catch (error) {
-                    console.warn('Failed to send presentation message:', error);
-                    // Attempt to reconnect or handle gracefully
-                    this.handlePresentationError();
-                }
+                // Now commit the final vector stroke to SVG
+                this.endDrawing(event);
             }
             
-            handlePresentationError() {
-                if (this.presentationConnection) {
-                    // Clear the failed connection
-                    this.presentationConnection = null;
-                    this.showNotification('Presentation connection lost', 2000);
-                }
+            collectStrokeData(event) {
+                // Collect stroke data without rendering during ink preview
+                if (!this.currentStroke) return;
+                
+                const point = this.getPoint(event);
+                const pressure = this.getInkPressure(event);
+                
+                // Store points for final stroke rendering
+                this.currentStroke.points.push(point);
+                
+                event.preventDefault();
             }
-            
-            handlePresentationMessage(message) {
-                switch (message.type) {
-                    case 'canvasSync':
-                        this.loadImageToCanvas(message.data);
-                        break;
-                    case 'drawingAction':
-                        this.replayDrawingAction(message.data);
-                        break;
-                    case 'batchedActions':
-                        // Process multiple drawing actions at once
-                        message.data.forEach(action => {
-                            this.replayDrawingAction(action);
-                        });
-                        break;
-                    case 'clear':
-                        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                        break;
-                }
-            }
-            
-            loadImageToCanvas(imageDataUrl) {
-                const img = new Image();
-                img.onload = () => {
-                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                    this.ctx.drawImage(img, 0, 0);
+
+            copyParametersToClipboard() {
+                const params = {
+                    currentTool: this.currentTool,
+                    brushSize: this.brushSize,
+                    brushColor: this.color,
+                    previewSize: this.previewSize,
+                    previewColor: this.previewColor,
+                    previewOpacity: this.previewOpacity
                 };
-                img.src = imageDataUrl;
-            }
-            
-            replayDrawingAction(action) {
-                this.ctx.strokeStyle = action.color;
-                this.ctx.lineWidth = action.diameter;
-                this.ctx.globalCompositeOperation = 'source-over';
                 
-                if (action.type === 'start') {
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(action.x, action.y);
-                    // Initialize stroke tracking for presentation
-                    this.currentStroke = [{ x: action.x, y: action.y }];
-                    this.useQuadraticInterpolation = action.useQuadratic;
-                } else if (action.type === 'draw') {
-                    if (action.useQuadratic && action.controlPoint && action.previousPoint) {
-                        // Use quadratic curve if enabled
-                        this.ctx.quadraticCurveTo(
-                            action.controlPoint.x, 
-                            action.controlPoint.y, 
-                            action.x, 
-                            action.y
-                        );
-                    } else {
-                        // Fallback to linear drawing
-                        this.ctx.lineTo(action.x, action.y);
-                    }
-                    this.ctx.stroke();
+                const paramText = `Vector Drawing App - Current Parameters:
+
+Default Tool: ${params.currentTool}
+Brush Size: ${params.brushSize}
+Brush Color: ${params.brushColor}
+Preview Size: ${params.previewSize}
+Preview Color: ${params.previewColor}
+Preview Opacity: ${params.previewOpacity}
+
+Use these values as new defaults in the app.`;
+                
+                navigator.clipboard.writeText(paramText).then(() => {
+                    this.showToast('Parameters copied to clipboard!', 'success');
+                }).catch(err => {
+                    this.showToast('Failed to copy parameters', 'error');
+                    console.error('Failed to copy parameters:', err);
+                });
+            }
+
+            showToast(message, type = 'success') {
+                // Remove any existing toast
+                const existingToast = document.querySelector('.toast');
+                if (existingToast) {
+                    existingToast.remove();
                 }
+
+                // Create toast element
+                const toast = document.createElement('div');
+                toast.className = `toast fixed top-20 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg shadow-lg z-50 text-sm font-medium transition-all duration-300 ${
+                    type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                }`;
+                toast.textContent = message;
+                toast.style.opacity = '0';
+                toast.style.transform = 'translate(-50%, -20px)';
+
+                document.body.appendChild(toast);
+
+                // Animate in
+                setTimeout(() => {
+                    toast.style.opacity = '1';
+                    toast.style.transform = 'translate(-50%, 0)';
+                }, 10);
+
+                // Animate out and remove
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translate(-50%, -20px)';
+                    setTimeout(() => {
+                        if (toast.parentNode) {
+                            toast.remove();
+                        }
+                    }, 300);
+                }, 2500);
+            }
+
+            setupStickySlider(elementId, callback) {
+                const slider = document.getElementById(elementId);
+                let lastValue = parseFloat(slider.value);
+                let isInteracting = false;
+                
+                // Track when user starts interacting
+                slider.addEventListener('pointerdown', () => {
+                    isInteracting = true;
+                });
+                
+                // Track when user stops interacting
+                slider.addEventListener('pointerup', () => {
+                    isInteracting = false;
+                    this.triggerSnapAnimation(slider);
+                });
+                
+                // Handle input with sticky behavior
+                slider.addEventListener('input', (e) => {
+                    const currentValue = parseFloat(e.target.value);
+                    
+                    // Only update if the value actually changed
+                    if (currentValue !== lastValue) {
+                        // Add slight delay for sticky feel
+                        if (isInteracting) {
+                            setTimeout(() => {
+                                callback(currentValue);
+                                this.triggerSnapAnimation(slider);
+                            }, 50);
+                        } else {
+                            callback(currentValue);
+                            this.triggerSnapAnimation(slider);
+                        }
+                        lastValue = currentValue;
+                    }
+                });
+                
+                // Add resistance feel with change event
+                slider.addEventListener('change', (e) => {
+                    const value = parseFloat(e.target.value);
+                    callback(value);
+                    this.triggerSnapAnimation(slider);
+                });
             }
             
-            showNotification(message, duration = 3000) {
-                const notification = document.getElementById('notification');
-                if (notification) {
-                    notification.textContent = message;
-                    notification.classList.add('show');
-                    
-                    setTimeout(() => {
-                        notification.classList.remove('show');
-                    }, duration);
-                }
+            triggerSnapAnimation(slider) {
+                // Remove any existing animation
+                slider.classList.remove('slider-snap');
+                
+                // Force reflow
+                slider.offsetHeight;
+                
+                // Add snap animation
+                slider.classList.add('slider-snap');
+                
+                // Remove animation class after animation completes
+                setTimeout(() => {
+                    slider.classList.remove('slider-snap');
+                }, 200);
+            }
+
+            downloadDrawing() {
+                const svgData = new XMLSerializer().serializeToString(this.svg);
+                const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+                const url = URL.createObjectURL(svgBlob);
+                
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'drawing.svg';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
             }
         }
         
-        // Initialize the app when DOM is loaded
+        // Initialize the app when the page loads
         document.addEventListener('DOMContentLoaded', () => {
-            new StylusDrawingApp();
+            new VectorDrawingApp();
+            // Initialize Lucide icons
+            lucide.createIcons();
         });
         
-        // Handle dark mode detection (though we're keeping white background)
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            document.documentElement.classList.add('dark');
-        }
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
-            if (event.matches) {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
+        // Resize handler
+        window.addEventListener('resize', () => {
+            const svg = document.getElementById('drawingSurface');
+            svg.setAttribute('width', window.innerWidth);
+            svg.setAttribute('height', window.innerHeight);
+        });
+        
+        // Set initial size
+        window.addEventListener('load', () => {
+            const svg = document.getElementById('drawingSurface');
+            svg.setAttribute('width', window.innerWidth);
+            svg.setAttribute('height', window.innerHeight);
         });
     </script>
 </body>
