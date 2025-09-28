@@ -3,1101 +3,999 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vector Drawing App</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <title>Pen Drawing Studio</title>
+    <script src="https://unpkg.com/perfect-freehand@1.2.2/dist/index.umd.js"></script>
     <style>
-        body {
+        * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: #ffffff;
             overflow: hidden;
+            height: 100vh;
+            color: #000000;
+        }
+
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            cursor: crosshair;
             touch-action: none;
         }
-        
-        #drawingSurface {
-            cursor: crosshair;
+
+        #drawing-surface {
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
         }
-        
-        .slide-menu {
-            transform: translateX(-100%);
-            transition: transform 0.3s ease;
-            backdrop-filter: blur(10px);
+
+        /* Top Buttons */
+        .top-button {
+            position: fixed;
+            top: 20px;
+            z-index: 1000;
+            background: #000000;
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            width: 44px;
+            height: 44px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
-        
-        .slide-menu.open {
-            transform: translateX(0);
+
+        .top-button:hover {
+            background: #333333;
+            transform: translateY(-1px);
         }
-        
-        .menu-button {
+
+        #menu-toggle {
+            left: 20px;
+        }
+
+        #clear-button {
+            right: 20px;
+            font-size: 16px;
+        }
+
+        /* Slide Menu */
+        #slide-menu {
+            position: fixed;
+            top: 0;
+            left: -320px;
+            width: 320px;
+            height: 100vh;
+            background: #ffffff;
+            border-right: 2px solid #000000;
+            z-index: 999;
+            transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 80px 30px 30px;
+            overflow-y: auto;
+        }
+
+        #slide-menu.open {
+            left: 0;
+        }
+
+        .menu-section {
+            margin-bottom: 40px;
+        }
+
+        .menu-title {
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #000000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .copy-icon {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            transition: all 0.2s ease;
+            opacity: 0.7;
+        }
+
+        .copy-icon:hover {
+            background: #f0f0f0;
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        .control-group {
+            margin-bottom: 16px;
+        }
+
+        .control-label {
+            display: block;
+            font-size: 11px;
+            margin-bottom: 6px;
+            color: #000000;
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #f0f0f0;
+            outline: none;
+            border: 1px solid #000000;
+            appearance: none;
+            cursor: pointer;
+        }
+
+        .slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #000000;
+            cursor: pointer;
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 0 1px #000000;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #000000;
+            cursor: pointer;
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 0 1px #000000;
+        }
+
+        .dropdown {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #000000;
+            border-radius: 4px;
+            background: #ffffff;
+            color: #000000;
+            font-size: 13px;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .dropdown:hover {
+            background: #f8f8f8;
+        }
+
+        .dropdown:focus {
+            border-color: #333333;
+            box-shadow: 0 0 0 2px rgba(0,0,0,0.1);
+        }
+
+        input[type="checkbox"] {
+            margin-right: 8px;
+            cursor: pointer;
+            accent-color: #000000;
+        }
+
+        .control-label {
+            display: flex;
+            align-items: center;
+            font-size: 11px;
+            margin-bottom: 6px;
+            color: #000000;
+            cursor: pointer;
+        }
+
+        .button {
+            background: #000000;
+            color: #ffffff;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            width: 100%;
+            margin-bottom: 12px;
             transition: all 0.2s ease;
         }
-        
-        .menu-button:hover {
-            background: #f5f5f5;
+
+        .button:hover {
+            background: #333333;
         }
-        
-        .menu-button.active {
-            background: #000;
-            color: white;
+
+        .button.outline {
+            background: #ffffff;
+            color: #000000;
+            border: 2px solid #000000;
         }
-        
-        .menu-overlay {
+
+        .button.outline:hover {
+            background: #f8f8f8;
+        }
+
+        /* Status Display */
+        .status {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+
+        /* Overlay when menu is open */
+        #menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.1);
+            z-index: 998;
             opacity: 0;
             visibility: hidden;
             transition: all 0.3s ease;
         }
-        
-        .menu-overlay.open {
+
+        #menu-overlay.visible {
             opacity: 1;
             visibility: visible;
         }
-        
-        .control-group {
-            border-bottom: 1px solid #e5e5e5;
-        }
-        
-        .control-group:last-child {
-            border-bottom: none;
-        }
-        
-        .stroke-preview {
-            border: 1px solid #ddd;
-            border-radius: 50%;
-        }
-        
-        /* Custom color picker styling */
-        .color-dot {
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            background: none;
-            border: 1px solid #d1d5db;
-            border-radius: 50%;
-            cursor: pointer;
-            outline: none;
-            width: 10px;
-            height: 10px;
-            flex-shrink: 0;
-        }
-        
-        .color-dot::-webkit-color-swatch-wrapper {
-            padding: 0;
-            border: none;
-            border-radius: 50%;
-        }
-        
-        .color-dot::-webkit-color-swatch {
-            border: none;
-            border-radius: 50%;
-        }
-        
-        .color-dot::-moz-color-swatch {
-            border: none;
-            border-radius: 50%;
-        }
-        
-        /* Custom range slider styling - snappy feel */
-        input[type="range"] {
-            -webkit-appearance: none;
-            appearance: none;
-            background: #d1d5db;
-            height: 4px;
-            border-radius: 2px;
-            cursor: pointer;
-            outline: none;
-            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        input[type="range"]::-webkit-slider-track {
-            background: #d1d5db;
-            height: 4px;
-            border-radius: 2px;
-        }
-        
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            background: #6b7280;
-            height: 16px;
-            width: 16px;
-            border-radius: 50%;
-            border: 2px solid #ffffff;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            transition: all 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-            transform: scale(1);
-        }
-        
-        input[type="range"]::-webkit-slider-thumb:hover {
-            transform: scale(1.1);
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-        }
-        
-        input[type="range"]::-webkit-slider-thumb:active {
-            transform: scale(0.95);
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-        }
-        
-        input[type="range"]::-moz-range-track {
-            background: #d1d5db;
-            height: 4px;
-            border-radius: 2px;
-            border: none;
-        }
-        
-        input[type="range"]::-moz-range-thumb {
-            background: #6b7280;
-            height: 16px;
-            width: 16px;
-            border-radius: 50%;
-            border: 2px solid #ffffff;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            cursor: pointer;
-            transition: all 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-            transform: scale(1);
-        }
-        
-        input[type="range"]::-moz-range-thumb:hover {
-            transform: scale(1.1);
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-        }
-        
-        input[type="range"]::-moz-range-thumb:active {
-            transform: scale(0.95);
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-        }
-        
-        /* Snappy value change animation */
-        .slider-snap {
-            animation: snapBounce 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-        }
-        
-        @keyframes snapBounce {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.15); }
-            100% { transform: scale(1); }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            #slide-menu {
+                width: 280px;
+                left: -280px;
+                padding: 80px 20px 20px;
+            }
         }
     </style>
 </head>
-<body class="bg-white">
-    <!-- Menu Toggle Button -->
-    <button id="menuToggle" class="fixed top-4 left-4 z-50 p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-colors">
-        <i data-lucide="menu" class="w-5 h-5 text-gray-600"></i>
-    </button>
-
-    <!-- Quick Clear Button -->
-    <button id="quickClearBtn" class="fixed top-4 right-4 z-50 p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-colors">
-        <i data-lucide="trash-2" class="w-5 h-5 text-gray-600"></i>
-    </button>
+<body>
+    <!-- Top Buttons -->
+    <button id="menu-toggle" class="top-button">☰</button>
+    <button id="clear-button" class="top-button">🗑</button>
 
     <!-- Menu Overlay -->
-    <div id="menuOverlay" class="menu-overlay fixed inset-0 bg-black bg-opacity-20 z-40"></div>
+    <div id="menu-overlay"></div>
 
     <!-- Slide Menu -->
-    <div id="slideMenu" class="slide-menu fixed top-0 left-0 h-full w-72 bg-white border-r border-gray-200 z-50 overflow-y-auto">
-        <!-- Menu Header -->
-        <div class="flex items-center justify-between p-4 border-b border-gray-200">
-            <h2 class="text-sm font-medium text-gray-900">Drawing Tools</h2>
-            <button id="copyParams" class="p-1 hover:bg-gray-100 rounded transition-colors" title="Copy parameters">
-                <i data-lucide="copy" class="w-5 h-5 text-gray-600"></i>
-            </button>
-        </div>
+    <div id="slide-menu">
+        <div class="menu-section">
+            <div class="menu-title">
+                Basic Settings
+                <button id="copy-settings" class="copy-icon" title="Copy current settings to clipboard">📋</button>
+            </div>
+            
+            <div class="control-group">
+                <label class="control-label">Size: <span id="size-value">3</span>px</label>
+                <input type="range" class="slider" id="size-slider" min="2" max="50" value="3">
+            </div>
 
-        <!-- Drawing Tools -->
-        <div class="control-group p-4">
-            <h3 class="text-xs font-medium text-gray-900 mb-3 flex items-center gap-2">
-                <i data-lucide="edit-3" class="w-4 h-4"></i>
-                Drawing Tools
-            </h3>
-            <div class="flex gap-2">
-                <button id="penTool" class="menu-button active w-12 h-12 flex items-center justify-center rounded-lg">
-                    <i data-lucide="pen-tool" class="w-4 h-4"></i>
-                </button>
-                <button id="eraserTool" class="menu-button w-12 h-12 flex items-center justify-center rounded-lg">
-                    <i data-lucide="eraser" class="w-4 h-4"></i>
-                </button>
+            <div class="control-group">
+                <label class="control-label">Thinning: <span id="thinning-value">0.5</span></label>
+                <input type="range" class="slider" id="thinning-slider" min="-1" max="1" step="0.1" value="0.5">
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Smoothing: <span id="smoothing-value">0.5</span></label>
+                <input type="range" class="slider" id="smoothing-slider" min="0" max="1" step="0.1" value="0.5">
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Streamline: <span id="streamline-value">0.5</span></label>
+                <input type="range" class="slider" id="streamline-slider" min="0" max="1" step="0.1" value="0.5">
             </div>
         </div>
 
-        <!-- Brush Settings -->
-        <div class="control-group p-4">
-            <h3 class="text-xs font-medium text-gray-900 mb-3 flex items-center gap-2">
-                <i data-lucide="brush" class="w-4 h-4"></i>
-                Brush Settings
-            </h3>
-            <div class="space-y-4">
-                <!-- Brush Size & Color -->
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-2">Size & Color</label>
-                    <div class="flex items-center gap-3">
-                        <input type="range" id="brushSize" min="1" max="20" step="1" value="3" class="flex-1">
-                        <input type="color" id="colorPicker" value="#000000" class="color-dot" title="Stroke Color">
-                    </div>
-                    <span id="brushSizeValue" class="text-xs text-gray-500 mt-1 block ml-2">3</span>
-                </div>
-                
-                <!-- Smoothing Control -->
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-2">Smoothing</label>
-                    <div class="flex items-center gap-3">
-                        <input type="range" id="smoothingFactor" min="0" max="100" step="5" value="30" class="flex-1">
-                        <div class="w-[10px]"></div>
-                    </div>
-                    <span id="smoothingValue" class="text-xs text-gray-500 mt-1 block ml-2">30%</span>
-                    <div class="text-xs text-gray-400 mt-1">0% = Raw strokes, 100% = Maximum smoothing</div>
-                </div>
+        <div class="menu-section">
+            <div class="menu-title">Pressure</div>
+            
+            <div class="control-group">
+                <label class="control-label">
+                    <input type="checkbox" id="simulate-pressure" checked> Simulate Pressure
+                </label>
+            </div>
 
+            <div class="control-group">
+                <label class="control-label">Pressure Easing:</label>
+                <select class="dropdown" id="easing-dropdown">
+                    <option value="linear">Linear</option>
+                    <option value="ease-in">Ease In</option>
+                    <option value="ease-out">Ease Out</option>
+                    <option value="ease-in-out">Ease In-Out</option>
+                    <option value="ease-in-cubic">Ease In Cubic</option>
+                    <option value="ease-out-cubic">Ease Out Cubic</option>
+                </select>
             </div>
         </div>
 
-        <!-- Live Preview -->
-        <div class="control-group p-4">
-            <h3 class="text-xs font-medium text-gray-900 mb-3 flex items-center gap-2">
-                <i data-lucide="eye" class="w-4 h-4"></i>
-                Live Preview
-            </h3>
-            <div class="space-y-4">
-                <!-- Preview Size & Color -->
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-2">Size & Color</label>
-                    <div class="flex items-center gap-3">
-                        <input type="range" id="previewSize" min="1" max="20" step="1" value="3" class="flex-1">
-                        <input type="color" id="previewColorPicker" value="#0066ff" class="color-dot" title="Preview Color">
-                    </div>
-                    <span id="previewSizeValue" class="text-xs text-gray-500 mt-1 block ml-2">3</span>
-                </div>
-                <!-- Preview Opacity -->
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-2">Opacity</label>
-                    <div class="flex items-center gap-3">
-                        <input type="range" id="previewOpacity" min="0.1" max="1" step="0.1" value="0.7" class="flex-1">
-                        <div class="w-[10px]"></div>
-                    </div>
-                    <span id="opacityValue" class="text-xs text-gray-500 mt-1 block ml-2">0.7</span>
-                </div>
+        <div class="menu-section">
+            <div class="menu-title">Start Effects</div>
+            
+            <div class="control-group">
+                <label class="control-label">
+                    <input type="checkbox" id="start-cap" checked> Start Cap
+                </label>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Start Taper: <span id="start-taper-value">0</span>px</label>
+                <input type="range" class="slider" id="start-taper-slider" min="0" max="100" value="0">
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Start Easing:</label>
+                <select class="dropdown" id="start-easing-dropdown">
+                    <option value="linear">Linear</option>
+                    <option value="ease-in">Ease In</option>
+                    <option value="ease-out">Ease Out</option>
+                    <option value="ease-in-out">Ease In-Out</option>
+                    <option value="ease-in-cubic">Ease In Cubic</option>
+                    <option value="ease-out-cubic">Ease Out Cubic</option>
+                </select>
             </div>
         </div>
 
+        <div class="menu-section">
+            <div class="menu-title">End Effects</div>
+            
+            <div class="control-group">
+                <label class="control-label">
+                    <input type="checkbox" id="end-cap" checked> End Cap
+                </label>
+            </div>
 
+            <div class="control-group">
+                <label class="control-label">End Taper: <span id="end-taper-value">0</span>px</label>
+                <input type="range" class="slider" id="end-taper-slider" min="0" max="100" value="0">
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">End Easing:</label>
+                <select class="dropdown" id="end-easing-dropdown">
+                    <option value="linear">Linear</option>
+                    <option value="ease-in">Ease In</option>
+                    <option value="ease-out">Ease Out</option>
+                    <option value="ease-in-out">Ease In-Out</option>
+                    <option value="ease-in-cubic">Ease In Cubic</option>
+                    <option value="ease-out-cubic">Ease Out Cubic</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="menu-section">
+            <div class="menu-title">Actions</div>
+            <button class="button outline" id="clear-btn">Clear Canvas</button>
+            <button class="button" id="export-btn">Export SVG</button>
+        </div>
+
+        <div class="menu-section">
+            <div class="menu-title">Status</div>
+            <div class="status" id="ink-status">Web Ink API: Checking...</div>
+            <div class="status" id="stroke-count">Strokes: 0</div>
+        </div>
     </div>
 
-    <!-- Drawing Surface -->
-    <svg id="drawingSurface" width="100%" height="100%" class="block">
+    <!-- Drawing Canvas -->
+    <canvas id="canvas"></canvas>
+
+    <!-- SVG Container (hidden, for stroke storage) -->
+    <svg id="drawing-surface" style="position: absolute; top: 0; left: 0; pointer-events: none;">
         <defs>
-            <filter id="pressure-filter">
-                <feGaussianBlur stdDeviation="0.5" result="blur"/>
-                <feOffset in="blur" dx="0" dy="0" result="offset"/>
-                <feMerge>
-                    <feMergeNode in="offset"/>
-                    <feMergeNode in="SourceGraphic"/>
-                </feMerge>
-            </filter>
+            <style>
+                .stroke-path {
+                    fill: #000000;
+                    stroke: none;
+                }
+            </style>
         </defs>
     </svg>
 
     <script>
-        class VectorDrawingApp {
+        class PenDrawingApp {
             constructor() {
-                this.svg = document.getElementById('drawingSurface');
-                this.currentStroke = null;
-                this.isDrawing = false;
-                this.currentTool = 'pen';
-                this.brushSize = 3;
-                this.color = '#000000';
-                this.previewColor = '#0066ff';
-                this.previewOpacity = 0.7;
-                this.previewSize = 3;
-                this.strokes = [];
-                this.smoothingFactor = 30; // 0-100 percentage
-
+                this.canvas = document.getElementById('canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.svg = document.getElementById('drawing-surface');
                 
-                this.setupEventListeners();
+                this.currentPoints = [];
+                this.isDrawing = false;
+                this.strokeCount = 0;
+                this.inkPresenter = null;
+                
+                // Brush settings
+                this.settings = {
+                    size: 3,
+                    thinning: 0.5,
+                    smoothing: 0.5,
+                    streamline: 0.5,
+                    simulatePressure: true,
+                    easing: 'linear',
+                    startCap: true,
+                    startTaper: 0,
+                    startEasing: 'linear',
+                    endCap: true,
+                    endTaper: 0,
+                    endEasing: 'linear'
+                };
+                
+                // Easing functions
+                this.easingFunctions = {
+                    'linear': t => t,
+                    'ease-in': t => t * t,
+                    'ease-out': t => 1 - (1 - t) * (1 - t),
+                    'ease-in-out': t => t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t),
+                    'ease-in-cubic': t => t * t * t,
+                    'ease-out-cubic': t => 1 - Math.pow(1 - t, 3)
+                };
+                
+                this.init();
+            }
+
+            async init() {
+                this.setupCanvas();
                 this.setupInkAPI();
+                this.setupEventListeners();
+                this.setupMenu();
+                this.updateStatus();
             }
-            
-            setupEventListeners() {
-                // Toolbar controls
-                document.getElementById('brushSize').addEventListener('input', (e) => {
-                    this.brushSize = parseFloat(e.target.value);
-                    document.getElementById('brushSizeValue').textContent = this.brushSize;
-                });
-                
-                document.getElementById('colorPicker').addEventListener('change', (e) => {
-                    this.color = e.target.value;
-                });
-                
-                // Preview controls
-                document.getElementById('previewSize').addEventListener('input', (e) => {
-                    this.previewSize = parseFloat(e.target.value);
-                    document.getElementById('previewSizeValue').textContent = this.previewSize;
-                });
-                
-                document.getElementById('previewColorPicker').addEventListener('change', (e) => {
-                    this.previewColor = e.target.value;
-                });
-                
-                document.getElementById('previewOpacity').addEventListener('input', (e) => {
-                    this.previewOpacity = parseFloat(e.target.value);
-                    document.getElementById('opacityValue').textContent = this.previewOpacity.toFixed(1);
-                });
-                
-                // Smoothing control
-                document.getElementById('smoothingFactor').addEventListener('input', (e) => {
-                    this.smoothingFactor = parseFloat(e.target.value);
-                    document.getElementById('smoothingValue').textContent = this.smoothingFactor + '%';
-                });
-                
 
+            setupCanvas() {
+                const updateCanvasSize = () => {
+                    const rect = this.canvas.getBoundingClientRect();
+                    this.canvas.width = window.innerWidth * window.devicePixelRatio;
+                    this.canvas.height = window.innerHeight * window.devicePixelRatio;
+                    this.canvas.style.width = window.innerWidth + 'px';
+                    this.canvas.style.height = window.innerHeight + 'px';
+                    this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+                };
                 
-                // Menu controls
-                this.setupMenuControls();
-                
-                document.getElementById('penTool').addEventListener('click', () => {
-                    this.setTool('pen');
-                });
-                
-                document.getElementById('eraserTool').addEventListener('click', () => {
-                    this.setTool('eraser');
-                });
-                
+                updateCanvasSize();
+                window.addEventListener('resize', updateCanvasSize);
+            }
 
-                
-                // Quick clear button
-                document.getElementById('quickClearBtn').addEventListener('click', () => {
-                    this.clearCanvas();
-                });
-                
-                // Drawing events (fallback for non-ink devices)
-                this.svg.addEventListener('pointerdown', this.startDrawing.bind(this));
-                this.svg.addEventListener('pointermove', this.continueDrawing.bind(this));
-                this.svg.addEventListener('pointerup', this.endDrawing.bind(this));
-                this.svg.addEventListener('pointercancel', this.endDrawing.bind(this));
-                
-                // Prevent context menu on long press
-                this.svg.addEventListener('contextmenu', (e) => e.preventDefault());
-            }
-            
-            setupInkAPI() {
-                // Check if Web Ink API is available
-                if ('ink' in navigator && 'requestPresenter' in navigator.ink) {
-                    console.log('Web Ink API available');
-                    this.setupWebInk();
-                } else {
-                    console.log('Web Ink API not available, using pointer events');
-                    this.inkSupported = false;
-                }
-            }
-            
-            async setupWebInk() {
+            async setupInkAPI() {
                 try {
-                    // Request an ink presenter for low-latency preview
-                    this.inkPresenter = await navigator.ink.requestPresenter({
-                        presentationArea: this.svg
-                    });
-                    
-                    this.inkSupported = true;
-                    console.log('Web Ink presenter initialized');
-                    
-                    // Override drawing events to handle ink properly
-                    this.svg.addEventListener('pointerdown', this.startInkDrawing.bind(this));
-                    this.svg.addEventListener('pointermove', this.continueInkDrawing.bind(this));
-                    this.svg.addEventListener('pointerup', this.endInkDrawing.bind(this));
-                    this.svg.addEventListener('pointercancel', this.endInkDrawing.bind(this));
-                    
-                } catch (error) {
-                    console.log('Failed to initialize Web Ink API:', error);
-                    this.inkSupported = false;
-                }
-            }
-            
-            getInkPressure(event) {
-                // Enhanced pressure detection for stylus devices
-                if (event.pressure !== undefined && event.pressure > 0) {
-                    return event.pressure;
-                }
-                
-                // Fallback pressure calculation for devices that don't report pressure
-                if (event.pointerType === 'pen') {
-                    // For stylus, assume moderate pressure if not reported
-                    return 0.7;
-                } else if (event.pointerType === 'touch') {
-                    // For touch, use force if available, otherwise assume light pressure
-                    return event.force || 0.3;
-                }
-                
-                // Mouse or unknown input
-                return 0.5;
-            }
-            
-            startDrawing(event) {
-                if (event.button && event.button !== 0) return; // Only left mouse button
-                
-                // Only allow pen/stylus input, not finger/touch
-                if (event.pointerType === 'touch') {
-                    return;
-                }
-                
-                this.isDrawing = true;
-                const point = this.getPoint(event);
-                
-                if (this.currentTool === 'pen') {
-                    this.currentStroke = this.createStroke(point);
-                    this.svg.appendChild(this.currentStroke);
-                } else if (this.currentTool === 'eraser') {
-                    this.eraseAt(point);
-                }
-                
-                event.preventDefault();
-            }
-            
-            continueDrawing(event) {
-                if (!this.isDrawing) return;
-                
-                const point = this.getPoint(event);
-                
-                if (this.currentTool === 'pen' && this.currentStroke) {
-                    const pressure = this.getInkPressure(event);
-                    this.addPointToStroke(point, pressure);
-                } else if (this.currentTool === 'eraser') {
-                    this.eraseAt(point);
-                }
-                
-                event.preventDefault();
-            }
-            
-            endDrawing(event) {
-                if (!this.isDrawing) return;
-                
-                this.isDrawing = false;
-                
-                if (this.currentTool === 'pen' && this.currentStroke) {
-                    this.finalizeStroke();
-                    this.strokes.push(this.currentStroke);
-                    this.currentStroke = null;
-                }
-                
-                event.preventDefault();
-            }
-            
-            getPoint(event) {
-                const rect = this.svg.getBoundingClientRect();
-                return {
-                    x: event.clientX - rect.left,
-                    y: event.clientY - rect.top,
-                    pressure: event.pressure || 0.5
-                };
-            }
-            
-            createStroke(startPoint) {
-                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                path.setAttribute('fill', 'none');
-                path.setAttribute('stroke', this.color);
-                path.setAttribute('stroke-width', this.brushSize);
-                path.setAttribute('stroke-linecap', 'round');
-                path.setAttribute('stroke-linejoin', 'round');
-                path.setAttribute('filter', 'url(#pressure-filter)');
-                
-                // Store initial point
-                path.points = [startPoint];
-                path.setAttribute('d', `M ${startPoint.x} ${startPoint.y}`);
-                
-                return path;
-            }
-            
-            addPointToStroke(point, pressure) {
-                if (!this.currentStroke) return;
-                
-                this.currentStroke.points.push(point);
-                
-                const points = this.currentStroke.points;
-                if (points.length < 2) return;
-                
-                // Apply real-time smoothing like professional apps
-                const pathData = this.generateRealTimeSmooth(points);
-                this.currentStroke.setAttribute('d', pathData);
-                
-                // Adjust stroke width based on pressure
-                const pressureWidth = this.brushSize * (0.5 + pressure * 0.5);
-                this.currentStroke.setAttribute('stroke-width', pressureWidth);
-            }
-            
-            generateRealTimeSmooth(points) {
-                if (points.length < 2) {
-                    return `M ${points[0].x} ${points[0].y}`;
-                }
-                
-                // If smoothing is 0%, show raw lines
-                if (this.smoothingFactor === 0) {
-                    let pathData = `M ${points[0].x} ${points[0].y}`;
-                    for (let i = 1; i < points.length; i++) {
-                        pathData += ` L ${points[i].x} ${points[i].y}`;
-                    }
-                    return pathData;
-                }
-                
-                // Simple but effective smoothing: skip points based on smoothing factor
-                const skipFactor = Math.max(1, Math.floor(this.smoothingFactor / 20)); // 0-5 points to skip
-                const smoothedPoints = [points[0]]; // Always keep first point
-                
-                // Add points with skipping
-                for (let i = skipFactor; i < points.length; i += skipFactor) {
-                    smoothedPoints.push(points[i]);
-                }
-                
-                // Always add the last point
-                if (smoothedPoints[smoothedPoints.length - 1] !== points[points.length - 1]) {
-                    smoothedPoints.push(points[points.length - 1]);
-                }
-                
-                // Now create curves between the reduced points
-                if (smoothedPoints.length < 3) {
-                    let pathData = `M ${smoothedPoints[0].x} ${smoothedPoints[0].y}`;
-                    for (let i = 1; i < smoothedPoints.length; i++) {
-                        pathData += ` L ${smoothedPoints[i].x} ${smoothedPoints[i].y}`;
-                    }
-                    return pathData;
-                }
-                
-                // Create smooth curves using the reduced points
-                let pathData = `M ${smoothedPoints[0].x} ${smoothedPoints[0].y}`;
-                
-                for (let i = 1; i < smoothedPoints.length - 1; i++) {
-                    const current = smoothedPoints[i];
-                    const next = smoothedPoints[i + 1];
-                    
-                    // Create quadratic curve to next point
-                    const midX = (current.x + next.x) / 2;
-                    const midY = (current.y + next.y) / 2;
-                    
-                    pathData += ` Q ${current.x} ${current.y} ${midX} ${midY}`;
-                }
-                
-                // Line to final point
-                const lastPoint = smoothedPoints[smoothedPoints.length - 1];
-                pathData += ` L ${lastPoint.x} ${lastPoint.y}`;
-                
-                return pathData;
-            }
-            
-            finalizeStroke() {
-                // No additional processing - smoothing is already applied in real-time
-                return;
-            }
-            
-            createSmoothStroke(points) {
-                if (points.length < 3) {
-                    let pathData = `M ${points[0].x} ${points[0].y}`;
-                    for (let i = 1; i < points.length; i++) {
-                        pathData += ` L ${points[i].x} ${points[i].y}`;
-                    }
-                    return pathData;
-                }
-                
-                // Step 1: Reduce points dramatically (keep only key points)
-                const keyPoints = this.simplifyPath(points, 5); // 5px tolerance
-                
-                if (keyPoints.length < 3) {
-                    let pathData = `M ${keyPoints[0].x} ${keyPoints[0].y}`;
-                    for (let i = 1; i < keyPoints.length; i++) {
-                        pathData += ` L ${keyPoints[i].x} ${keyPoints[i].y}`;
-                    }
-                    return pathData;
-                }
-                
-                // Step 2: Create smooth cubic bezier curves
-                return this.generateCubicPath(keyPoints);
-            }
-            
-            simplifyPath(points, tolerance) {
-                if (points.length <= 2) return points;
-                
-                const simplified = [points[0]]; // Always keep first point
-                
-                for (let i = 1; i < points.length - 1; i++) {
-                    const prev = simplified[simplified.length - 1];
-                    const current = points[i];
-                    const next = points[i + 1];
-                    
-                    // Calculate distance from current point to line between prev and next
-                    const distance = this.distanceToLine(current, prev, next);
-                    
-                    // Also check distance from previous kept point
-                    const distanceFromPrev = Math.sqrt(
-                        (current.x - prev.x) ** 2 + (current.y - prev.y) ** 2
-                    );
-                    
-                    // Keep point if it's significant or far enough from previous
-                    if (distance > tolerance || distanceFromPrev > tolerance * 2) {
-                        simplified.push(current);
-                    }
-                }
-                
-                simplified.push(points[points.length - 1]); // Always keep last point
-                return simplified;
-            }
-            
-            distanceToLine(point, lineStart, lineEnd) {
-                const dx = lineEnd.x - lineStart.x;
-                const dy = lineEnd.y - lineStart.y;
-                const length = Math.sqrt(dx * dx + dy * dy);
-                
-                if (length === 0) return Math.sqrt((point.x - lineStart.x) ** 2 + (point.y - lineStart.y) ** 2);
-                
-                const t = Math.max(0, Math.min(1, ((point.x - lineStart.x) * dx + (point.y - lineStart.y) * dy) / (length * length)));
-                const projection = {
-                    x: lineStart.x + t * dx,
-                    y: lineStart.y + t * dy
-                };
-                
-                return Math.sqrt((point.x - projection.x) ** 2 + (point.y - projection.y) ** 2);
-            }
-            
-            generateCubicPath(points) {
-                if (points.length < 2) return '';
-                
-                let path = `M ${points[0].x} ${points[0].y}`;
-                
-                if (points.length === 2) {
-                    path += ` L ${points[1].x} ${points[1].y}`;
-                    return path;
-                }
-                
-                // Generate smooth cubic bezier curves
-                for (let i = 0; i < points.length - 1; i++) {
-                    const current = points[i];
-                    const next = points[i + 1];
-                    
-                    let cp1, cp2;
-                    
-                    if (i === 0) {
-                        // First segment
-                        const after = points[i + 2] || next;
-                        cp1 = {
-                            x: current.x + (next.x - current.x) * 0.25,
-                            y: current.y + (next.y - current.y) * 0.25
-                        };
-                        cp2 = {
-                            x: next.x - (after.x - current.x) * 0.25,
-                            y: next.y - (after.y - current.y) * 0.25
-                        };
-                    } else if (i === points.length - 2) {
-                        // Last segment
-                        const before = points[i - 1];
-                        cp1 = {
-                            x: current.x + (next.x - before.x) * 0.25,
-                            y: current.y + (next.y - before.y) * 0.25
-                        };
-                        cp2 = {
-                            x: next.x - (next.x - current.x) * 0.25,
-                            y: next.y - (next.y - current.y) * 0.25
-                        };
+                    if ('ink' in navigator) {
+                        this.inkPresenter = await navigator.ink.requestPresenter({
+                            presentationArea: this.canvas
+                        });
+                        document.getElementById('ink-status').textContent = 'Web Ink API: Active';
                     } else {
-                        // Middle segments
-                        const before = points[i - 1];
-                        const after = points[i + 2];
-                        cp1 = {
-                            x: current.x + (next.x - before.x) * 0.25,
-                            y: current.y + (next.y - before.y) * 0.25
-                        };
-                        cp2 = {
-                            x: next.x - (after.x - current.x) * 0.25,
-                            y: next.y - (after.y - current.y) * 0.25
-                        };
+                        document.getElementById('ink-status').textContent = 'Web Ink API: Not Available';
                     }
-                    
-                    path += ` C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${next.x} ${next.y}`;
+                } catch (error) {
+                    console.log('Ink API setup failed:', error);
+                    document.getElementById('ink-status').textContent = 'Web Ink API: Failed';
                 }
-                
-                return path;
             }
-            
-            eraseAt(point) {
-                const eraserRadius = Math.max(this.brushSize * 0.8, 5); // Smaller eraser radius
-                
-                // Find strokes that intersect with eraser area
-                this.strokes.forEach((stroke, index) => {
-                    if (!stroke.points || stroke.points.length < 2) return;
-                    
-                    const intersectingPoints = [];
-                    const remainingPoints = [];
-                    
-                    // Check each point in the stroke
-                    stroke.points.forEach((strokePoint, pointIndex) => {
-                        const distance = Math.sqrt(
-                            Math.pow(strokePoint.x - point.x, 2) + 
-                            Math.pow(strokePoint.y - point.y, 2)
-                        );
-                        
-                        if (distance <= eraserRadius) {
-                            intersectingPoints.push(pointIndex);
-                        } else {
-                            remainingPoints.push({...strokePoint, originalIndex: pointIndex});
-                        }
-                    });
-                    
-                    // If no points intersect, skip this stroke
-                    if (intersectingPoints.length === 0) return;
-                    
-                    // If all points intersect, remove entire stroke
-                    if (intersectingPoints.length === stroke.points.length) {
-                        stroke.remove();
-                        this.strokes.splice(index, 1);
+
+            setupEventListeners() {
+                // Only allow pen/stylus input, block touch
+                this.canvas.addEventListener('pointerdown', (e) => {
+                    if (e.pointerType === 'touch') {
+                        e.preventDefault();
                         return;
                     }
-                    
-                    // Split stroke into segments
-                    this.splitStrokeAtErasedPoints(stroke, intersectingPoints, index);
+                    this.startDrawing(e);
+                });
+
+                this.canvas.addEventListener('pointermove', (e) => {
+                    if (e.pointerType === 'touch') {
+                        e.preventDefault();
+                        return;
+                    }
+                    this.continueDrawing(e);
+                });
+
+                this.canvas.addEventListener('pointerup', (e) => {
+                    if (e.pointerType === 'touch') {
+                        e.preventDefault();
+                        return;
+                    }
+                    this.stopDrawing(e);
+                });
+
+                this.canvas.addEventListener('pointercancel', (e) => {
+                    this.stopDrawing(e);
+                });
+
+                // Prevent context menu on right click
+                this.canvas.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
                 });
             }
-            
-            splitStrokeAtErasedPoints(originalStroke, erasedIndices, strokeIndex) {
-                const points = originalStroke.points;
-                const segments = [];
-                let currentSegment = [];
-                
-                // Group remaining points into continuous segments
-                for (let i = 0; i < points.length; i++) {
-                    if (!erasedIndices.includes(i)) {
-                        currentSegment.push(points[i]);
-                    } else {
-                        // End current segment if it has enough points
-                        if (currentSegment.length >= 2) {
-                            segments.push([...currentSegment]);
-                        }
-                        currentSegment = [];
-                    }
-                }
-                
-                // Add final segment if it exists
-                if (currentSegment.length >= 2) {
-                    segments.push(currentSegment);
-                }
-                
-                // Remove original stroke
-                originalStroke.remove();
-                this.strokes.splice(strokeIndex, 1);
-                
-                // Create new strokes for each segment
-                segments.forEach(segmentPoints => {
-                    if (segmentPoints.length >= 2) {
-                        const newStroke = this.createStrokeFromPoints(segmentPoints, originalStroke);
-                        this.svg.appendChild(newStroke);
-                        this.strokes.push(newStroke);
-                    }
-                });
-            }
-            
-            createStrokeFromPoints(points, originalStroke) {
-                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                
-                // Copy attributes from original stroke
-                path.setAttribute('fill', 'none');
-                path.setAttribute('stroke', originalStroke.getAttribute('stroke'));
-                path.setAttribute('stroke-width', originalStroke.getAttribute('stroke-width'));
-                path.setAttribute('stroke-linecap', 'round');
-                path.setAttribute('stroke-linejoin', 'round');
-                path.setAttribute('filter', 'url(#pressure-filter)');
-                
-                // Create path data from points
-                let pathData = `M ${points[0].x} ${points[0].y}`;
-                for (let i = 1; i < points.length; i++) {
-                    pathData += ` L ${points[i].x} ${points[i].y}`;
-                }
-                
-                path.setAttribute('d', pathData);
-                path.points = points;
-                
-                return path;
-            }
-            
-            setupMenuControls() {
-                const menuToggle = document.getElementById('menuToggle');
-                const copyParams = document.getElementById('copyParams');
-                const menuOverlay = document.getElementById('menuOverlay');
-                const slideMenu = document.getElementById('slideMenu');
-                
-                // Open menu
+
+            setupMenu() {
+                const menuToggle = document.getElementById('menu-toggle');
+                const slideMenu = document.getElementById('slide-menu');
+                const menuOverlay = document.getElementById('menu-overlay');
+
+                // Toggle menu
                 menuToggle.addEventListener('click', () => {
-                    slideMenu.classList.add('open');
-                    menuOverlay.classList.add('open');
+                    slideMenu.classList.toggle('open');
+                    menuOverlay.classList.toggle('visible');
                 });
-                
-                // Close menu
-                const closeMenu = () => {
+
+                // Close menu when clicking overlay
+                menuOverlay.addEventListener('click', () => {
                     slideMenu.classList.remove('open');
-                    menuOverlay.classList.remove('open');
-                };
-                
-                // Copy parameters to clipboard
-                copyParams.addEventListener('click', () => {
-                    this.copyParametersToClipboard();
+                    menuOverlay.classList.remove('visible');
                 });
-                
-                menuOverlay.addEventListener('click', closeMenu);
-                
-                // Close menu on escape key
-                document.addEventListener('keydown', (e) => {
-                    if (e.key === 'Escape') {
-                        closeMenu();
-                    }
+
+                // Basic controls
+                this.setupSlider('size-slider', 'size-value', 'size', 'px');
+                this.setupSlider('thinning-slider', 'thinning-value', 'thinning');
+                this.setupSlider('smoothing-slider', 'smoothing-value', 'smoothing');
+                this.setupSlider('streamline-slider', 'streamline-value', 'streamline');
+
+                // Pressure controls
+                this.setupCheckbox('simulate-pressure', 'simulatePressure');
+                this.setupDropdown('easing-dropdown', 'easing');
+
+                // Start effect controls
+                this.setupCheckbox('start-cap', 'startCap');
+                this.setupSlider('start-taper-slider', 'start-taper-value', 'startTaper', 'px');
+                this.setupDropdown('start-easing-dropdown', 'startEasing');
+
+                // End effect controls
+                this.setupCheckbox('end-cap', 'endCap');
+                this.setupSlider('end-taper-slider', 'end-taper-value', 'endTaper', 'px');
+                this.setupDropdown('end-easing-dropdown', 'endEasing');
+
+                // Top clear button
+                document.getElementById('clear-button').addEventListener('click', () => {
+                    this.clearCanvas();
                 });
-            }
 
-            setTool(tool) {
-                this.currentTool = tool;
-                
-                // Update UI
-                document.querySelectorAll('.menu-button').forEach(btn => {
-                    btn.classList.remove('active');
+                // Copy settings button
+                document.getElementById('copy-settings').addEventListener('click', () => {
+                    this.copySettingsToClipboard();
                 });
-                
-                if (tool === 'pen') {
-                    document.getElementById('penTool').classList.add('active');
-                    this.svg.style.cursor = 'crosshair';
-                } else if (tool === 'eraser') {
-                    document.getElementById('eraserTool').classList.add('active');
-                    this.svg.style.cursor = 'pointer';
-                }
-            }
-            
 
-            
-            clearCanvas() {
-                this.strokes.forEach(stroke => stroke.remove());
-                this.strokes = [];
-                
-                // Remove any remaining paths
-                const paths = this.svg.querySelectorAll('path');
-                paths.forEach(path => path.remove());
-            }
-            
-            // Helper method to convert hex color to RGBA with opacity
-            hexToRgba(hex, opacity) {
-                const r = parseInt(hex.slice(1, 3), 16);
-                const g = parseInt(hex.slice(3, 5), 16);
-                const b = parseInt(hex.slice(5, 7), 16);
-                return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-            }
+                // Action buttons
+                document.getElementById('clear-btn').addEventListener('click', () => {
+                    this.clearCanvas();
+                });
 
-            // Web Ink API specific drawing handlers
-            startInkDrawing(event) {
-                if (event.button && event.button !== 0) return;
-                if (event.pointerType === 'touch') return;
-                
-                if (this.inkPresenter && this.currentTool === 'pen') {
-                    // Start ink presentation for live preview with custom color, opacity, and size
-                    this.inkPresenter.updateInkTrailStartPoint(event, {
-                        color: this.hexToRgba(this.previewColor, this.previewOpacity),
-                        diameter: this.previewSize
-                    });
-                }
-                
-                // Still call regular drawing for final stroke preparation
-                this.startDrawing(event);
-            }
-            
-            continueInkDrawing(event) {
-                if (!this.isDrawing) return;
-                
-                if (this.inkPresenter && this.currentTool === 'pen') {
-                    // Update live ink preview with pressure-sensitive diameter
-                    const pressure = this.getInkPressure(event);
-                    this.inkPresenter.updateInkTrailStartPoint(event, {
-                        color: this.hexToRgba(this.previewColor, this.previewOpacity),
-                        diameter: this.previewSize * (0.5 + pressure * 0.5)
-                    });
-                }
-                
-                // Continue building the final stroke data (but don't render yet)
-                this.collectStrokeData(event);
-            }
-            
-            endInkDrawing(event) {
-                if (!this.isDrawing) return;
-                
-                if (this.inkPresenter && this.currentTool === 'pen') {
-                    // End live ink preview
-                    this.inkPresenter.updateInkTrailStartPoint(event, {
-                        color: this.hexToRgba(this.previewColor, this.previewOpacity),
-                        diameter: this.previewSize
-                    });
-                }
-                
-                // Now commit the final vector stroke to SVG
-                this.endDrawing(event);
-            }
-            
-            collectStrokeData(event) {
-                // Collect stroke data without rendering during ink preview
-                if (!this.currentStroke) return;
-                
-                const point = this.getPoint(event);
-                const pressure = this.getInkPressure(event);
-                
-                // Store points for final stroke rendering
-                this.currentStroke.points.push(point);
-                
-                event.preventDefault();
-            }
-
-            copyParametersToClipboard() {
-                const params = {
-                    currentTool: this.currentTool,
-                    brushSize: this.brushSize,
-                    brushColor: this.color,
-                    previewSize: this.previewSize,
-                    previewColor: this.previewColor,
-                    previewOpacity: this.previewOpacity
-                };
-                
-                const paramText = `Vector Drawing App - Current Parameters:
-
-Default Tool: ${params.currentTool}
-Brush Size: ${params.brushSize}
-Brush Color: ${params.brushColor}
-Preview Size: ${params.previewSize}
-Preview Color: ${params.previewColor}
-Preview Opacity: ${params.previewOpacity}
-
-Use these values as new defaults in the app.`;
-                
-                navigator.clipboard.writeText(paramText).then(() => {
-                    this.showToast('Parameters copied to clipboard!', 'success');
-                }).catch(err => {
-                    this.showToast('Failed to copy parameters', 'error');
-                    console.error('Failed to copy parameters:', err);
+                document.getElementById('export-btn').addEventListener('click', () => {
+                    this.exportSVG();
                 });
             }
 
-            showToast(message, type = 'success') {
-                // Remove any existing toast
-                const existingToast = document.querySelector('.toast');
-                if (existingToast) {
-                    existingToast.remove();
-                }
+            setupSlider(sliderId, valueId, setting, unit = '') {
+                const slider = document.getElementById(sliderId);
+                const valueDisplay = document.getElementById(valueId);
 
-                // Create toast element
-                const toast = document.createElement('div');
-                toast.className = `toast fixed top-20 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg shadow-lg z-50 text-sm font-medium transition-all duration-300 ${
-                    type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-                }`;
-                toast.textContent = message;
-                toast.style.opacity = '0';
-                toast.style.transform = 'translate(-50%, -20px)';
-
-                document.body.appendChild(toast);
-
-                // Animate in
-                setTimeout(() => {
-                    toast.style.opacity = '1';
-                    toast.style.transform = 'translate(-50%, 0)';
-                }, 10);
-
-                // Animate out and remove
-                setTimeout(() => {
-                    toast.style.opacity = '0';
-                    toast.style.transform = 'translate(-50%, -20px)';
-                    setTimeout(() => {
-                        if (toast.parentNode) {
-                            toast.remove();
-                        }
-                    }, 300);
-                }, 2500);
-            }
-
-            setupStickySlider(elementId, callback) {
-                const slider = document.getElementById(elementId);
-                let lastValue = parseFloat(slider.value);
-                let isInteracting = false;
-                
-                // Track when user starts interacting
-                slider.addEventListener('pointerdown', () => {
-                    isInteracting = true;
-                });
-                
-                // Track when user stops interacting
-                slider.addEventListener('pointerup', () => {
-                    isInteracting = false;
-                    this.triggerSnapAnimation(slider);
-                });
-                
-                // Handle input with sticky behavior
                 slider.addEventListener('input', (e) => {
-                    const currentValue = parseFloat(e.target.value);
-                    
-                    // Only update if the value actually changed
-                    if (currentValue !== lastValue) {
-                        // Add slight delay for sticky feel
-                        if (isInteracting) {
-                            setTimeout(() => {
-                                callback(currentValue);
-                                this.triggerSnapAnimation(slider);
-                            }, 50);
-                        } else {
-                            callback(currentValue);
-                            this.triggerSnapAnimation(slider);
-                        }
-                        lastValue = currentValue;
-                    }
-                });
-                
-                // Add resistance feel with change event
-                slider.addEventListener('change', (e) => {
                     const value = parseFloat(e.target.value);
-                    callback(value);
-                    this.triggerSnapAnimation(slider);
+                    this.settings[setting] = value;
+                    valueDisplay.textContent = value + unit;
                 });
-            }
-            
-            triggerSnapAnimation(slider) {
-                // Remove any existing animation
-                slider.classList.remove('slider-snap');
-                
-                // Force reflow
-                slider.offsetHeight;
-                
-                // Add snap animation
-                slider.classList.add('slider-snap');
-                
-                // Remove animation class after animation completes
-                setTimeout(() => {
-                    slider.classList.remove('slider-snap');
-                }, 200);
             }
 
-            downloadDrawing() {
-                const svgData = new XMLSerializer().serializeToString(this.svg);
-                const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-                const url = URL.createObjectURL(svgBlob);
+            setupCheckbox(checkboxId, setting) {
+                const checkbox = document.getElementById(checkboxId);
+                checkbox.addEventListener('change', (e) => {
+                    this.settings[setting] = e.target.checked;
+                });
+            }
+
+            setupDropdown(dropdownId, setting) {
+                const dropdown = document.getElementById(dropdownId);
+                dropdown.addEventListener('change', (e) => {
+                    this.settings[setting] = e.target.value;
+                });
+            }
+
+            startDrawing(e) {
+                this.isDrawing = true;
+                this.currentPoints = [];
                 
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = 'drawing.svg';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+                const point = this.getPoint(e);
+                this.currentPoints.push(point);
+                
+                // Set pointer capture for smooth drawing
+                this.canvas.setPointerCapture(e.pointerId);
+            }
+
+            async continueDrawing(e) {
+                if (!this.isDrawing) return;
+
+                const point = this.getPoint(e);
+                this.currentPoints.push(point);
+
+                // Web Ink API for immediate feedback
+                if (this.inkPresenter) {
+                    try {
+                        await this.inkPresenter.updateInkTrailStartPoint(e, {
+                            color: '#000000',
+                            diameter: this.settings.size
+                        });
+                    } catch (error) {
+                        console.log('Ink trail update failed:', error);
+                    }
+                }
+
+                // Generate and render stroke with perfect-freehand
+                if (this.currentPoints.length > 1) {
+                    this.renderCurrentStroke();
+                }
+            }
+
+            stopDrawing(e) {
+                if (!this.isDrawing) return;
+                
+                this.isDrawing = false;
+                
+                if (this.currentPoints.length > 1) {
+                    this.finalizeStroke();
+                    this.strokeCount++;
+                    this.updateStatus();
+                }
+                
+                this.currentPoints = [];
+                this.canvas.releasePointerCapture(e.pointerId);
+            }
+
+            getPoint(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                return [
+                    e.clientX - rect.left,
+                    e.clientY - rect.top,
+                    e.pressure || 0.5
+                ];
+            }
+
+            // Simple fallback stroke generation
+            generateFallbackStroke(points, options) {
+                if (points.length < 2) return [];
+                
+                const size = options.size || 16;
+                const thinning = options.thinning || 0.5;
+                const smoothing = options.smoothing || 0.5;
+                
+                // Create outline points for variable width stroke
+                const outline = [];
+                
+                for (let i = 0; i < points.length; i++) {
+                    const [x, y, pressure] = points[i];
+                    
+                    // Calculate stroke width based on pressure and thinning
+                    const baseWidth = size * 0.5;
+                    const pressureWidth = pressure * baseWidth * (1 + thinning);
+                    const width = Math.max(1, pressureWidth);
+                    
+                    // Calculate direction for perpendicular offset
+                    let angle = 0;
+                    if (i > 0 && i < points.length - 1) {
+                        const [px, py] = points[i - 1];
+                        const [nx, ny] = points[i + 1];
+                        angle = Math.atan2(ny - py, nx - px);
+                    } else if (i === 0 && points.length > 1) {
+                        const [nx, ny] = points[i + 1];
+                        angle = Math.atan2(ny - y, nx - x);
+                    } else if (i === points.length - 1) {
+                        const [px, py] = points[i - 1];
+                        angle = Math.atan2(y - py, x - px);
+                    }
+                    
+                    // Create left and right edge points
+                    const perpAngle = angle + Math.PI / 2;
+                    const dx = Math.cos(perpAngle) * width;
+                    const dy = Math.sin(perpAngle) * width;
+                    
+                    outline.push([x + dx, y + dy]);
+                }
+                
+                // Add points in reverse order for the other side
+                for (let i = points.length - 1; i >= 0; i--) {
+                    const [x, y, pressure] = points[i];
+                    
+                    const baseWidth = size * 0.5;
+                    const pressureWidth = pressure * baseWidth * (1 + thinning);
+                    const width = Math.max(1, pressureWidth);
+                    
+                    let angle = 0;
+                    if (i > 0 && i < points.length - 1) {
+                        const [px, py] = points[i - 1];
+                        const [nx, ny] = points[i + 1];
+                        angle = Math.atan2(ny - py, nx - px);
+                    } else if (i === 0 && points.length > 1) {
+                        const [nx, ny] = points[i + 1];
+                        angle = Math.atan2(ny - y, nx - x);
+                    } else if (i === points.length - 1) {
+                        const [px, py] = points[i - 1];
+                        angle = Math.atan2(y - py, x - px);
+                    }
+                    
+                    const perpAngle = angle + Math.PI / 2;
+                    const dx = Math.cos(perpAngle) * width;
+                    const dy = Math.sin(perpAngle) * width;
+                    
+                    outline.push([x - dx, y - dy]);
+                }
+                
+                return outline;
+            }
+
+            renderCurrentStroke() {
+                // Remove any existing current stroke preview
+                const existingPreview = this.svg.querySelector('.current-stroke');
+                if (existingPreview) {
+                    existingPreview.remove();
+                }
+                
+                // Generate current stroke
+                let stroke;
+                
+                // Try to use perfect-freehand first
+                const getStroke = window.getStroke || (window.perfectFreehand && window.perfectFreehand.getStroke);
+                if (getStroke) {
+                    stroke = getStroke(this.currentPoints, {
+                        size: this.settings.size,
+                        thinning: this.settings.thinning,
+                        smoothing: this.settings.smoothing,
+                        streamline: this.settings.streamline,
+                        simulatePressure: this.settings.simulatePressure,
+                        easing: this.easingFunctions[this.settings.easing],
+                        start: {
+                            cap: this.settings.startCap,
+                            taper: this.settings.startTaper,
+                            easing: this.easingFunctions[this.settings.startEasing]
+                        },
+                        end: {
+                            cap: this.settings.endCap,
+                            taper: this.settings.endTaper,
+                            easing: this.easingFunctions[this.settings.endEasing]
+                        },
+                        last: false
+                    });
+                } else {
+                    // Use fallback stroke algorithm
+                    stroke = this.generateFallbackStroke(this.currentPoints, {
+                        size: this.settings.size,
+                        thinning: this.settings.thinning,
+                        smoothing: this.settings.smoothing,
+                        streamline: this.settings.streamline
+                    });
+                }
+
+                // Add current stroke as preview to SVG
+                if (stroke && stroke.length > 0) {
+                    this.addCurrentStrokeToSVG(stroke);
+                }
+            }
+
+            finalizeStroke() {
+                let stroke;
+                
+                // Try to use perfect-freehand first
+                const getStroke = window.getStroke || (window.perfectFreehand && window.perfectFreehand.getStroke);
+                if (getStroke) {
+                    stroke = getStroke(this.currentPoints, {
+                        size: this.settings.size,
+                        thinning: this.settings.thinning,
+                        smoothing: this.settings.smoothing,
+                        streamline: this.settings.streamline,
+                        simulatePressure: this.settings.simulatePressure,
+                        easing: this.easingFunctions[this.settings.easing],
+                        start: {
+                            cap: this.settings.startCap,
+                            taper: this.settings.startTaper,
+                            easing: this.easingFunctions[this.settings.startEasing]
+                        },
+                        end: {
+                            cap: this.settings.endCap,
+                            taper: this.settings.endTaper,
+                            easing: this.easingFunctions[this.settings.endEasing]
+                        },
+                        last: true
+                    });
+                } else {
+                    // Use fallback stroke algorithm
+                    stroke = this.generateFallbackStroke(this.currentPoints, {
+                        size: this.settings.size,
+                        thinning: this.settings.thinning,
+                        smoothing: this.settings.smoothing,
+                        streamline: this.settings.streamline
+                    });
+                }
+
+                // Add to SVG
+                this.addStrokeToSVG(stroke);
+                
+                // Clear canvas as SVG now contains the stroke
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            }
+
+            drawStrokeOnCanvas(stroke) {
+                if (stroke.length < 3) return;
+
+                this.ctx.fillStyle = '#000000';
+                this.ctx.beginPath();
+                this.ctx.moveTo(stroke[0][0], stroke[0][1]);
+
+                for (let i = 1; i < stroke.length - 1; i++) {
+                    const p1 = stroke[i];
+                    const p2 = stroke[i + 1];
+                    this.ctx.quadraticCurveTo(p1[0], p1[1], (p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2);
+                }
+
+                this.ctx.closePath();
+                this.ctx.fill();
+            }
+
+            addCurrentStrokeToSVG(stroke) {
+                const pathData = this.getSvgPathFromStroke(stroke);
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', pathData);
+                path.setAttribute('class', 'current-stroke');
+                path.setAttribute('fill', '#000000');
+                this.svg.appendChild(path);
+            }
+
+            addStrokeToSVG(stroke) {
+                // Remove current stroke preview
+                const currentStroke = this.svg.querySelector('.current-stroke');
+                if (currentStroke) {
+                    currentStroke.remove();
+                }
+                
+                const pathData = this.getSvgPathFromStroke(stroke);
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', pathData);
+                path.setAttribute('class', 'stroke-path');
+                this.svg.appendChild(path);
+            }
+
+            getSvgPathFromStroke(points) {
+                if (points.length < 2) return '';
+
+                // Perfect-freehand returns outline points, so we need to create a smooth filled shape
+                let path = `M ${points[0][0].toFixed(2)},${points[0][1].toFixed(2)}`;
+
+                // Use quadratic curves for smooth appearance like the demo
+                for (let i = 1; i < points.length - 1; i++) {
+                    const currentPoint = points[i];
+                    const nextPoint = points[i + 1];
+                    const controlX = currentPoint[0];
+                    const controlY = currentPoint[1];
+                    const endX = (currentPoint[0] + nextPoint[0]) / 2;
+                    const endY = (currentPoint[1] + nextPoint[1]) / 2;
+                    
+                    path += ` Q ${controlX.toFixed(2)},${controlY.toFixed(2)} ${endX.toFixed(2)},${endY.toFixed(2)}`;
+                }
+
+                // Add the last point
+                if (points.length > 1) {
+                    const lastPoint = points[points.length - 1];
+                    path += ` Q ${lastPoint[0].toFixed(2)},${lastPoint[1].toFixed(2)} ${lastPoint[0].toFixed(2)},${lastPoint[1].toFixed(2)}`;
+                }
+
+                return path + ' Z';
+            }
+
+            clearCanvas() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.svg.innerHTML = this.svg.innerHTML.split('</defs>')[0] + '</defs>';
+                this.strokeCount = 0;
+                this.updateStatus();
+            }
+
+            exportSVG() {
+                const svgData = new XMLSerializer().serializeToString(this.svg);
+                const blob = new Blob([svgData], { type: 'image/svg+xml' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `pen-drawing-${Date.now()}.svg`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
                 URL.revokeObjectURL(url);
             }
+
+            async copySettingsToClipboard() {
+                const settingsObject = {
+                    // Basic Settings
+                    size: this.settings.size,
+                    thinning: this.settings.thinning,
+                    smoothing: this.settings.smoothing,
+                    streamline: this.settings.streamline,
+                    
+                    // Pressure Settings
+                    simulatePressure: this.settings.simulatePressure,
+                    easing: this.settings.easing,
+                    
+                    // Start Effects
+                    startCap: this.settings.startCap,
+                    startTaper: this.settings.startTaper,
+                    startEasing: this.settings.startEasing,
+                    
+                    // End Effects
+                    endCap: this.settings.endCap,
+                    endTaper: this.settings.endTaper,
+                    endEasing: this.settings.endEasing
+                };
+
+                const settingsText = `Current Pen Drawing Studio Settings:
+
+Basic Settings:
+- Size: ${settingsObject.size}px
+- Thinning: ${settingsObject.thinning}
+- Smoothing: ${settingsObject.smoothing}
+- Streamline: ${settingsObject.streamline}
+
+Pressure:
+- Simulate Pressure: ${settingsObject.simulatePressure}
+- Pressure Easing: ${settingsObject.easing}
+
+Start Effects:
+- Start Cap: ${settingsObject.startCap}
+- Start Taper: ${settingsObject.startTaper}px
+- Start Easing: ${settingsObject.startEasing}
+
+End Effects:
+- End Cap: ${settingsObject.endCap}
+- End Taper: ${settingsObject.endTaper}px
+- End Easing: ${settingsObject.endEasing}
+
+JSON Format:
+${JSON.stringify(settingsObject, null, 2)}`;
+
+                try {
+                    await navigator.clipboard.writeText(settingsText);
+                    
+                    // Visual feedback - briefly change the icon
+                    const copyIcon = document.getElementById('copy-settings');
+                    const originalText = copyIcon.textContent;
+                    copyIcon.textContent = '✅';
+                    copyIcon.style.opacity = '1';
+                    
+                    setTimeout(() => {
+                        copyIcon.textContent = originalText;
+                        copyIcon.style.opacity = '0.7';
+                    }, 1000);
+                    
+                } catch (error) {
+                    console.log('Failed to copy to clipboard:', error);
+                    
+                    // Fallback visual feedback for error
+                    const copyIcon = document.getElementById('copy-settings');
+                    const originalText = copyIcon.textContent;
+                    copyIcon.textContent = '❌';
+                    
+                    setTimeout(() => {
+                        copyIcon.textContent = originalText;
+                    }, 1000);
+                }
+            }
+
+            updateStatus() {
+                document.getElementById('stroke-count').textContent = `Strokes: ${this.strokeCount}`;
+            }
         }
-        
+
         // Initialize the app when the page loads
-        document.addEventListener('DOMContentLoaded', () => {
-            new VectorDrawingApp();
-            // Initialize Lucide icons
-            lucide.createIcons();
-        });
-        
-        // Resize handler
-        window.addEventListener('resize', () => {
-            const svg = document.getElementById('drawingSurface');
-            svg.setAttribute('width', window.innerWidth);
-            svg.setAttribute('height', window.innerHeight);
-        });
-        
-        // Set initial size
-        window.addEventListener('load', () => {
-            const svg = document.getElementById('drawingSurface');
-            svg.setAttribute('width', window.innerWidth);
-            svg.setAttribute('height', window.innerHeight);
+        window.addEventListener('DOMContentLoaded', () => {
+            new PenDrawingApp();
         });
     </script>
 </body>
