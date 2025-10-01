@@ -360,6 +360,14 @@
                 this.taperStart = 0.97; // Where tapering begins (0-1)
                 this.presenter = null;
                 
+                // Performance optimizations
+                this.animationFrame = null;
+                this.needsUpdate = false;
+                this.pointBuffer = []; // Reuse point arrays
+                
+                // Cache DOM elements for better performance
+                this.cachedElements = {};
+                
                 this.setupCanvas();
                 this.setupEventListeners();
                 this.setupMenu();
@@ -574,8 +582,14 @@
                 const point = this.getPoint(e);
                 this.currentPoints.push({ ...point, timestamp: Date.now() });
                 
-                // Update the tapered stroke path
-                this.updateTaperedPath();
+                // Throttle updates using requestAnimationFrame for better performance
+                if (!this.needsUpdate) {
+                    this.needsUpdate = true;
+                    this.animationFrame = requestAnimationFrame(() => {
+                        this.updateTaperedPath();
+                        this.needsUpdate = false;
+                    });
+                }
                 
                 // Update Ink API
                 if (this.presenter && e.pointerId !== undefined) {
