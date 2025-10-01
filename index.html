@@ -486,41 +486,89 @@
             }
 
             setupEventListeners() {
+                this.activePointerId = null; // Track the active pen pointer
+                
                 // Only stylus/pen input allowed
                 this.svg.addEventListener('pointerdown', (e) => {
-                    if (e.pointerType === 'pen') {
+                    // Only accept pen input and only if no other pen is active
+                    if (e.pointerType === 'pen' && this.activePointerId === null) {
                         e.preventDefault();
+                        e.stopPropagation();
+                        this.activePointerId = e.pointerId;
+                        this.svg.setPointerCapture(e.pointerId);
                         this.startDrawing(e);
+                    } else {
+                        // Reject any non-pen input or additional pen input
+                        e.preventDefault();
+                        e.stopPropagation();
                     }
                 });
 
                 this.svg.addEventListener('pointermove', (e) => {
-                    if (e.pointerType === 'pen' && this.isDrawing) {
+                    if (e.pointerType === 'pen' && e.pointerId === this.activePointerId && this.isDrawing) {
                         e.preventDefault();
+                        e.stopPropagation();
                         this.continueDrawing(e);
+                    } else {
+                        // Ignore all other pointer moves
+                        e.preventDefault();
+                        e.stopPropagation();
                     }
                 });
 
                 this.svg.addEventListener('pointerup', (e) => {
-                    if (e.pointerType === 'pen') {
+                    if (e.pointerType === 'pen' && e.pointerId === this.activePointerId) {
                         e.preventDefault();
+                        e.stopPropagation();
                         this.stopDrawing(e);
+                        this.svg.releasePointerCapture(e.pointerId);
+                        this.activePointerId = null;
+                    } else {
+                        // Ignore all other pointer ups
+                        e.preventDefault();
+                        e.stopPropagation();
                     }
                 });
 
                 this.svg.addEventListener('pointercancel', (e) => {
-                    if (e.pointerType === 'pen' && this.isDrawing) {
+                    if (e.pointerType === 'pen' && e.pointerId === this.activePointerId && this.isDrawing) {
                         this.stopDrawing(e);
+                        if (this.svg.hasPointerCapture && this.svg.hasPointerCapture(e.pointerId)) {
+                            this.svg.releasePointerCapture(e.pointerId);
+                        }
+                        this.activePointerId = null;
                     }
                 });
 
-                // Prevent all touch and mouse interactions
+                // Aggressively prevent all touch and mouse interactions
                 this.svg.addEventListener('touchstart', (e) => {
                     e.preventDefault();
+                    e.stopPropagation();
+                });
+
+                this.svg.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+
+                this.svg.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                 });
 
                 this.svg.addEventListener('mousedown', (e) => {
                     e.preventDefault();
+                    e.stopPropagation();
+                });
+
+                this.svg.addEventListener('mousemove', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+
+                this.svg.addEventListener('mouseup', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                 });
 
                 // Clear button
