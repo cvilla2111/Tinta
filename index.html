@@ -3,1114 +3,1020 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vector Drawing App with Perfect Freehand</title>
+    <title>Ink Drawing App</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-    <!-- Try multiple CDN sources for perfect-freehand -->
-    <script>
-        // Create exports object for CommonJS compatibility
-        window.exports = {};
-        
-        // Try loading perfect-freehand from different sources and versions
-        const cdnSources = [
-            // Try the main package entry point
-            'https://unpkg.com/perfect-freehand@1.2.0',
-            'https://cdn.jsdelivr.net/npm/perfect-freehand@1.2.0',
-            // Try different versions
-            'https://unpkg.com/perfect-freehand@latest',
-            'https://cdn.jsdelivr.net/npm/perfect-freehand@latest',
-            // Try specific build files if they exist
-            'https://unpkg.com/perfect-freehand@1.2.0/dist/index.js',
-            'https://cdn.jsdelivr.net/npm/perfect-freehand@1.2.0/dist/index.js',
-            // Try older version that might have UMD
-            'https://unpkg.com/perfect-freehand@1.0.0',
-            'https://cdn.jsdelivr.net/npm/perfect-freehand@1.0.0'
-        ];
-        
-        let sourceIndex = 0;
-        
-        function loadPerfectFreehand() {
-            return new Promise((resolve, reject) => {
-                if (sourceIndex >= cdnSources.length) {
-                    reject(new Error('All CDN sources failed'));
-                    return;
-                }
-                
-                const script = document.createElement('script');
-                script.src = cdnSources[sourceIndex];
-                script.onload = () => {
-                    console.log(`Perfect Freehand loaded from: ${cdnSources[sourceIndex]}`);
-                    resolve();
-                };
-                script.onerror = () => {
-                    console.warn(`Failed to load from: ${cdnSources[sourceIndex]}`);
-                    sourceIndex++;
-                    script.remove();
-                    loadPerfectFreehand().then(resolve).catch(reject);
-                };
-                document.head.appendChild(script);
-            });
-        }
-    </script>
     <style>
         body {
+            touch-action: none;
+            user-select: none;
             margin: 0;
             padding: 0;
             overflow: hidden;
-            touch-action: none;
         }
         
-        #drawingSurface {
+        #drawingArea {
             cursor: crosshair;
+            background: white;
         }
         
-        /* Menu animations */
-        .slide-menu {
-            transform: translateX(-100%);
-            transition: transform 0.3s ease;
-            backdrop-filter: blur(10px);
-        }
-        
-        .slide-menu.open {
-            transform: translateX(0);
-        }
-        
-        .menu-overlay {
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-        }
-        
-        .menu-overlay.open {
-            opacity: 1;
-            visibility: visible;
-        }
-        
-        /* Menu buttons */
-        .menu-button {
+        .icon-button {
             transition: all 0.2s ease;
         }
         
-        .menu-button:hover {
-            background: #f5f5f5;
-        }
-        
-        .menu-button.active {
-            background: #000;
-            color: white;
-        }
-        
-        /* Control groups */
-        .control-group {
-            border-bottom: 1px solid #e5e5e5;
-        }
-        
-        .control-group:last-child {
-            border-bottom: none;
-        }
-        
-        /* Color picker styling */
-        .color-dot {
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            background: none;
-            border: 1px solid #d1d5db;
-            border-radius: 50%;
-            cursor: pointer;
-            outline: none;
-            width: 10px;
-            height: 10px;
-            flex-shrink: 0;
-        }
-        
-        .color-dot::-webkit-color-swatch-wrapper {
-            padding: 0;
-            border: none;
-            border-radius: 50%;
-        }
-        
-        .color-dot::-webkit-color-swatch {
-            border: none;
-            border-radius: 50%;
-        }
-        
-        .color-dot::-moz-color-swatch {
-            border: none;
-            border-radius: 50%;
-        }
-        
-        /* Range slider styling */
-        input[type="range"] {
-            -webkit-appearance: none;
-            appearance: none;
-            background: #d1d5db;
-            height: 4px;
-            border-radius: 2px;
-            cursor: pointer;
-            outline: none;
-            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        input[type="range"]::-webkit-slider-track {
-            background: #d1d5db;
-            height: 4px;
-            border-radius: 2px;
-        }
-        
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            background: #6b7280;
-            height: 16px;
-            width: 16px;
-            border-radius: 50%;
-            border: 2px solid #ffffff;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            transition: all 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-            transform: scale(1);
-        }
-        
-        input[type="range"]::-webkit-slider-thumb:hover {
+        .icon-button:hover {
             transform: scale(1.1);
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
         }
         
-        input[type="range"]::-webkit-slider-thumb:active {
+        .icon-button:active {
             transform: scale(0.95);
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
         }
-        
-        input[type="range"]::-moz-range-track {
-            background: #d1d5db;
-            height: 4px;
-            border-radius: 2px;
-            border: none;
-        }
-        
-        input[type="range"]::-moz-range-thumb {
-            background: #6b7280;
-            height: 16px;
-            width: 16px;
-            border-radius: 50%;
-            border: 2px solid #ffffff;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            cursor: pointer;
-            transition: all 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-            transform: scale(1);
-        }
-        
-        input[type="range"]::-moz-range-thumb:hover {
-            transform: scale(1.1);
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-        }
-        
-        input[type="range"]::-moz-range-thumb:active {
-            transform: scale(0.95);
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-        }
-        
 
+        .menu-overlay {
+            backdrop-filter: blur(8px);
+        }
+
+        /* Dark mode support - but keep drawing area white */
+        @media (prefers-color-scheme: dark) {
+            .bg-white { background-color: #181818; }
+            .text-black { color: #ffffff; }
+            .text-gray-600 { color: #a0a0a0; }
+            .text-gray-800 { color: #e0e0e0; }
+            .bg-gray-50 { background-color: #2a2a2a; }
+            .border-gray-200 { border-color: #404040; }
+        }
     </style>
 </head>
 <body class="bg-white">
-    <!-- Menu Toggle Button -->
-    <button id="menuToggle" class="fixed top-4 left-4 z-50 p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-colors">
-        <i data-lucide="menu" class="w-5 h-5 text-gray-600"></i>
+    <!-- Menu Button -->
+    <button id="menuButton" class="icon-button fixed top-4 left-4 z-50 p-3 bg-black text-white rounded-full shadow-lg">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
     </button>
 
-    <!-- Quick Clear Button -->
-    <button id="quickClearBtn" class="fixed top-4 right-4 z-50 p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-colors">
-        <i data-lucide="trash-2" class="w-5 h-5 text-gray-600"></i>
+    <!-- Clear Button -->
+    <button id="clearButton" class="icon-button fixed top-4 right-4 z-50 p-3 bg-black text-white rounded-full shadow-lg">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3,6 5,6 21,6"></polyline>
+            <path d="m19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2"></path>
+        </svg>
     </button>
 
-    <!-- Menu Overlay -->
-    <div id="menuOverlay" class="menu-overlay fixed inset-0 bg-black bg-opacity-20 z-40"></div>
-
-    <!-- Slide Menu -->
-    <div id="slideMenu" class="slide-menu fixed top-0 left-0 h-full w-72 bg-white border-r border-gray-200 z-50 overflow-y-auto">
-        <!-- Menu Header -->
-        <div class="flex items-center justify-between p-4 border-b border-gray-200">
-            <h2 class="text-sm font-medium text-gray-900">Drawing Tools</h2>
-            <button id="copyParams" class="p-1 hover:bg-gray-100 rounded transition-colors" title="Copy parameters">
-                <i data-lucide="copy" class="w-5 h-5 text-gray-600"></i>
-            </button>
-        </div>
-
-        <!-- Drawing Tools -->
-        <div class="control-group p-4">
-            <h3 class="text-xs font-medium text-gray-900 mb-3 flex items-center gap-2">
-                <i data-lucide="edit-3" class="w-4 h-4"></i>
-                Drawing Tools
-            </h3>
-            <div class="flex gap-2">
-                <button id="penTool" class="menu-button active w-12 h-12 flex items-center justify-center rounded-lg border border-gray-200">
-                    <i data-lucide="pen-tool" class="w-4 h-4"></i>
-                </button>
-                <button id="eraserTool" class="menu-button w-12 h-12 flex items-center justify-center rounded-lg border border-gray-200">
-                    <i data-lucide="eraser" class="w-4 h-4"></i>
+    <!-- Hidden Menu -->
+    <div id="menuOverlay" class="menu-overlay fixed inset-0 bg-black bg-opacity-50 z-40 hidden">
+        <div id="menuPanel" class="fixed top-0 left-0 h-full w-80 bg-gray-50 border-r border-gray-200 transform -translate-x-full transition-transform duration-300 flex flex-col">
+            <div class="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
+                <h2 class="text-lg font-bold text-gray-800">Drawing Settings</h2>
+                <button id="copySettings" class="icon-button p-2 text-gray-600 hover:text-gray-800" title="Copy all settings">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                    </svg>
                 </button>
             </div>
-        </div>
 
-        <!-- Perfect Freehand Settings -->
-        <div class="control-group p-4">
-            <h3 class="text-xs font-medium text-gray-900 mb-3 flex items-center gap-2">
-                <i data-lucide="brush" class="w-4 h-4"></i>
-                Brush Settings
-            </h3>
-            <div class="space-y-4">
+            <div class="flex-1 overflow-y-auto p-4 space-y-5">
+                <!-- Basic Stroke Properties -->
                 <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-2">Size & Color</label>
-                    <div class="flex items-center gap-3">
-                        <input type="range" id="brushSize" min="4" max="50" step="2" value="6" class="flex-1">
-                        <input type="color" id="colorPicker" value="#000000" class="color-dot" title="Stroke Color">
-                    </div>
-                    <span id="brushSizeValue" class="text-xs text-gray-500 mt-1 block ml-2">6px</span>
-                </div>
-                
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-2">Thinning</label>
-                    <input type="range" id="thinning" min="-1" max="1" step="0.1" value="0.6" class="w-full">
-                    <span id="thinningValue" class="text-xs text-gray-500 mt-1 block ml-2">0.6</span>
-                    <p class="text-xs text-gray-400 mt-1">Negative values: thinner with pressure</p>
-                </div>
-                
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-2">Smoothing</label>
-                    <input type="range" id="smoothing" min="0" max="1" step="0.1" value="0" class="w-full">
-                    <span id="smoothingValue" class="text-xs text-gray-500 mt-1 block ml-2">0</span>
-                </div>
-                
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-2">Streamline</label>
-                    <input type="range" id="streamline" min="0" max="1" step="0.1" value="0.2" class="w-full">
-                    <span id="streamlineValue" class="text-xs text-gray-500 mt-1 block ml-2">0.2</span>
-                </div>
-                
-                <div>
-                    <label class="flex items-center gap-2 text-xs font-medium text-gray-700">
-                        <input type="checkbox" id="simulatePressure" class="rounded">
-                        Simulate Pressure
-                    </label>
-                </div>
-                
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-2">Easing Function</label>
-                    <select id="easingFunction" class="w-full text-base px-2 py-1 border border-gray-200 rounded text-gray-700">
-                        <option value="linear">Linear (t)</option>
-                        <option value="easeInQuad" selected>Ease In Quad (t²)</option>
-                        <option value="easeOutQuad">Ease Out Quad</option>
-                        <option value="easeInOutQuad">Ease In/Out Quad</option>
-                        <option value="easeInCubic">Ease In Cubic (t³)</option>
-                        <option value="easeOutCubic">Ease Out Cubic</option>
-                        <option value="easeInOutCubic">Ease In/Out Cubic</option>
-                    </select>
-                </div>
-            </div>
-        </div>
+                    <h3 class="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Stroke Properties</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-800 mb-1">Stroke Width</label>
+                            <input type="range" id="strokeWidth" min="1" max="20" value="3" class="w-full text-sm">
+                            <div class="flex justify-between items-center">
+                                <span id="strokeWidthValue" class="text-xs text-gray-600">3px</span>
+                            </div>
+                            <p class="text-[10px] text-gray-500 mt-1">Controls the thickness of your pen strokes</p>
+                        </div>
 
-        <!-- Start Cap & Taper -->
-        <div class="control-group p-4">
-            <h3 class="text-xs font-medium text-gray-900 mb-3 flex items-center gap-2">
-                <i data-lucide="corner-left-up" class="w-4 h-4"></i>
-                Start Options
-            </h3>
-            <div class="space-y-4">
-                <div>
-                    <label class="flex items-center gap-2 text-xs font-medium text-gray-700">
-                        <input type="checkbox" id="startCap" checked class="rounded">
-                        Start Cap
-                    </label>
-                </div>
-                
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-2">Start Taper</label>
-                    <div class="flex items-center gap-2">
-                        <input type="range" id="startTaper" min="0" max="100" step="5" value="5" class="flex-1">
-                        <button id="startTaperFull" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded border">Full</button>
-                    </div>
-                    <span id="startTaperValue" class="text-xs text-gray-500 mt-1 block ml-2">5px</span>
-                </div>
-                
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-2">Start Easing</label>
-                    <select id="startEasing" class="w-full text-base px-2 py-1 border border-gray-200 rounded text-gray-700">
-                        <option value="default">Default (t * (2 - t))</option>
-                        <option value="linear">Linear (t)</option>
-                        <option value="easeInQuad">Ease In Quad</option>
-                        <option value="easeOutQuad">Ease Out Quad</option>
-                        <option value="easeInOutQuad">Ease In/Out Quad</option>
-                    </select>
-                </div>
-            </div>
-        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-800 mb-1">Stroke Color</label>
+                            <div class="flex items-center space-x-2">
+                                <input type="color" id="strokeColor" value="#000000" class="w-8 h-8 rounded border border-gray-300 cursor-pointer">
+                                <span id="strokeColorValue" class="text-xs text-gray-600">#000000</span>
+                            </div>
+                            <p class="text-[10px] text-gray-500 mt-1">Color of the final rendered pen strokes</p>
+                        </div>
 
-        <!-- End Cap & Taper -->
-        <div class="control-group p-4">
-            <h3 class="text-xs font-medium text-gray-900 mb-3 flex items-center gap-2">
-                <i data-lucide="corner-right-down" class="w-4 h-4"></i>
-                End Options
-            </h3>
-            <div class="space-y-4">
-                <div>
-                    <label class="flex items-center gap-2 text-xs font-medium text-gray-700">
-                        <input type="checkbox" id="endCap" checked class="rounded">
-                        End Cap
-                    </label>
-                </div>
-                
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-2">End Taper</label>
-                    <div class="flex items-center gap-2">
-                        <input type="range" id="endTaper" min="0" max="100" step="5" value="5" class="flex-1">
-                        <button id="endTaperFull" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded border">Full</button>
-                    </div>
-                    <span id="endTaperValue" class="text-xs text-gray-500 mt-1 block ml-2">5px</span>
-                </div>
-                
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-2">End Easing</label>
-                    <select id="endEasing" class="w-full text-base px-2 py-1 border border-gray-200 rounded text-gray-700">
-                        <option value="default">Default (--t * t * t + 1)</option>
-                        <option value="linear">Linear (t)</option>
-                        <option value="easeInQuad">Ease In Quad</option>
-                        <option value="easeOutQuad">Ease Out Quad</option>
-                        <option value="easeInOutQuad">Ease In/Out Quad</option>
-                    </select>
-                </div>
-            </div>
-        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-800 mb-1">Preview Ink Color</label>
+                            <div class="flex items-center space-x-2">
+                                <input type="color" id="previewColor" value="#000000" class="w-8 h-8 rounded border border-gray-300 cursor-pointer">
+                                <span id="previewColorValue" class="text-xs text-gray-600">#000000</span>
+                            </div>
+                            <p class="text-[10px] text-gray-500 mt-1">Color of the real-time drawing preview (Ink API)</p>
+                        </div>
 
-        <!-- Live Preview -->
-        <div class="control-group p-4">
-            <h3 class="text-xs font-medium text-gray-900 mb-3 flex items-center gap-2">
-                <i data-lucide="eye" class="w-4 h-4"></i>
-                Live Preview
-            </h3>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-2">Color & Opacity</label>
-                    <div class="flex items-center gap-3">
-                        <input type="color" id="previewColorPicker" value="#0066ff" class="color-dot" title="Preview Color">
-                        <input type="range" id="previewOpacity" min="0.1" max="1" step="0.1" value="0.7" class="flex-1">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-800 mb-1">Smoothing Method</label>
+                            <select id="smoothingMethod" class="w-full text-sm border border-gray-300 rounded px-2 py-1">
+                                <option value="none">Direct (No Smoothing)</option>
+                                <option value="chaikin">Chaikin Smoothing</option>
+                            </select>
+                            <p class="text-[10px] text-gray-500 mt-1">Algorithm used to smooth stroke curves</p>
+                        </div>
+
+                        <div id="chaikinSettings" class="hidden space-y-3 pl-3 border-l-2 border-gray-300">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Smoothing Iterations</label>
+                                <input type="range" id="smoothingIterations" min="1" max="5" value="2" class="w-full text-sm">
+                                <div class="flex justify-between items-center">
+                                    <span id="smoothingIterationsValue" class="text-xs text-gray-600">2</span>
+                                </div>
+                                <p class="text-[10px] text-gray-400 mt-1">Number of smoothing passes (higher = smoother)</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Smoothing Factor</label>
+                                <input type="range" id="smoothingFactor" min="0.1" max="0.4" step="0.05" value="0.25" class="w-full text-sm">
+                                <div class="flex justify-between items-center">
+                                    <span id="smoothingFactorValue" class="text-xs text-gray-600">0.25</span>
+                                </div>
+                                <p class="text-[10px] text-gray-400 mt-1">Smoothing intensity (lower = more aggressive smoothing)</p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-800 mb-1">Opacity</label>
+                            <input type="range" id="strokeOpacity" min="0.1" max="1" step="0.1" value="1" class="w-full text-sm">
+                            <div class="flex justify-between items-center">
+                                <span id="strokeOpacityValue" class="text-xs text-gray-600">100%</span>
+                            </div>
+                            <p class="text-[10px] text-gray-500 mt-1">How transparent or solid the strokes appear</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-800 mb-1">
+                                <input type="checkbox" id="enableShadow" class="mr-1"> Enable Drop Shadow
+                            </label>
+                            <p class="text-[10px] text-gray-500 mt-1">Adds a drop shadow effect to strokes</p>
+                        </div>
+
+                        <div id="shadowSettings" class="hidden space-y-3 pl-3 border-l-2 border-gray-300">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Shadow Offset X</label>
+                                <input type="range" id="shadowOffsetX" min="-10" max="10" value="2" class="w-full text-sm">
+                                <div class="flex justify-between items-center">
+                                    <span id="shadowOffsetXValue" class="text-xs text-gray-600">2px</span>
+                                </div>
+                                <p class="text-[10px] text-gray-400 mt-1">Horizontal shadow distance (negative = left)</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Shadow Offset Y</label>
+                                <input type="range" id="shadowOffsetY" min="-10" max="10" value="2" class="w-full text-sm">
+                                <div class="flex justify-between items-center">
+                                    <span id="shadowOffsetYValue" class="text-xs text-gray-600">2px</span>
+                                </div>
+                                <p class="text-[10px] text-gray-400 mt-1">Vertical shadow distance (negative = up)</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Shadow Blur</label>
+                                <input type="range" id="shadowBlur" min="0" max="10" value="2" class="w-full text-sm">
+                                <div class="flex justify-between items-center">
+                                    <span id="shadowBlurValue" class="text-xs text-gray-600">2px</span>
+                                </div>
+                                <p class="text-[10px] text-gray-400 mt-1">Shadow blur radius (0 = sharp, higher = softer)</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Shadow Color</label>
+                                <div class="flex items-center space-x-2">
+                                    <input type="color" id="shadowColor" value="#000000" class="w-8 h-8 rounded border border-gray-300 cursor-pointer">
+                                    <span id="shadowColorValue" class="text-xs text-gray-600">#000000</span>
+                                </div>
+                                <p class="text-[10px] text-gray-400 mt-1">Color of the drop shadow</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Shadow Opacity</label>
+                                <input type="range" id="shadowOpacity" min="0.1" max="1" step="0.1" value="0.3" class="w-full text-sm">
+                                <div class="flex justify-between items-center">
+                                    <span id="shadowOpacityValue" class="text-xs text-gray-600">30%</span>
+                                </div>
+                                <p class="text-[10px] text-gray-400 mt-1">How transparent or solid the shadow appears</p>
+                            </div>
+                        </div>
                     </div>
-                    <span id="opacityValue" class="text-xs text-gray-500 mt-1 block ml-2">0.7</span>
+                </div>
+
+                <!-- Separator -->
+                <div class="border-t border-gray-300"></div>
+
+                <!-- Tapering Controls -->
+                <div>
+                    <h3 class="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Stroke Tapering</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-800 mb-1">
+                                <input type="checkbox" id="enableTapering" checked class="mr-1"> Enable Tapering
+                            </label>
+                            <p class="text-[10px] text-gray-500 mt-1">Creates natural pen-like tapered stroke endings</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-800 mb-1">Start Taper Amount</label>
+                            <input type="range" id="startTaper" min="0" max="1" step="0.1" value="0.4" class="w-full text-sm">
+                            <div class="flex justify-between items-center">
+                                <span id="startTaperValue" class="text-xs text-gray-600">40%</span>
+                            </div>
+                            <p class="text-[10px] text-gray-500 mt-1">How much the stroke thins at the beginning</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-800 mb-1">End Taper Amount</label>
+                            <input type="range" id="endTaper" min="0" max="1" step="0.1" value="0.5" class="w-full text-sm">
+                            <div class="flex justify-between items-center">
+                                <span id="endTaperValue" class="text-xs text-gray-600">50%</span>
+                            </div>
+                            <p class="text-[10px] text-gray-500 mt-1">How much the stroke thins at the end (0% = no taper, 100% = sharp point)</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-800 mb-1">Taper Start Point</label>
+                            <input type="range" id="taperStart" min="50" max="100" step="1" value="97" class="w-full text-sm">
+                            <div class="flex justify-between items-center">
+                                <span id="taperStartValue" class="text-xs text-gray-600">97%</span>
+                            </div>
+                            <p class="text-[10px] text-gray-500 mt-1">Where along the stroke the end tapering begins (50% = early, 100% = late)</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Separator -->
+                <div class="border-t border-gray-300"></div>
+
+                <!-- System Information -->
+                <div>
+                    <h3 class="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">System Info</h3>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-800 mb-1">Ink API Status</label>
+                        <p id="inkApiStatus" class="text-xs text-gray-600">Checking...</p>
+                        <p class="text-[10px] text-gray-500 mt-1">Shows if low-latency stylus rendering is available in your browser</p>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Drawing Surface -->
-    <svg id="drawingSurface" width="100%" height="100%" class="block">
-        <defs>
-            <filter id="shadow-filter">
-                <feDropShadow dx="0" dy="1" stdDeviation="1" flood-opacity="0.2"/>
-            </filter>
-        </defs>
-    </svg>
+    <!-- Drawing Area -->
+    <svg id="drawingArea" class="w-screen h-screen" xmlns="http://www.w3.org/2000/svg"></svg>
+
+
 
     <script>
-
-
-        // Perfect Freehand SVG Path Utility
-        const average = (a, b) => (a + b) / 2;
-        
-        // Easing functions for perfect-freehand
-        const easingFunctions = {
-            linear: t => t,
-            easeInQuad: t => t * t,
-            easeOutQuad: t => t * (2 - t),
-            easeInOutQuad: t => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
-            easeInCubic: t => t * t * t,
-            easeOutCubic: t => --t * t * t + 1,
-            easeInOutCubic: t => t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1,
-            default: t => t * (2 - t), // Default start easing
-            defaultEnd: t => --t * t * t + 1 // Default end easing
-        };
-        
-        function getSvgPathFromStroke(points, closed = true) {
-            const len = points.length;
-            if (len < 4) return '';
-
-            let a = points[0];
-            let b = points[1];
-            const c = points[2];
-
-            let result = `M${a[0].toFixed(2)},${a[1].toFixed(2)} Q${b[0].toFixed(2)},${b[1].toFixed(2)} ${average(b[0], c[0]).toFixed(2)},${average(b[1], c[1]).toFixed(2)} T`;
-
-            for (let i = 2, max = len - 1; i < max; i++) {
-                a = points[i];
-                b = points[i + 1];
-                result += `${average(a[0], b[0]).toFixed(2)},${average(a[1], b[1]).toFixed(2)} `;
-            }
-
-            if (closed) {
-                result += 'Z';
-            }
-
-            return result;
+        // Dark mode detection
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
         }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
 
-        class VectorDrawingApp {
+        class DrawingApp {
             constructor() {
-                // Core drawing properties
-                this.svg = document.getElementById('drawingSurface');
-                this.currentStroke = null;
+                this.svg = document.getElementById('drawingArea');
                 this.isDrawing = false;
-                this.strokes = [];
-                this.currentInputPoints = [];
+                this.currentPath = null;
+                this.currentPoints = [];
+                this.strokeWidth = 3;
+                this.strokeColor = '#000000';
+                this.previewColor = '#000000';
+                this.smoothingMethod = 'none';
+                this.smoothingIterations = 2;
+                this.smoothingFactor = 0.25;
+                this.strokeOpacity = 1;
+                this.enableShadow = false;
+                this.shadowOffsetX = 2;
+                this.shadowOffsetY = 2;
+                this.shadowBlur = 2;
+                this.shadowColor = '#000000';
+                this.shadowOpacity = 0.3;
+                this.enableTapering = true;
+                this.startTaper = 0.4; // How much the start tapers (0-1)
+                this.endTaper = 0.5; // How much the end tapers (0-1)  
+                this.taperStart = 0.97; // Where tapering begins (0-1)
+                this.presenter = null;
                 
-                // Tool settings
-                this.currentTool = 'pen';
-                this.brushSize = 6;
-                this.color = '#000000';
-                
-                // Perfect Freehand settings
-                this.thinning = 0.6;
-                this.smoothing = 0;
-                this.streamline = 0.2;
-                this.simulatePressure = false;
-                
-                // Advanced Perfect Freehand settings
-                this.easingFunction = 'easeInQuad';
-                this.startCap = true;
-                this.startTaper = 5;
-                this.startTaperFull = false;
-                this.startEasing = 'default';
-                this.endCap = true;
-                this.endTaper = 5;
-                this.endTaperFull = false;
-                this.endEasing = 'default';
-                
-                // Preview settings
-                this.previewColor = '#0066ff';
-                this.previewOpacity = 0.7;
-                
-                // Web Ink API
-                this.inkPresenter = null;
-                this.inkSupported = false;
-                
-                this.initialize();
-            }
-            
-            // ==========================================
-            // INITIALIZATION
-            // ==========================================
-            
-            initialize() {
+                this.setupCanvas();
                 this.setupEventListeners();
-                this.setupInkAPI();
+                this.setupMenu();
+                this.initInkAPI();
+            }
+
+            setupCanvas() {
                 this.resizeCanvas();
-            }
-            
-            setupEventListeners() {
-                this.setupMenuControls();
-                this.setupToolControls();
-                this.setupBrushControls();
-                this.setupPreviewControls();
-                this.setupDrawingEvents();
-                this.setupUtilityControls();
-                this.setupResizeHandlers();
-            }
-            
-            setupMenuControls() {
-                const menuToggle = document.getElementById('menuToggle');
-                const copyParams = document.getElementById('copyParams');
-                const menuOverlay = document.getElementById('menuOverlay');
-                const slideMenu = document.getElementById('slideMenu');
-                
-                menuToggle.addEventListener('click', () => {
-                    slideMenu.classList.add('open');
-                    menuOverlay.classList.add('open');
-                });
-                
-                const closeMenu = () => {
-                    slideMenu.classList.remove('open');
-                    menuOverlay.classList.remove('open');
-                };
-                
-                menuOverlay.addEventListener('click', closeMenu);
-                copyParams.addEventListener('click', () => this.copyParametersToClipboard());
-                
-                document.addEventListener('keydown', (e) => {
-                    if (e.key === 'Escape') closeMenu();
-                });
-            }
-            
-            setupToolControls() {
-                document.getElementById('penTool').addEventListener('click', () => this.setTool('pen'));
-                document.getElementById('eraserTool').addEventListener('click', () => this.setTool('eraser'));
-            }
-            
-            setupBrushControls() {
-                document.getElementById('brushSize').addEventListener('input', (e) => {
-                    this.brushSize = parseFloat(e.target.value);
-                    document.getElementById('brushSizeValue').textContent = this.brushSize + 'px';
-                });
-                
-                document.getElementById('colorPicker').addEventListener('change', (e) => {
-                    this.color = e.target.value;
-                });
-                
-                document.getElementById('thinning').addEventListener('input', (e) => {
-                    this.thinning = parseFloat(e.target.value);
-                    document.getElementById('thinningValue').textContent = this.thinning.toFixed(1);
-                });
-                
-                document.getElementById('smoothing').addEventListener('input', (e) => {
-                    this.smoothing = parseFloat(e.target.value);
-                    document.getElementById('smoothingValue').textContent = this.smoothing.toFixed(1);
-                });
-                
-                document.getElementById('streamline').addEventListener('input', (e) => {
-                    this.streamline = parseFloat(e.target.value);
-                    document.getElementById('streamlineValue').textContent = this.streamline.toFixed(1);
-                });
-                
-                document.getElementById('simulatePressure').addEventListener('change', (e) => {
-                    this.simulatePressure = e.target.checked;
-                });
-                
-                // Advanced controls
-                document.getElementById('easingFunction').addEventListener('change', (e) => {
-                    this.easingFunction = e.target.value;
-                });
-                
-                document.getElementById('startCap').addEventListener('change', (e) => {
-                    this.startCap = e.target.checked;
-                });
-                
-                document.getElementById('startTaper').addEventListener('input', (e) => {
-                    this.startTaper = parseFloat(e.target.value);
-                    document.getElementById('startTaperValue').textContent = this.startTaper + 'px';
-                    this.startTaperFull = false;
-                });
-                
-                document.getElementById('startTaperFull').addEventListener('click', () => {
-                    this.startTaperFull = true;
-                    document.getElementById('startTaperValue').textContent = 'Full length';
-                });
-                
-                document.getElementById('startEasing').addEventListener('change', (e) => {
-                    this.startEasing = e.target.value;
-                });
-                
-                document.getElementById('endCap').addEventListener('change', (e) => {
-                    this.endCap = e.target.checked;
-                });
-                
-                document.getElementById('endTaper').addEventListener('input', (e) => {
-                    this.endTaper = parseFloat(e.target.value);
-                    document.getElementById('endTaperValue').textContent = this.endTaper + 'px';
-                    this.endTaperFull = false;
-                });
-                
-                document.getElementById('endTaperFull').addEventListener('click', () => {
-                    this.endTaperFull = true;
-                    document.getElementById('endTaperValue').textContent = 'Full length';
-                });
-                
-                document.getElementById('endEasing').addEventListener('change', (e) => {
-                    this.endEasing = e.target.value;
-                });
-            }
-            
-            setupPreviewControls() {
-                document.getElementById('previewColorPicker').addEventListener('change', (e) => {
-                    this.previewColor = e.target.value;
-                });
-                
-                document.getElementById('previewOpacity').addEventListener('input', (e) => {
-                    this.previewOpacity = parseFloat(e.target.value);
-                    document.getElementById('opacityValue').textContent = this.previewOpacity.toFixed(1);
-                });
-            }
-            
-            setupDrawingEvents() {
-                this.svg.addEventListener('contextmenu', (e) => e.preventDefault());
-                
-                this.svg.addEventListener('pointerdown', this.startDrawing.bind(this));
-                this.svg.addEventListener('pointermove', this.continueDrawing.bind(this));
-                this.svg.addEventListener('pointerup', this.endDrawing.bind(this));
-                this.svg.addEventListener('pointercancel', this.endDrawing.bind(this));
-            }
-            
-            setupUtilityControls() {
-                document.getElementById('quickClearBtn').addEventListener('click', () => this.clearCanvas());
-            }
-            
-            setupResizeHandlers() {
+                this.setupShadowFilter();
                 window.addEventListener('resize', () => this.resizeCanvas());
-                window.addEventListener('load', () => this.resizeCanvas());
             }
-            
+
+            setupShadowFilter() {
+                // Create SVG defs section for filters
+                const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+                this.svg.appendChild(defs);
+                
+                // Create drop shadow filter
+                this.shadowFilter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+                this.shadowFilter.setAttribute('id', 'dropShadow');
+                this.shadowFilter.setAttribute('x', '-50%');
+                this.shadowFilter.setAttribute('y', '-50%');
+                this.shadowFilter.setAttribute('width', '200%');
+                this.shadowFilter.setAttribute('height', '200%');
+                
+                // Create flood element for shadow color
+                this.shadowFlood = document.createElementNS('http://www.w3.org/2000/svg', 'feFlood');
+                this.shadowFlood.setAttribute('result', 'flood');
+                
+                // Create composite element
+                const composite = document.createElementNS('http://www.w3.org/2000/svg', 'feComposite');
+                composite.setAttribute('in', 'flood');
+                composite.setAttribute('in2', 'SourceGraphic');
+                composite.setAttribute('operator', 'in');
+                composite.setAttribute('result', 'composite');
+                
+                // Create gaussian blur element
+                this.shadowBlurFilter = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
+                this.shadowBlurFilter.setAttribute('in', 'composite');
+                this.shadowBlurFilter.setAttribute('result', 'blur');
+                
+                // Create offset element
+                this.shadowOffsetFilter = document.createElementNS('http://www.w3.org/2000/svg', 'feOffset');
+                this.shadowOffsetFilter.setAttribute('in', 'blur');
+                this.shadowOffsetFilter.setAttribute('result', 'offset');
+                
+                // Create merge element
+                const merge = document.createElementNS('http://www.w3.org/2000/svg', 'feMerge');
+                
+                const mergeNode1 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+                mergeNode1.setAttribute('in', 'offset');
+                
+                const mergeNode2 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+                mergeNode2.setAttribute('in', 'SourceGraphic');
+                
+                merge.appendChild(mergeNode1);
+                merge.appendChild(mergeNode2);
+                
+                // Add all elements to filter
+                this.shadowFilter.appendChild(this.shadowFlood);
+                this.shadowFilter.appendChild(composite);
+                this.shadowFilter.appendChild(this.shadowBlurFilter);
+                this.shadowFilter.appendChild(this.shadowOffsetFilter);
+                this.shadowFilter.appendChild(merge);
+                
+                defs.appendChild(this.shadowFilter);
+                
+                this.updateShadowFilter();
+            }
+
+            updateShadowFilter() {
+                if (!this.shadowFilter) return;
+                
+                // Convert shadow color to rgba with opacity
+                const rgb = this.hexToRgb(this.shadowColor);
+                const shadowColorRgba = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${this.shadowOpacity})`;
+                
+                this.shadowFlood.setAttribute('flood-color', this.shadowColor);
+                this.shadowFlood.setAttribute('flood-opacity', this.shadowOpacity);
+                this.shadowBlurFilter.setAttribute('stdDeviation', this.shadowBlur);
+                this.shadowOffsetFilter.setAttribute('dx', this.shadowOffsetX);
+                this.shadowOffsetFilter.setAttribute('dy', this.shadowOffsetY);
+            }
+
+            hexToRgb(hex) {
+                const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                return result ? {
+                    r: parseInt(result[1], 16),
+                    g: parseInt(result[2], 16),
+                    b: parseInt(result[3], 16)
+                } : { r: 0, g: 0, b: 0 };
+            }
+
             resizeCanvas() {
                 this.svg.setAttribute('width', window.innerWidth);
                 this.svg.setAttribute('height', window.innerHeight);
+                this.svg.setAttribute('viewBox', `0 0 ${window.innerWidth} ${window.innerHeight}`);
             }
-            
-            // ==========================================
-            // WEB INK API SETUP
-            // ==========================================
-            
-            async setupInkAPI() {
-                if ('ink' in navigator && 'requestPresenter' in navigator.ink) {
-                    try {
-                        this.inkPresenter = await navigator.ink.requestPresenter({
-                            presentationArea: this.svg
+
+            async initInkAPI() {
+                try {
+                    if ('ink' in navigator) {
+                        // Create a canvas for ink API
+                        const canvas = document.createElement('canvas');
+                        canvas.width = window.innerWidth;
+                        canvas.height = window.innerHeight;
+                        canvas.style.position = 'absolute';
+                        canvas.style.top = '0';
+                        canvas.style.left = '0';
+                        canvas.style.pointerEvents = 'none';
+                        canvas.style.zIndex = '5';
+                        document.body.appendChild(canvas);
+                        
+                        this.presenter = await navigator.ink.requestPresenter({ 
+                            presentationArea: canvas 
                         });
-                        this.inkSupported = true;
-                        console.log('Web Ink presenter initialized');
-                    } catch (error) {
-                        console.log('Web Ink API not available, using pointer events only');
-                        this.inkSupported = false;
+                        document.getElementById('inkApiStatus').textContent = '✅ Available';
+                        console.log('Ink API initialized');
+                    } else {
+                        throw new Error('Not supported');
                     }
-                } else {
-                    this.inkSupported = false;
+                } catch (error) {
+                    document.getElementById('inkApiStatus').textContent = '❌ Not Available';
+                    console.log('Ink API not available');
                 }
             }
-            
-            // ==========================================
-            // DRAWING LOGIC WITH PERFECT FREEHAND
-            // ==========================================
-            
-            startDrawing(event) {
-                // Only allow pen and mouse input - disable finger/touch
-                if (event.button !== undefined && event.button !== 0) return;
-                if (event.pointerType === 'touch') return;
-                
+
+            setupEventListeners() {
+                // Only stylus/pen input allowed
+                this.svg.addEventListener('pointerdown', (e) => {
+                    if (e.pointerType === 'pen') {
+                        e.preventDefault();
+                        this.startDrawing(e);
+                    }
+                });
+
+                this.svg.addEventListener('pointermove', (e) => {
+                    if (e.pointerType === 'pen' && this.isDrawing) {
+                        e.preventDefault();
+                        this.continueDrawing(e);
+                    }
+                });
+
+                this.svg.addEventListener('pointerup', (e) => {
+                    if (e.pointerType === 'pen') {
+                        e.preventDefault();
+                        this.stopDrawing(e);
+                    }
+                });
+
+                this.svg.addEventListener('pointercancel', (e) => {
+                    if (e.pointerType === 'pen' && this.isDrawing) {
+                        this.stopDrawing(e);
+                    }
+                });
+
+                // Prevent all touch and mouse interactions
+                this.svg.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                });
+
+                this.svg.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                });
+
+                // Clear button
+                document.getElementById('clearButton').addEventListener('click', () => {
+                    this.clearCanvas();
+                });
+
+                // Prevent context menu
+                this.svg.addEventListener('contextmenu', (e) => e.preventDefault());
+            }
+
+            startDrawing(e) {
                 this.isDrawing = true;
-                const point = this.getPoint(event);
+                this.currentPoints = [];
                 
-                console.log('Start drawing:', event.pointerType, point); // Debug log
+                const point = this.getPoint(e);
+                this.currentPoints.push({ ...point, timestamp: Date.now() });
                 
-                if (this.currentTool === 'pen') {
-                    this.currentInputPoints = [point];
-                    this.createPreviewStroke();
-                    
-                    if (this.inkPresenter) {
-                        this.inkPresenter.updateInkTrailStartPoint(event, {
-                            color: this.hexToRgba(this.previewColor, this.previewOpacity),
-                            diameter: this.brushSize * 0.5
-                        });
-                    }
-                } else if (this.currentTool === 'eraser') {
-                    this.eraseAt(point);
+                // Create new path element for tapered stroke
+                this.currentPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                this.currentPath.setAttribute('fill', this.strokeColor);
+                this.currentPath.setAttribute('fill-opacity', this.strokeOpacity);
+                this.currentPath.setAttribute('stroke', 'none');
+                
+                // Apply shadow filter if enabled
+                if (this.enableShadow) {
+                    this.updateShadowFilter();
+                    this.currentPath.setAttribute('filter', 'url(#dropShadow)');
                 }
                 
-                event.preventDefault();
-            }
-            
-            continueDrawing(event) {
-                if (!this.isDrawing) return;
+                this.svg.appendChild(this.currentPath);
                 
-                const point = this.getPoint(event);
-                
-                if (this.currentTool === 'pen') {
-                    this.currentInputPoints.push(point);
-                    this.updatePreviewStroke();
-                    
-                    if (this.inkPresenter) {
-                        const pressure = this.getInkPressure(event);
-                        this.inkPresenter.updateInkTrailStartPoint(event, {
-                            color: this.hexToRgba(this.previewColor, this.previewOpacity),
-                            diameter: this.brushSize * (0.3 + pressure * 0.7)
+                // Update Ink API
+                if (this.presenter && e.pointerId !== undefined) {
+                    try {
+                        this.presenter.updateInkTrailStartPoint(e, {
+                            color: this.previewColor,
+                            diameter: this.strokeWidth
                         });
+                    } catch (error) {
+                        console.log('Ink API error:', error);
                     }
-                } else if (this.currentTool === 'eraser') {
-                    this.eraseAt(point);
                 }
-                
-                event.preventDefault();
             }
-            
-            endDrawing(event) {
-                if (!this.isDrawing) return;
+
+            continueDrawing(e) {
+                if (!this.isDrawing || !this.currentPath) return;
                 
+                const point = this.getPoint(e);
+                this.currentPoints.push({ ...point, timestamp: Date.now() });
+                
+                // Update the tapered stroke path
+                this.updateTaperedPath();
+                
+                // Update Ink API
+                if (this.presenter && e.pointerId !== undefined) {
+                    try {
+                        this.presenter.updateInkTrailStartPoint(e, {
+                            color: this.previewColor,
+                            diameter: this.strokeWidth
+                        });
+                    } catch (error) {
+                        console.log('Ink API error:', error);
+                    }
+                }
+            }
+
+            stopDrawing(e) {
                 this.isDrawing = false;
                 
-                if (this.currentTool === 'pen' && this.currentStroke && this.currentInputPoints.length > 1) {
-                    this.finalizeStroke();
-                } else if (this.currentStroke) {
-                    // Remove incomplete stroke
-                    this.currentStroke.remove();
+                // Final update with taper at the end
+                if (this.currentPath && this.currentPoints.length > 1) {
+                    this.updateTaperedPath(true);
                 }
                 
-                this.currentStroke = null;
-                this.currentInputPoints = [];
-                
-                event.preventDefault();
+                this.currentPath = null;
+                this.currentPoints = [];
             }
-            
-            // ==========================================
-            // PERFECT FREEHAND STROKE CREATION
-            // ==========================================
-            
-            getPoint(event) {
+
+            getPoint(e) {
                 const rect = this.svg.getBoundingClientRect();
-                const x = event.clientX - rect.left;
-                const y = event.clientY - rect.top;
-                
-                if (this.simulatePressure) {
-                    // Let perfect-freehand simulate pressure based on velocity
-                    return [x, y];
-                } else {
-                    // Use actual pressure from stylus/pen
-                    const pressure = this.getInkPressure(event);
-                    return [x, y, pressure];
-                }
-            }
-            
-            getInkPressure(event) {
-                if (event.pressure !== undefined && event.pressure > 0) {
-                    return Math.min(1, Math.max(0.1, event.pressure));
-                }
-                
-                if (event.pointerType === 'pen') {
-                    return 0.7;
-                } else if (event.pointerType === 'touch') {
-                    return event.force || 0.5;
-                }
-                
-                return 0.5;
-            }
-            
-            createPreviewStroke() {
-                this.currentStroke = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                this.currentStroke.setAttribute('fill', this.color);
-                this.currentStroke.setAttribute('stroke', 'none');
-                this.currentStroke.setAttribute('filter', 'url(#shadow-filter)');
-                this.svg.appendChild(this.currentStroke);
-            }
-            
-            updatePreviewStroke() {
-                if (!this.currentStroke || this.currentInputPoints.length < 2) return;
-                
-                try {
-                    const options = this.getPerfectFreehandOptions(false);
-                    const outlinePoints = perfectFreehand.getStroke(this.currentInputPoints, options);
-                    const pathData = getSvgPathFromStroke(outlinePoints);
-                    this.currentStroke.setAttribute('d', pathData);
-                } catch (error) {
-                    console.warn('Error updating stroke:', error);
-                }
-            }
-            
-            finalizeStroke() {
-                if (!this.currentStroke || this.currentInputPoints.length < 2) return;
-                
-                try {
-                    const options = this.getPerfectFreehandOptions(true);
-                    const outlinePoints = perfectFreehand.getStroke(this.currentInputPoints, options);
-                    const pathData = getSvgPathFromStroke(outlinePoints);
-                    this.currentStroke.setAttribute('d', pathData);
-                    
-                    // Store stroke data for eraser functionality
-                    this.currentStroke.inputPoints = [...this.currentInputPoints];
-                    this.currentStroke.strokeOptions = {...options};
-                    
-                    this.strokes.push(this.currentStroke);
-                } catch (error) {
-                    console.warn('Error finalizing stroke:', error);
-                    this.currentStroke.remove();
-                }
-            }
-            
-            // Generate complete perfect-freehand options object
-            getPerfectFreehandOptions(isLast = true) {
                 return {
-                    size: this.brushSize,
-                    thinning: this.thinning,
-                    smoothing: this.smoothing,
-                    streamline: this.streamline,
-                    simulatePressure: this.simulatePressure,
-                    easing: easingFunctions[this.easingFunction],
-                    last: isLast,
-                    start: {
-                        cap: this.startCap,
-                        taper: this.startTaperFull ? true : (this.startTaper || 0),
-                        easing: this.startEasing === 'default' ? easingFunctions.default : easingFunctions[this.startEasing]
-                    },
-                    end: {
-                        cap: this.endCap,
-                        taper: this.endTaperFull ? true : (this.endTaper || 0),
-                        easing: this.endEasing === 'default' ? easingFunctions.defaultEnd : easingFunctions[this.endEasing]
-                    }
+                    x: (e.clientX || e.pageX) - rect.left,
+                    y: (e.clientY || e.pageY) - rect.top
                 };
             }
-            
-            // ==========================================
-            // ERASER FUNCTIONALITY
-            // ==========================================
-            
-            eraseAt(point) {
-                const eraserRadius = Math.max(this.brushSize * 0.8, 10);
-                
-                this.strokes.forEach((stroke, index) => {
-                    if (!stroke.inputPoints || stroke.inputPoints.length < 2) return;
-                    
-                    const intersectingIndices = [];
-                    stroke.inputPoints.forEach((strokePoint, pointIndex) => {
-                        const distance = Math.sqrt(
-                            Math.pow(strokePoint[0] - point[0], 2) + 
-                            Math.pow(strokePoint[1] - point[1], 2)
-                        );
-                        
-                        if (distance <= eraserRadius) {
-                            intersectingIndices.push(pointIndex);
-                        }
-                    });
-                    
-                    if (intersectingIndices.length === 0) return;
-                    
-                    if (intersectingIndices.length >= stroke.inputPoints.length * 0.7) {
-                        // Remove entire stroke if most points are erased
-                        stroke.remove();
-                        this.strokes.splice(index, 1);
-                        return;
-                    }
-                    
-                    this.splitStrokeAtErasedPoints(stroke, intersectingIndices, index);
-                });
-            }
-            
-            splitStrokeAtErasedPoints(originalStroke, erasedIndices, strokeIndex) {
-                const points = originalStroke.inputPoints;
-                const segments = [];
-                let currentSegment = [];
-                
-                for (let i = 0; i < points.length; i++) {
-                    if (!erasedIndices.includes(i)) {
-                        currentSegment.push(points[i]);
-                    } else {
-                        if (currentSegment.length >= 3) {
-                            segments.push([...currentSegment]);
-                        }
-                        currentSegment = [];
-                    }
-                }
-                
-                if (currentSegment.length >= 3) {
-                    segments.push(currentSegment);
-                }
-                
-                originalStroke.remove();
-                this.strokes.splice(strokeIndex, 1);
-                
-                segments.forEach(segmentPoints => {
-                    if (segmentPoints.length >= 3) {
-                        const newStroke = this.createStrokeFromPoints(segmentPoints, originalStroke.strokeOptions);
-                        this.svg.appendChild(newStroke);
-                        this.strokes.push(newStroke);
-                    }
-                });
-            }
-            
-            createStrokeFromPoints(inputPoints, options) {
-                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                path.setAttribute('fill', this.color);
-                path.setAttribute('stroke', 'none');
-                path.setAttribute('filter', 'url(#shadow-filter)');
-                
-                try {
-                    const outlinePoints = perfectFreehand.getStroke(inputPoints, options);
-                    const pathData = getSvgPathFromStroke(outlinePoints);
-                    path.setAttribute('d', pathData);
-                    
-                    path.inputPoints = inputPoints;
-                    path.strokeOptions = options;
-                } catch (error) {
-                    console.warn('Error creating stroke from points:', error);
-                }
-                
-                return path;
-            }
-            
-            // ==========================================
-            // TOOL MANAGEMENT
-            // ==========================================
-            
-            setTool(tool) {
-                this.currentTool = tool;
-                
-                document.querySelectorAll('.menu-button').forEach(btn => {
-                    btn.classList.remove('active');
-                });
-                
-                if (tool === 'pen') {
-                    document.getElementById('penTool').classList.add('active');
-                    this.svg.style.cursor = 'crosshair';
-                } else if (tool === 'eraser') {
-                    document.getElementById('eraserTool').classList.add('active');
-                    this.svg.style.cursor = 'pointer';
-                }
-            }
-            
-            // ==========================================
-            // UTILITY FUNCTIONS
-            // ==========================================
-            
+
             clearCanvas() {
-                this.strokes.forEach(stroke => stroke.remove());
-                this.strokes = [];
-                
+                // Remove all paths
                 const paths = this.svg.querySelectorAll('path');
                 paths.forEach(path => path.remove());
             }
-            
-            hexToRgba(hex, opacity) {
-                const r = parseInt(hex.slice(1, 3), 16);
-                const g = parseInt(hex.slice(3, 5), 16);
-                const b = parseInt(hex.slice(5, 7), 16);
-                return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-            }
-            
-            copyParametersToClipboard() {
-                const params = {
-                    currentTool: this.currentTool,
-                    brushSize: this.brushSize,
-                    brushColor: this.color,
-                    thinning: this.thinning,
-                    smoothing: this.smoothing,
-                    streamline: this.streamline,
-                    simulatePressure: this.simulatePressure,
-                    easingFunction: this.easingFunction,
-                    startCap: this.startCap,
-                    startTaper: this.startTaperFull ? 'full' : this.startTaper,
-                    startEasing: this.startEasing,
-                    endCap: this.endCap,
-                    endTaper: this.endTaperFull ? 'full' : this.endTaper,
-                    endEasing: this.endEasing,
-                    previewColor: this.previewColor,
-                    previewOpacity: this.previewOpacity
-                };
-                
-                const paramText = `Perfect Freehand Drawing App - Current Parameters:
 
-=== TOOL SETTINGS ===
-Tool: ${params.currentTool}
-Brush Size: ${params.brushSize}px
-Brush Color: ${params.brushColor}
 
-=== CORE STROKE SETTINGS ===
-Thinning: ${params.thinning}
-Smoothing: ${params.smoothing}
-Streamline: ${params.streamline}
-Simulate Pressure: ${params.simulatePressure}
-Easing Function: ${params.easingFunction}
 
-=== START OPTIONS ===
-Start Cap: ${params.startCap}
-Start Taper: ${params.startTaper}${params.startTaper === 'full' ? '' : 'px'}
-Start Easing: ${params.startEasing}
+            setupMenu() {
+                const menuButton = document.getElementById('menuButton');
+                const menuOverlay = document.getElementById('menuOverlay');
+                const menuPanel = document.getElementById('menuPanel');
+                const copySettings = document.getElementById('copySettings');
 
-=== END OPTIONS ===
-End Cap: ${params.endCap}
-End Taper: ${params.endTaper}${params.endTaper === 'full' ? '' : 'px'}
-End Easing: ${params.endEasing}
-
-=== PREVIEW SETTINGS ===
-Preview Color: ${params.previewColor}
-Preview Opacity: ${params.previewOpacity}`;
-                
-                navigator.clipboard.writeText(paramText).then(() => {
-                    this.showToast('Parameters copied to clipboard!', 'success');
-                }).catch(err => {
-                    this.showToast('Failed to copy parameters', 'error');
-                    console.error('Failed to copy parameters:', err);
-                });
-            }
-            
-            showToast(message, type = 'success') {
-                const existingToast = document.querySelector('.toast');
-                if (existingToast) existingToast.remove();
-
-                const toast = document.createElement('div');
-                toast.className = `toast fixed top-20 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg shadow-lg z-50 text-sm font-medium transition-all duration-300 ${
-                    type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-                }`;
-                toast.textContent = message;
-                toast.style.opacity = '0';
-                toast.style.transform = 'translate(-50%, -20px)';
-
-                document.body.appendChild(toast);
-
-                setTimeout(() => {
-                    toast.style.opacity = '1';
-                    toast.style.transform = 'translate(-50%, 0)';
-                }, 10);
-
-                setTimeout(() => {
-                    toast.style.opacity = '0';
-                    toast.style.transform = 'translate(-50%, -20px)';
+                menuButton.addEventListener('click', () => {
+                    menuOverlay.classList.remove('hidden');
+                    menuButton.style.display = 'none'; // Hide menu button
                     setTimeout(() => {
-                        if (toast.parentNode) toast.remove();
+                        menuPanel.style.transform = 'translateX(0)';
+                    }, 10);
+                });
+
+                const closeMenuFunc = () => {
+                    menuPanel.style.transform = 'translateX(-100%)';
+                    setTimeout(() => {
+                        menuOverlay.classList.add('hidden');
+                        menuButton.style.display = 'block'; // Show menu button again
                     }, 300);
-                }, 2500);
+                };
+
+                // Copy settings functionality
+                copySettings.addEventListener('click', () => {
+                    this.copyAllSettings();
+                });
+
+                menuOverlay.addEventListener('click', (e) => {
+                    if (e.target === menuOverlay) {
+                        closeMenuFunc();
+                    }
+                });
+
+                // Stroke width control
+                const strokeWidth = document.getElementById('strokeWidth');
+                const strokeWidthValue = document.getElementById('strokeWidthValue');
+                strokeWidth.addEventListener('input', (e) => {
+                    this.strokeWidth = parseInt(e.target.value);
+                    strokeWidthValue.textContent = `${this.strokeWidth}px`;
+                });
+
+                // Stroke color control
+                const strokeColor = document.getElementById('strokeColor');
+                const strokeColorValue = document.getElementById('strokeColorValue');
+                strokeColor.addEventListener('input', (e) => {
+                    this.strokeColor = e.target.value;
+                    strokeColorValue.textContent = this.strokeColor.toUpperCase();
+                });
+
+                // Preview ink color control
+                const previewColor = document.getElementById('previewColor');
+                const previewColorValue = document.getElementById('previewColorValue');
+                previewColor.addEventListener('input', (e) => {
+                    this.previewColor = e.target.value;
+                    previewColorValue.textContent = this.previewColor.toUpperCase();
+                });
+
+                // Smoothing method control
+                const smoothingMethod = document.getElementById('smoothingMethod');
+                const chaikinSettings = document.getElementById('chaikinSettings');
+                smoothingMethod.addEventListener('change', (e) => {
+                    this.smoothingMethod = e.target.value;
+                    // Show/hide Chaikin settings based on selection
+                    if (e.target.value === 'chaikin') {
+                        chaikinSettings.classList.remove('hidden');
+                    } else {
+                        chaikinSettings.classList.add('hidden');
+                    }
+                });
+
+                // Chaikin smoothing controls
+                const smoothingIterations = document.getElementById('smoothingIterations');
+                const smoothingIterationsValue = document.getElementById('smoothingIterationsValue');
+                smoothingIterations.addEventListener('input', (e) => {
+                    this.smoothingIterations = parseInt(e.target.value);
+                    smoothingIterationsValue.textContent = this.smoothingIterations;
+                });
+
+                const smoothingFactor = document.getElementById('smoothingFactor');
+                const smoothingFactorValue = document.getElementById('smoothingFactorValue');
+                smoothingFactor.addEventListener('input', (e) => {
+                    this.smoothingFactor = parseFloat(e.target.value);
+                    smoothingFactorValue.textContent = this.smoothingFactor;
+                });
+
+                // Opacity control
+                const strokeOpacity = document.getElementById('strokeOpacity');
+                const strokeOpacityValue = document.getElementById('strokeOpacityValue');
+                strokeOpacity.addEventListener('input', (e) => {
+                    this.strokeOpacity = parseFloat(e.target.value);
+                    strokeOpacityValue.textContent = `${Math.round(this.strokeOpacity * 100)}%`;
+                });
+
+                // Shadow controls
+                const enableShadow = document.getElementById('enableShadow');
+                const shadowSettings = document.getElementById('shadowSettings');
+                enableShadow.addEventListener('change', (e) => {
+                    this.enableShadow = e.target.checked;
+                    if (e.target.checked) {
+                        shadowSettings.classList.remove('hidden');
+                    } else {
+                        shadowSettings.classList.add('hidden');
+                    }
+                });
+
+                const shadowOffsetX = document.getElementById('shadowOffsetX');
+                const shadowOffsetXValue = document.getElementById('shadowOffsetXValue');
+                shadowOffsetX.addEventListener('input', (e) => {
+                    this.shadowOffsetX = parseInt(e.target.value);
+                    shadowOffsetXValue.textContent = `${this.shadowOffsetX}px`;
+                });
+
+                const shadowOffsetY = document.getElementById('shadowOffsetY');
+                const shadowOffsetYValue = document.getElementById('shadowOffsetYValue');
+                shadowOffsetY.addEventListener('input', (e) => {
+                    this.shadowOffsetY = parseInt(e.target.value);
+                    shadowOffsetYValue.textContent = `${this.shadowOffsetY}px`;
+                });
+
+                const shadowBlur = document.getElementById('shadowBlur');
+                const shadowBlurValue = document.getElementById('shadowBlurValue');
+                shadowBlur.addEventListener('input', (e) => {
+                    this.shadowBlur = parseInt(e.target.value);
+                    shadowBlurValue.textContent = `${this.shadowBlur}px`;
+                });
+
+                const shadowColor = document.getElementById('shadowColor');
+                const shadowColorValue = document.getElementById('shadowColorValue');
+                shadowColor.addEventListener('input', (e) => {
+                    this.shadowColor = e.target.value;
+                    shadowColorValue.textContent = this.shadowColor.toUpperCase();
+                });
+
+                const shadowOpacity = document.getElementById('shadowOpacity');
+                const shadowOpacityValue = document.getElementById('shadowOpacityValue');
+                shadowOpacity.addEventListener('input', (e) => {
+                    this.shadowOpacity = parseFloat(e.target.value);
+                    shadowOpacityValue.textContent = `${Math.round(this.shadowOpacity * 100)}%`;
+                });
+
+                // Tapering controls
+                const enableTapering = document.getElementById('enableTapering');
+                enableTapering.addEventListener('change', (e) => {
+                    this.enableTapering = e.target.checked;
+                });
+
+                const startTaper = document.getElementById('startTaper');
+                const startTaperValue = document.getElementById('startTaperValue');
+                startTaper.addEventListener('input', (e) => {
+                    this.startTaper = parseFloat(e.target.value);
+                    startTaperValue.textContent = `${Math.round(this.startTaper * 100)}%`;
+                });
+
+                const endTaper = document.getElementById('endTaper');
+                const endTaperValue = document.getElementById('endTaperValue');
+                endTaper.addEventListener('input', (e) => {
+                    this.endTaper = parseFloat(e.target.value);
+                    endTaperValue.textContent = `${Math.round(this.endTaper * 100)}%`;
+                });
+
+                const taperStart = document.getElementById('taperStart');
+                const taperStartValue = document.getElementById('taperStartValue');
+                taperStart.addEventListener('input', (e) => {
+                    const value = parseInt(e.target.value);
+                    this.taperStart = value / 100; // Convert from 50-100 range to 0.5-1.0 range
+                    taperStartValue.textContent = `${value}%`;
+                });
+
             }
-        }
-        
-        // ==========================================
-        // INITIALIZATION
-        // ==========================================
-        
-        document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                // Try to load perfect-freehand with fallback CDNs
-                await loadPerfectFreehand();
+
+            updateTaperedPath(isEnding = false) {
+                if (this.currentPoints.length < 2) return;
+
+                const points = this.currentPoints;
+                const path = [];
                 
-                // Handle CommonJS exports and make functions globally available
-                if (typeof exports !== 'undefined' && exports.getStroke) {
-                    // CommonJS build loaded - make functions global
-                    window.getStroke = exports.getStroke;
-                    window.getStrokePoints = exports.getStrokePoints;
-                    window.getStrokeOutlinePoints = exports.getStrokeOutlinePoints;
-                    window.perfectFreehand = { 
-                        getStroke: exports.getStroke,
-                        getStrokePoints: exports.getStrokePoints,
-                        getStrokeOutlinePoints: exports.getStrokeOutlinePoints
-                    };
-                    console.log('Perfect Freehand library loaded successfully (CommonJS)');
-                } else if (typeof perfectFreehand !== 'undefined' || typeof getStroke !== 'undefined') {
-                    // UMD build loaded
-                    console.log('Perfect Freehand library loaded successfully (UMD)');
+                // Start the path
+                path.push(`M ${points[0].x} ${points[0].y}`);
+                
+                if (points.length === 2) {
+                    // Simple line for two points
+                    const startWidth = this.strokeWidth * 0.8;
+                    const endWidth = isEnding ? this.strokeWidth * 0.2 : this.strokeWidth;
+                    
+                    const dx = points[1].x - points[0].x;
+                    const dy = points[1].y - points[0].y;
+                    const length = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (length > 0) {
+                        const perpX = -dy / length;
+                        const perpY = dx / length;
+                        
+                        // Create tapered stroke as filled path
+                        const x1 = points[0].x + perpX * startWidth / 2;
+                        const y1 = points[0].y + perpY * startWidth / 2;
+                        const x2 = points[0].x - perpX * startWidth / 2;
+                        const y2 = points[0].y - perpY * startWidth / 2;
+                        const x3 = points[1].x - perpX * endWidth / 2;
+                        const y3 = points[1].y - perpY * endWidth / 2;
+                        const x4 = points[1].x + perpX * endWidth / 2;
+                        const y4 = points[1].y + perpY * endWidth / 2;
+                        
+                        const pathData = `M ${x1} ${y1} L ${x4} ${y4} L ${x3} ${y3} L ${x2} ${y2} Z`;
+                        this.currentPath.setAttribute('d', pathData);
+                    }
                 } else {
-                    throw new Error('Library not found after loading');
+                    // Create smooth tapered path for multiple points
+                    const pathData = this.createTaperedStrokePath(points, isEnding);
+                    this.currentPath.setAttribute('d', pathData);
+                }
+            }
+
+            applyChaikinSmoothing(points, iterations = 2) {
+                if (points.length < 3) return points;
+                
+                let smoothedPoints = [...points];
+                
+                for (let iter = 0; iter < iterations; iter++) {
+                    if (smoothedPoints.length < 3) break;
+                    
+                    const newPoints = [];
+                    
+                    // Keep the first point
+                    newPoints.push(smoothedPoints[0]);
+                    
+                    // Apply Chaikin's corner cutting algorithm
+                    for (let i = 0; i < smoothedPoints.length - 1; i++) {
+                        const p1 = smoothedPoints[i];
+                        const p2 = smoothedPoints[i + 1];
+                        
+                        // Create quarter points using configurable smoothing factor
+                        const q1 = {
+                            x: p1.x + (1 - this.smoothingFactor) * (p2.x - p1.x),
+                            y: p1.y + (1 - this.smoothingFactor) * (p2.y - p1.y)
+                        };
+                        
+                        const q2 = {
+                            x: p1.x + this.smoothingFactor * (p2.x - p1.x),
+                            y: p1.y + this.smoothingFactor * (p2.y - p1.y)
+                        };
+                        
+                        newPoints.push(q2, q1);
+                    }
+                    
+                    // Keep the last point
+                    newPoints.push(smoothedPoints[smoothedPoints.length - 1]);
+                    
+                    smoothedPoints = newPoints;
                 }
                 
-                // Initialize the app
-                new VectorDrawingApp();
-                lucide.createIcons();
-                
-            } catch (error) {
-                console.error('Perfect Freehand library failed to load:', error);
-                
-                // Show fallback message
-                document.body.innerHTML = `
-                    <div class="flex items-center justify-center h-screen bg-gray-100">
-                        <div class="text-center p-8 bg-white rounded-lg shadow-lg max-w-md mx-4">
-                            <h2 class="text-xl font-semibold text-red-600 mb-4">Library Loading Error</h2>
-                            <p class="text-gray-700 mb-4">The perfect-freehand library failed to load from all CDN sources.</p>
-                            <p class="text-sm text-gray-500 mb-4">This could be due to network issues or CDN availability.</p>
-                            <button onclick="window.location.reload()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 mr-2">
-                                Refresh Page
-                            </button>
-                            <button onclick="showErrorDetails()" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
-                                Show Details
-                            </button>
-                            <div id="errorDetails" class="hidden mt-4 p-3 bg-gray-100 rounded text-xs text-left">
-                                <strong>Attempted CDN URLs:</strong><br>
-                                ${cdnSources.map(url => `• ${url}`).join('<br>')}
-                            </div>
-                        </div>
-                    </div>
-                `;
-                
-                window.showErrorDetails = () => {
-                    document.getElementById('errorDetails').classList.toggle('hidden');
-                };
+                return smoothedPoints;
             }
+
+            createTaperedStrokePath(points, isEnding = false) {
+                if (points.length < 2) return '';
+
+                // Apply smoothing if selected
+                let processedPoints = points;
+                if (this.smoothingMethod === 'chaikin') {
+                    processedPoints = this.applyChaikinSmoothing(points, this.smoothingIterations);
+                }
+
+                const leftPoints = [];
+                const rightPoints = [];
+                
+                for (let i = 0; i < processedPoints.length; i++) {
+                    const point = processedPoints[i];
+                    const progress = i / (processedPoints.length - 1);
+                    
+                    // Calculate width with configurable tapering
+                    let width = this.strokeWidth;
+                    
+                    if (this.enableTapering) {
+                        if (isEnding && progress > this.taperStart) {
+                            // Taper the end based on user settings
+                            const taperProgress = (progress - this.taperStart) / (1 - this.taperStart);
+                            width = this.strokeWidth * (1 - taperProgress * this.endTaper);
+                        } else if (progress < 0.2) {
+                            // Soft start with configurable amount
+                            const startTaperAmount = this.startTaper;
+                            width = this.strokeWidth * ((1 - startTaperAmount) + progress * startTaperAmount * 5);
+                        }
+                    }
+                    
+                    // Calculate perpendicular direction for width
+                    let perpX = 0, perpY = 0;
+                    
+                    if (i === 0 && processedPoints.length > 1) {
+                        const dx = processedPoints[1].x - processedPoints[0].x;
+                        const dy = processedPoints[1].y - processedPoints[0].y;
+                        const length = Math.sqrt(dx * dx + dy * dy);
+                        if (length > 0) {
+                            perpX = -dy / length;
+                            perpY = dx / length;
+                        }
+                    } else if (i === processedPoints.length - 1) {
+                        const dx = processedPoints[i].x - processedPoints[i - 1].x;
+                        const dy = processedPoints[i].y - processedPoints[i - 1].y;
+                        const length = Math.sqrt(dx * dx + dy * dy);
+                        if (length > 0) {
+                            perpX = -dy / length;
+                            perpY = dx / length;
+                        }
+                    } else {
+                        // Average of adjacent segments
+                        const dx1 = processedPoints[i].x - processedPoints[i - 1].x;
+                        const dy1 = processedPoints[i].y - processedPoints[i - 1].y;
+                        const dx2 = processedPoints[i + 1].x - processedPoints[i].x;
+                        const dy2 = processedPoints[i + 1].y - processedPoints[i].y;
+                        
+                        const avgDx = (dx1 + dx2) / 2;
+                        const avgDy = (dy1 + dy2) / 2;
+                        const length = Math.sqrt(avgDx * avgDx + avgDy * avgDy);
+                        
+                        if (length > 0) {
+                            perpX = -avgDy / length;
+                            perpY = avgDx / length;
+                        }
+                    }
+                    
+                    leftPoints.push({
+                        x: point.x + perpX * width / 2,
+                        y: point.y + perpY * width / 2
+                    });
+                    
+                    rightPoints.push({
+                        x: point.x - perpX * width / 2,
+                        y: point.y - perpY * width / 2
+                    });
+                }
+                
+                // Create the path
+                let pathData = `M ${leftPoints[0].x} ${leftPoints[0].y}`;
+                
+                // Draw left side
+                for (let i = 1; i < leftPoints.length; i++) {
+                    pathData += ` L ${leftPoints[i].x} ${leftPoints[i].y}`;
+                }
+                
+                // Draw right side (reversed)
+                for (let i = rightPoints.length - 1; i >= 0; i--) {
+                    pathData += ` L ${rightPoints[i].x} ${rightPoints[i].y}`;
+                }
+                
+                pathData += ' Z';
+                return pathData;
+            }
+
+            copyAllSettings() {
+                // Gather all current settings from the menu
+                const settings = {
+                    strokeWidth: this.strokeWidth,
+                    strokeOpacity: this.strokeOpacity,
+                    enableTapering: this.enableTapering,
+                    startTaper: this.startTaper,
+                    endTaper: this.endTaper,
+                    taperStart: Math.round(this.taperStart * 100) // Convert back to percentage for display
+                };
+
+                // Format the settings for easy sharing
+                let settingsText = `Drawing App Settings:
+═══════════════════════
+
+📐 STROKE PROPERTIES:
+• Stroke Width: ${settings.strokeWidth}px
+• Stroke Color: ${this.strokeColor.toUpperCase()}
+• Preview Ink Color: ${this.previewColor.toUpperCase()}
+• Smoothing Method: ${this.smoothingMethod === 'none' ? 'Direct (No Smoothing)' : 'Chaikin Smoothing'}`;
+
+                // Add Chaikin settings if enabled
+                if (this.smoothingMethod === 'chaikin') {
+                    settingsText += `
+  ↳ Smoothing Iterations: ${this.smoothingIterations}
+  ↳ Smoothing Factor: ${this.smoothingFactor}`;
+                }
+
+                settingsText += `
+• Opacity: ${Math.round(settings.strokeOpacity * 100)}%
+• Drop Shadow: ${this.enableShadow ? 'Enabled' : 'Disabled'}`;
+
+                // Add shadow settings if enabled
+                if (this.enableShadow) {
+                    settingsText += `
+  ↳ Shadow Offset X: ${this.shadowOffsetX}px
+  ↳ Shadow Offset Y: ${this.shadowOffsetY}px
+  ↳ Shadow Blur: ${this.shadowBlur}px
+  ↳ Shadow Color: ${this.shadowColor.toUpperCase()}
+  ↳ Shadow Opacity: ${Math.round(this.shadowOpacity * 100)}%`;
+                }
+
+                settingsText += `
+
+🎨 STROKE TAPERING:
+• Enable Tapering: ${settings.enableTapering ? 'Yes' : 'No'}
+• Start Taper Amount: ${Math.round(settings.startTaper * 100)}%
+• End Taper Amount: ${Math.round(settings.endTaper * 100)}%
+• Taper Start Point: ${settings.taperStart}%
+
+═══════════════════════
+Copy this to share your current settings!`;
+
+                // Copy to clipboard
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(settingsText).then(() => {
+                        // Show brief feedback
+                        const button = document.getElementById('copySettings');
+                        const originalTitle = button.title;
+                        button.title = 'Copied!';
+                        button.style.color = '#10b981'; // Green color
+                        
+                        setTimeout(() => {
+                            button.title = originalTitle;
+                            button.style.color = '';
+                        }, 2000);
+                    }).catch(err => {
+                        console.error('Failed to copy settings:', err);
+                        this.fallbackCopy(settingsText);
+                    });
+                } else {
+                    this.fallbackCopy(settingsText);
+                }
+            }
+
+            fallbackCopy(text) {
+                // Fallback method for browsers without clipboard API
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                textArea.style.top = '-999999px';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                
+                try {
+                    document.execCommand('copy');
+                    // Show feedback
+                    const button = document.getElementById('copySettings');
+                    button.title = 'Copied!';
+                    button.style.color = '#10b981';
+                    setTimeout(() => {
+                        button.title = 'Copy all settings';
+                        button.style.color = '';
+                    }, 2000);
+                } catch (err) {
+                    console.error('Fallback copy failed:', err);
+                }
+                
+                document.body.removeChild(textArea);
+            }
+        }
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', () => {
+            new DrawingApp();
         });
     </script>
 </body>
