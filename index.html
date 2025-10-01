@@ -93,8 +93,8 @@
                         <div>
                             <label class="block text-xs font-medium text-gray-800 mb-1">Stroke Color</label>
                             <div class="flex items-center space-x-2">
-                                <input type="color" id="strokeColor" value="#373737" class="w-8 h-8 rounded border border-gray-300 cursor-pointer">
-                                <span id="strokeColorValue" class="text-xs text-gray-600">#373737</span>
+                                <input type="color" id="strokeColor" value="#212121" class="w-8 h-8 rounded border border-gray-300 cursor-pointer">
+                                <span id="strokeColorValue" class="text-xs text-gray-600">#212121</span>
                             </div>
                             <p class="text-[10px] text-gray-500 mt-1">Color of the final rendered pen strokes</p>
                         </div>
@@ -102,8 +102,8 @@
                         <div>
                             <label class="block text-xs font-medium text-gray-800 mb-1">Preview Ink Color</label>
                             <div class="flex items-center space-x-2">
-                                <input type="color" id="previewColor" value="#373737" class="w-8 h-8 rounded border border-gray-300 cursor-pointer">
-                                <span id="previewColorValue" class="text-xs text-gray-600">#373737</span>
+                                <input type="color" id="previewColor" value="#212121" class="w-8 h-8 rounded border border-gray-300 cursor-pointer">
+                                <span id="previewColorValue" class="text-xs text-gray-600">#212121</span>
                             </div>
                             <p class="text-[10px] text-gray-500 mt-1">Color of the real-time drawing preview (Ink API)</p>
                         </div>
@@ -113,6 +113,8 @@
                             <select id="smoothingMethod" class="w-full text-sm border border-gray-300 rounded px-2 py-1">
                                 <option value="none">Direct (No Smoothing)</option>
                                 <option value="chaikin" selected>Chaikin Smoothing</option>
+                                <option value="catmullrom">Catmull-Rom Splines</option>
+                                <option value="bezier">Bezier Smoothing</option>
                             </select>
                             <p class="text-[10px] text-gray-500 mt-1">Algorithm used to smooth stroke curves</p>
                         </div>
@@ -137,6 +139,55 @@
                             </div>
                         </div>
 
+                        <div id="catmullromSettings" class="hidden space-y-3 pl-3 border-l-2 border-gray-300">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Tension</label>
+                                <input type="range" id="splineTension" min="0" max="1" step="0.1" value="0.5" class="w-full text-sm">
+                                <div class="flex justify-between items-center">
+                                    <span id="splineTensionValue" class="text-xs text-gray-600">0.5</span>
+                                </div>
+                                <p class="text-[10px] text-gray-400 mt-1">Curve tension (0 = loose curves, 1 = tight curves)</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Curve Segments</label>
+                                <input type="range" id="curveSegments" min="4" max="20" value="10" class="w-full text-sm">
+                                <div class="flex justify-between items-center">
+                                    <span id="curveSegmentsValue" class="text-xs text-gray-600">10</span>
+                                </div>
+                                <p class="text-[10px] text-gray-400 mt-1">Points per curve segment (higher = smoother)</p>
+                            </div>
+                        </div>
+
+                        <div id="bezierSettings" class="hidden space-y-3 pl-3 border-l-2 border-gray-300">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Control Point Distance</label>
+                                <input type="range" id="bezierDistance" min="0.1" max="0.8" step="0.1" value="0.3" class="w-full text-sm">
+                                <div class="flex justify-between items-center">
+                                    <span id="bezierDistanceValue" class="text-xs text-gray-600">0.3</span>
+                                </div>
+                                <p class="text-[10px] text-gray-400 mt-1">How far control points extend (higher = more curved)</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Smoothness</label>
+                                <input type="range" id="bezierSmoothness" min="0.1" max="1" step="0.1" value="0.5" class="w-full text-sm">
+                                <div class="flex justify-between items-center">
+                                    <span id="bezierSmoothnessValue" class="text-xs text-gray-600">0.5</span>
+                                </div>
+                                <p class="text-[10px] text-gray-400 mt-1">Control point alignment (higher = smoother curves)</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Resolution</label>
+                                <input type="range" id="bezierResolution" min="8" max="32" value="16" class="w-full text-sm">
+                                <div class="flex justify-between items-center">
+                                    <span id="bezierResolutionValue" class="text-xs text-gray-600">16</span>
+                                </div>
+                                <p class="text-[10px] text-gray-400 mt-1">Points per Bezier curve (higher = smoother but slower)</p>
+                            </div>
+                        </div>
+
                         <div>
                             <label class="block text-xs font-medium text-gray-800 mb-1">Opacity</label>
                             <input type="range" id="strokeOpacity" min="0.1" max="1" step="0.1" value="1" class="w-full text-sm">
@@ -148,7 +199,7 @@
 
                         <div>
                             <label class="block text-xs font-medium text-gray-800 mb-1">
-                                <input type="checkbox" id="enableShadow" checked class="mr-1"> Enable Drop Shadow
+                                <input type="checkbox" id="enableShadow" class="mr-1"> Enable Drop Shadow
                             </label>
                             <p class="text-[10px] text-gray-500 mt-1">Adds a drop shadow effect to strokes</p>
                         </div>
@@ -174,9 +225,9 @@
 
                             <div>
                                 <label class="block text-xs font-medium text-gray-700 mb-1">Shadow Blur</label>
-                                <input type="range" id="shadowBlur" min="0" max="10" value="2" class="w-full text-sm">
+                                <input type="range" id="shadowBlur" min="0" max="5" step="0.1" value="1.0" class="w-full text-sm">
                                 <div class="flex justify-between items-center">
-                                    <span id="shadowBlurValue" class="text-xs text-gray-600">2px</span>
+                                    <span id="shadowBlurValue" class="text-xs text-gray-600">1.0px</span>
                                 </div>
                                 <p class="text-[10px] text-gray-400 mt-1">Shadow blur radius (0 = sharp, higher = softer)</p>
                             </div>
@@ -286,16 +337,21 @@
                 this.currentPath = null;
                 this.currentPoints = [];
                 this.strokeWidth = 3;
-                this.strokeColor = '#373737';
-                this.previewColor = '#373737';
+                this.strokeColor = '#212121';
+                this.previewColor = '#212121';
                 this.smoothingMethod = 'chaikin';
                 this.smoothingIterations = 2;
                 this.smoothingFactor = 0.25;
+                this.splineTension = 0.5;
+                this.curveSegments = 10;
+                this.bezierDistance = 0.3;
+                this.bezierSmoothness = 0.5;
+                this.bezierResolution = 16;
                 this.strokeOpacity = 1;
-                this.enableShadow = true;
+                this.enableShadow = false;
                 this.shadowOffsetX = 0;
                 this.shadowOffsetY = 0;
-                this.shadowBlur = 2;
+                this.shadowBlur = 1.0;
                 this.shadowColor = '#000000';
                 this.shadowOpacity = 0.4;
                 this.enableTapering = true;
@@ -622,13 +678,27 @@
                 // Smoothing method control
                 const smoothingMethod = document.getElementById('smoothingMethod');
                 const chaikinSettings = document.getElementById('chaikinSettings');
+                const catmullromSettings = document.getElementById('catmullromSettings');
+                const bezierSettings = document.getElementById('bezierSettings');
                 smoothingMethod.addEventListener('change', (e) => {
                     this.smoothingMethod = e.target.value;
-                    // Show/hide Chaikin settings based on selection
+                    // Show/hide settings based on selection
                     if (e.target.value === 'chaikin') {
                         chaikinSettings.classList.remove('hidden');
+                        catmullromSettings.classList.add('hidden');
+                        bezierSettings.classList.add('hidden');
+                    } else if (e.target.value === 'catmullrom') {
+                        chaikinSettings.classList.add('hidden');
+                        catmullromSettings.classList.remove('hidden');
+                        bezierSettings.classList.add('hidden');
+                    } else if (e.target.value === 'bezier') {
+                        chaikinSettings.classList.add('hidden');
+                        catmullromSettings.classList.add('hidden');
+                        bezierSettings.classList.remove('hidden');
                     } else {
                         chaikinSettings.classList.add('hidden');
+                        catmullromSettings.classList.add('hidden');
+                        bezierSettings.classList.add('hidden');
                     }
                 });
 
@@ -645,6 +715,43 @@
                 smoothingFactor.addEventListener('input', (e) => {
                     this.smoothingFactor = parseFloat(e.target.value);
                     smoothingFactorValue.textContent = this.smoothingFactor;
+                });
+
+                // Catmull-Rom spline controls
+                const splineTension = document.getElementById('splineTension');
+                const splineTensionValue = document.getElementById('splineTensionValue');
+                splineTension.addEventListener('input', (e) => {
+                    this.splineTension = parseFloat(e.target.value);
+                    splineTensionValue.textContent = this.splineTension;
+                });
+
+                const curveSegments = document.getElementById('curveSegments');
+                const curveSegmentsValue = document.getElementById('curveSegmentsValue');
+                curveSegments.addEventListener('input', (e) => {
+                    this.curveSegments = parseInt(e.target.value);
+                    curveSegmentsValue.textContent = this.curveSegments;
+                });
+
+                // Bezier smoothing controls
+                const bezierDistance = document.getElementById('bezierDistance');
+                const bezierDistanceValue = document.getElementById('bezierDistanceValue');
+                bezierDistance.addEventListener('input', (e) => {
+                    this.bezierDistance = parseFloat(e.target.value);
+                    bezierDistanceValue.textContent = this.bezierDistance;
+                });
+
+                const bezierSmoothness = document.getElementById('bezierSmoothness');
+                const bezierSmoothnessValue = document.getElementById('bezierSmoothnessValue');
+                bezierSmoothness.addEventListener('input', (e) => {
+                    this.bezierSmoothness = parseFloat(e.target.value);
+                    bezierSmoothnessValue.textContent = this.bezierSmoothness;
+                });
+
+                const bezierResolution = document.getElementById('bezierResolution');
+                const bezierResolutionValue = document.getElementById('bezierResolutionValue');
+                bezierResolution.addEventListener('input', (e) => {
+                    this.bezierResolution = parseInt(e.target.value);
+                    bezierResolutionValue.textContent = this.bezierResolution;
                 });
 
                 // Opacity control
@@ -684,7 +791,7 @@
                 const shadowBlur = document.getElementById('shadowBlur');
                 const shadowBlurValue = document.getElementById('shadowBlurValue');
                 shadowBlur.addEventListener('input', (e) => {
-                    this.shadowBlur = parseInt(e.target.value);
+                    this.shadowBlur = parseFloat(e.target.value);
                     shadowBlurValue.textContent = `${this.shadowBlur}px`;
                 });
 
@@ -815,6 +922,159 @@
                 return smoothedPoints;
             }
 
+            applyCatmullRomSmoothing(points) {
+                if (points.length < 4) return points;
+                
+                const smoothedPoints = [];
+                const tension = this.splineTension;
+                const segments = this.curveSegments;
+                
+                // Add the first point
+                smoothedPoints.push(points[0]);
+                
+                // Process each curve segment
+                for (let i = 0; i < points.length - 1; i++) {
+                    // Get the four control points for the spline
+                    const p0 = i === 0 ? points[0] : points[i - 1];
+                    const p1 = points[i];
+                    const p2 = points[i + 1];
+                    const p3 = i === points.length - 2 ? points[points.length - 1] : points[i + 2];
+                    
+                    // Generate interpolated points along the curve
+                    for (let t = 0; t < 1; t += 1 / segments) {
+                        if (t === 0 && i > 0) continue; // Skip duplicate points
+                        
+                        const tt = t * t;
+                        const ttt = tt * t;
+                        
+                        // Catmull-Rom basis functions
+                        const q0 = -tension * ttt + 2 * tension * tt - tension * t;
+                        const q1 = (2 - tension) * ttt + (tension - 3) * tt + 1;
+                        const q2 = (tension - 2) * ttt + (3 - 2 * tension) * tt + tension * t;
+                        const q3 = tension * ttt - tension * tt;
+                        
+                        const x = p0.x * q0 + p1.x * q1 + p2.x * q2 + p3.x * q3;
+                        const y = p0.y * q0 + p1.y * q1 + p2.y * q2 + p3.y * q3;
+                        
+                        smoothedPoints.push({ x, y });
+                    }
+                }
+                
+                // Add the last point
+                smoothedPoints.push(points[points.length - 1]);
+                
+                return smoothedPoints;
+            }
+
+            applyBezierSmoothing(points) {
+                if (points.length < 3) return points;
+                
+                const smoothedPoints = [];
+                const distance = this.bezierDistance;
+                const smoothness = this.bezierSmoothness;
+                const resolution = this.bezierResolution;
+                
+                // Add the first point
+                smoothedPoints.push(points[0]);
+                
+                // Process each segment
+                for (let i = 0; i < points.length - 1; i++) {
+                    const p0 = points[i];
+                    const p1 = points[i + 1];
+                    
+                    // Calculate segment length for control point scaling
+                    const segmentLength = Math.sqrt((p1.x - p0.x) ** 2 + (p1.y - p0.y) ** 2);
+                    if (segmentLength < 1) continue; // Skip very short segments
+                    
+                    // Calculate control points with improved stability
+                    let cp1, cp2;
+                    
+                    // Get tangent directions at each point
+                    let tangent1X, tangent1Y, tangent2X, tangent2Y;
+                    
+                    if (i === 0) {
+                        // First point: use direction to next point
+                        tangent1X = p1.x - p0.x;
+                        tangent1Y = p1.y - p0.y;
+                    } else {
+                        // Calculate smooth tangent based on previous and next points
+                        const prevPoint = points[i - 1];
+                        const dx1 = p0.x - prevPoint.x;
+                        const dy1 = p0.y - prevPoint.y;
+                        const dx2 = p1.x - p0.x;
+                        const dy2 = p1.y - p0.y;
+                        
+                        // Blend the directions with smoothness factor
+                        tangent1X = dx2 * (1 - smoothness) + dx1 * smoothness;
+                        tangent1Y = dy2 * (1 - smoothness) + dy1 * smoothness;
+                    }
+                    
+                    if (i === points.length - 2) {
+                        // Last point: use direction from previous point
+                        tangent2X = p1.x - p0.x;
+                        tangent2Y = p1.y - p0.y;
+                    } else {
+                        // Calculate smooth tangent based on current and next points
+                        const nextPoint = points[i + 2];
+                        const dx1 = p1.x - p0.x;
+                        const dy1 = p1.y - p0.y;
+                        const dx2 = nextPoint.x - p1.x;
+                        const dy2 = nextPoint.y - p1.y;
+                        
+                        // Blend the directions with smoothness factor
+                        tangent2X = dx1 * (1 - smoothness) + dx2 * smoothness;
+                        tangent2Y = dy1 * (1 - smoothness) + dy2 * smoothness;
+                    }
+                    
+                    // Normalize tangents
+                    const len1 = Math.sqrt(tangent1X * tangent1X + tangent1Y * tangent1Y);
+                    const len2 = Math.sqrt(tangent2X * tangent2X + tangent2Y * tangent2Y);
+                    
+                    if (len1 > 0) {
+                        tangent1X /= len1;
+                        tangent1Y /= len1;
+                    }
+                    if (len2 > 0) {
+                        tangent2X /= len2;
+                        tangent2Y /= len2;
+                    }
+                    
+                    // Calculate control points with limited extension
+                    const controlDistance = segmentLength * distance * 0.5; // Limit control point distance
+                    
+                    cp1 = {
+                        x: p0.x + tangent1X * controlDistance,
+                        y: p0.y + tangent1Y * controlDistance
+                    };
+                    
+                    cp2 = {
+                        x: p1.x - tangent2X * controlDistance,
+                        y: p1.y - tangent2Y * controlDistance
+                    };
+                    
+                    // Generate Bezier curve points
+                    for (let t = 0; t < 1; t += 1 / resolution) {
+                        if (t === 0 && i > 0) continue; // Skip duplicate points
+                        
+                        const mt = 1 - t;
+                        const mt2 = mt * mt;
+                        const mt3 = mt2 * mt;
+                        const t2 = t * t;
+                        const t3 = t2 * t;
+                        
+                        const x = mt3 * p0.x + 3 * mt2 * t * cp1.x + 3 * mt * t2 * cp2.x + t3 * p1.x;
+                        const y = mt3 * p0.y + 3 * mt2 * t * cp1.y + 3 * mt * t2 * cp2.y + t3 * p1.y;
+                        
+                        smoothedPoints.push({ x, y });
+                    }
+                }
+                
+                // Add the last point
+                smoothedPoints.push(points[points.length - 1]);
+                
+                return smoothedPoints;
+            }
+
             createTaperedStrokePath(points, isEnding = false) {
                 if (points.length < 2) return '';
 
@@ -822,6 +1082,10 @@
                 let processedPoints = points;
                 if (this.smoothingMethod === 'chaikin') {
                     processedPoints = this.applyChaikinSmoothing(points, this.smoothingIterations);
+                } else if (this.smoothingMethod === 'catmullrom') {
+                    processedPoints = this.applyCatmullRomSmoothing(points);
+                } else if (this.smoothingMethod === 'bezier') {
+                    processedPoints = this.applyBezierSmoothing(points);
                 }
 
                 const leftPoints = [];
@@ -911,57 +1175,83 @@
             }
 
             copyAllSettings() {
-                // Gather all current settings from the menu
-                const settings = {
-                    strokeWidth: this.strokeWidth,
-                    strokeOpacity: this.strokeOpacity,
-                    enableTapering: this.enableTapering,
-                    startTaper: this.startTaper,
-                    endTaper: this.endTaper,
-                    taperStart: Math.round(this.taperStart * 100) // Convert back to percentage for display
+                // Read ALL settings from the UI regardless of visibility/state
+                const strokeWidth = document.getElementById('strokeWidth').value;
+                const strokeColor = document.getElementById('strokeColor').value;
+                const previewColor = document.getElementById('previewColor').value;
+                const smoothingMethod = document.getElementById('smoothingMethod').value;
+                const strokeOpacity = document.getElementById('strokeOpacity').value;
+                const enableShadow = document.getElementById('enableShadow').checked;
+                const enableTapering = document.getElementById('enableTapering').checked;
+
+                // Get smoothing method display name
+                const smoothingOptions = {
+                    'none': 'Direct (No Smoothing)',
+                    'chaikin': 'Chaikin Smoothing',
+                    'catmullrom': 'Catmull-Rom Splines',
+                    'bezier': 'Bezier Smoothing'
                 };
 
-                // Format the settings for easy sharing
+                // Read ALL smoothing algorithm settings (regardless of which is active)
+                const chaikinIterations = document.getElementById('smoothingIterations').value;
+                const chaikinFactor = document.getElementById('smoothingFactor').value;
+                const catmullTension = document.getElementById('splineTension').value;
+                const catmullSegments = document.getElementById('curveSegments').value;
+                const bezierDistance = document.getElementById('bezierDistance').value;
+                const bezierSmoothness = document.getElementById('bezierSmoothness').value;
+                const bezierResolution = document.getElementById('bezierResolution').value;
+
+                // Read ALL shadow settings (regardless of enabled state)
+                const shadowOffsetX = document.getElementById('shadowOffsetX').value;
+                const shadowOffsetY = document.getElementById('shadowOffsetY').value;
+                const shadowBlur = document.getElementById('shadowBlur').value;
+                const shadowColor = document.getElementById('shadowColor').value;
+                const shadowOpacity = document.getElementById('shadowOpacity').value;
+
+                // Read ALL tapering settings (regardless of enabled state)
+                const startTaper = document.getElementById('startTaper').value;
+                const endTaper = document.getElementById('endTaper').value;
+                const taperStart = document.getElementById('taperStart').value;
+
+                // Build complete settings text with ALL parameters
                 let settingsText = `Drawing App Settings:
 ═══════════════════════
 
 📐 STROKE PROPERTIES:
-• Stroke Width: ${settings.strokeWidth}px
-• Stroke Color: ${this.strokeColor.toUpperCase()}
-• Preview Ink Color: ${this.previewColor.toUpperCase()}
-• Smoothing Method: ${this.smoothingMethod === 'none' ? 'Direct (No Smoothing)' : 'Chaikin Smoothing'}`;
+• Stroke Width: ${strokeWidth}px
+• Stroke Color: ${strokeColor.toUpperCase()}
+• Preview Ink Color: ${previewColor.toUpperCase()}
+• Smoothing Method: ${smoothingOptions[smoothingMethod] || smoothingMethod}
+• Opacity: ${Math.round(strokeOpacity * 100)}%
+• Drop Shadow: ${enableShadow ? 'Enabled' : 'Disabled'}
 
-                // Add Chaikin settings if enabled
-                if (this.smoothingMethod === 'chaikin') {
-                    settingsText += `
-  ↳ Smoothing Iterations: ${this.smoothingIterations}
-  ↳ Smoothing Factor: ${this.smoothingFactor}`;
-                }
+🎛️ SMOOTHING ALGORITHMS:
+• Chaikin Smoothing:
+  ↳ Smoothing Iterations: ${chaikinIterations}
+  ↳ Smoothing Factor: ${chaikinFactor}
+• Catmull-Rom Splines:
+  ↳ Tension: ${catmullTension}
+  ↳ Curve Segments: ${catmullSegments}
+• Bezier Smoothing:
+  ↳ Control Point Distance: ${bezierDistance}
+  ↳ Smoothness: ${bezierSmoothness}
+  ↳ Resolution: ${bezierResolution}
 
-                settingsText += `
-• Opacity: ${Math.round(settings.strokeOpacity * 100)}%
-• Drop Shadow: ${this.enableShadow ? 'Enabled' : 'Disabled'}`;
-
-                // Add shadow settings if enabled
-                if (this.enableShadow) {
-                    settingsText += `
-  ↳ Shadow Offset X: ${this.shadowOffsetX}px
-  ↳ Shadow Offset Y: ${this.shadowOffsetY}px
-  ↳ Shadow Blur: ${this.shadowBlur}px
-  ↳ Shadow Color: ${this.shadowColor.toUpperCase()}
-  ↳ Shadow Opacity: ${Math.round(this.shadowOpacity * 100)}%`;
-                }
-
-                settingsText += `
+🌫️ DROP SHADOW SETTINGS:
+• Shadow Offset X: ${shadowOffsetX}px
+• Shadow Offset Y: ${shadowOffsetY}px
+• Shadow Blur: ${shadowBlur}px
+• Shadow Color: ${shadowColor.toUpperCase()}
+• Shadow Opacity: ${Math.round(shadowOpacity * 100)}%
 
 🎨 STROKE TAPERING:
-• Enable Tapering: ${settings.enableTapering ? 'Yes' : 'No'}
-• Start Taper Amount: ${Math.round(settings.startTaper * 100)}%
-• End Taper Amount: ${Math.round(settings.endTaper * 100)}%
-• Taper Start Point: ${settings.taperStart}%
+• Enable Tapering: ${enableTapering ? 'Yes' : 'No'}
+• Start Taper Amount: ${Math.round(startTaper * 100)}%
+• End Taper Amount: ${Math.round(endTaper * 100)}%
+• Taper Start Point: ${taperStart}%
 
 ═══════════════════════
-Copy this to share your current settings!`;
+Complete settings snapshot for establishing defaults`;
 
                 // Copy to clipboard
                 if (navigator.clipboard && navigator.clipboard.writeText) {
