@@ -16,6 +16,10 @@
             cursor: crosshair;
             background: white;
         }
+
+        #drawingArea.eraser-mode {
+            cursor: none;
+        }
         
         .icon-button {
             transition: all 0.2s ease;
@@ -31,6 +35,16 @@
 
         .menu-overlay {
             backdrop-filter: blur(8px);
+        }
+
+        .eraser-cursor {
+            position: fixed;
+            border: 2px dotted #6b7280;
+            border-radius: 50%;
+            background: rgba(107, 114, 128, 0.1);
+            pointer-events: none;
+            z-index: 100;
+            display: none;
         }
 
         /* Dark mode support - but keep drawing area white */
@@ -62,6 +76,11 @@
         </svg>
     </button>
 
+
+
+    <!-- Custom Eraser Cursor -->
+    <div id="eraserCursor" class="eraser-cursor"></div>
+
     <!-- Hidden Menu -->
     <div id="menuOverlay" class="menu-overlay fixed inset-0 bg-black bg-opacity-50 z-40 hidden">
         <div id="menuPanel" class="fixed top-0 left-0 h-full w-80 bg-gray-50 border-r border-gray-200 transform -translate-x-full transition-transform duration-300 flex flex-col">
@@ -75,6 +94,49 @@
             </div>
 
             <div class="flex-1 overflow-y-auto p-4 space-y-5">
+                <!-- Eraser Controls -->
+                <div>
+                    <h3 class="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Eraser Settings</h3>
+                    <div class="space-y-4">
+
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-800 mb-1">Min Eraser Size</label>
+                            <input type="range" id="eraserMinSize" min="5" max="30" value="10" class="w-full text-sm">
+                            <div class="flex justify-between items-center">
+                                <span id="eraserMinSizeValue" class="text-xs text-gray-600">10px</span>
+                            </div>
+                            <p class="text-[10px] text-gray-500 mt-1">Minimum eraser size (very slow movement)</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-800 mb-1">Max Eraser Size</label>
+                            <input type="range" id="eraserMaxSize" min="20" max="100" value="100" class="w-full text-sm">
+                            <div class="flex justify-between items-center">
+                                <span id="eraserMaxSizeValue" class="text-xs text-gray-600">100px</span>
+                            </div>
+                            <p class="text-[10px] text-gray-500 mt-1">Maximum eraser size (very fast movement)</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-800 mb-1">Speed Threshold</label>
+                            <input type="range" id="eraserSpeedThreshold" min="10" max="200" value="200" class="w-full text-sm">
+                            <div class="flex justify-between items-center">
+                                <span id="eraserSpeedThresholdValue" class="text-xs text-gray-600">200 px/s</span>
+                            </div>
+                            <p class="text-[10px] text-gray-500 mt-1">Speed at which eraser starts growing larger</p>
+                        </div>
+
+                        <div>
+                            <p class="text-xs text-gray-600">Flip your Microsoft Surface Pen to use the eraser end</p>
+                            <p class="text-[10px] text-gray-500 mt-1">💡 Move faster for larger erase area, slower for precision</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Separator -->
+                <div class="border-t border-gray-300"></div>
+
                 <!-- Basic Stroke Properties -->
                 <div>
                     <h3 class="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Stroke Properties</h3>
@@ -357,6 +419,17 @@
                 this.endTaper = 0.5; // How much the end tapers (0-1)  
                 this.taperStart = 0.97; // Where tapering begins (0-1)
                 this.presenter = null;
+                this.isErasing = false;
+                this.eraserSize = 20;
+                this.eraserMinSize = 10;
+                this.eraserMaxSize = 100;
+                this.eraserSpeedThreshold = 200;
+                this.currentEraserSize = this.eraserMinSize;
+                this.targetEraserSize = this.eraserMinSize;
+                this.lastEraserPoint = null;
+                this.lastEraserTime = 0;
+                this.eraserSpeed = 0;
+                this.eraserCursor = document.getElementById('eraserCursor');
                 
                 this.setupCanvas();
                 this.setupEventListeners();
@@ -367,13 +440,111 @@
             setupCanvas() {
                 this.resizeCanvas();
                 this.setupShadowFilter();
+                this.setupDrawingGroup();
                 window.addEventListener('resize', () => this.resizeCanvas());
+            }
+
+            setupDrawingGroup() {
+                // Simple group for all drawing paths - no masking
+                this.drawingGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                this.svg.appendChild(this.drawingGroup);
+                
+                // Store all stroke data for real erasing
+                this.allStrokes = [];
+            }
+
+            detectEraserMode(e) {
+                // Very conservative detection - only use the most reliable methods
+                const isEraser = (
+                    e.button === 5 || // Eraser button (primary detection)
+                    (e.buttons & 32) !== 0 // Eraser button bitmask (32 = 0x20)
+                );
+                
+                return isEraser;
+            }
+
+            calculateEraserSpeed(point) {
+                const currentTime = Date.now();
+                
+                if (this.lastEraserPoint && this.lastEraserTime) {
+                    const distance = Math.sqrt(
+                        (point.x - this.lastEraserPoint.x) ** 2 + 
+                        (point.y - this.lastEraserPoint.y) ** 2
+                    );
+                    const timeDelta = currentTime - this.lastEraserTime;
+                    
+                    if (timeDelta > 0) {
+                        // Calculate speed in pixels per second
+                        const speed = (distance / timeDelta) * 1000;
+                        
+                        // Smooth the speed using exponential moving average
+                        this.eraserSpeed = this.eraserSpeed * 0.7 + speed * 0.3;
+                    }
+                }
+                
+                this.lastEraserPoint = point;
+                this.lastEraserTime = currentTime;
+                
+                // Calculate dynamic eraser size based on speed
+                this.updateDynamicEraserSize();
+            }
+
+            updateDynamicEraserSize() {
+                // Map speed to eraser size
+                let speedFactor = 0;
+                
+                if (this.eraserSpeed > this.eraserSpeedThreshold) {
+                    // Speed above threshold - scale eraser size
+                    const speedOverThreshold = this.eraserSpeed - this.eraserSpeedThreshold;
+                    const maxSpeedRange = 300; // Max expected speed for scaling
+                    speedFactor = Math.min(speedOverThreshold / maxSpeedRange, 1);
+                }
+                
+                // Calculate target size based on speed
+                this.targetEraserSize = this.eraserMinSize + 
+                    (this.eraserMaxSize - this.eraserMinSize) * speedFactor;
+                
+                // Ensure target is within bounds
+                this.targetEraserSize = Math.max(this.eraserMinSize, 
+                    Math.min(this.eraserMaxSize, this.targetEraserSize));
+                
+                // Smooth interpolation towards target size (much smoother)
+                const lerpFactor = 0.15; // Lower = smoother/slower, higher = more responsive
+                this.currentEraserSize = this.currentEraserSize + 
+                    (this.targetEraserSize - this.currentEraserSize) * lerpFactor;
+            }
+
+            updateEraserCursor(e) {
+                if (this.isErasing) {
+                    // Calculate speed and update dynamic size
+                    const point = this.getPoint(e);
+                    this.calculateEraserSpeed(point);
+                    
+                    const rect = this.svg.getBoundingClientRect();
+                    const x = (e.clientX || e.pageX) - this.currentEraserSize / 2;
+                    const y = (e.clientY || e.pageY) - this.currentEraserSize / 2;
+                    
+                    this.eraserCursor.style.left = x + 'px';
+                    this.eraserCursor.style.top = y + 'px';
+                    this.eraserCursor.style.width = this.currentEraserSize + 'px';
+                    this.eraserCursor.style.height = this.currentEraserSize + 'px';
+                    this.eraserCursor.style.display = 'block';
+                } else {
+                    this.eraserCursor.style.display = 'none';
+                    // Reset speed tracking when not erasing
+                    this.lastEraserPoint = null;
+                    this.lastEraserTime = 0;
+                    this.eraserSpeed = 0;
+                    this.currentEraserSize = this.eraserMinSize;
+                }
             }
 
             setupShadowFilter() {
                 // Create SVG defs section for filters
-                const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-                this.svg.appendChild(defs);
+                const defs = this.svg.querySelector('defs') || document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+                if (!this.svg.querySelector('defs')) {
+                    this.svg.appendChild(defs);
+                }
                 
                 // Create drop shadow filter
                 this.shadowFilter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
@@ -495,9 +666,27 @@
                 });
 
                 this.svg.addEventListener('pointermove', (e) => {
-                    if (e.pointerType === 'pen' && this.isDrawing) {
+                    if (e.pointerType === 'pen') {
                         e.preventDefault();
-                        this.continueDrawing(e);
+                        
+                        // Check for eraser mode and update cursor
+                        const wasErasing = this.isErasing;
+                        this.isErasing = this.detectEraserMode(e);
+                        
+                        if (this.isErasing !== wasErasing) {
+                            // Mode changed
+                            if (this.isErasing) {
+                                this.svg.classList.add('eraser-mode');
+                            } else {
+                                this.svg.classList.remove('eraser-mode');
+                            }
+                        }
+                        
+                        this.updateEraserCursor(e);
+                        
+                        if (this.isDrawing) {
+                            this.continueDrawing(e);
+                        }
                     }
                 });
 
@@ -511,6 +700,15 @@
                 this.svg.addEventListener('pointercancel', (e) => {
                     if (e.pointerType === 'pen' && this.isDrawing) {
                         this.stopDrawing(e);
+                    }
+                });
+
+                // Handle pointer leaving the canvas
+                this.svg.addEventListener('pointerleave', (e) => {
+                    if (e.pointerType === 'pen') {
+                        this.isErasing = false;
+                        this.svg.classList.remove('eraser-mode');
+                        this.eraserCursor.style.display = 'none';
                     }
                 });
 
@@ -536,25 +734,58 @@
                 this.isDrawing = true;
                 this.currentPoints = [];
                 
-                const point = this.getPoint(e);
-                this.currentPoints.push({ ...point, timestamp: Date.now() });
+                // Check if in eraser mode
+                this.isErasing = this.detectEraserMode(e);
                 
-                // Create new path element for tapered stroke
-                this.currentPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                this.currentPath.setAttribute('fill', this.strokeColor);
-                this.currentPath.setAttribute('fill-opacity', this.strokeOpacity);
-                this.currentPath.setAttribute('stroke', 'none');
-                
-                // Apply shadow filter if enabled
-                if (this.enableShadow) {
-                    this.updateShadowFilter();
-                    this.currentPath.setAttribute('filter', 'url(#dropShadow)');
+                if (this.isErasing) {
+                    this.svg.classList.add('eraser-mode');
+                    // Start erasing immediately
+                    const point = this.getPoint(e);
+                    this.eraseAtPoint(point.x, point.y);
+                } else {
+                    this.svg.classList.remove('eraser-mode');
+                    
+                    const point = this.getPoint(e);
+                    this.currentPoints.push({ ...point, timestamp: Date.now() });
+                    
+                    // Create new path element for tapered stroke
+                    this.currentPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    this.currentPath.setAttribute('fill', this.strokeColor);
+                    this.currentPath.setAttribute('fill-opacity', this.strokeOpacity);
+                    this.currentPath.setAttribute('stroke', 'none');
+                    
+                    // Apply shadow filter if enabled
+                    if (this.enableShadow) {
+                        this.updateShadowFilter();
+                        this.currentPath.setAttribute('filter', 'url(#dropShadow)');
+                    }
+                    
+                    this.drawingGroup.appendChild(this.currentPath);
+                    
+                    // Store stroke data
+                    const strokeData = {
+                        element: this.currentPath,
+                        points: [...this.currentPoints],
+                        properties: {
+                            color: this.strokeColor,
+                            width: this.strokeWidth,
+                            opacity: this.strokeOpacity,
+                            tapering: this.enableTapering,
+                            startTaper: this.startTaper,
+                            endTaper: this.endTaper,
+                            taperStart: this.taperStart,
+                            smoothing: this.smoothingMethod,
+                            smoothingIterations: this.smoothingIterations,
+                            smoothingFactor: this.smoothingFactor
+                        }
+                    };
+                    this.allStrokes.push(strokeData);
                 }
                 
-                this.svg.appendChild(this.currentPath);
+                this.updateEraserCursor(e);
                 
-                // Update Ink API
-                if (this.presenter && e.pointerId !== undefined) {
+                // Update Ink API (disable for eraser mode)
+                if (this.presenter && e.pointerId !== undefined && !this.isErasing) {
                     try {
                         this.presenter.updateInkTrailStartPoint(e, {
                             color: this.previewColor,
@@ -567,16 +798,32 @@
             }
 
             continueDrawing(e) {
-                if (!this.isDrawing || !this.currentPath) return;
+                if (!this.isDrawing) return;
                 
                 const point = this.getPoint(e);
-                this.currentPoints.push({ ...point, timestamp: Date.now() });
                 
-                // Update the tapered stroke path
-                this.updateTaperedPath();
+                if (this.isErasing) {
+                    // Continue erasing at current point
+                    this.eraseAtPoint(point.x, point.y);
+                } else {
+                    if (!this.currentPath) return;
+                    
+                    this.currentPoints.push({ ...point, timestamp: Date.now() });
+                    
+                    // Update the current stroke's stored points
+                    const currentStroke = this.allStrokes[this.allStrokes.length - 1];
+                    if (currentStroke) {
+                        currentStroke.points = [...this.currentPoints];
+                    }
+                    
+                    // Update the tapered stroke path
+                    this.updateTaperedPath();
+                }
                 
-                // Update Ink API
-                if (this.presenter && e.pointerId !== undefined) {
+                this.updateEraserCursor(e);
+                
+                // Update Ink API (disable for eraser mode)
+                if (this.presenter && e.pointerId !== undefined && !this.isErasing) {
                     try {
                         this.presenter.updateInkTrailStartPoint(e, {
                             color: this.previewColor,
@@ -591,13 +838,16 @@
             stopDrawing(e) {
                 this.isDrawing = false;
                 
-                // Final update with taper at the end
-                if (this.currentPath && this.currentPoints.length > 1) {
+                // Final update with taper at the end (only for drawing, not erasing)
+                if (this.currentPath && this.currentPoints.length > 1 && !this.isErasing) {
                     this.updateTaperedPath(true);
                 }
                 
                 this.currentPath = null;
                 this.currentPoints = [];
+                
+                // Hide eraser cursor
+                this.eraserCursor.style.display = 'none';
             }
 
             getPoint(e) {
@@ -608,233 +858,48 @@
                 };
             }
 
-            clearCanvas() {
-                // Remove all paths
-                const paths = this.svg.querySelectorAll('path');
-                paths.forEach(path => path.remove());
+            eraseAtPoint(x, y) {
+                // Use the dynamic eraser size
+                const eraserRadius = this.currentEraserSize / 2;
+                const strokesToRemove = [];
+                
+                // Check each stroke for intersection with eraser circle
+                for (let i = 0; i < this.allStrokes.length; i++) {
+                    const stroke = this.allStrokes[i];
+                    let shouldRemove = false;
+                    
+                    // Check if any point in the stroke is within eraser radius
+                    for (const point of stroke.points) {
+                        const distance = Math.sqrt((point.x - x) ** 2 + (point.y - y) ** 2);
+                        if (distance <= eraserRadius) {
+                            shouldRemove = true;
+                            break;
+                        }
+                    }
+                    
+                    if (shouldRemove) {
+                        // Remove from DOM
+                        if (stroke.element && stroke.element.parentNode) {
+                            stroke.element.parentNode.removeChild(stroke.element);
+                        }
+                        strokesToRemove.push(i);
+                    }
+                }
+                
+                // Remove from stroke array (in reverse order to maintain indices)
+                for (let i = strokesToRemove.length - 1; i >= 0; i--) {
+                    this.allStrokes.splice(strokesToRemove[i], 1);
+                }
             }
 
-
-
-            setupMenu() {
-                const menuButton = document.getElementById('menuButton');
-                const menuOverlay = document.getElementById('menuOverlay');
-                const menuPanel = document.getElementById('menuPanel');
-                const copySettings = document.getElementById('copySettings');
-
-                menuButton.addEventListener('click', () => {
-                    menuOverlay.classList.remove('hidden');
-                    menuButton.style.display = 'none'; // Hide menu button
-                    setTimeout(() => {
-                        menuPanel.style.transform = 'translateX(0)';
-                    }, 10);
-                });
-
-                const closeMenuFunc = () => {
-                    menuPanel.style.transform = 'translateX(-100%)';
-                    setTimeout(() => {
-                        menuOverlay.classList.add('hidden');
-                        menuButton.style.display = 'block'; // Show menu button again
-                    }, 300);
-                };
-
-                // Copy settings functionality
-                copySettings.addEventListener('click', () => {
-                    this.copyAllSettings();
-                });
-
-                menuOverlay.addEventListener('click', (e) => {
-                    if (e.target === menuOverlay) {
-                        closeMenuFunc();
-                    }
-                });
-
-                // Stroke width control
-                const strokeWidth = document.getElementById('strokeWidth');
-                const strokeWidthValue = document.getElementById('strokeWidthValue');
-                strokeWidth.addEventListener('input', (e) => {
-                    this.strokeWidth = parseInt(e.target.value);
-                    strokeWidthValue.textContent = `${this.strokeWidth}px`;
-                });
-
-                // Stroke color control
-                const strokeColor = document.getElementById('strokeColor');
-                const strokeColorValue = document.getElementById('strokeColorValue');
-                strokeColor.addEventListener('input', (e) => {
-                    this.strokeColor = e.target.value;
-                    strokeColorValue.textContent = this.strokeColor.toUpperCase();
-                });
-
-                // Preview ink color control
-                const previewColor = document.getElementById('previewColor');
-                const previewColorValue = document.getElementById('previewColorValue');
-                previewColor.addEventListener('input', (e) => {
-                    this.previewColor = e.target.value;
-                    previewColorValue.textContent = this.previewColor.toUpperCase();
-                });
-
-                // Smoothing method control
-                const smoothingMethod = document.getElementById('smoothingMethod');
-                const chaikinSettings = document.getElementById('chaikinSettings');
-                const catmullromSettings = document.getElementById('catmullromSettings');
-                const bezierSettings = document.getElementById('bezierSettings');
-                smoothingMethod.addEventListener('change', (e) => {
-                    this.smoothingMethod = e.target.value;
-                    // Show/hide settings based on selection
-                    if (e.target.value === 'chaikin') {
-                        chaikinSettings.classList.remove('hidden');
-                        catmullromSettings.classList.add('hidden');
-                        bezierSettings.classList.add('hidden');
-                    } else if (e.target.value === 'catmullrom') {
-                        chaikinSettings.classList.add('hidden');
-                        catmullromSettings.classList.remove('hidden');
-                        bezierSettings.classList.add('hidden');
-                    } else if (e.target.value === 'bezier') {
-                        chaikinSettings.classList.add('hidden');
-                        catmullromSettings.classList.add('hidden');
-                        bezierSettings.classList.remove('hidden');
-                    } else {
-                        chaikinSettings.classList.add('hidden');
-                        catmullromSettings.classList.add('hidden');
-                        bezierSettings.classList.add('hidden');
-                    }
-                });
-
-                // Chaikin smoothing controls
-                const smoothingIterations = document.getElementById('smoothingIterations');
-                const smoothingIterationsValue = document.getElementById('smoothingIterationsValue');
-                smoothingIterations.addEventListener('input', (e) => {
-                    this.smoothingIterations = parseInt(e.target.value);
-                    smoothingIterationsValue.textContent = this.smoothingIterations;
-                });
-
-                const smoothingFactor = document.getElementById('smoothingFactor');
-                const smoothingFactorValue = document.getElementById('smoothingFactorValue');
-                smoothingFactor.addEventListener('input', (e) => {
-                    this.smoothingFactor = parseFloat(e.target.value);
-                    smoothingFactorValue.textContent = this.smoothingFactor;
-                });
-
-                // Catmull-Rom spline controls
-                const splineTension = document.getElementById('splineTension');
-                const splineTensionValue = document.getElementById('splineTensionValue');
-                splineTension.addEventListener('input', (e) => {
-                    this.splineTension = parseFloat(e.target.value);
-                    splineTensionValue.textContent = this.splineTension;
-                });
-
-                const curveSegments = document.getElementById('curveSegments');
-                const curveSegmentsValue = document.getElementById('curveSegmentsValue');
-                curveSegments.addEventListener('input', (e) => {
-                    this.curveSegments = parseInt(e.target.value);
-                    curveSegmentsValue.textContent = this.curveSegments;
-                });
-
-                // Bezier smoothing controls
-                const bezierDistance = document.getElementById('bezierDistance');
-                const bezierDistanceValue = document.getElementById('bezierDistanceValue');
-                bezierDistance.addEventListener('input', (e) => {
-                    this.bezierDistance = parseFloat(e.target.value);
-                    bezierDistanceValue.textContent = this.bezierDistance;
-                });
-
-                const bezierSmoothness = document.getElementById('bezierSmoothness');
-                const bezierSmoothnessValue = document.getElementById('bezierSmoothnessValue');
-                bezierSmoothness.addEventListener('input', (e) => {
-                    this.bezierSmoothness = parseFloat(e.target.value);
-                    bezierSmoothnessValue.textContent = this.bezierSmoothness;
-                });
-
-                const bezierResolution = document.getElementById('bezierResolution');
-                const bezierResolutionValue = document.getElementById('bezierResolutionValue');
-                bezierResolution.addEventListener('input', (e) => {
-                    this.bezierResolution = parseInt(e.target.value);
-                    bezierResolutionValue.textContent = this.bezierResolution;
-                });
-
-                // Opacity control
-                const strokeOpacity = document.getElementById('strokeOpacity');
-                const strokeOpacityValue = document.getElementById('strokeOpacityValue');
-                strokeOpacity.addEventListener('input', (e) => {
-                    this.strokeOpacity = parseFloat(e.target.value);
-                    strokeOpacityValue.textContent = `${Math.round(this.strokeOpacity * 100)}%`;
-                });
-
-                // Shadow controls
-                const enableShadow = document.getElementById('enableShadow');
-                const shadowSettings = document.getElementById('shadowSettings');
-                enableShadow.addEventListener('change', (e) => {
-                    this.enableShadow = e.target.checked;
-                    if (e.target.checked) {
-                        shadowSettings.classList.remove('hidden');
-                    } else {
-                        shadowSettings.classList.add('hidden');
-                    }
-                });
-
-                const shadowOffsetX = document.getElementById('shadowOffsetX');
-                const shadowOffsetXValue = document.getElementById('shadowOffsetXValue');
-                shadowOffsetX.addEventListener('input', (e) => {
-                    this.shadowOffsetX = parseInt(e.target.value);
-                    shadowOffsetXValue.textContent = `${this.shadowOffsetX}px`;
-                });
-
-                const shadowOffsetY = document.getElementById('shadowOffsetY');
-                const shadowOffsetYValue = document.getElementById('shadowOffsetYValue');
-                shadowOffsetY.addEventListener('input', (e) => {
-                    this.shadowOffsetY = parseInt(e.target.value);
-                    shadowOffsetYValue.textContent = `${this.shadowOffsetY}px`;
-                });
-
-                const shadowBlur = document.getElementById('shadowBlur');
-                const shadowBlurValue = document.getElementById('shadowBlurValue');
-                shadowBlur.addEventListener('input', (e) => {
-                    this.shadowBlur = parseFloat(e.target.value);
-                    shadowBlurValue.textContent = `${this.shadowBlur}px`;
-                });
-
-                const shadowColor = document.getElementById('shadowColor');
-                const shadowColorValue = document.getElementById('shadowColorValue');
-                shadowColor.addEventListener('input', (e) => {
-                    this.shadowColor = e.target.value;
-                    shadowColorValue.textContent = this.shadowColor.toUpperCase();
-                });
-
-                const shadowOpacity = document.getElementById('shadowOpacity');
-                const shadowOpacityValue = document.getElementById('shadowOpacityValue');
-                shadowOpacity.addEventListener('input', (e) => {
-                    this.shadowOpacity = parseFloat(e.target.value);
-                    shadowOpacityValue.textContent = `${Math.round(this.shadowOpacity * 100)}%`;
-                });
-
-                // Tapering controls
-                const enableTapering = document.getElementById('enableTapering');
-                enableTapering.addEventListener('change', (e) => {
-                    this.enableTapering = e.target.checked;
-                });
-
-                const startTaper = document.getElementById('startTaper');
-                const startTaperValue = document.getElementById('startTaperValue');
-                startTaper.addEventListener('input', (e) => {
-                    this.startTaper = parseFloat(e.target.value);
-                    startTaperValue.textContent = `${Math.round(this.startTaper * 100)}%`;
-                });
-
-                const endTaper = document.getElementById('endTaper');
-                const endTaperValue = document.getElementById('endTaperValue');
-                endTaper.addEventListener('input', (e) => {
-                    this.endTaper = parseFloat(e.target.value);
-                    endTaperValue.textContent = `${Math.round(this.endTaper * 100)}%`;
-                });
-
-                const taperStart = document.getElementById('taperStart');
-                const taperStartValue = document.getElementById('taperStartValue');
-                taperStart.addEventListener('input', (e) => {
-                    const value = parseInt(e.target.value);
-                    this.taperStart = value / 100; // Convert from 50-100 range to 0.5-1.0 range
-                    taperStartValue.textContent = `${value}%`;
-                });
-
+            clearCanvas() {
+                // Remove all paths from drawing group
+                while (this.drawingGroup.firstChild) {
+                    this.drawingGroup.removeChild(this.drawingGroup.firstChild);
+                }
+                
+                // Clear stroke data
+                this.allStrokes = [];
             }
 
             updateTaperedPath(isEnding = false) {
@@ -1172,8 +1237,254 @@
                 return pathData;
             }
 
+            setupMenu() {
+                const menuButton = document.getElementById('menuButton');
+                const menuOverlay = document.getElementById('menuOverlay');
+                const menuPanel = document.getElementById('menuPanel');
+                const copySettings = document.getElementById('copySettings');
+
+                menuButton.addEventListener('click', () => {
+                    menuOverlay.classList.remove('hidden');
+                    menuButton.style.display = 'none'; // Hide menu button
+                    setTimeout(() => {
+                        menuPanel.style.transform = 'translateX(0)';
+                    }, 10);
+                });
+
+                const closeMenuFunc = () => {
+                    menuPanel.style.transform = 'translateX(-100%)';
+                    setTimeout(() => {
+                        menuOverlay.classList.add('hidden');
+                        menuButton.style.display = 'block'; // Show menu button again
+                    }, 300);
+                };
+
+                // Copy settings functionality
+                copySettings.addEventListener('click', () => {
+                    this.copyAllSettings();
+                });
+
+                menuOverlay.addEventListener('click', (e) => {
+                    if (e.target === menuOverlay) {
+                        closeMenuFunc();
+                    }
+                });
+
+                // Dynamic eraser controls
+                const eraserMinSize = document.getElementById('eraserMinSize');
+                const eraserMinSizeValue = document.getElementById('eraserMinSizeValue');
+                eraserMinSize.addEventListener('input', (e) => {
+                    this.eraserMinSize = parseInt(e.target.value);
+                    eraserMinSizeValue.textContent = `${this.eraserMinSize}px`;
+                });
+
+                const eraserMaxSize = document.getElementById('eraserMaxSize');
+                const eraserMaxSizeValue = document.getElementById('eraserMaxSizeValue');
+                eraserMaxSize.addEventListener('input', (e) => {
+                    this.eraserMaxSize = parseInt(e.target.value);
+                    eraserMaxSizeValue.textContent = `${this.eraserMaxSize}px`;
+                });
+
+                const eraserSpeedThreshold = document.getElementById('eraserSpeedThreshold');
+                const eraserSpeedThresholdValue = document.getElementById('eraserSpeedThresholdValue');
+                eraserSpeedThreshold.addEventListener('input', (e) => {
+                    this.eraserSpeedThreshold = parseInt(e.target.value);
+                    eraserSpeedThresholdValue.textContent = `${this.eraserSpeedThreshold} px/s`;
+                });
+
+                // Stroke width control
+                const strokeWidth = document.getElementById('strokeWidth');
+                const strokeWidthValue = document.getElementById('strokeWidthValue');
+                strokeWidth.addEventListener('input', (e) => {
+                    this.strokeWidth = parseInt(e.target.value);
+                    strokeWidthValue.textContent = `${this.strokeWidth}px`;
+                });
+
+                // Stroke color control
+                const strokeColor = document.getElementById('strokeColor');
+                const strokeColorValue = document.getElementById('strokeColorValue');
+                strokeColor.addEventListener('input', (e) => {
+                    this.strokeColor = e.target.value;
+                    strokeColorValue.textContent = this.strokeColor.toUpperCase();
+                });
+
+                // Preview ink color control
+                const previewColor = document.getElementById('previewColor');
+                const previewColorValue = document.getElementById('previewColorValue');
+                previewColor.addEventListener('input', (e) => {
+                    this.previewColor = e.target.value;
+                    previewColorValue.textContent = this.previewColor.toUpperCase();
+                });
+
+                // Smoothing method control
+                const smoothingMethod = document.getElementById('smoothingMethod');
+                const chaikinSettings = document.getElementById('chaikinSettings');
+                const catmullromSettings = document.getElementById('catmullromSettings');
+                const bezierSettings = document.getElementById('bezierSettings');
+                smoothingMethod.addEventListener('change', (e) => {
+                    this.smoothingMethod = e.target.value;
+                    // Show/hide settings based on selection
+                    if (e.target.value === 'chaikin') {
+                        chaikinSettings.classList.remove('hidden');
+                        catmullromSettings.classList.add('hidden');
+                        bezierSettings.classList.add('hidden');
+                    } else if (e.target.value === 'catmullrom') {
+                        chaikinSettings.classList.add('hidden');
+                        catmullromSettings.classList.remove('hidden');
+                        bezierSettings.classList.add('hidden');
+                    } else if (e.target.value === 'bezier') {
+                        chaikinSettings.classList.add('hidden');
+                        catmullromSettings.classList.add('hidden');
+                        bezierSettings.classList.remove('hidden');
+                    } else {
+                        chaikinSettings.classList.add('hidden');
+                        catmullromSettings.classList.add('hidden');
+                        bezierSettings.classList.add('hidden');
+                    }
+                });
+
+                // Chaikin smoothing controls
+                const smoothingIterations = document.getElementById('smoothingIterations');
+                const smoothingIterationsValue = document.getElementById('smoothingIterationsValue');
+                smoothingIterations.addEventListener('input', (e) => {
+                    this.smoothingIterations = parseInt(e.target.value);
+                    smoothingIterationsValue.textContent = this.smoothingIterations;
+                });
+
+                const smoothingFactor = document.getElementById('smoothingFactor');
+                const smoothingFactorValue = document.getElementById('smoothingFactorValue');
+                smoothingFactor.addEventListener('input', (e) => {
+                    this.smoothingFactor = parseFloat(e.target.value);
+                    smoothingFactorValue.textContent = this.smoothingFactor;
+                });
+
+                // Catmull-Rom spline controls
+                const splineTension = document.getElementById('splineTension');
+                const splineTensionValue = document.getElementById('splineTensionValue');
+                splineTension.addEventListener('input', (e) => {
+                    this.splineTension = parseFloat(e.target.value);
+                    splineTensionValue.textContent = this.splineTension;
+                });
+
+                const curveSegments = document.getElementById('curveSegments');
+                const curveSegmentsValue = document.getElementById('curveSegmentsValue');
+                curveSegments.addEventListener('input', (e) => {
+                    this.curveSegments = parseInt(e.target.value);
+                    curveSegmentsValue.textContent = this.curveSegments;
+                });
+
+                // Bezier smoothing controls
+                const bezierDistance = document.getElementById('bezierDistance');
+                const bezierDistanceValue = document.getElementById('bezierDistanceValue');
+                bezierDistance.addEventListener('input', (e) => {
+                    this.bezierDistance = parseFloat(e.target.value);
+                    bezierDistanceValue.textContent = this.bezierDistance;
+                });
+
+                const bezierSmoothness = document.getElementById('bezierSmoothness');
+                const bezierSmoothnessValue = document.getElementById('bezierSmoothnessValue');
+                bezierSmoothness.addEventListener('input', (e) => {
+                    this.bezierSmoothness = parseFloat(e.target.value);
+                    bezierSmoothnessValue.textContent = this.bezierSmoothness;
+                });
+
+                const bezierResolution = document.getElementById('bezierResolution');
+                const bezierResolutionValue = document.getElementById('bezierResolutionValue');
+                bezierResolution.addEventListener('input', (e) => {
+                    this.bezierResolution = parseInt(e.target.value);
+                    bezierResolutionValue.textContent = this.bezierResolution;
+                });
+
+                // Opacity control
+                const strokeOpacity = document.getElementById('strokeOpacity');
+                const strokeOpacityValue = document.getElementById('strokeOpacityValue');
+                strokeOpacity.addEventListener('input', (e) => {
+                    this.strokeOpacity = parseFloat(e.target.value);
+                    strokeOpacityValue.textContent = `${Math.round(this.strokeOpacity * 100)}%`;
+                });
+
+                // Shadow controls
+                const enableShadow = document.getElementById('enableShadow');
+                const shadowSettings = document.getElementById('shadowSettings');
+                enableShadow.addEventListener('change', (e) => {
+                    this.enableShadow = e.target.checked;
+                    if (e.target.checked) {
+                        shadowSettings.classList.remove('hidden');
+                    } else {
+                        shadowSettings.classList.add('hidden');
+                    }
+                });
+
+                const shadowOffsetX = document.getElementById('shadowOffsetX');
+                const shadowOffsetXValue = document.getElementById('shadowOffsetXValue');
+                shadowOffsetX.addEventListener('input', (e) => {
+                    this.shadowOffsetX = parseInt(e.target.value);
+                    shadowOffsetXValue.textContent = `${this.shadowOffsetX}px`;
+                });
+
+                const shadowOffsetY = document.getElementById('shadowOffsetY');
+                const shadowOffsetYValue = document.getElementById('shadowOffsetYValue');
+                shadowOffsetY.addEventListener('input', (e) => {
+                    this.shadowOffsetY = parseInt(e.target.value);
+                    shadowOffsetYValue.textContent = `${this.shadowOffsetY}px`;
+                });
+
+                const shadowBlur = document.getElementById('shadowBlur');
+                const shadowBlurValue = document.getElementById('shadowBlurValue');
+                shadowBlur.addEventListener('input', (e) => {
+                    this.shadowBlur = parseFloat(e.target.value);
+                    shadowBlurValue.textContent = `${this.shadowBlur}px`;
+                });
+
+                const shadowColor = document.getElementById('shadowColor');
+                const shadowColorValue = document.getElementById('shadowColorValue');
+                shadowColor.addEventListener('input', (e) => {
+                    this.shadowColor = e.target.value;
+                    shadowColorValue.textContent = this.shadowColor.toUpperCase();
+                });
+
+                const shadowOpacity = document.getElementById('shadowOpacity');
+                const shadowOpacityValue = document.getElementById('shadowOpacityValue');
+                shadowOpacity.addEventListener('input', (e) => {
+                    this.shadowOpacity = parseFloat(e.target.value);
+                    shadowOpacityValue.textContent = `${Math.round(this.shadowOpacity * 100)}%`;
+                });
+
+                // Tapering controls
+                const enableTapering = document.getElementById('enableTapering');
+                enableTapering.addEventListener('change', (e) => {
+                    this.enableTapering = e.target.checked;
+                });
+
+                const startTaper = document.getElementById('startTaper');
+                const startTaperValue = document.getElementById('startTaperValue');
+                startTaper.addEventListener('input', (e) => {
+                    this.startTaper = parseFloat(e.target.value);
+                    startTaperValue.textContent = `${Math.round(this.startTaper * 100)}%`;
+                });
+
+                const endTaper = document.getElementById('endTaper');
+                const endTaperValue = document.getElementById('endTaperValue');
+                endTaper.addEventListener('input', (e) => {
+                    this.endTaper = parseFloat(e.target.value);
+                    endTaperValue.textContent = `${Math.round(this.endTaper * 100)}%`;
+                });
+
+                const taperStart = document.getElementById('taperStart');
+                const taperStartValue = document.getElementById('taperStartValue');
+                taperStart.addEventListener('input', (e) => {
+                    const value = parseInt(e.target.value);
+                    this.taperStart = value / 100; // Convert from 50-100 range to 0.5-1.0 range
+                    taperStartValue.textContent = `${value}%`;
+                });
+
+            }
+
             copyAllSettings() {
                 // Read ALL settings from the UI regardless of visibility/state
+                const eraserMinSize = document.getElementById('eraserMinSize').value;
+                const eraserMaxSize = document.getElementById('eraserMaxSize').value;
+                const eraserSpeedThreshold = document.getElementById('eraserSpeedThreshold').value;
                 const strokeWidth = document.getElementById('strokeWidth').value;
                 const strokeColor = document.getElementById('strokeColor').value;
                 const previewColor = document.getElementById('previewColor').value;
@@ -1215,6 +1526,11 @@
                 let settingsText = `Drawing App Settings:
 ═══════════════════════
 
+🖊️ ERASER SETTINGS:
+• Min Eraser Size: ${eraserMinSize}px
+• Max Eraser Size: ${eraserMaxSize}px
+• Speed Threshold: ${eraserSpeedThreshold} px/s
+
 📐 STROKE PROPERTIES:
 • Stroke Width: ${strokeWidth}px
 • Stroke Color: ${strokeColor.toUpperCase()}
@@ -1249,7 +1565,7 @@
 • Taper Start Point: ${taperStart}%
 
 ═══════════════════════
-Complete settings snapshot for establishing defaults`;
+Complete settings snapshot with eraser functionality`;
 
                 // Copy to clipboard
                 if (navigator.clipboard && navigator.clipboard.writeText) {
