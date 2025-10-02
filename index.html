@@ -1,7 +1,7 @@
 <!DOCTYPE html><html lang="en"><head><meta name="x-poe-datastore-behavior" content="local_only"><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ink Drawing App Palm Reyection</title>
+    <title>Ink Drawing App</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -260,7 +260,7 @@
                     <div class="space-y-4">
                         <div>
                             <label class="block text-xs font-medium text-gray-800 mb-1">
-                                <input type="checkbox" id="enableTapering" class="mr-1"> Enable Tapering
+                                <input type="checkbox" id="enableTapering" checked="" class="mr-1"> Enable Tapering
                             </label>
                             <p class="text-[10px] text-gray-500 mt-1">Creates natural pen-like tapered stroke endings</p>
                         </div>
@@ -352,7 +352,7 @@
                 this.shadowBlur = 1.0;
                 this.shadowColor = '#000000';
                 this.shadowOpacity = 0.4;
-                this.enableTapering = false;
+                this.enableTapering = true;
                 this.startTaper = 0.3; // How much the start tapers (0-1)
                 this.endTaper = 0.5; // How much the end tapers (0-1)  
                 this.taperStart = 0.97; // Where tapering begins (0-1)
@@ -486,89 +486,41 @@
             }
 
             setupEventListeners() {
-                this.activePointerId = null; // Track the active pen pointer
-                
                 // Only stylus/pen input allowed
                 this.svg.addEventListener('pointerdown', (e) => {
-                    // Only accept pen input and only if no other pen is active
-                    if (e.pointerType === 'pen' && this.activePointerId === null) {
+                    if (e.pointerType === 'pen') {
                         e.preventDefault();
-                        e.stopPropagation();
-                        this.activePointerId = e.pointerId;
-                        this.svg.setPointerCapture(e.pointerId);
                         this.startDrawing(e);
-                    } else {
-                        // Reject any non-pen input or additional pen input
-                        e.preventDefault();
-                        e.stopPropagation();
                     }
                 });
 
                 this.svg.addEventListener('pointermove', (e) => {
-                    if (e.pointerType === 'pen' && e.pointerId === this.activePointerId && this.isDrawing) {
+                    if (e.pointerType === 'pen' && this.isDrawing) {
                         e.preventDefault();
-                        e.stopPropagation();
                         this.continueDrawing(e);
-                    } else {
-                        // Ignore all other pointer moves
-                        e.preventDefault();
-                        e.stopPropagation();
                     }
                 });
 
                 this.svg.addEventListener('pointerup', (e) => {
-                    if (e.pointerType === 'pen' && e.pointerId === this.activePointerId) {
+                    if (e.pointerType === 'pen') {
                         e.preventDefault();
-                        e.stopPropagation();
                         this.stopDrawing(e);
-                        this.svg.releasePointerCapture(e.pointerId);
-                        this.activePointerId = null;
-                    } else {
-                        // Ignore all other pointer ups
-                        e.preventDefault();
-                        e.stopPropagation();
                     }
                 });
 
                 this.svg.addEventListener('pointercancel', (e) => {
-                    if (e.pointerType === 'pen' && e.pointerId === this.activePointerId && this.isDrawing) {
+                    if (e.pointerType === 'pen' && this.isDrawing) {
                         this.stopDrawing(e);
-                        if (this.svg.hasPointerCapture && this.svg.hasPointerCapture(e.pointerId)) {
-                            this.svg.releasePointerCapture(e.pointerId);
-                        }
-                        this.activePointerId = null;
                     }
                 });
 
-                // Aggressively prevent all touch and mouse interactions
+                // Prevent all touch and mouse interactions
                 this.svg.addEventListener('touchstart', (e) => {
                     e.preventDefault();
-                    e.stopPropagation();
-                });
-
-                this.svg.addEventListener('touchmove', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                });
-
-                this.svg.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
                 });
 
                 this.svg.addEventListener('mousedown', (e) => {
                     e.preventDefault();
-                    e.stopPropagation();
-                });
-
-                this.svg.addEventListener('mousemove', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                });
-
-                this.svg.addEventListener('mouseup', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
                 });
 
                 // Clear button
