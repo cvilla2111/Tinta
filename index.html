@@ -1,819 +1,510 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta name="x-poe-datastore-behavior" content="local_only">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ink Drawing App</title>
+    <title>Pressure Drawing App</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <style>
-        /* Base styles */
-        body {
+        .drawing-canvas {
             touch-action: none;
             user-select: none;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
         }
         
-        /* Drawing area */
-        #drawingArea {
-            cursor: crosshair;
-            background: white;
-        }
-        
-        #drawingArea.eraser-mode {
-            cursor: none;
-        }
-        
-        /* Interactive buttons */
-        .icon-button {
-            transition: all 0.2s ease;
-        }
-        
-        .icon-button:hover {
-            transform: scale(1.1);
-        }
-        
-        .icon-button:active {
-            transform: scale(0.95);
-        }
-        
-        /* Menu overlay */
-        .menu-overlay {
-            backdrop-filter: blur(8px);
-        }
-        
-        /* Eraser cursor */
-        .eraser-cursor {
-            position: fixed;
-            border: 2px dotted #6b7280;
-            border-radius: 50%;
-            background: rgba(107, 114, 128, 0.05);
-            pointer-events: none;
-            z-index: 100;
-            display: none;
-        }
-        
-        /* Dark mode support */
-        @media (prefers-color-scheme: dark) {
-            .bg-white { background-color: #181818; }
-            .text-black { color: #ffffff; }
-            .text-gray-600 { color: #a0a0a0; }
-            .text-gray-800 { color: #e0e0e0; }
-            .bg-gray-50 { background-color: #2a2a2a; }
-            .border-gray-200 { border-color: #404040; }
+        .pressure-indicator {
+            transition: all 0.1s ease;
         }
     </style>
-    
-    <script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script>
 </head>
-
-<body class="bg-white">
-    <!-- Menu Button -->
-    <button id="menuButton" class="icon-button fixed top-4 left-4 z-50 p-3 bg-black text-white rounded-full shadow-lg">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="3" y1="6" x2="21" y2="6"></line>
-            <line x1="3" y1="12" x2="21" y2="12"></line>
-            <line x1="3" y1="18" x2="21" y2="18"></line>
-        </svg>
-    </button>
-
-    <!-- Clear Button -->
-    <button id="clearButton" class="icon-button fixed top-4 right-4 z-50 p-3 bg-black text-white rounded-full shadow-lg">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="3,6 5,6 21,6"></polyline>
-            <path d="m19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2"></path>
-        </svg>
-    </button>
-
-    <!-- Custom Eraser Cursor -->
-    <div id="eraserCursor" class="eraser-cursor"></div>
-
-    <!-- Settings Menu -->
-    <div id="menuOverlay" class="menu-overlay fixed inset-0 bg-black bg-opacity-50 z-40 hidden">
-        <div id="menuPanel" class="fixed top-0 left-0 h-full w-80 bg-gray-50 border-r border-gray-200 transform -translate-x-full transition-transform duration-300 flex flex-col">
-            
-            <!-- Menu Header -->
-            <div class="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
-                <h2 class="text-lg font-bold text-gray-800">Drawing Settings</h2>
-                <button id="copySettings" class="icon-button p-2 text-gray-600 hover:text-gray-800" title="Copy all settings">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"></path>
-                    </svg>
-                </button>
-            </div>
-
-            <!-- Menu Content -->
-            <div class="flex-1 overflow-y-auto p-4 space-y-5">
+<body class="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen">
+    <!-- Toolbar -->
+    <div class="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-sm">
+        <div class="flex items-center justify-between max-w-6xl mx-auto">
+            <div class="flex items-center space-x-4">
+                <!-- Brush Size -->
+                <div class="flex items-center space-x-2">
+                    <label class="text-sm font-medium">Size:</label>
+                    <input 
+                        type="range" 
+                        id="brushSize" 
+                        min="1" 
+                        max="50" 
+                        value="5" 
+                        class="w-20"
+                    >
+                    <span id="sizeDisplay" class="text-sm w-8">5px</span>
+                </div>
                 
-                <!-- Eraser Settings -->
-                <div>
-                    <h3 class="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Eraser Settings</h3>
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-800 mb-1">Min Eraser Size</label>
-                            <input type="range" id="eraserMinSize" min="5" max="30" value="10" class="w-full text-sm">
-                            <div class="flex justify-between items-center">
-                                <span id="eraserMinSizeValue" class="text-xs text-gray-600">10px</span>
-                            </div>
-                            <p class="text-[10px] text-gray-500 mt-1">Minimum eraser size (very slow movement)</p>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-medium text-gray-800 mb-1">Max Eraser Size</label>
-                            <input type="range" id="eraserMaxSize" min="20" max="100" value="100" class="w-full text-sm">
-                            <div class="flex justify-between items-center">
-                                <span id="eraserMaxSizeValue" class="text-xs text-gray-600">100px</span>
-                            </div>
-                            <p class="text-[10px] text-gray-500 mt-1">Maximum eraser size (very fast movement)</p>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-medium text-gray-800 mb-1">Speed Threshold</label>
-                            <input type="range" id="eraserSpeedThreshold" min="10" max="200" value="200" class="w-full text-sm">
-                            <div class="flex justify-between items-center">
-                                <span id="eraserSpeedThresholdValue" class="text-xs text-gray-600">200 px/s</span>
-                            </div>
-                            <p class="text-[10px] text-gray-500 mt-1">Speed at which eraser starts growing larger</p>
-                        </div>
-
-                        <div>
-                            <p class="text-xs text-gray-600">Flip your Microsoft Surface Pen to use the eraser end</p>
-                            <p class="text-[10px] text-gray-500 mt-1">💡 Move faster for larger erase area, slower for precision</p>
-                        </div>
-                    </div>
+                <!-- Color Picker -->
+                <div class="flex items-center space-x-2">
+                    <label class="text-sm font-medium">Color:</label>
+                    <input 
+                        type="color" 
+                        id="colorPicker" 
+                        value="#000000" 
+                        class="w-10 h-8 rounded border border-gray-300 dark:border-gray-600"
+                    >
                 </div>
-
-                <div class="border-t border-gray-300"></div>
-
-                <!-- Stroke Properties -->
-                <div>
-                    <h3 class="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Stroke Properties</h3>
-                    <div class="space-y-4">
-                        
-                        <!-- Stroke Width -->
-                        <div>
-                            <label class="block text-xs font-medium text-gray-800 mb-1">Stroke Width</label>
-                            <input type="range" id="strokeWidth" min="0.5" max="20" step="0.5" value="2.5" class="w-full text-sm">
-                            <div class="flex justify-between items-center">
-                                <span id="strokeWidthValue" class="text-xs text-gray-600">2.5px</span>
-                            </div>
-                            <p class="text-[10px] text-gray-500 mt-1">Controls the thickness of your pen strokes</p>
-                        </div>
-
-                        <!-- Stroke Color -->
-                        <div>
-                            <label class="block text-xs font-medium text-gray-800 mb-1">Stroke Color</label>
-                            <div class="flex items-center space-x-2">
-                                <input type="color" id="strokeColor" value="#3D3D3D" class="w-8 h-8 rounded border border-gray-300 cursor-pointer">
-                                <span id="strokeColorValue" class="text-xs text-gray-600">#3D3D3D</span>
-                            </div>
-                            <p class="text-[10px] text-gray-500 mt-1">Color of the final rendered pen strokes</p>
-                        </div>
-
-                        <!-- Preview Ink Color -->
-                        <div>
-                            <label class="block text-xs font-medium text-gray-800 mb-1">Preview Ink Color</label>
-                            <div class="flex items-center space-x-2">
-                                <input type="color" id="previewColor" value="#6C6A6A" class="w-8 h-8 rounded border border-gray-300 cursor-pointer">
-                                <span id="previewColorValue" class="text-xs text-gray-600">#6C6A6A</span>
-                            </div>
-                            <p class="text-[10px] text-gray-500 mt-1">Color of the real-time drawing preview (Ink API)</p>
-                        </div>
-
-                        <!-- Smoothing Method -->
-                        <div>
-                            <label class="block text-xs font-medium text-gray-800 mb-1">Smoothing Method</label>
-                            <select id="smoothingMethod" class="w-full text-sm border border-gray-300 rounded px-2 py-1">
-                                <option value="none">Direct (No Smoothing)</option>
-                                <option value="chaikin" selected>Chaikin Smoothing</option>
-                                <option value="catmullrom">Catmull-Rom Splines</option>
-                                <option value="bezier">Bezier Smoothing</option>
-                            </select>
-                            <p class="text-[10px] text-gray-500 mt-1">Algorithm used to smooth stroke curves</p>
-                        </div>
-
-                        <!-- Chaikin Settings -->
-                        <div id="chaikinSettings" class="space-y-3 pl-3 border-l-2 border-gray-300">
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Smoothing Iterations</label>
-                                <input type="range" id="smoothingIterations" min="1" max="5" value="2" class="w-full text-sm">
-                                <div class="flex justify-between items-center">
-                                    <span id="smoothingIterationsValue" class="text-xs text-gray-600">2</span>
-                                </div>
-                                <p class="text-[10px] text-gray-400 mt-1">Number of smoothing passes (higher = smoother)</p>
-                            </div>
-
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Smoothing Factor</label>
-                                <input type="range" id="smoothingFactor" min="0.1" max="0.4" step="0.05" value="0.25" class="w-full text-sm">
-                                <div class="flex justify-between items-center">
-                                    <span id="smoothingFactorValue" class="text-xs text-gray-600">0.25</span>
-                                </div>
-                                <p class="text-[10px] text-gray-400 mt-1">Smoothing intensity (lower = more aggressive smoothing)</p>
-                            </div>
-                        </div>
-
-                        <!-- Catmull-Rom Settings -->
-                        <div id="catmullromSettings" class="hidden space-y-3 pl-3 border-l-2 border-gray-300">
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Tension</label>
-                                <input type="range" id="splineTension" min="0" max="1" step="0.1" value="0.5" class="w-full text-sm">
-                                <div class="flex justify-between items-center">
-                                    <span id="splineTensionValue" class="text-xs text-gray-600">0.5</span>
-                                </div>
-                                <p class="text-[10px] text-gray-400 mt-1">Curve tension (0 = loose curves, 1 = tight curves)</p>
-                            </div>
-
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Curve Segments</label>
-                                <input type="range" id="curveSegments" min="4" max="20" value="10" class="w-full text-sm">
-                                <div class="flex justify-between items-center">
-                                    <span id="curveSegmentsValue" class="text-xs text-gray-600">10</span>
-                                </div>
-                                <p class="text-[10px] text-gray-400 mt-1">Points per curve segment (higher = smoother)</p>
-                            </div>
-                        </div>
-
-                        <!-- Bezier Settings -->
-                        <div id="bezierSettings" class="hidden space-y-3 pl-3 border-l-2 border-gray-300">
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Control Point Distance</label>
-                                <input type="range" id="bezierDistance" min="0.1" max="0.8" step="0.1" value="0.3" class="w-full text-sm">
-                                <div class="flex justify-between items-center">
-                                    <span id="bezierDistanceValue" class="text-xs text-gray-600">0.3</span>
-                                </div>
-                                <p class="text-[10px] text-gray-400 mt-1">How far control points extend (higher = more curved)</p>
-                            </div>
-
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Smoothness</label>
-                                <input type="range" id="bezierSmoothness" min="0.1" max="1" step="0.1" value="0.5" class="w-full text-sm">
-                                <div class="flex justify-between items-center">
-                                    <span id="bezierSmoothnessValue" class="text-xs text-gray-600">0.5</span>
-                                </div>
-                                <p class="text-[10px] text-gray-400 mt-1">Control point alignment (higher = smoother curves)</p>
-                            </div>
-
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Resolution</label>
-                                <input type="range" id="bezierResolution" min="8" max="32" value="16" class="w-full text-sm">
-                                <div class="flex justify-between items-center">
-                                    <span id="bezierResolutionValue" class="text-xs text-gray-600">16</span>
-                                </div>
-                                <p class="text-[10px] text-gray-400 mt-1">Points per Bezier curve (higher = smoother but slower)</p>
-                            </div>
-                        </div>
-
-                        <!-- Opacity -->
-                        <div>
-                            <label class="block text-xs font-medium text-gray-800 mb-1">Opacity</label>
-                            <input type="range" id="strokeOpacity" min="0.1" max="1" step="0.1" value="1" class="w-full text-sm">
-                            <div class="flex justify-between items-center">
-                                <span id="strokeOpacityValue" class="text-xs text-gray-600">100%</span>
-                            </div>
-                            <p class="text-[10px] text-gray-500 mt-1">How transparent or solid the strokes appear</p>
-                        </div>
-
-                        <!-- Drop Shadow -->
-                        <div>
-                            <label class="block text-xs font-medium text-gray-800 mb-1">
-                                <input type="checkbox" id="enableShadow" class="mr-1"> Enable Drop Shadow
-                            </label>
-                            <p class="text-[10px] text-gray-500 mt-1">Adds a drop shadow effect to strokes</p>
-                        </div>
-
-                        <!-- Shadow Settings -->
-                        <div id="shadowSettings" class="hidden space-y-3 pl-3 border-l-2 border-gray-300">
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Shadow Offset X</label>
-                                <input type="range" id="shadowOffsetX" min="-10" max="10" value="0" class="w-full text-sm">
-                                <div class="flex justify-between items-center">
-                                    <span id="shadowOffsetXValue" class="text-xs text-gray-600">0px</span>
-                                </div>
-                                <p class="text-[10px] text-gray-400 mt-1">Horizontal shadow distance (negative = left)</p>
-                            </div>
-
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Shadow Offset Y</label>
-                                <input type="range" id="shadowOffsetY" min="-10" max="10" value="0" class="w-full text-sm">
-                                <div class="flex justify-between items-center">
-                                    <span id="shadowOffsetYValue" class="text-xs text-gray-600">0px</span>
-                                </div>
-                                <p class="text-[10px] text-gray-400 mt-1">Vertical shadow distance (negative = up)</p>
-                            </div>
-
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Shadow Blur</label>
-                                <input type="range" id="shadowBlur" min="0" max="5" step="0.1" value="1.0" class="w-full text-sm">
-                                <div class="flex justify-between items-center">
-                                    <span id="shadowBlurValue" class="text-xs text-gray-600">1.0px</span>
-                                </div>
-                                <p class="text-[10px] text-gray-400 mt-1">Shadow blur radius (0 = sharp, higher = softer)</p>
-                            </div>
-
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Shadow Color</label>
-                                <div class="flex items-center space-x-2">
-                                    <input type="color" id="shadowColor" value="#000000" class="w-8 h-8 rounded border border-gray-300 cursor-pointer">
-                                    <span id="shadowColorValue" class="text-xs text-gray-600">#000000</span>
-                                </div>
-                                <p class="text-[10px] text-gray-400 mt-1">Color of the drop shadow</p>
-                            </div>
-
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Shadow Opacity</label>
-                                <input type="range" id="shadowOpacity" min="0.1" max="1" step="0.1" value="0.4" class="w-full text-sm">
-                                <div class="flex justify-between items-center">
-                                    <span id="shadowOpacityValue" class="text-xs text-gray-600">40%</span>
-                                </div>
-                                <p class="text-[10px] text-gray-400 mt-1">How transparent or solid the shadow appears</p>
-                            </div>
-                        </div>
+                
+                <!-- Pressure Indicator -->
+                <div class="flex items-center space-x-2">
+                    <label class="text-sm font-medium">Pressure:</label>
+                    <div class="w-16 h-3 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+                        <div id="pressureBar" class="h-full bg-[#5D5CDE] transition-all duration-100 ease-out" style="width: 0%"></div>
                     </div>
+                    <span id="pressureDisplay" class="text-xs w-8">0%</span>
                 </div>
-
-                <div class="border-t border-gray-300"></div>
-
-                <!-- Stroke Tapering -->
-                <div>
-                    <h3 class="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Stroke Tapering</h3>
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-800 mb-1">
-                                <input type="checkbox" id="enableTapering" checked class="mr-1"> Enable Tapering
-                            </label>
-                            <p class="text-[10px] text-gray-500 mt-1">Creates natural pen-like tapered stroke endings</p>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-medium text-gray-800 mb-1">Start Taper Amount</label>
-                            <input type="range" id="startTaper" min="0" max="1" step="0.1" value="0.5" class="w-full text-sm">
-                            <div class="flex justify-between items-center">
-                                <span id="startTaperValue" class="text-xs text-gray-600">50%</span>
-                            </div>
-                            <p class="text-[10px] text-gray-500 mt-1">How much the stroke thins at the beginning</p>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-medium text-gray-800 mb-1">End Taper Amount</label>
-                            <input type="range" id="endTaper" min="0" max="1" step="0.1" value="0.6" class="w-full text-sm">
-                            <div class="flex justify-between items-center">
-                                <span id="endTaperValue" class="text-xs text-gray-600">60%</span>
-                            </div>
-                            <p class="text-[10px] text-gray-500 mt-1">How much the stroke thins at the end (0% = no taper, 100% = sharp point)</p>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-medium text-gray-800 mb-1">Taper Start Point</label>
-                            <input type="range" id="taperStart" min="50" max="100" step="1" value="94" class="w-full text-sm">
-                            <div class="flex justify-between items-center">
-                                <span id="taperStartValue" class="text-xs text-gray-600">94%</span>
-                            </div>
-                            <p class="text-[10px] text-gray-500 mt-1">Where along the stroke the end tapering begins (50% = early, 100% = late)</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="border-t border-gray-300"></div>
-
-                <!-- System Information -->
-                <div>
-                    <h3 class="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">System Info</h3>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-800 mb-1">Ink API Status</label>
-                        <p id="inkApiStatus" class="text-xs text-gray-600">Checking...</p>
-                        <p class="text-[10px] text-gray-500 mt-1">Shows if low-latency stylus rendering is available in your browser</p>
-                    </div>
-                </div>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <!-- Clear Button -->
+                <button 
+                    id="clearBtn" 
+                    class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                    Clear
+                </button>
+                
+                <!-- Download Button -->
+                <button 
+                    id="downloadBtn" 
+                    class="px-4 py-2 bg-[#5D5CDE] hover:bg-[#4a49c7] text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                    Download SVG
+                </button>
             </div>
         </div>
     </div>
 
     <!-- Drawing Area -->
-    <svg id="drawingArea" class="w-screen h-screen" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="flex-1 overflow-hidden">
+        <div id="canvasContainer" class="w-full h-screen relative">
+            <svg 
+                id="drawingSvg" 
+                class="drawing-canvas w-full h-full cursor-crosshair"
+                style="background: white;"
+            >
+                <defs>
+                    <filter id="smoothing" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur in="SourceGraphic" stdDeviation="0.5"/>
+                    </filter>
+                </defs>
+            </svg>
+            <!-- Eraser Area Indicator -->
+            <div 
+                id="eraserIndicator" 
+                class="absolute pointer-events-none rounded-full border-2 border-pink-500 bg-pink-200 hidden"
+                style="opacity: 0.7; z-index: 1000; top: 0; left: 0; transform: translate3d(-50%, -50%, 0);"
+            ></div>
+        </div>
+    </div>
 
     <script>
-        // ===================================
-        // DARK MODE DETECTION
-        // ===================================
-        
-        function initializeDarkMode() {
-            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                document.documentElement.classList.add('dark');
-            }
-            
-            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
-                if (event.matches) {
-                    document.documentElement.classList.add('dark');
-                } else {
-                    document.documentElement.classList.remove('dark');
-                }
-            });
+        // Dark mode support
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
         }
-
-        // ===================================
-        // MAIN DRAWING APP CLASS
-        // ===================================
-        
-        class DrawingApp {
-            constructor() {
-                this.initializeProperties();
-                this.initializeElements();
-                this.setupCanvas();
-                this.setupEventListeners();
-                this.setupMenu();
-                this.initInkAPI();
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
             }
+        });
 
-            // Initialize all properties with default values
-            initializeProperties() {
-                // Canvas and drawing state
+        class PressureDrawingApp {
+            constructor() {
+                this.svg = document.getElementById('drawingSvg');
+                this.brushSize = document.getElementById('brushSize');
+                this.colorPicker = document.getElementById('colorPicker');
+                this.sizeDisplay = document.getElementById('sizeDisplay');
+                this.pressureBar = document.getElementById('pressureBar');
+                this.pressureDisplay = document.getElementById('pressureDisplay');
+                this.clearBtn = document.getElementById('clearBtn');
+                this.downloadBtn = document.getElementById('downloadBtn');
+                this.eraserIndicator = document.getElementById('eraserIndicator');
+                
                 this.isDrawing = false;
-                this.currentPath = null;
-                this.currentPoints = [];
-                this.allStrokes = [];
-
-                // Stroke properties
-                this.strokeWidth = 2.5;
-                this.strokeColor = '#3D3D3D';
-                this.previewColor = '#6C6A6A';
-                this.strokeOpacity = 1;
-
-                // Smoothing properties
-                this.smoothingMethod = 'chaikin';
-                this.smoothingIterations = 2;
-                this.smoothingFactor = 0.25;
-                this.splineTension = 0.5;
-                this.curveSegments = 10;
-                this.bezierDistance = 0.3;
-                this.bezierSmoothness = 0.5;
-                this.bezierResolution = 16;
-
-                // Shadow properties
-                this.enableShadow = false;
-                this.shadowOffsetX = 0;
-                this.shadowOffsetY = 0;
-                this.shadowBlur = 1.0;
-                this.shadowColor = '#000000';
-                this.shadowOpacity = 0.4;
-
-                // Tapering properties
-                this.enableTapering = true;
-                this.startTaper = 0.5;
-                this.endTaper = 0.6;
-                this.taperStart = 0.94;
-
-                // Eraser properties
                 this.isErasing = false;
+                this.currentStroke = null;
+                this.strokePoints = [];
+                this.lastPoint = null;
+                this.pathCounter = 0;
+                this.smoothingFactor = 0.4;
+                
+                // Dynamic eraser properties (from working code)
                 this.eraserMinSize = 10;
-                this.eraserMaxSize = 100;
-                this.eraserSpeedThreshold = 200;
+                this.eraserMaxSize = 50;
+                this.eraserSpeedThreshold = 150;
                 this.currentEraserSize = this.eraserMinSize;
                 this.targetEraserSize = this.eraserMinSize;
                 this.lastEraserPoint = null;
                 this.lastEraserTime = 0;
                 this.eraserSpeed = 0;
-
-                // API reference
-                this.presenter = null;
-            }
-
-            // Initialize DOM element references
-            initializeElements() {
-                this.svg = document.getElementById('drawingArea');
-                this.eraserCursor = document.getElementById('eraserCursor');
-            }
-
-            // ===================================
-            // CANVAS SETUP
-            // ===================================
-
-            setupCanvas() {
-                this.resizeCanvas();
-                this.setupShadowFilter();
-                this.setupDrawingGroup();
-                window.addEventListener('resize', () => this.resizeCanvas());
-            }
-
-            resizeCanvas() {
-                this.svg.setAttribute('width', window.innerWidth);
-                this.svg.setAttribute('height', window.innerHeight);
-                this.svg.setAttribute('viewBox', `0 0 ${window.innerWidth} ${window.innerHeight}`);
-            }
-
-            setupDrawingGroup() {
-                this.drawingGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                this.svg.appendChild(this.drawingGroup);
-            }
-
-            setupShadowFilter() {
-                const defs = this.svg.querySelector('defs') || document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-                if (!this.svg.querySelector('defs')) {
-                    this.svg.appendChild(defs);
-                }
-
-                this.shadowFilter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
-                this.shadowFilter.setAttribute('id', 'dropShadow');
-                this.shadowFilter.setAttribute('x', '-50%');
-                this.shadowFilter.setAttribute('y', '-50%');
-                this.shadowFilter.setAttribute('width', '200%');
-                this.shadowFilter.setAttribute('height', '200%');
-
-                this.shadowFlood = document.createElementNS('http://www.w3.org/2000/svg', 'feFlood');
-                this.shadowFlood.setAttribute('result', 'flood');
-
-                const composite = document.createElementNS('http://www.w3.org/2000/svg', 'feComposite');
-                composite.setAttribute('in', 'flood');
-                composite.setAttribute('in2', 'SourceGraphic');
-                composite.setAttribute('operator', 'in');
-                composite.setAttribute('result', 'composite');
-
-                this.shadowBlurFilter = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
-                this.shadowBlurFilter.setAttribute('in', 'composite');
-                this.shadowBlurFilter.setAttribute('result', 'blur');
-
-                this.shadowOffsetFilter = document.createElementNS('http://www.w3.org/2000/svg', 'feOffset');
-                this.shadowOffsetFilter.setAttribute('in', 'blur');
-                this.shadowOffsetFilter.setAttribute('result', 'offset');
-
-                const merge = document.createElementNS('http://www.w3.org/2000/svg', 'feMerge');
-                const mergeNode1 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
-                mergeNode1.setAttribute('in', 'offset');
-                const mergeNode2 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
-                mergeNode2.setAttribute('in', 'SourceGraphic');
-                merge.appendChild(mergeNode1);
-                merge.appendChild(mergeNode2);
-
-                this.shadowFilter.appendChild(this.shadowFlood);
-                this.shadowFilter.appendChild(composite);
-                this.shadowFilter.appendChild(this.shadowBlurFilter);
-                this.shadowFilter.appendChild(this.shadowOffsetFilter);
-                this.shadowFilter.appendChild(merge);
-
-                defs.appendChild(this.shadowFilter);
-                this.updateShadowFilter();
-            }
-
-            updateShadowFilter() {
-                if (!this.shadowFilter) return;
                 
-                this.shadowFlood.setAttribute('flood-color', this.shadowColor);
-                this.shadowFlood.setAttribute('flood-opacity', this.shadowOpacity);
-                this.shadowBlurFilter.setAttribute('stdDeviation', this.shadowBlur);
-                this.shadowOffsetFilter.setAttribute('dx', this.shadowOffsetX);
-                this.shadowOffsetFilter.setAttribute('dy', this.shadowOffsetY);
+                // Protective erase system
+                this.eraserProtectionActive = false;
+                this.strokeJustErased = false;
+                this.highSpeedOverrideThreshold = 225; // px/s - high speed to override protection (1.5x normal speed)
+                this.erasedStrokesCount = 0;
+                
+                // Store all strokes with their actual points
+                this.allStrokes = [];
+                
+                this.initializeEvents();
+                this.updateCanvasSize();
             }
-
-            // ===================================
-            // INK API INITIALIZATION
-            // ===================================
-
-            async initInkAPI() {
-                try {
-                    if ('ink' in navigator) {
-                        const canvas = document.createElement('canvas');
-                        canvas.width = window.innerWidth;
-                        canvas.height = window.innerHeight;
-                        canvas.style.position = 'absolute';
-                        canvas.style.top = '0';
-                        canvas.style.left = '0';
-                        canvas.style.pointerEvents = 'none';
-                        canvas.style.zIndex = '5';
-                        document.body.appendChild(canvas);
-
-                        this.presenter = await navigator.ink.requestPresenter({ 
-                            presentationArea: canvas 
-                        });
-                        document.getElementById('inkApiStatus').textContent = '✅ Available';
-                        console.log('Ink API initialized');
-                    } else {
-                        throw new Error('Not supported');
-                    }
-                } catch (error) {
-                    document.getElementById('inkApiStatus').textContent = '❌ Not Available';
-                    console.log('Ink API not available');
+            
+            initializeEvents() {
+                // Pointer events for pressure sensitivity
+                this.svg.addEventListener('pointerdown', this.startDrawing.bind(this));
+                this.svg.addEventListener('pointermove', this.draw.bind(this));
+                this.svg.addEventListener('pointerup', this.stopDrawing.bind(this));
+                this.svg.addEventListener('pointercancel', this.stopDrawing.bind(this));
+                
+                // Prevent context menu on right click
+                this.svg.addEventListener('contextmenu', e => e.preventDefault());
+                
+                // Brush size control
+                this.brushSize.addEventListener('input', () => {
+                    this.sizeDisplay.textContent = this.brushSize.value + 'px';
+                });
+                
+                // Clear button
+                this.clearBtn.addEventListener('click', this.clearCanvas.bind(this));
+                
+                // Download button
+                this.downloadBtn.addEventListener('click', this.downloadSVG.bind(this));
+                
+                // Window resize
+                window.addEventListener('resize', this.updateCanvasSize.bind(this));
+            }
+            
+            updateCanvasSize() {
+                const container = document.getElementById('canvasContainer');
+                const rect = container.getBoundingClientRect();
+                this.svg.setAttribute('width', rect.width);
+                this.svg.setAttribute('height', rect.height);
+                this.svg.setAttribute('viewBox', `0 0 ${rect.width} ${rect.height}`);
+            }
+            
+            getPointerPosition(e) {
+                const rect = this.svg.getBoundingClientRect();
+                return {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top,
+                    pressure: e.pressure || 0.5 // Fallback for devices without pressure
+                };
+            }
+            
+            updatePressureIndicator(pressure) {
+                const percentage = Math.round(pressure * 100);
+                this.pressureBar.style.width = percentage + '%';
+                this.pressureDisplay.textContent = percentage + '%';
+            }
+            
+            startDrawing(e) {
+                // Only allow pen/stylus input, ignore finger touches
+                if (e.pointerType === 'touch') {
+                    return;
                 }
-            }
-
-            // ===================================
-            // EVENT LISTENERS
-            // ===================================
-
-            setupEventListeners() {
-                this.setupDrawingEvents();
-                this.setupButtonEvents();
-                this.preventDefaultEvents();
-            }
-
-            setupDrawingEvents() {
-                this.svg.addEventListener('pointerdown', (e) => {
-                    if (e.pointerType === 'pen') {
-                        e.preventDefault();
-                        this.startDrawing(e);
-                    }
-                });
-
-                this.svg.addEventListener('pointermove', (e) => {
-                    if (e.pointerType === 'pen') {
-                        e.preventDefault();
-                        this.handlePointerMove(e);
-                    }
-                });
-
-                this.svg.addEventListener('pointerup', (e) => {
-                    if (e.pointerType === 'pen') {
-                        e.preventDefault();
-                        this.stopDrawing(e);
-                    }
-                });
-
-                this.svg.addEventListener('pointercancel', (e) => {
-                    if (e.pointerType === 'pen' && this.isDrawing) {
-                        this.stopDrawing(e);
-                    }
-                });
-
-                this.svg.addEventListener('pointerleave', (e) => {
-                    if (e.pointerType === 'pen') {
-                        this.handlePointerLeave();
-                    }
-                });
-            }
-
-            setupButtonEvents() {
-                document.getElementById('clearButton').addEventListener('click', () => {
-                    this.clearCanvas();
-                });
-            }
-
-            preventDefaultEvents() {
-                this.svg.addEventListener('touchstart', (e) => e.preventDefault());
-                this.svg.addEventListener('mousedown', (e) => e.preventDefault());
-                this.svg.addEventListener('contextmenu', (e) => e.preventDefault());
-            }
-
-            // ===================================
-            // DRAWING LOGIC
-            // ===================================
-
-            handlePointerMove(e) {
-                const wasErasing = this.isErasing;
-                this.isErasing = this.detectEraserMode(e);
-
-                if (this.isErasing !== wasErasing) {
-                    this.svg.classList.toggle('eraser-mode', this.isErasing);
+                
+                e.preventDefault();
+                
+                // Check if eraser is being used (Microsoft Surface Pen button 5 or buttons 32)
+                if (e.button === 5 || e.buttons === 32 || (e.pointerType === 'pen' && e.button === 2)) {
+                    this.isErasing = true;
+                    this.isDrawing = false;
+                    this.svg.classList.add('eraser-mode');
+                    this.svg.style.cursor = 'none'; // Hide cursor, we'll use custom indicator
+                    this.startErasing(e);
+                    return;
                 }
-
-                this.updateEraserCursor(e);
-
-                if (this.isDrawing) {
-                    this.continueDrawing(e);
-                }
-            }
-
-            handlePointerLeave() {
+                
+                this.isDrawing = true;
                 this.isErasing = false;
                 this.svg.classList.remove('eraser-mode');
-                this.eraserCursor.style.display = 'none';
+                this.svg.style.cursor = 'crosshair';
+                
+                const point = this.getPointerPosition(e);
+                this.updatePressureIndicator(point.pressure);
+                
+                // Create new stroke group
+                this.currentStroke = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                this.currentStroke.setAttribute('fill', this.colorPicker.value);
+                this.currentStroke.setAttribute('filter', 'url(#smoothing)');
+                this.svg.appendChild(this.currentStroke);
+                
+                // Initialize stroke points array
+                this.strokePoints = [];
+                
+                // Add first point with pressure
+                const baseSize = parseInt(this.brushSize.value);
+                const pressureSize = Math.max(1, baseSize * (0.2 + point.pressure * 0.8));
+                
+                this.strokePoints.push({
+                    x: point.x,
+                    y: point.y,
+                    pressure: point.pressure,
+                    width: pressureSize
+                });
+                
+                this.lastPoint = point;
+                this.pathCounter++;
             }
-
-            startDrawing(e) {
-                this.isDrawing = true;
-                this.currentPoints = [];
-                this.isErasing = this.detectEraserMode(e);
-
+            
+            draw(e) {
+                e.preventDefault();
+                
                 if (this.isErasing) {
-                    this.svg.classList.add('eraser-mode');
-                    const point = this.getPoint(e);
-                    this.eraseAtPoint(point.x, point.y);
-                } else {
-                    this.svg.classList.remove('eraser-mode');
-                    this.createNewStroke(e);
+                    this.erase(e);
+                    return;
                 }
-
-                this.updateEraserCursor(e);
-                this.updateInkAPI(e);
-            }
-
-            continueDrawing(e) {
-                if (!this.isDrawing) return;
-
-                const point = this.getPoint(e);
-
-                if (this.isErasing) {
-                    this.eraseAtPoint(point.x, point.y);
-                } else {
-                    this.updateCurrentStroke(point);
-                }
-
-                this.updateEraserCursor(e);
-                this.updateInkAPI(e);
-            }
-
-            stopDrawing(e) {
-                this.isDrawing = false;
-
-                if (this.currentPath && this.currentPoints.length > 1 && !this.isErasing) {
-                    this.updateTaperedPath(true);
-                }
-
-                this.currentPath = null;
-                this.currentPoints = [];
-                this.eraserCursor.style.display = 'none';
-            }
-
-            createNewStroke(e) {
-                const point = this.getPoint(e);
-                this.currentPoints.push({ ...point, timestamp: Date.now() });
-
-                this.currentPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                this.currentPath.setAttribute('fill', this.strokeColor);
-                this.currentPath.setAttribute('fill-opacity', this.strokeOpacity);
-                this.currentPath.setAttribute('stroke', 'none');
-
-                if (this.enableShadow) {
-                    this.updateShadowFilter();
-                    this.currentPath.setAttribute('filter', 'url(#dropShadow)');
-                }
-
-                this.drawingGroup.appendChild(this.currentPath);
-
-                const strokeData = {
-                    element: this.currentPath,
-                    points: [...this.currentPoints],
-                    properties: {
-                        color: this.strokeColor,
-                        width: this.strokeWidth,
-                        opacity: this.strokeOpacity,
-                        tapering: this.enableTapering,
-                        startTaper: this.startTaper,
-                        endTaper: this.endTaper,
-                        taperStart: this.taperStart,
-                        smoothing: this.smoothingMethod,
-                        smoothingIterations: this.smoothingIterations,
-                        smoothingFactor: this.smoothingFactor
-                    }
-                };
-                this.allStrokes.push(strokeData);
-            }
-
-            updateCurrentStroke(point) {
-                if (!this.currentPath) return;
-
-                this.currentPoints.push({ ...point, timestamp: Date.now() });
-
-                const currentStroke = this.allStrokes[this.allStrokes.length - 1];
-                if (currentStroke) {
-                    currentStroke.points = [...this.currentPoints];
-                }
-
-                this.updateTaperedPath();
-            }
-
-            updateInkAPI(e) {
-                if (this.presenter && e.pointerId !== undefined && !this.isErasing) {
-                    try {
-                        this.presenter.updateInkTrailStartPoint(e, {
-                            color: this.previewColor,
-                            diameter: this.strokeWidth
+                
+                if (!this.isDrawing || !this.currentStroke) return;
+                
+                const point = this.getPointerPosition(e);
+                this.updatePressureIndicator(point.pressure);
+                
+                if (this.lastPoint) {
+                    // Calculate distance to determine if we should add a point
+                    const distance = Math.sqrt(
+                        Math.pow(point.x - this.lastPoint.x, 2) + 
+                        Math.pow(point.y - this.lastPoint.y, 2)
+                    );
+                    
+                    if (distance > 2) { // Only add point if moved enough
+                        const baseSize = parseInt(this.brushSize.value);
+                        const pressureSize = Math.max(1, baseSize * (0.2 + point.pressure * 0.8));
+                        
+                        // Add new point with current pressure
+                        this.strokePoints.push({
+                            x: point.x,
+                            y: point.y,
+                            pressure: point.pressure,
+                            width: pressureSize
                         });
-                    } catch (error) {
-                        console.log('Ink API error:', error);
+                        
+                        // Redraw the entire stroke with variable widths
+                        this.redrawStroke();
+                        
+                        this.lastPoint = point;
                     }
                 }
             }
-
-            // ===================================
-            // ERASER FUNCTIONALITY
-            // ===================================
-
-            detectEraserMode(e) {
-                return e.button === 5 || (e.buttons & 32) !== 0;
-            }
-
-            updateEraserCursor(e) {
-                if (this.isErasing) {
-                    const point = this.getPoint(e);
-                    this.calculateEraserSpeed(point);
-
-                    const x = (e.clientX || e.pageX) - this.currentEraserSize / 2;
-                    const y = (e.clientY || e.pageY) - this.currentEraserSize / 2;
-
-                    this.eraserCursor.style.left = x + 'px';
-                    this.eraserCursor.style.top = y + 'px';
-                    this.eraserCursor.style.width = this.currentEraserSize + 'px';
-                    this.eraserCursor.style.height = this.currentEraserSize + 'px';
-                    this.eraserCursor.style.display = 'block';
-                } else {
-                    this.eraserCursor.style.display = 'none';
-                    this.resetEraserTracking();
+            
+            getSmoothedPoint(points, index, tension = 0.5) {
+                if (index <= 0 || index >= points.length - 1) {
+                    return points[index];
                 }
+                
+                const p0 = points[index - 1] || points[index];
+                const p1 = points[index];
+                const p2 = points[index + 1] || points[index];
+                const p3 = points[index + 2] || p2;
+                
+                return {
+                    x: p1.x + tension * (p2.x - p0.x),
+                    y: p1.y + tension * (p2.y - p0.y),
+                    width: p1.width,
+                    pressure: p1.pressure
+                };
             }
-
+            
+            createSmoothStrokePath() {
+                if (this.strokePoints.length < 2) return;
+                
+                const smoothPoints = [];
+                
+                // Create smoothed points using Catmull-Rom interpolation
+                for (let i = 0; i < this.strokePoints.length; i++) {
+                    if (i === 0 || i === this.strokePoints.length - 1) {
+                        smoothPoints.push(this.strokePoints[i]);
+                    } else {
+                        // Add multiple interpolated points between each pair
+                        const steps = 3;
+                        for (let t = 0; t < steps; t++) {
+                            const ratio = t / steps;
+                            const p1 = this.strokePoints[i];
+                            const p2 = this.strokePoints[i + 1];
+                            
+                            smoothPoints.push({
+                                x: p1.x + (p2.x - p1.x) * ratio,
+                                y: p1.y + (p2.y - p1.y) * ratio,
+                                width: p1.width + (p2.width - p1.width) * ratio,
+                                pressure: p1.pressure + (p2.pressure - p1.pressure) * ratio
+                            });
+                        }
+                    }
+                }
+                
+                return smoothPoints;
+            }
+            
+            redrawStroke() {
+                if (this.strokePoints.length < 2) {
+                    // For single point, just draw a circle
+                    if (this.strokePoints.length === 1) {
+                        this.currentStroke.innerHTML = '';
+                        const point = this.strokePoints[0];
+                        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        circle.setAttribute('cx', point.x);
+                        circle.setAttribute('cy', point.y);
+                        circle.setAttribute('r', point.width / 2);
+                        circle.setAttribute('fill', this.colorPicker.value);
+                        this.currentStroke.appendChild(circle);
+                    }
+                    return;
+                }
+                
+                // Clear current stroke content
+                this.currentStroke.innerHTML = '';
+                
+                // Create smooth outline path with variable width
+                this.createSmoothVariableWidthPath();
+            }
+            
+            createSmoothVariableWidthPath() {
+                const points = this.strokePoints;
+                if (points.length < 2) return;
+                
+                // Calculate smooth outline points for both sides of the stroke
+                const leftPoints = [];
+                const rightPoints = [];
+                
+                for (let i = 0; i < points.length; i++) {
+                    const point = points[i];
+                    const halfWidth = point.width / 2;
+                    
+                    // Calculate direction vector
+                    let dirX = 0, dirY = 0;
+                    
+                    if (i === 0 && points.length > 1) {
+                        // First point: use direction to next point
+                        dirX = points[i + 1].x - point.x;
+                        dirY = points[i + 1].y - point.y;
+                    } else if (i === points.length - 1) {
+                        // Last point: use direction from previous point
+                        dirX = point.x - points[i - 1].x;
+                        dirY = point.y - points[i - 1].y;
+                    } else {
+                        // Middle point: average of both directions for smoothness
+                        const prevDirX = point.x - points[i - 1].x;
+                        const prevDirY = point.y - points[i - 1].y;
+                        const nextDirX = points[i + 1].x - point.x;
+                        const nextDirY = points[i + 1].y - point.y;
+                        dirX = (prevDirX + nextDirX) / 2;
+                        dirY = (prevDirY + nextDirY) / 2;
+                    }
+                    
+                    // Normalize direction and get perpendicular
+                    const length = Math.sqrt(dirX * dirX + dirY * dirY);
+                    if (length > 0) {
+                        dirX /= length;
+                        dirY /= length;
+                    }
+                    
+                    // Perpendicular vector
+                    const perpX = -dirY;
+                    const perpY = dirX;
+                    
+                    // Calculate left and right edge points
+                    leftPoints.push({
+                        x: point.x + perpX * halfWidth,
+                        y: point.y + perpY * halfWidth
+                    });
+                    
+                    rightPoints.push({
+                        x: point.x - perpX * halfWidth,
+                        y: point.y - perpY * halfWidth
+                    });
+                }
+                
+                // Create smooth path using the outline points
+                let pathData = '';
+                
+                // Start with the first left point
+                pathData += `M ${leftPoints[0].x} ${leftPoints[0].y}`;
+                
+                // Draw smooth curve along left side
+                for (let i = 1; i < leftPoints.length; i++) {
+                    const prevPoint = leftPoints[i - 1];
+                    const currentPoint = leftPoints[i];
+                    const controlX = (prevPoint.x + currentPoint.x) / 2;
+                    const controlY = (prevPoint.y + currentPoint.y) / 2;
+                    pathData += ` Q ${prevPoint.x} ${prevPoint.y} ${controlX} ${controlY}`;
+                }
+                
+                // Add the last left point
+                const lastLeft = leftPoints[leftPoints.length - 1];
+                pathData += ` L ${lastLeft.x} ${lastLeft.y}`;
+                
+                // Connect to right side at the end
+                const lastRight = rightPoints[rightPoints.length - 1];
+                pathData += ` L ${lastRight.x} ${lastRight.y}`;
+                
+                // Draw smooth curve along right side (in reverse)
+                for (let i = rightPoints.length - 2; i >= 0; i--) {
+                    const currentPoint = rightPoints[i];
+                    const nextPoint = rightPoints[i + 1];
+                    const controlX = (currentPoint.x + nextPoint.x) / 2;
+                    const controlY = (currentPoint.y + nextPoint.y) / 2;
+                    pathData += ` Q ${nextPoint.x} ${nextPoint.y} ${controlX} ${controlY}`;
+                }
+                
+                // Close the path
+                pathData += ` Z`;
+                
+                // Create the final stroke path
+                const strokePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                strokePath.setAttribute('d', pathData);
+                strokePath.setAttribute('fill', this.colorPicker.value);
+                strokePath.setAttribute('stroke', 'none');
+                
+                this.currentStroke.appendChild(strokePath);
+            }
+            
+            updateEraserIndicator(x, y) {
+                // Use transform3d for hardware acceleration and best performance
+                this.eraserIndicator.style.transform = `translate3d(${x}px, ${y}px, 0) translate3d(-50%, -50%, 0)`;
+            }
+            
+            showEraserIndicator() {
+                // Set the indicator size to match the dynamic eraser size
+                this.eraserIndicator.style.width = this.currentEraserSize + 'px';
+                this.eraserIndicator.style.height = this.currentEraserSize + 'px';
+                this.eraserIndicator.classList.remove('hidden');
+            }
+            
+            hideEraserIndicator() {
+                this.eraserIndicator.classList.add('hidden');
+            }
+            
+            startErasing(e) {
+                const point = this.getPointerPosition(e);
+                this.showEraserIndicator();
+                this.updateEraserIndicator(point.x, point.y);
+                this.erase(e);
+            }
+            
+            erase(e) {
+                const point = this.getPointerPosition(e);
+                
+                // Calculate dynamic eraser size based on speed
+                this.calculateEraserSpeed(point);
+                
+                // Update indicator size dynamically
+                this.eraserIndicator.style.width = this.currentEraserSize + 'px';
+                this.eraserIndicator.style.height = this.currentEraserSize + 'px';
+                
+                // Update indicator position
+                this.updateEraserIndicator(point.x, point.y);
+                
+                // Use the proven point-based collision detection from working code
+                this.eraseAtPoint(point.x, point.y);
+            }
+            
+            // Dynamic eraser sizing (from working code)
             calculateEraserSpeed(point) {
                 const currentTime = Date.now();
 
@@ -860,9 +551,32 @@
                 this.lastEraserTime = 0;
                 this.eraserSpeed = 0;
                 this.currentEraserSize = this.eraserMinSize;
+                
+                // Reset protective erase system
+                this.resetProtectiveErase();
             }
-
+            
+            resetProtectiveErase() {
+                this.eraserProtectionActive = false;
+                this.strokeJustErased = false;
+                this.erasedStrokesCount = 0;
+                
+                console.log('🔄 Protective erase reset - ready to erase');
+            }
+            
+            // Point-based eraser collision with protective erase
             eraseAtPoint(x, y) {
+                // Check if protection should be overridden
+                this.checkProtectionOverride();
+                
+                // If protection is active and no override, don't erase
+                if (this.eraserProtectionActive) {
+                    this.updateEraserIndicatorProtectionState(true);
+                    return;
+                }
+                
+                this.updateEraserIndicatorProtectionState(false);
+                
                 const eraserRadius = this.currentEraserSize / 2;
                 const strokesToRemove = [];
 
@@ -886,732 +600,118 @@
                     }
                 }
 
-                for (let i = strokesToRemove.length - 1; i >= 0; i--) {
-                    this.allStrokes.splice(strokesToRemove[i], 1);
+                // If strokes were actually erased
+                if (strokesToRemove.length > 0) {
+                    for (let i = strokesToRemove.length - 1; i >= 0; i--) {
+                        this.allStrokes.splice(strokesToRemove[i], 1);
+                    }
+                    
+                    // Activate protection after first erase
+                    this.activateEraserProtection();
                 }
             }
-
-            // ===================================
-            // UTILITY FUNCTIONS
-            // ===================================
-
-            getPoint(e) {
-                const rect = this.svg.getBoundingClientRect();
-                return {
-                    x: (e.clientX || e.pageX) - rect.left,
-                    y: (e.clientY || e.pageY) - rect.top
-                };
+            
+            // Activate protective erase after first stroke is erased
+            activateEraserProtection() {
+                if (!this.strokeJustErased) {
+                    this.strokeJustErased = true;
+                    this.eraserProtectionActive = true;
+                    this.erasedStrokesCount++;
+                    
+                    console.log('🛡️ Protective erase activated - move fast to override or lift eraser to erase more strokes');
+                }
             }
-
+            
+            // Check conditions to override protection
+            checkProtectionOverride() {
+                if (!this.eraserProtectionActive) return;
+                
+                // Only override condition: High speed (broad erasing intent)
+                const highSpeedIntent = this.eraserSpeed > this.highSpeedOverrideThreshold;
+                
+                if (highSpeedIntent) {
+                    this.eraserProtectionActive = false;
+                    console.log(`🔓 Protection override: high speed detected (${Math.round(this.eraserSpeed)}px/s)`);
+                }
+            }
+            
+            // Visual feedback for protection state
+            updateEraserIndicatorProtectionState(isProtected) {
+                if (isProtected) {
+                    // Change indicator to show it's protected (red border)
+                    this.eraserIndicator.style.borderColor = '#ef4444';
+                    this.eraserIndicator.style.backgroundColor = 'rgba(239, 68, 68, 0.2)';
+                } else {
+                    // Normal pink indicator
+                    this.eraserIndicator.style.borderColor = '#ec4899';
+                    this.eraserIndicator.style.backgroundColor = 'rgba(236, 72, 153, 0.2)';
+                }
+            }
+            
+            stopDrawing(e) {
+                e.preventDefault();
+                
+                if (this.isErasing) {
+                    this.isErasing = false;
+                    this.svg.classList.remove('eraser-mode');
+                    this.svg.style.cursor = 'crosshair';
+                    this.hideEraserIndicator();
+                    this.resetEraserTracking();
+                    return;
+                }
+                
+                if (!this.isDrawing) return;
+                
+                this.isDrawing = false;
+                
+                // Finalize the stroke and store it with points
+                if (this.currentStroke && this.strokePoints.length > 0) {
+                    this.redrawStroke();
+                    
+                    // Store stroke with its points for eraser collision
+                    this.allStrokes.push({
+                        element: this.currentStroke,
+                        points: [...this.strokePoints] // Copy the points
+                    });
+                }
+                
+                this.currentStroke = null;
+                this.strokePoints = [];
+                this.lastPoint = null;
+                
+                // Reset pressure indicator
+                this.updatePressureIndicator(0);
+            }
+            
             clearCanvas() {
-                while (this.drawingGroup.firstChild) {
-                    this.drawingGroup.removeChild(this.drawingGroup.firstChild);
-                }
+                // Clear the allStrokes array
                 this.allStrokes = [];
+                
+                // Remove all stroke groups from SVG
+                const groups = this.svg.querySelectorAll('g');
+                groups.forEach(group => group.remove());
+                this.pathCounter = 0;
             }
-
-            hexToRgb(hex) {
-                const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-                return result ? {
-                    r: parseInt(result[1], 16),
-                    g: parseInt(result[2], 16),
-                    b: parseInt(result[3], 16)
-                } : { r: 0, g: 0, b: 0 };
-            }
-
-            // ===================================
-            // STROKE RENDERING
-            // ===================================
-
-            updateTaperedPath(isEnding = false) {
-                if (this.currentPoints.length < 2) return;
-
-                const points = this.currentPoints;
-
-                if (points.length === 2) {
-                    this.renderSimpleTaperedStroke(points, isEnding);
-                } else {
-                    const pathData = this.createTaperedStrokePath(points, isEnding);
-                    this.currentPath.setAttribute('d', pathData);
-                }
-            }
-
-            renderSimpleTaperedStroke(points, isEnding) {
-                const startWidth = this.strokeWidth * 0.8;
-                const endWidth = isEnding ? this.strokeWidth * 0.2 : this.strokeWidth;
-
-                const dx = points[1].x - points[0].x;
-                const dy = points[1].y - points[0].y;
-                const length = Math.sqrt(dx * dx + dy * dy);
-
-                if (length > 0) {
-                    const perpX = -dy / length;
-                    const perpY = dx / length;
-
-                    const x1 = points[0].x + perpX * startWidth / 2;
-                    const y1 = points[0].y + perpY * startWidth / 2;
-                    const x2 = points[0].x - perpX * startWidth / 2;
-                    const y2 = points[0].y - perpY * startWidth / 2;
-                    const x3 = points[1].x - perpX * endWidth / 2;
-                    const y3 = points[1].y - perpY * endWidth / 2;
-                    const x4 = points[1].x + perpX * endWidth / 2;
-                    const y4 = points[1].y + perpY * endWidth / 2;
-
-                    const pathData = `M ${x1} ${y1} L ${x4} ${y4} L ${x3} ${y3} L ${x2} ${y2} Z`;
-                    this.currentPath.setAttribute('d', pathData);
-                }
-            }
-
-            createTaperedStrokePath(points, isEnding = false) {
-                if (points.length < 2) return '';
-
-                let processedPoints = points;
-                if (this.smoothingMethod === 'chaikin') {
-                    processedPoints = this.applyChaikinSmoothing(points, this.smoothingIterations);
-                } else if (this.smoothingMethod === 'catmullrom') {
-                    processedPoints = this.applyCatmullRomSmoothing(points);
-                } else if (this.smoothingMethod === 'bezier') {
-                    processedPoints = this.applyBezierSmoothing(points);
-                }
-
-                const leftPoints = [];
-                const rightPoints = [];
-
-                for (let i = 0; i < processedPoints.length; i++) {
-                    const point = processedPoints[i];
-                    const progress = i / (processedPoints.length - 1);
-                    let width = this.calculateTaperedWidth(progress, isEnding);
-                    const { perpX, perpY } = this.calculatePerpendicularDirection(processedPoints, i);
-
-                    leftPoints.push({
-                        x: point.x + perpX * width / 2,
-                        y: point.y + perpY * width / 2
-                    });
-
-                    rightPoints.push({
-                        x: point.x - perpX * width / 2,
-                        y: point.y - perpY * width / 2
-                    });
-                }
-
-                return this.buildPathData(leftPoints, rightPoints);
-            }
-
-            calculateTaperedWidth(progress, isEnding) {
-                let width = this.strokeWidth;
-
-                if (this.enableTapering) {
-                    if (isEnding && progress > this.taperStart) {
-                        const taperProgress = (progress - this.taperStart) / (1 - this.taperStart);
-                        width = this.strokeWidth * (1 - taperProgress * this.endTaper);
-                    } else if (progress < 0.2) {
-                        const startTaperAmount = this.startTaper;
-                        width = this.strokeWidth * ((1 - startTaperAmount) + progress * startTaperAmount * 5);
-                    }
-                }
-
-                return width;
-            }
-
-            calculatePerpendicularDirection(processedPoints, i) {
-                let perpX = 0, perpY = 0;
-
-                if (i === 0 && processedPoints.length > 1) {
-                    const dx = processedPoints[1].x - processedPoints[0].x;
-                    const dy = processedPoints[1].y - processedPoints[0].y;
-                    const length = Math.sqrt(dx * dx + dy * dy);
-                    if (length > 0) {
-                        perpX = -dy / length;
-                        perpY = dx / length;
-                    }
-                } else if (i === processedPoints.length - 1) {
-                    const dx = processedPoints[i].x - processedPoints[i - 1].x;
-                    const dy = processedPoints[i].y - processedPoints[i - 1].y;
-                    const length = Math.sqrt(dx * dx + dy * dy);
-                    if (length > 0) {
-                        perpX = -dy / length;
-                        perpY = dx / length;
-                    }
-                } else {
-                    const dx1 = processedPoints[i].x - processedPoints[i - 1].x;
-                    const dy1 = processedPoints[i].y - processedPoints[i - 1].y;
-                    const dx2 = processedPoints[i + 1].x - processedPoints[i].x;
-                    const dy2 = processedPoints[i + 1].y - processedPoints[i].y;
-
-                    const avgDx = (dx1 + dx2) / 2;
-                    const avgDy = (dy1 + dy2) / 2;
-                    const length = Math.sqrt(avgDx * avgDx + avgDy * avgDy);
-
-                    if (length > 0) {
-                        perpX = -avgDy / length;
-                        perpY = avgDx / length;
-                    }
-                }
-
-                return { perpX, perpY };
-            }
-
-            buildPathData(leftPoints, rightPoints) {
-                let pathData = `M ${leftPoints[0].x} ${leftPoints[0].y}`;
-
-                for (let i = 1; i < leftPoints.length; i++) {
-                    pathData += ` L ${leftPoints[i].x} ${leftPoints[i].y}`;
-                }
-
-                for (let i = rightPoints.length - 1; i >= 0; i--) {
-                    pathData += ` L ${rightPoints[i].x} ${rightPoints[i].y}`;
-                }
-
-                pathData += ' Z';
-                return pathData;
-            }
-
-            // ===================================
-            // SMOOTHING ALGORITHMS
-            // ===================================
-
-            applyChaikinSmoothing(points, iterations = 2) {
-                if (points.length < 3) return points;
-
-                let smoothedPoints = [...points];
-
-                for (let iter = 0; iter < iterations; iter++) {
-                    if (smoothedPoints.length < 3) break;
-
-                    const newPoints = [];
-                    newPoints.push(smoothedPoints[0]);
-
-                    for (let i = 0; i < smoothedPoints.length - 1; i++) {
-                        const p1 = smoothedPoints[i];
-                        const p2 = smoothedPoints[i + 1];
-
-                        const q1 = {
-                            x: p1.x + (1 - this.smoothingFactor) * (p2.x - p1.x),
-                            y: p1.y + (1 - this.smoothingFactor) * (p2.y - p1.y)
-                        };
-
-                        const q2 = {
-                            x: p1.x + this.smoothingFactor * (p2.x - p1.x),
-                            y: p1.y + this.smoothingFactor * (p2.y - p1.y)
-                        };
-
-                        newPoints.push(q2, q1);
-                    }
-
-                    newPoints.push(smoothedPoints[smoothedPoints.length - 1]);
-                    smoothedPoints = newPoints;
-                }
-
-                return smoothedPoints;
-            }
-
-            applyCatmullRomSmoothing(points) {
-                if (points.length < 4) return points;
-
-                const smoothedPoints = [];
-                const tension = this.splineTension;
-                const segments = this.curveSegments;
-
-                smoothedPoints.push(points[0]);
-
-                for (let i = 0; i < points.length - 1; i++) {
-                    const p0 = i === 0 ? points[0] : points[i - 1];
-                    const p1 = points[i];
-                    const p2 = points[i + 1];
-                    const p3 = i === points.length - 2 ? points[points.length - 1] : points[i + 2];
-
-                    for (let t = 0; t < 1; t += 1 / segments) {
-                        if (t === 0 && i > 0) continue;
-
-                        const tt = t * t;
-                        const ttt = tt * t;
-
-                        const q0 = -tension * ttt + 2 * tension * tt - tension * t;
-                        const q1 = (2 - tension) * ttt + (tension - 3) * tt + 1;
-                        const q2 = (tension - 2) * ttt + (3 - 2 * tension) * tt + tension * t;
-                        const q3 = tension * ttt - tension * tt;
-
-                        const x = p0.x * q0 + p1.x * q1 + p2.x * q2 + p3.x * q3;
-                        const y = p0.y * q0 + p1.y * q1 + p2.y * q2 + p3.y * q3;
-
-                        smoothedPoints.push({ x, y });
-                    }
-                }
-
-                smoothedPoints.push(points[points.length - 1]);
-                return smoothedPoints;
-            }
-
-            applyBezierSmoothing(points) {
-                if (points.length < 3) return points;
-
-                const smoothedPoints = [];
-                const distance = this.bezierDistance;
-                const smoothness = this.bezierSmoothness;
-                const resolution = this.bezierResolution;
-
-                smoothedPoints.push(points[0]);
-
-                for (let i = 0; i < points.length - 1; i++) {
-                    const p0 = points[i];
-                    const p1 = points[i + 1];
-
-                    const segmentLength = Math.sqrt((p1.x - p0.x) ** 2 + (p1.y - p0.y) ** 2);
-                    if (segmentLength < 1) continue;
-
-                    const { tangent1X, tangent1Y, tangent2X, tangent2Y } = this.calculateBezierTangents(points, i, smoothness);
-                    const controlDistance = segmentLength * distance * 0.5;
-
-                    const cp1 = {
-                        x: p0.x + tangent1X * controlDistance,
-                        y: p0.y + tangent1Y * controlDistance
-                    };
-
-                    const cp2 = {
-                        x: p1.x - tangent2X * controlDistance,
-                        y: p1.y - tangent2Y * controlDistance
-                    };
-
-                    for (let t = 0; t < 1; t += 1 / resolution) {
-                        if (t === 0 && i > 0) continue;
-
-                        const mt = 1 - t;
-                        const mt2 = mt * mt;
-                        const mt3 = mt2 * mt;
-                        const t2 = t * t;
-                        const t3 = t2 * t;
-
-                        const x = mt3 * p0.x + 3 * mt2 * t * cp1.x + 3 * mt * t2 * cp2.x + t3 * p1.x;
-                        const y = mt3 * p0.y + 3 * mt2 * t * cp1.y + 3 * mt * t2 * cp2.y + t3 * p1.y;
-
-                        smoothedPoints.push({ x, y });
-                    }
-                }
-
-                smoothedPoints.push(points[points.length - 1]);
-                return smoothedPoints;
-            }
-
-            calculateBezierTangents(points, i, smoothness) {
-                const p0 = points[i];
-                const p1 = points[i + 1];
-
-                let tangent1X, tangent1Y, tangent2X, tangent2Y;
-
-                if (i === 0) {
-                    tangent1X = p1.x - p0.x;
-                    tangent1Y = p1.y - p0.y;
-                } else {
-                    const prevPoint = points[i - 1];
-                    const dx1 = p0.x - prevPoint.x;
-                    const dy1 = p0.y - prevPoint.y;
-                    const dx2 = p1.x - p0.x;
-                    const dy2 = p1.y - p0.y;
-
-                    tangent1X = dx2 * (1 - smoothness) + dx1 * smoothness;
-                    tangent1Y = dy2 * (1 - smoothness) + dy1 * smoothness;
-                }
-
-                if (i === points.length - 2) {
-                    tangent2X = p1.x - p0.x;
-                    tangent2Y = p1.y - p0.y;
-                } else {
-                    const nextPoint = points[i + 2];
-                    const dx1 = p1.x - p0.x;
-                    const dy1 = p1.y - p0.y;
-                    const dx2 = nextPoint.x - p1.x;
-                    const dy2 = nextPoint.y - p1.y;
-
-                    tangent2X = dx1 * (1 - smoothness) + dx2 * smoothness;
-                    tangent2Y = dy1 * (1 - smoothness) + dy2 * smoothness;
-                }
-
-                const len1 = Math.sqrt(tangent1X * tangent1X + tangent1Y * tangent1Y);
-                const len2 = Math.sqrt(tangent2X * tangent2X + tangent2Y * tangent2Y);
-
-                if (len1 > 0) {
-                    tangent1X /= len1;
-                    tangent1Y /= len1;
-                }
-                if (len2 > 0) {
-                    tangent2X /= len2;
-                    tangent2Y /= len2;
-                }
-
-                return { tangent1X, tangent1Y, tangent2X, tangent2Y };
-            }
-
-            // ===================================
-            // MENU SETUP
-            // ===================================
-
-            setupMenu() {
-                this.setupMenuToggle();
-                this.setupMenuControls();
-                this.setupCopySettings();
-            }
-
-            setupMenuToggle() {
-                const menuButton = document.getElementById('menuButton');
-                const menuOverlay = document.getElementById('menuOverlay');
-                const menuPanel = document.getElementById('menuPanel');
-
-                menuButton.addEventListener('click', () => {
-                    menuOverlay.classList.remove('hidden');
-                    menuButton.style.display = 'none';
-                    setTimeout(() => {
-                        menuPanel.style.transform = 'translateX(0)';
-                    }, 10);
-                });
-
-                const closeMenuFunc = () => {
-                    menuPanel.style.transform = 'translateX(-100%)';
-                    setTimeout(() => {
-                        menuOverlay.classList.add('hidden');
-                        menuButton.style.display = 'block';
-                    }, 300);
-                };
-
-                menuOverlay.addEventListener('click', (e) => {
-                    if (e.target === menuOverlay) {
-                        closeMenuFunc();
-                    }
-                });
-            }
-
-            setupMenuControls() {
-                this.setupEraserControls();
-                this.setupStrokeControls();
-                this.setupSmoothingControls();
-                this.setupShadowControls();
-                this.setupTaperingControls();
-            }
-
-            setupEraserControls() {
-                this.bindRangeControl('eraserMinSize', 'eraserMinSizeValue', (value) => {
-                    this.eraserMinSize = parseInt(value);
-                    return `${value}px`;
-                });
-
-                this.bindRangeControl('eraserMaxSize', 'eraserMaxSizeValue', (value) => {
-                    this.eraserMaxSize = parseInt(value);
-                    return `${value}px`;
-                });
-
-                this.bindRangeControl('eraserSpeedThreshold', 'eraserSpeedThresholdValue', (value) => {
-                    this.eraserSpeedThreshold = parseInt(value);
-                    return `${value} px/s`;
-                });
-            }
-
-            setupStrokeControls() {
-                this.bindRangeControl('strokeWidth', 'strokeWidthValue', (value) => {
-                    this.strokeWidth = parseFloat(value);
-                    return `${value}px`;
-                });
-
-                this.bindColorControl('strokeColor', 'strokeColorValue', (value) => {
-                    this.strokeColor = value;
-                    return value.toUpperCase();
-                });
-
-                this.bindColorControl('previewColor', 'previewColorValue', (value) => {
-                    this.previewColor = value;
-                    return value.toUpperCase();
-                });
-
-                this.bindRangeControl('strokeOpacity', 'strokeOpacityValue', (value) => {
-                    this.strokeOpacity = parseFloat(value);
-                    return `${Math.round(value * 100)}%`;
-                });
-
-                this.setupSmoothingMethodControl();
-            }
-
-            setupSmoothingMethodControl() {
-                const smoothingMethod = document.getElementById('smoothingMethod');
-                const chaikinSettings = document.getElementById('chaikinSettings');
-                const catmullromSettings = document.getElementById('catmullromSettings');
-                const bezierSettings = document.getElementById('bezierSettings');
-
-                smoothingMethod.addEventListener('change', (e) => {
-                    this.smoothingMethod = e.target.value;
-
-                    chaikinSettings.classList.add('hidden');
-                    catmullromSettings.classList.add('hidden');
-                    bezierSettings.classList.add('hidden');
-
-                    if (e.target.value === 'chaikin') {
-                        chaikinSettings.classList.remove('hidden');
-                    } else if (e.target.value === 'catmullrom') {
-                        catmullromSettings.classList.remove('hidden');
-                    } else if (e.target.value === 'bezier') {
-                        bezierSettings.classList.remove('hidden');
-                    }
-                });
-            }
-
-            setupSmoothingControls() {
-                this.bindRangeControl('smoothingIterations', 'smoothingIterationsValue', (value) => {
-                    this.smoothingIterations = parseInt(value);
-                    return value;
-                });
-
-                this.bindRangeControl('smoothingFactor', 'smoothingFactorValue', (value) => {
-                    this.smoothingFactor = parseFloat(value);
-                    return value;
-                });
-
-                this.bindRangeControl('splineTension', 'splineTensionValue', (value) => {
-                    this.splineTension = parseFloat(value);
-                    return value;
-                });
-
-                this.bindRangeControl('curveSegments', 'curveSegmentsValue', (value) => {
-                    this.curveSegments = parseInt(value);
-                    return value;
-                });
-
-                this.bindRangeControl('bezierDistance', 'bezierDistanceValue', (value) => {
-                    this.bezierDistance = parseFloat(value);
-                    return value;
-                });
-
-                this.bindRangeControl('bezierSmoothness', 'bezierSmoothnessValue', (value) => {
-                    this.bezierSmoothness = parseFloat(value);
-                    return value;
-                });
-
-                this.bindRangeControl('bezierResolution', 'bezierResolutionValue', (value) => {
-                    this.bezierResolution = parseInt(value);
-                    return value;
-                });
-            }
-
-            setupShadowControls() {
-                const enableShadow = document.getElementById('enableShadow');
-                const shadowSettings = document.getElementById('shadowSettings');
-
-                enableShadow.addEventListener('change', (e) => {
-                    this.enableShadow = e.target.checked;
-                    shadowSettings.classList.toggle('hidden', !e.target.checked);
-                });
-
-                this.bindRangeControl('shadowOffsetX', 'shadowOffsetXValue', (value) => {
-                    this.shadowOffsetX = parseInt(value);
-                    return `${value}px`;
-                });
-
-                this.bindRangeControl('shadowOffsetY', 'shadowOffsetYValue', (value) => {
-                    this.shadowOffsetY = parseInt(value);
-                    return `${value}px`;
-                });
-
-                this.bindRangeControl('shadowBlur', 'shadowBlurValue', (value) => {
-                    this.shadowBlur = parseFloat(value);
-                    return `${value}px`;
-                });
-
-                this.bindColorControl('shadowColor', 'shadowColorValue', (value) => {
-                    this.shadowColor = value;
-                    return value.toUpperCase();
-                });
-
-                this.bindRangeControl('shadowOpacity', 'shadowOpacityValue', (value) => {
-                    this.shadowOpacity = parseFloat(value);
-                    return `${Math.round(value * 100)}%`;
-                });
-            }
-
-            setupTaperingControls() {
-                const enableTapering = document.getElementById('enableTapering');
-                enableTapering.addEventListener('change', (e) => {
-                    this.enableTapering = e.target.checked;
-                });
-
-                this.bindRangeControl('startTaper', 'startTaperValue', (value) => {
-                    this.startTaper = parseFloat(value);
-                    return `${Math.round(value * 100)}%`;
-                });
-
-                this.bindRangeControl('endTaper', 'endTaperValue', (value) => {
-                    this.endTaper = parseFloat(value);
-                    return `${Math.round(value * 100)}%`;
-                });
-
-                this.bindRangeControl('taperStart', 'taperStartValue', (value) => {
-                    this.taperStart = parseInt(value) / 100;
-                    return `${value}%`;
-                });
-            }
-
-            // Helper method for binding range controls
-            bindRangeControl(controlId, valueId, callback) {
-                const control = document.getElementById(controlId);
-                const valueDisplay = document.getElementById(valueId);
-
-                control.addEventListener('input', (e) => {
-                    const formattedValue = callback(e.target.value);
-                    valueDisplay.textContent = formattedValue;
-                });
-            }
-
-            // Helper method for binding color controls
-            bindColorControl(controlId, valueId, callback) {
-                const control = document.getElementById(controlId);
-                const valueDisplay = document.getElementById(valueId);
-
-                control.addEventListener('input', (e) => {
-                    const formattedValue = callback(e.target.value);
-                    valueDisplay.textContent = formattedValue;
-                });
-            }
-
-            setupCopySettings() {
-                document.getElementById('copySettings').addEventListener('click', () => {
-                    this.copyAllSettings();
-                });
-            }
-
-            copyAllSettings() {
-                const settings = this.getAllSettingsFromUI();
-                const settingsText = this.formatSettingsText(settings);
-
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(settingsText).then(() => {
-                        this.showCopyFeedback();
-                    }).catch(err => {
-                        console.error('Failed to copy settings:', err);
-                        this.fallbackCopy(settingsText);
-                    });
-                } else {
-                    this.fallbackCopy(settingsText);
-                }
-            }
-
-            getAllSettingsFromUI() {
-                return {
-                    eraserMinSize: document.getElementById('eraserMinSize').value,
-                    eraserMaxSize: document.getElementById('eraserMaxSize').value,
-                    eraserSpeedThreshold: document.getElementById('eraserSpeedThreshold').value,
-                    strokeWidth: document.getElementById('strokeWidth').value,
-                    strokeColor: document.getElementById('strokeColor').value,
-                    previewColor: document.getElementById('previewColor').value,
-                    smoothingMethod: document.getElementById('smoothingMethod').value,
-                    strokeOpacity: document.getElementById('strokeOpacity').value,
-                    enableShadow: document.getElementById('enableShadow').checked,
-                    enableTapering: document.getElementById('enableTapering').checked,
-                    chaikinIterations: document.getElementById('smoothingIterations').value,
-                    chaikinFactor: document.getElementById('smoothingFactor').value,
-                    catmullTension: document.getElementById('splineTension').value,
-                    catmullSegments: document.getElementById('curveSegments').value,
-                    bezierDistance: document.getElementById('bezierDistance').value,
-                    bezierSmoothness: document.getElementById('bezierSmoothness').value,
-                    bezierResolution: document.getElementById('bezierResolution').value,
-                    shadowOffsetX: document.getElementById('shadowOffsetX').value,
-                    shadowOffsetY: document.getElementById('shadowOffsetY').value,
-                    shadowBlur: document.getElementById('shadowBlur').value,
-                    shadowColor: document.getElementById('shadowColor').value,
-                    shadowOpacity: document.getElementById('shadowOpacity').value,
-                    startTaper: document.getElementById('startTaper').value,
-                    endTaper: document.getElementById('endTaper').value,
-                    taperStart: document.getElementById('taperStart').value
-                };
-            }
-
-            formatSettingsText(settings) {
-                const smoothingOptions = {
-                    'none': 'Direct (No Smoothing)',
-                    'chaikin': 'Chaikin Smoothing',
-                    'catmullrom': 'Catmull-Rom Splines',
-                    'bezier': 'Bezier Smoothing'
-                };
-
-                return `Drawing App Settings:
-═══════════════════════
-
-🖊️ ERASER SETTINGS:
-• Min Eraser Size: ${settings.eraserMinSize}px
-• Max Eraser Size: ${settings.eraserMaxSize}px
-• Speed Threshold: ${settings.eraserSpeedThreshold} px/s
-
-📐 STROKE PROPERTIES:
-• Stroke Width: ${settings.strokeWidth}px
-• Stroke Color: ${settings.strokeColor.toUpperCase()}
-• Preview Ink Color: ${settings.previewColor.toUpperCase()}
-• Smoothing Method: ${smoothingOptions[settings.smoothingMethod] || settings.smoothingMethod}
-• Opacity: ${Math.round(settings.strokeOpacity * 100)}%
-• Drop Shadow: ${settings.enableShadow ? 'Enabled' : 'Disabled'}
-
-🎛️ SMOOTHING ALGORITHMS:
-• Chaikin Smoothing:
-  ↳ Smoothing Iterations: ${settings.chaikinIterations}
-  ↳ Smoothing Factor: ${settings.chaikinFactor}
-• Catmull-Rom Splines:
-  ↳ Tension: ${settings.catmullTension}
-  ↳ Curve Segments: ${settings.catmullSegments}
-• Bezier Smoothing:
-  ↳ Control Point Distance: ${settings.bezierDistance}
-  ↳ Smoothness: ${settings.bezierSmoothness}
-  ↳ Resolution: ${settings.bezierResolution}
-
-🌫️ DROP SHADOW SETTINGS:
-• Shadow Offset X: ${settings.shadowOffsetX}px
-• Shadow Offset Y: ${settings.shadowOffsetY}px
-• Shadow Blur: ${settings.shadowBlur}px
-• Shadow Color: ${settings.shadowColor.toUpperCase()}
-• Shadow Opacity: ${Math.round(settings.shadowOpacity * 100)}%
-
-🎨 STROKE TAPERING:
-• Enable Tapering: ${settings.enableTapering ? 'Yes' : 'No'}
-• Start Taper Amount: ${Math.round(settings.startTaper * 100)}%
-• End Taper Amount: ${Math.round(settings.endTaper * 100)}%
-• Taper Start Point: ${settings.taperStart}%
-
-═══════════════════════
-Complete settings snapshot with eraser functionality`;
-            }
-
-            showCopyFeedback() {
-                const button = document.getElementById('copySettings');
-                const originalTitle = button.title;
-                button.title = 'Copied!';
-                button.style.color = '#10b981';
-
-                setTimeout(() => {
-                    button.title = originalTitle;
-                    button.style.color = '';
-                }, 2000);
-            }
-
-            fallbackCopy(text) {
-                const textArea = document.createElement('textarea');
-                textArea.value = text;
-                textArea.style.position = 'fixed';
-                textArea.style.left = '-999999px';
-                textArea.style.top = '-999999px';
-                document.body.appendChild(textArea);
-                textArea.focus();
-                textArea.select();
-
-                try {
-                    document.execCommand('copy');
-                    this.showCopyFeedback();
-                } catch (err) {
-                    console.error('Fallback copy failed:', err);
-                }
-
-                document.body.removeChild(textArea);
+            
+            downloadSVG() {
+                const svgData = new XMLSerializer().serializeToString(this.svg);
+                const blob = new Blob([svgData], { type: 'image/svg+xml' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `drawing-${Date.now()}.svg`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                URL.revokeObjectURL(url);
             }
         }
-
-        // ===================================
-        // INITIALIZATION
-        // ===================================
-
+        
+        // Initialize the app when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
-            initializeDarkMode();
-            new DrawingApp();
+            new PressureDrawingApp();
         });
     </script>
 </body>
