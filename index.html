@@ -24,31 +24,27 @@
                 <!-- Brush Size -->
                 <div class="flex items-center space-x-2">
                     <label class="text-sm font-medium">Size:</label>
-                    <input 
-                        type="range" 
-                        id="brushSize" 
-                        min="1" 
-                        max="50" 
-                        value="5" 
-                        class="w-20"
-                    >
+                    <input type="range" id="brushSize" min="1" max="50" value="5" class="w-20">
                     <span id="sizeDisplay" class="text-sm w-8">5px</span>
                 </div>
                 
                 <!-- Color Picker -->
                 <div class="flex items-center space-x-2">
                     <label class="text-sm font-medium">Color:</label>
-                    <input 
-                        type="color" 
-                        id="colorPicker" 
-                        value="#000000" 
-                        class="w-10 h-8 rounded border border-gray-300 dark:border-gray-600"
-                    >
+                    <input type="color" id="colorPicker" value="#000000" class="w-10 h-8 rounded border border-gray-300 dark:border-gray-600">
+                </div>
+                
+                <!-- Pressure Toggle -->
+                <div class="flex items-center space-x-2">
+                    <label class="text-sm font-medium">Pressure:</label>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="pressureToggle" class="sr-only peer" checked>
+                        <div class="w-9 h-5 bg-gray-200 dark:bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#5D5CDE]"></div>
+                    </label>
                 </div>
                 
                 <!-- Pressure Indicator -->
                 <div class="flex items-center space-x-2">
-                    <label class="text-sm font-medium">Pressure:</label>
                     <div class="w-16 h-3 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
                         <div id="pressureBar" class="h-full bg-[#5D5CDE] transition-all duration-100 ease-out" style="width: 0%"></div>
                     </div>
@@ -67,18 +63,17 @@
             
             <div class="flex items-center space-x-2">
                 <!-- Clear Button -->
-                <button 
-                    id="clearBtn" 
-                    class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
-                >
+                <button id="clearBtn" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors">
                     Clear
                 </button>
                 
+                <!-- Present Button -->
+                <button id="presentBtn" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors hidden">
+                    Present
+                </button>
+                
                 <!-- Download Button -->
-                <button 
-                    id="downloadBtn" 
-                    class="px-4 py-2 bg-[#5D5CDE] hover:bg-[#4a49c7] text-white rounded-lg text-sm font-medium transition-colors"
-                >
+                <button id="downloadBtn" class="px-4 py-2 bg-[#5D5CDE] hover:bg-[#4a49c7] text-white rounded-lg text-sm font-medium transition-colors">
                     Download SVG
                 </button>
             </div>
@@ -88,23 +83,15 @@
     <!-- Drawing Area -->
     <div class="flex-1 overflow-hidden">
         <div id="canvasContainer" class="w-full h-screen relative">
-            <svg 
-                id="drawingSvg" 
-                class="drawing-canvas w-full h-full cursor-crosshair"
-                style="background: white;"
-            >
+            <svg id="drawingSvg" class="drawing-canvas w-full h-full cursor-crosshair" style="background: white;">
                 <defs>
                     <filter id="smoothing" x="-20%" y="-20%" width="140%" height="140%">
-                        <feGaussianBlur in="SourceGraphic" stdDeviation="0.5"/>
+                        <feGaussianBlur in="SourceGraphic" stdDeviation="0.5"></feGaussianBlur>
                     </filter>
                 </defs>
             </svg>
             <!-- Eraser Area Indicator -->
-            <div 
-                id="eraserIndicator" 
-                class="absolute pointer-events-none rounded-full border-2 border-pink-500 bg-pink-200 hidden"
-                style="opacity: 0.7; z-index: 1000; top: 0; left: 0; transform: translate3d(-50%, -50%, 0);"
-            ></div>
+            <div id="eraserIndicator" class="absolute pointer-events-none rounded-full border-2 border-pink-500 bg-pink-200 hidden" style="opacity: 0.7; z-index: 1000; top: 0; left: 0; transform: translate3d(-50%, -50%, 0);"></div>
         </div>
     </div>
 
@@ -134,6 +121,8 @@
                 this.clearBtn = document.getElementById('clearBtn');
                 this.downloadBtn = document.getElementById('downloadBtn');
                 this.eraserIndicator = document.getElementById('eraserIndicator');
+                this.pressureToggle = document.getElementById('pressureToggle');
+                this.presentBtn = document.getElementById('presentBtn');
                 
                 this.isDrawing = false;
                 this.isErasing = false;
@@ -162,8 +151,14 @@
                 // Store all strokes with their actual points
                 this.allStrokes = [];
                 
+                // Presentation API properties
+                this.presentationRequest = null;
+                this.presentationConnection = null;
+                this.isReceiver = window.location.hash === '#receiver';
+                
                 this.initializeEvents();
                 this.updateCanvasSize();
+                this.setupPresentation();
             }
             
             initializeEvents() {
@@ -172,6 +167,13 @@
                 this.svg.addEventListener('pointermove', this.draw.bind(this));
                 this.svg.addEventListener('pointerup', this.stopDrawing.bind(this));
                 this.svg.addEventListener('pointercancel', this.stopDrawing.bind(this));
+                
+                // Track touch events for palm rejection timing
+                this.svg.addEventListener('pointerdown', (e) => {
+                    if (e.pointerType === 'touch') {
+                        this.lastTouchTime = Date.now();
+                    }
+                });
                 
                 // Prevent context menu on right click
                 this.svg.addEventListener('contextmenu', e => e.preventDefault());
@@ -187,6 +189,9 @@
                 // Download button
                 this.downloadBtn.addEventListener('click', this.downloadSVG.bind(this));
                 
+                // Present button
+                this.presentBtn.addEventListener('click', this.startPresentation.bind(this));
+                
                 // Window resize
                 window.addEventListener('resize', this.updateCanvasSize.bind(this));
             }
@@ -201,10 +206,23 @@
             
             getPointerPosition(e) {
                 const rect = this.svg.getBoundingClientRect();
+                let pressure = e.pressure || 0.5; // Fallback for devices without pressure
+                
+                // Check if pressure sensitivity is enabled
+                if (!this.pressureToggle.checked) {
+                    pressure = 0.6; // Fixed pressure when disabled (60% of base size)
+                } else {
+                    // Fix pressure sensor persistence: if starting a new stroke with high pressure,
+                    // it's likely sensor lag from previous stroke - correct it to reasonable starting pressure
+                    if (!this.isDrawing && pressure > 0.4) {
+                        pressure = 0.15; // Reset to light pressure for natural stroke start
+                    }
+                }
+                
                 return {
                     x: e.clientX - rect.left,
                     y: e.clientY - rect.top,
-                    pressure: e.pressure || 0.5 // Fallback for devices without pressure
+                    pressure: pressure
                 };
             }
             
@@ -253,8 +271,17 @@
             }
             
             startDrawing(e) {
-                // Only allow pen/stylus input, ignore finger touches
-                if (e.pointerType === 'touch') {
+                // Enhanced palm rejection: only allow pen/stylus input
+                if (e.pointerType === 'touch' || e.pointerType !== 'pen') {
+                    e.preventDefault(); // Prevent touch from interfering
+                    return;
+                }
+                
+                // Additional palm rejection: block rapid touch-to-pen transitions
+                const now = Date.now();
+                if (this.lastTouchTime && (now - this.lastTouchTime) < 100) {
+                    console.log('🖐️ Blocked rapid touch-to-pen transition (palm rejection)');
+                    e.preventDefault();
                     return;
                 }
                 
@@ -755,6 +782,211 @@
                 document.body.removeChild(a);
                 
                 URL.revokeObjectURL(url);
+            }
+            
+            // ========== PRESENTATION API METHODS ==========
+            
+            setupPresentation() {
+                // Check if this is the receiver (presentation) display
+                if (this.isReceiver) {
+                    this.setupReceiverMode();
+                    return;
+                }
+                
+                // Check if Presentation API is supported
+                if (!('PresentationRequest' in window)) {
+                    console.log('Presentation API not supported');
+                    return;
+                }
+                
+                // Create presentation request
+                this.presentationRequest = new PresentationRequest(window.location.href + '#receiver');
+                
+                // Check for available displays and show/hide present button
+                this.presentationRequest.getAvailability()
+                    .then(availability => {
+                        this.presentBtn.classList.toggle('hidden', !availability.value);
+                        
+                        availability.addEventListener('change', () => {
+                            this.presentBtn.classList.toggle('hidden', !availability.value);
+                            console.log('Presentation displays available: ' + availability.value);
+                        });
+                    })
+                    .catch(error => {
+                        console.log('Presentation availability not supported: ' + error.message);
+                    });
+            }
+            
+            setupReceiverMode() {
+                // Hide all controls - this is the presentation display
+                document.querySelector('.border-b').style.display = 'none';
+                
+                // Make the canvas fullscreen
+                document.body.style.margin = '0';
+                document.body.style.padding = '0';
+                document.body.style.background = 'white';
+                
+                const container = document.getElementById('canvasContainer');
+                container.style.height = '100vh';
+                
+                // Set up receiver connection handling
+                if (navigator.presentation && navigator.presentation.receiver) {
+                    navigator.presentation.receiver.connectionList.then(list => {
+                        list.connections.forEach(connection => this.handleReceiverConnection(connection));
+                        list.addEventListener('connectionavailable', event => {
+                            this.handleReceiverConnection(event.connection);
+                        });
+                    });
+                }
+                
+                console.log('📺 Receiver mode - ready for presentation');
+            }
+            
+            handleReceiverConnection(connection) {
+                console.log('📺 Receiver connected');
+                
+                connection.addEventListener('message', event => {
+                    try {
+                        const message = JSON.parse(event.data);
+                        this.handleReceiverMessage(message);
+                    } catch (e) {
+                        console.log('📺 Received non-JSON message:', event.data);
+                    }
+                });
+                
+                connection.addEventListener('close', () => {
+                    console.log('📺 Connection closed');
+                });
+            }
+            
+            handleReceiverMessage(message) {
+                switch (message.type) {
+                    case 'canvas_update':
+                        // Update the receiver's canvas with the full SVG content
+                        this.svg.innerHTML = message.content;
+                        break;
+                    case 'clear':
+                        // Clear the receiver's canvas
+                        this.svg.innerHTML = '<defs><filter id="smoothing" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur in="SourceGraphic" stdDeviation="0.5"></feGaussianBlur></filter></defs>';
+                        break;
+                    default:
+                        console.log('📺 Unknown message type:', message.type);
+                }
+            }
+            
+            startPresentation() {
+                if (!this.presentationRequest) return;
+                
+                this.presentationRequest.start()
+                    .then(connection => {
+                        this.presentationConnection = connection;
+                        console.log('🎥 Connected to presentation display');
+                        
+                        // Send current canvas content to the presentation display
+                        this.syncCanvasToPresentation();
+                        
+                        // Update button text
+                        this.presentBtn.textContent = 'Stop Present';
+                        this.presentBtn.classList.remove('bg-green-500', 'hover:bg-green-600');
+                        this.presentBtn.classList.add('bg-red-500', 'hover:bg-red-600');
+                        
+                        // Handle connection events
+                        connection.addEventListener('close', () => {
+                            this.handlePresentationClose();
+                        });
+                        
+                        connection.addEventListener('terminate', () => {
+                            this.handlePresentationClose();
+                        });
+                        
+                        // Change button click to stop presentation
+                        this.presentBtn.onclick = () => this.stopPresentation();
+                    })
+                    .catch(error => {
+                        console.log('🎥 Failed to start presentation: ' + error);
+                    });
+            }
+            
+            stopPresentation() {
+                if (this.presentationConnection) {
+                    this.presentationConnection.terminate();
+                }
+            }
+            
+            handlePresentationClose() {
+                this.presentationConnection = null;
+                this.presentBtn.textContent = 'Present';
+                this.presentBtn.classList.remove('bg-red-500', 'hover:bg-red-600');
+                this.presentBtn.classList.add('bg-green-500', 'hover:bg-green-600');
+                this.presentBtn.onclick = () => this.startPresentation();
+                console.log('🎥 Presentation stopped');
+            }
+            
+            syncCanvasToPresentation() {
+                if (!this.presentationConnection) return;
+                
+                // Get the current canvas content (excluding the defs which will be recreated)
+                const currentContent = this.svg.innerHTML;
+                
+                const message = {
+                    type: 'canvas_update',
+                    content: currentContent
+                };
+                
+                try {
+                    this.presentationConnection.send(JSON.stringify(message));
+                } catch (e) {
+                    console.log('🎥 Failed to sync canvas to presentation: ' + e);
+                }
+            }
+            
+            // Override the redrawStroke method to sync with presentation
+            redrawStroke() {
+                if (this.strokePoints.length < 2) {
+                    // For single point, just draw a circle
+                    if (this.strokePoints.length === 1) {
+                        this.currentStroke.innerHTML = '';
+                        const point = this.strokePoints[0];
+                        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        circle.setAttribute('cx', point.x);
+                        circle.setAttribute('cy', point.y);
+                        circle.setAttribute('r', point.width / 2);
+                        circle.setAttribute('fill', this.colorPicker.value);
+                        this.currentStroke.appendChild(circle);
+                    }
+                } else {
+                    // Clear current stroke content
+                    this.currentStroke.innerHTML = '';
+                    
+                    // Create smooth outline path with variable width
+                    this.createSmoothVariableWidthPath();
+                }
+                
+                // Sync with presentation display if connected
+                if (!this.isReceiver) {
+                    this.syncCanvasToPresentation();
+                }
+            }
+            
+            // Override clearCanvas to sync with presentation
+            clearCanvas() {
+                // Clear the allStrokes array
+                this.allStrokes = [];
+                
+                // Remove all stroke groups from SVG
+                const groups = this.svg.querySelectorAll('g');
+                groups.forEach(group => group.remove());
+                this.pathCounter = 0;
+                
+                // Sync clear action with presentation
+                if (!this.isReceiver && this.presentationConnection) {
+                    const message = { type: 'clear' };
+                    try {
+                        this.presentationConnection.send(JSON.stringify(message));
+                    } catch (e) {
+                        console.log('🎥 Failed to sync clear to presentation: ' + e);
+                    }
+                }
             }
         }
         
