@@ -54,6 +54,15 @@
                     </div>
                     <span id="pressureDisplay" class="text-xs w-8">0%</span>
                 </div>
+                
+                <!-- Stroke Size Display -->
+                <div class="flex items-center space-x-2">
+                    <label class="text-sm font-medium">Stroke:</label>
+                    <span id="strokeSizeDisplay" class="text-sm w-12 font-mono">0px</span>
+                    <div class="flex items-center">
+                        <div id="strokePreview" class="bg-gray-800 dark:bg-gray-200 rounded-full transition-all duration-100 ease-out" style="width: 2px; height: 2px;"></div>
+                    </div>
+                </div>
             </div>
             
             <div class="flex items-center space-x-2">
@@ -120,6 +129,8 @@
                 this.sizeDisplay = document.getElementById('sizeDisplay');
                 this.pressureBar = document.getElementById('pressureBar');
                 this.pressureDisplay = document.getElementById('pressureDisplay');
+                this.strokeSizeDisplay = document.getElementById('strokeSizeDisplay');
+                this.strokePreview = document.getElementById('strokePreview');
                 this.clearBtn = document.getElementById('clearBtn');
                 this.downloadBtn = document.getElementById('downloadBtn');
                 this.eraserIndicator = document.getElementById('eraserIndicator');
@@ -201,6 +212,44 @@
                 const percentage = Math.round(pressure * 100);
                 this.pressureBar.style.width = percentage + '%';
                 this.pressureDisplay.textContent = percentage + '%';
+                
+                // Update real-time stroke size display
+                this.updateStrokeSizeDisplay(pressure);
+            }
+            
+            updateStrokeSizeDisplay(pressure) {
+                // Calculate the same stroke size that's being drawn
+                const baseSize = parseInt(this.brushSize.value);
+                const strokeSize = Math.max(1, baseSize * this.calculatePressureCurve(pressure));
+                const roundedSize = Math.round(strokeSize * 10) / 10; // Round to 1 decimal
+                
+                // Update text display
+                this.strokeSizeDisplay.textContent = roundedSize + 'px';
+                
+                // Update visual preview (max 16px for UI, but cap minimum at 2px for visibility)
+                const previewSize = Math.min(Math.max(strokeSize, 2), 16);
+                this.strokePreview.style.width = previewSize + 'px';
+                this.strokePreview.style.height = previewSize + 'px';
+                
+                // Update preview color to match current color
+                this.strokePreview.style.backgroundColor = this.colorPicker.value;
+            }
+            
+            // Custom pressure curve: gentle 0-40%, aggressive 45-95%, gentle 95-100%
+            calculatePressureCurve(pressure) {
+                if (pressure <= 0.4) {
+                    // Gentle curve from 0-40%: 20% to 35% of base size
+                    return 0.2 + (pressure / 0.4) * 0.15; // 15% range over 40% pressure
+                } else if (pressure <= 0.45) {
+                    // Smooth transition from 40-45%: 35% to 40% of base size
+                    return 0.35 + ((pressure - 0.4) / 0.05) * 0.05; // 5% range over 5% pressure
+                } else if (pressure <= 0.95) {
+                    // Very aggressive curve from 45-95%: 40% to 90% of base size
+                    return 0.4 + ((pressure - 0.45) / 0.5) * 0.5; // 50% range over 50% pressure (1% per 1% pressure!)
+                } else {
+                    // Gentle end from 95-100%: 90% to 100% of base size
+                    return 0.9 + ((pressure - 0.95) / 0.05) * 0.1; // 10% range over 5% pressure
+                }
             }
             
             startDrawing(e) {
