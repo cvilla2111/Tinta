@@ -59,6 +59,13 @@
                         <div id="strokePreview" class="bg-gray-800 dark:bg-gray-200 rounded-full transition-all duration-100 ease-out" style="width: 2px; height: 2px;"></div>
                     </div>
                 </div>
+                
+                <!-- Smoothing Controls -->
+                <div class="flex items-center space-x-2">
+                    <button id="smoothingToggle" class="text-sm font-medium text-[#5D5CDE] hover:text-[#4a49c7] cursor-pointer">
+                        Smoothing ▼
+                    </button>
+                </div>
             </div>
             
             <div class="flex items-center space-x-2">
@@ -76,6 +83,79 @@
                 <button id="downloadBtn" class="px-4 py-2 bg-[#5D5CDE] hover:bg-[#4a49c7] text-white rounded-lg text-sm font-medium transition-colors">
                     Download SVG
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Smoothing Controls Panel -->
+    <div id="smoothingPanel" class="hidden border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-4">
+        <div class="max-w-6xl mx-auto">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Point Sampling -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-medium">Point Sampling</label>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="pointSamplingToggle" class="sr-only peer" checked>
+                            <div class="w-7 h-4 bg-gray-200 dark:bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1px] after:left-[1px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#5D5CDE]"></div>
+                        </label>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs">Threshold:</span>
+                        <input type="range" id="pointSamplingThreshold" min="0.5" max="10" step="0.5" value="2" class="flex-1">
+                        <span id="pointSamplingDisplay" class="text-xs w-8">2px</span>
+                    </div>
+                </div>
+                
+                <!-- SVG Blur Filter -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-medium">SVG Blur</label>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="svgBlurToggle" class="sr-only peer" checked>
+                            <div class="w-7 h-4 bg-gray-200 dark:bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1px] after:left-[1px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#5D5CDE]"></div>
+                        </label>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs">Strength:</span>
+                        <input type="range" id="svgBlurStrength" min="0" max="3" step="0.1" value="0.5" class="flex-1">
+                        <span id="svgBlurDisplay" class="text-xs w-8">0.5</span>
+                    </div>
+                </div>
+                
+                <!-- Curve Smoothing -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-medium">Bézier Curves</label>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="bezierToggle" class="sr-only peer" checked>
+                            <div class="w-7 h-4 bg-gray-200 dark:bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1px] after:left-[1px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#5D5CDE]"></div>
+                        </label>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs">Method:</span>
+                        <select id="curveMethod" class="flex-1 text-xs px-2 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">
+                            <option value="quadratic">Quadratic</option>
+                            <option value="catmull">Catmull-Rom</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Direction Smoothing -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-medium">Direction</label>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="directionSmoothingToggle" class="sr-only peer" checked>
+                            <div class="w-7 h-4 bg-gray-200 dark:bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1px] after:left-[1px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#5D5CDE]"></div>
+                        </label>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs">Factor:</span>
+                        <input type="range" id="directionSmoothingFactor" min="0" max="1" step="0.1" value="0.5" class="flex-1">
+                        <span id="directionSmoothingDisplay" class="text-xs w-8">0.5</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -156,6 +236,13 @@
                 this.presentationConnection = null;
                 this.isReceiver = window.location.hash === '#receiver';
                 
+                // Performance optimization properties
+                this.pendingSyncUpdates = new Set();
+                this.syncThrottleId = null;
+                this.lastSyncTime = 0;
+                this.syncInterval = 50; // 50ms throttling (20fps)
+                this.strokeUpdateQueue = [];
+                
                 this.initializeEvents();
                 this.updateCanvasSize();
                 this.setupPresentation();
@@ -191,6 +278,9 @@
                 
                 // Present button
                 this.presentBtn.addEventListener('click', this.startPresentation.bind(this));
+                
+                // Smoothing controls
+                this.initializeSmoothingControls();
                 
                 // Window resize
                 window.addEventListener('resize', this.updateCanvasSize.bind(this));
@@ -349,7 +439,10 @@
                         Math.pow(point.y - this.lastPoint.y, 2)
                     );
                     
-                    if (distance > 2) { // Only add point if moved enough
+                    // Use configurable point sampling threshold
+                    const threshold = this.smoothingSettings?.pointSamplingEnabled ? 
+                        this.smoothingSettings.pointSamplingThreshold : 0;
+                    if (distance > threshold) { // Only add point if moved enough
                         const baseSize = parseInt(this.brushSize.value);
                         const pressureSize = Math.max(1, baseSize * (0.2 + point.pressure * 0.8));
                         
@@ -464,13 +557,20 @@
                         dirX = point.x - points[i - 1].x;
                         dirY = point.y - points[i - 1].y;
                     } else {
-                        // Middle point: average of both directions for smoothness
+                        // Middle point: configurable direction smoothing
                         const prevDirX = point.x - points[i - 1].x;
                         const prevDirY = point.y - points[i - 1].y;
                         const nextDirX = points[i + 1].x - point.x;
                         const nextDirY = points[i + 1].y - point.y;
-                        dirX = (prevDirX + nextDirX) / 2;
-                        dirY = (prevDirY + nextDirY) / 2;
+                        
+                        if (this.smoothingSettings?.directionSmoothingEnabled) {
+                            const factor = this.smoothingSettings.directionSmoothingFactor;
+                            dirX = prevDirX * (1 - factor) + (prevDirX + nextDirX) * factor / 2;
+                            dirY = prevDirY * (1 - factor) + (prevDirY + nextDirY) * factor / 2;
+                        } else {
+                            dirX = prevDirX;
+                            dirY = prevDirY;
+                        }
                     }
                     
                     // Normalize direction and get perpendicular
@@ -862,16 +962,76 @@
             handleReceiverMessage(message) {
                 switch (message.type) {
                     case 'canvas_update':
-                        // Update the receiver's canvas with the full SVG content
+                        // Legacy: Update the receiver's canvas with the full SVG content
                         this.svg.innerHTML = message.content;
                         break;
+                        
+                    case 'optimized_full_update':
+                        // Optimized: Rebuild canvas from stroke data
+                        this.rebuildCanvasFromStrokes(message.strokes);
+                        break;
+                        
+                    case 'stroke_batch_update':
+                        // Optimized: Update specific strokes only
+                        this.updateSpecificStrokes(message.strokes);
+                        break;
+                        
                     case 'clear':
                         // Clear the receiver's canvas
-                        this.svg.innerHTML = '<defs><filter id="smoothing" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur in="SourceGraphic" stdDeviation="0.5"></feGaussianBlur></filter></defs>';
+                        this.clearReceiverCanvas();
                         break;
+                        
                     default:
                         console.log('📺 Unknown message type:', message.type);
                 }
+            }
+            
+            rebuildCanvasFromStrokes(strokes) {
+                // Clear existing content except defs
+                const defs = this.svg.querySelector('defs');
+                this.svg.innerHTML = '';
+                if (defs) {
+                    this.svg.appendChild(defs);
+                }
+                
+                // Rebuild strokes efficiently
+                strokes.forEach(strokeData => {
+                    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    group.setAttribute('fill', strokeData.fill);
+                    if (strokeData.filter) {
+                        group.setAttribute('filter', strokeData.filter);
+                    }
+                    
+                    if (strokeData.pathData.startsWith('M') && strokeData.pathData.includes('Q')) {
+                        // Path stroke
+                        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                        path.setAttribute('d', strokeData.pathData);
+                        path.setAttribute('stroke', 'none');
+                        group.appendChild(path);
+                    } else {
+                        // Circle stroke (convert from path format)
+                        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        // Extract circle data from path (simplified)
+                        const match = strokeData.pathData.match(/M(\d+(?:\.\d+)?),(\d+(?:\.\d+)?) m-(\d+(?:\.\d+)?)/);
+                        if (match) {
+                            circle.setAttribute('cx', match[1]);
+                            circle.setAttribute('cy', match[2]);
+                            circle.setAttribute('r', match[3]);
+                        }
+                        group.appendChild(circle);
+                    }
+                    
+                    this.svg.appendChild(group);
+                });
+            }
+            
+            updateSpecificStrokes(strokes) {
+                // For now, just do a full rebuild - more complex differential updates can be added later
+                this.rebuildCanvasFromStrokes(strokes);
+            }
+            
+            clearReceiverCanvas() {
+                this.svg.innerHTML = '<defs><filter id="smoothing" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur in="SourceGraphic" stdDeviation="0.5"></feGaussianBlur></filter></defs>';
             }
             
             startPresentation() {
@@ -922,22 +1082,112 @@
                 console.log('🎥 Presentation stopped');
             }
             
-            syncCanvasToPresentation() {
+            // ========== PERFORMANCE OPTIMIZED SYNC ==========
+            
+            scheduleSync(updateType = 'canvas_update', data = null) {
                 if (!this.presentationConnection) return;
                 
-                // Get the current canvas content (excluding the defs which will be recreated)
-                const currentContent = this.svg.innerHTML;
+                // Add update to queue
+                if (updateType === 'stroke_update' && data) {
+                    this.strokeUpdateQueue.push(data);
+                } else {
+                    this.pendingSyncUpdates.add(updateType);
+                }
                 
-                const message = {
-                    type: 'canvas_update',
-                    content: currentContent
-                };
+                // Throttle sync calls using requestAnimationFrame
+                if (!this.syncThrottleId) {
+                    this.syncThrottleId = requestAnimationFrame(() => {
+                        this.performThrottledSync();
+                    });
+                }
+            }
+            
+            performThrottledSync() {
+                const now = Date.now();
+                
+                // Respect minimum interval (50ms = 20fps)
+                if (now - this.lastSyncTime < this.syncInterval) {
+                    this.syncThrottleId = requestAnimationFrame(() => {
+                        this.performThrottledSync();
+                    });
+                    return;
+                }
+                
+                this.lastSyncTime = now;
+                this.syncThrottleId = null;
                 
                 try {
-                    this.presentationConnection.send(JSON.stringify(message));
+                    // Process queued updates
+                    if (this.strokeUpdateQueue.length > 0) {
+                        this.sendBatchedStrokeUpdates();
+                    } else if (this.pendingSyncUpdates.has('canvas_update')) {
+                        this.sendFullCanvasUpdate();
+                    } else if (this.pendingSyncUpdates.has('clear')) {
+                        this.sendClearUpdate();
+                    }
                 } catch (e) {
-                    console.log('🎥 Failed to sync canvas to presentation: ' + e);
+                    console.log('🎥 Sync error:', e);
                 }
+                
+                // Clear processed updates
+                this.pendingSyncUpdates.clear();
+                this.strokeUpdateQueue = [];
+            }
+            
+            sendBatchedStrokeUpdates() {
+                if (!this.presentationConnection || this.strokeUpdateQueue.length === 0) return;
+                
+                // Send only the latest stroke updates (last 5 strokes max for performance)
+                const recentUpdates = this.strokeUpdateQueue.slice(-5);
+                
+                const message = {
+                    type: 'stroke_batch_update',
+                    strokes: recentUpdates.map(update => ({
+                        strokeId: update.strokeId,
+                        pathData: update.pathData,
+                        fill: update.fill,
+                        filter: update.filter
+                    }))
+                };
+                
+                this.presentationConnection.send(JSON.stringify(message));
+            }
+            
+            sendFullCanvasUpdate() {
+                if (!this.presentationConnection) return;
+                
+                // Optimized: only send essential SVG content
+                const groups = this.svg.querySelectorAll('g');
+                const strokesData = Array.from(groups).map((group, index) => {
+                    const path = group.querySelector('path, circle');
+                    if (!path) return null;
+                    
+                    return {
+                        strokeId: `stroke_${index}`,
+                        pathData: path.getAttribute('d') || `M${path.getAttribute('cx')},${path.getAttribute('cy')} m-${path.getAttribute('r')},0 a${path.getAttribute('r')},${path.getAttribute('r')} 0 1,0 ${path.getAttribute('r')*2},0 a${path.getAttribute('r')},${path.getAttribute('r')} 0 1,0 -${path.getAttribute('r')*2},0`,
+                        fill: group.getAttribute('fill') || path.getAttribute('fill'),
+                        filter: group.getAttribute('filter')
+                    };
+                }).filter(Boolean);
+                
+                const message = {
+                    type: 'optimized_full_update',
+                    strokes: strokesData
+                };
+                
+                this.presentationConnection.send(JSON.stringify(message));
+            }
+            
+            sendClearUpdate() {
+                if (!this.presentationConnection) return;
+                
+                const message = { type: 'clear' };
+                this.presentationConnection.send(JSON.stringify(message));
+            }
+            
+            // Legacy method for backward compatibility - now optimized
+            syncCanvasToPresentation() {
+                this.scheduleSync('canvas_update');
             }
             
             // Override the redrawStroke method to sync with presentation
@@ -978,13 +1228,111 @@
                 groups.forEach(group => group.remove());
                 this.pathCounter = 0;
                 
-                // Sync clear action with presentation
-                if (!this.isReceiver && this.presentationConnection) {
-                    const message = { type: 'clear' };
-                    try {
-                        this.presentationConnection.send(JSON.stringify(message));
-                    } catch (e) {
-                        console.log('🎥 Failed to sync clear to presentation: ' + e);
+                // Sync clear action with presentation (optimized)
+                if (!this.isReceiver) {
+                    this.scheduleSync('clear');
+                }
+            }
+            
+            // ========== SMOOTHING CONTROLS ==========
+            
+            initializeSmoothingControls() {
+                // Smoothing panel toggle
+                const smoothingToggle = document.getElementById('smoothingToggle');
+                const smoothingPanel = document.getElementById('smoothingPanel');
+                let isPanelOpen = false;
+                
+                smoothingToggle.addEventListener('click', () => {
+                    isPanelOpen = !isPanelOpen;
+                    smoothingPanel.classList.toggle('hidden', !isPanelOpen);
+                    smoothingToggle.textContent = isPanelOpen ? 'Smoothing ▲' : 'Smoothing ▼';
+                });
+                
+                // Smoothing settings (defaults match current behavior)
+                this.smoothingSettings = {
+                    pointSamplingEnabled: true,
+                    pointSamplingThreshold: 2,
+                    svgBlurEnabled: true,
+                    svgBlurStrength: 0.5,
+                    bezierEnabled: true,
+                    curveMethod: 'quadratic',
+                    directionSmoothingEnabled: true,
+                    directionSmoothingFactor: 0.5
+                };
+                
+                // Get control elements
+                this.pointSamplingToggle = document.getElementById('pointSamplingToggle');
+                this.pointSamplingThreshold = document.getElementById('pointSamplingThreshold');
+                this.pointSamplingDisplay = document.getElementById('pointSamplingDisplay');
+                
+                this.svgBlurToggle = document.getElementById('svgBlurToggle');
+                this.svgBlurStrength = document.getElementById('svgBlurStrength');
+                this.svgBlurDisplay = document.getElementById('svgBlurDisplay');
+                
+                this.bezierToggle = document.getElementById('bezierToggle');
+                this.curveMethod = document.getElementById('curveMethod');
+                
+                this.directionSmoothingToggle = document.getElementById('directionSmoothingToggle');
+                this.directionSmoothingFactor = document.getElementById('directionSmoothingFactor');
+                this.directionSmoothingDisplay = document.getElementById('directionSmoothingDisplay');
+                
+                // Point sampling controls
+                this.pointSamplingToggle.addEventListener('change', () => {
+                    this.smoothingSettings.pointSamplingEnabled = this.pointSamplingToggle.checked;
+                    console.log('📐 Point sampling:', this.smoothingSettings.pointSamplingEnabled ? 'enabled' : 'disabled');
+                });
+                
+                this.pointSamplingThreshold.addEventListener('input', () => {
+                    this.smoothingSettings.pointSamplingThreshold = parseFloat(this.pointSamplingThreshold.value);
+                    this.pointSamplingDisplay.textContent = this.smoothingSettings.pointSamplingThreshold + 'px';
+                    console.log('📐 Point sampling threshold:', this.smoothingSettings.pointSamplingThreshold + 'px');
+                });
+                
+                // SVG blur controls
+                this.svgBlurToggle.addEventListener('change', () => {
+                    this.smoothingSettings.svgBlurEnabled = this.svgBlurToggle.checked;
+                    this.updateSVGBlurFilter();
+                    console.log('🌊 SVG blur:', this.smoothingSettings.svgBlurEnabled ? 'enabled' : 'disabled');
+                });
+                
+                this.svgBlurStrength.addEventListener('input', () => {
+                    this.smoothingSettings.svgBlurStrength = parseFloat(this.svgBlurStrength.value);
+                    this.svgBlurDisplay.textContent = this.smoothingSettings.svgBlurStrength.toString();
+                    this.updateSVGBlurFilter();
+                    console.log('🌊 SVG blur strength:', this.smoothingSettings.svgBlurStrength);
+                });
+                
+                // Bezier curve controls
+                this.bezierToggle.addEventListener('change', () => {
+                    this.smoothingSettings.bezierEnabled = this.bezierToggle.checked;
+                    console.log('📈 Bézier curves:', this.smoothingSettings.bezierEnabled ? 'enabled' : 'disabled');
+                });
+                
+                this.curveMethod.addEventListener('change', () => {
+                    this.smoothingSettings.curveMethod = this.curveMethod.value;
+                    console.log('📈 Curve method:', this.smoothingSettings.curveMethod);
+                });
+                
+                // Direction smoothing controls
+                this.directionSmoothingToggle.addEventListener('change', () => {
+                    this.smoothingSettings.directionSmoothingEnabled = this.directionSmoothingToggle.checked;
+                    console.log('🧭 Direction smoothing:', this.smoothingSettings.directionSmoothingEnabled ? 'enabled' : 'disabled');
+                });
+                
+                this.directionSmoothingFactor.addEventListener('input', () => {
+                    this.smoothingSettings.directionSmoothingFactor = parseFloat(this.directionSmoothingFactor.value);
+                    this.directionSmoothingDisplay.textContent = this.smoothingSettings.directionSmoothingFactor.toString();
+                    console.log('🧭 Direction smoothing factor:', this.smoothingSettings.directionSmoothingFactor);
+                });
+            }
+            
+            updateSVGBlurFilter() {
+                const filter = this.svg.querySelector('filter#smoothing feGaussianBlur');
+                if (filter) {
+                    if (this.smoothingSettings.svgBlurEnabled) {
+                        filter.setAttribute('stdDeviation', this.smoothingSettings.svgBlurStrength.toString());
+                    } else {
+                        filter.setAttribute('stdDeviation', '0');
                     }
                 }
             }
