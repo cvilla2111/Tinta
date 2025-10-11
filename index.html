@@ -179,6 +179,11 @@
                 this.strokes = [];
                 this.undoStack = [];
                 
+                // Performance optimization
+                this.pendingUpdate = false;
+                this.lastUpdateTime = 0;
+                this.updateThrottle = 16; // ~60fps
+                
                 this.init();
             }
             
@@ -478,8 +483,30 @@
                 } else if (this.currentPoints.length === 2) {
                     // For the second point, draw a line to start the stroke
                     this.pathData += ` L ${point.x} ${point.y}`;
+                    this.schedulePathUpdate();
+                }
+            }
+            
+            schedulePathUpdate() {
+                if (this.pendingUpdate) return;
+                
+                const now = performance.now();
+                if (now - this.lastUpdateTime < this.updateThrottle) {
+                    this.pendingUpdate = true;
+                    requestAnimationFrame(() => {
+                        this.flushPathUpdate();
+                    });
+                } else {
+                    this.flushPathUpdate();
+                }
+            }
+            
+            flushPathUpdate() {
+                if (this.currentPath && this.pathData) {
                     this.currentPath.setAttribute('d', this.pathData);
                 }
+                this.pendingUpdate = false;
+                this.lastUpdateTime = performance.now();
             }
             
             updatePathWithQuadratic() {
@@ -501,7 +528,7 @@
                     this.pathData += ` Q ${p1.x} ${p1.y} ${mid2.x} ${mid2.y}`;
                 }
                 
-                this.currentPath.setAttribute('d', this.pathData);
+                this.schedulePathUpdate();
             }
             
             getMidpoint(p1, p2) {
