@@ -3,1499 +3,605 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Presentation Drawing App</title>
+    <title>Annotation App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#000000',
+                        secondary: '#666666',
+                        accent: '#999999'
+                    }
+                }
+            }
+        }
+    </script>
     <style>
+        /* Performance optimizations */
         * {
-            margin: 0;
-            padding: 0;
             box-sizing: border-box;
         }
-
+        
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f5f5;
-            padding: 20px;
+            background: #ffffff;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
         }
-
-        .controller {
-            max-width: 100%;
-            margin: 0 auto;
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
-        }
-
-        .presentation-display {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: white;
+        
+        #canvas {
             touch-action: none;
-            overflow: hidden;
-        }
-
-        h1 {
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 24px;
-        }
-
-        .controls {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-
-        button {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            background: #5D5CDE;
-            color: white;
-            font-size: 16px;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-weight: 500;
-        }
-
-        button:hover {
-            background: #4A49C7;
-            transform: translateY(-1px);
-        }
-
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .hidden {
-            display: none !important;
-        }
-
-        .status {
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-weight: 500;
-        }
-
-        .status.connected {
-            background: #e8f5e8;
-            color: #2d5016;
-            border: 1px solid #a3d977;
-        }
-
-        .status.disconnected {
-            background: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffeaa7;
-        }
-
-        .status.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .drawing-canvas {
-            width: 100%;
-            height: 100%;
             cursor: crosshair;
         }
-
-        .color-picker {
-            display: flex;
-            gap: 10px;
-            align-items: center;
+        
+        .hamburger {
+            transition: transform 0.2s ease;
         }
-
-        .color-option {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            border: 2px solid #ddd;
-            cursor: pointer;
-            transition: transform 0.2s;
+        
+        .hamburger.open {
+            transform: rotate(90deg);
         }
-
-        .color-option:hover {
-            transform: scale(1.1);
+        
+        .menu-panel {
+            transform: translateX(-100%);
+            transition: transform 0.2s ease;
+            will-change: transform;
         }
-
-        .color-option.active {
-            border-color: #333;
-            transform: scale(1.2);
+        
+        .menu-panel.open {
+            transform: translateX(0);
         }
-
-        .stroke-width {
-            display: flex;
-            gap: 10px;
-            align-items: center;
+        
+        /* SVG optimization */
+        svg {
+            shape-rendering: auto;
+            text-rendering: auto;
         }
-
-        input[type="range"] {
-            width: 100px;
+        
+        .tool-btn {
+            transition: background-color 0.1s ease;
         }
-
-        .instructions {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            margin-top: 20px;
+        
+        .tool-btn:hover {
+            background-color: #f5f5f5;
         }
-
-        .instructions h3 {
-            margin-bottom: 10px;
-            color: #333;
-        }
-
-        .instructions ul {
-            list-style-position: inside;
-            color: #666;
-            line-height: 1.5;
-        }
-
-        .canvas-container {
-            width: 100%;
-            aspect-ratio: 16 / 9;
-            margin: 20px 0;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            background: white;
-            overflow: hidden;
-        }
-
-        .main-canvas {
-            width: 100%;
-            height: 100%;
-            display: block;
-            cursor: crosshair;
-        }
-
-        .render-mode {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .mode-toggle {
-            display: flex;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        .mode-btn {
-            padding: 8px 16px;
-            border: none;
-            background: white;
-            color: #666;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-weight: 500;
-        }
-
-        .mode-btn:hover {
-            background: #f5f5f5;
-            transform: none;
-        }
-
-        .mode-btn.active {
-            background: #5D5CDE;
-            color: white;
-        }
-
-        .mode-btn.active:hover {
-            background: #4A49C7;
-        }
-
-        .smoothing-controls {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .smoothing-toggle {
-            display: flex;
-        }
-
-        .toggle-btn {
-            padding: 6px 12px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            background: white;
-            color: #666;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-weight: 500;
-            min-width: 40px;
-        }
-
-        .toggle-btn:hover {
-            background: #f5f5f5;
-            transform: none;
-        }
-
-        .toggle-btn.active {
-            background: #2ecc71;
-            color: white;
-            border-color: #27ae60;
-        }
-
-        .toggle-btn.active:hover {
-            background: #27ae60;
-        }
-
-        .smoothing-amount {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .smoothing-amount input[type="range"] {
-            width: 80px;
-        }
-
-        .smoothing-amount input[type="range"]:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+        
+        .tool-btn.active {
+            background-color: #e5e5e5;
         }
     </style>
 </head>
-<body>
-    <!-- Controller Interface -->
-    <div id="controller" class="controller">
-        <h1>Presentation Drawing App</h1>
-        
-        <div id="status" class="status disconnected">
-            Ready to present. Click "Start Presentation" to mirror drawing on external display.
-        </div>
-
-        <div class="controls">
-            <button id="presentBtn" class="hidden">Start Presentation</button>
-            <button id="reconnectBtn" class="hidden">Reconnect</button>
-            <button id="disconnectBtn" class="hidden">Disconnect</button>
-            <button id="stopBtn" class="hidden">Stop Presentation</button>
-            <button id="clearBtn">Clear Canvas</button>
-        </div>
-
-        <div class="controls">
-            <div class="color-picker">
-                <label>Color:</label>
-                <div class="color-option active" data-color="#000000" style="background: #000000;"></div>
-                <div class="color-option" data-color="#e74c3c" style="background: #e74c3c;"></div>
-                <div class="color-option" data-color="#3498db" style="background: #3498db;"></div>
-                <div class="color-option" data-color="#2ecc71" style="background: #2ecc71;"></div>
-                <div class="color-option" data-color="#f39c12" style="background: #f39c12;"></div>
-                <div class="color-option" data-color="#9b59b6" style="background: #9b59b6;"></div>
-            </div>
-            
-            <div class="stroke-width">
-                <label>Stroke Width:</label>
-                <input type="range" id="strokeWidth" min="1" max="20" value="3">
-                <span id="strokeWidthValue">3</span>px
-            </div>
-
-            <div class="render-mode">
-                <label>Render Mode:</label>
-                <div class="mode-toggle">
-                    <button id="svgMode" class="mode-btn active">SVG (Precision)</button>
-                    <button id="canvasMode" class="mode-btn">Canvas (Performance)</button>
+<body class="bg-white text-black font-mono">
+    <!-- Header -->
+    <div class="fixed top-0 left-0 right-0 bg-white border-b border-gray-300 z-20 h-12 flex items-center px-4">
+        <button id="menuToggle" class="hamburger p-2 mr-3 hover:bg-gray-100 rounded">
+            <div class="w-5 h-0.5 bg-black mb-1"></div>
+            <div class="w-5 h-0.5 bg-black mb-1"></div>
+            <div class="w-5 h-0.5 bg-black"></div>
+        </button>
+        <span class="text-sm font-medium">Annotation Tool</span>
+        <div class="ml-auto flex items-center space-x-3">
+            <span id="statusText" class="text-xs text-gray-600">Ready</span>
+            <div id="inputDetails" class="flex items-center space-x-2">
+                <div id="inputIndicator" class="w-2 h-2 bg-gray-400 rounded-full"></div>
+                <div id="inputInfo" class="text-xs text-gray-600 font-mono min-w-0">
+                    <div id="deviceType">-</div>
+                    <div id="buttonState" class="text-gray-500">-</div>
                 </div>
             </div>
-
-            <div class="smoothing-controls">
-                <label>Smoothing:</label>
-                <div class="smoothing-toggle">
-                    <button id="smoothingToggle" class="toggle-btn">OFF</button>
-                </div>
-                <div class="smoothing-amount">
-                    <label>Amount:</label>
-                    <input type="range" id="smoothingSlider" min="0" max="100" value="50" disabled>
-                    <span id="smoothingValue">50</span>%
-                </div>
-            </div>
-        </div>
-
-        <!-- Main Drawing Canvas -->
-        <div class="canvas-container">
-            <svg id="mainCanvas" class="main-canvas" xmlns="http://www.w3.org/2000/svg">
-            </svg>
-            <canvas id="mainCanvasHTML" class="main-canvas hidden"></canvas>
-        </div>
-
-        <div class="instructions">
-            <h3>Instructions:</h3>
-            <ul>
-                <li>Draw on the canvas above with Microsoft Pen 1776 or mouse</li>
-                <li>Touch/finger input is disabled for precision</li>
-                <li>Your drawing will be mirrored on the presentation display</li>
-                <li>Click "Start Presentation" to show on secondary monitor</li>
-                <li>Use the controls above to change colors and stroke width</li>
-            </ul>
         </div>
     </div>
 
-    <!-- Presentation Display (hidden initially) -->
-    <div id="presentation" class="presentation-display hidden">
-        <svg id="drawingCanvas" class="drawing-canvas" xmlns="http://www.w3.org/2000/svg">
+    <!-- Side Menu -->
+    <div id="sideMenu" class="menu-panel fixed left-0 top-12 bottom-0 w-64 bg-white border-r border-gray-300 z-10 overflow-y-auto">
+        <div class="p-4 space-y-4">
+            <!-- Tools -->
+            <div>
+                <h3 class="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Tools</h3>
+                <div class="space-y-1">
+                    <button id="penTool" class="tool-btn w-full text-left px-3 py-2 text-sm rounded border border-gray-200 active">
+                        Pen
+                    </button>
+                    <button id="eraserTool" class="tool-btn w-full text-left px-3 py-2 text-sm rounded border border-gray-200">
+                        Eraser
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stroke Width -->
+            <div>
+                <h3 class="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Stroke Width</h3>
+                <input type="range" id="strokeWidth" min="1" max="20" value="2" 
+                       class="w-full h-1 bg-gray-300 rounded-lg appearance-none cursor-pointer">
+                <div class="text-xs text-gray-600 mt-1">
+                    <span id="strokeWidthValue">2</span>px
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div>
+                <h3 class="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Actions</h3>
+                <div class="space-y-1">
+                    <button id="clearBtn" class="tool-btn w-full text-left px-3 py-2 text-sm rounded border border-gray-200">
+                        Clear All
+                    </button>
+                    <button id="undoBtn" class="tool-btn w-full text-left px-3 py-2 text-sm rounded border border-gray-200">
+                        Undo
+                    </button>
+                </div>
+            </div>
+
+            <!-- Input Filter Status -->
+            <div>
+                <h3 class="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Input Filter</h3>
+                <div class="text-xs text-gray-600 space-y-1">
+                    <div>✓ Pen Enabled</div>
+                    <div>✓ Mouse Enabled</div>
+                    <div>✗ Touch Disabled</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Canvas Area -->
+    <div id="canvasContainer" class="fixed top-12 left-0 right-0 bottom-0 bg-white overflow-hidden">
+        <svg id="canvas" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <style>
+                    .stroke {
+                        fill: none;
+                        stroke: #000000;
+                        stroke-linecap: round;
+                        stroke-linejoin: round;
+                    }
+                </style>
+            </defs>
         </svg>
     </div>
 
     <script>
-        class PresentationDrawingApp {
+        class AnnotationApp {
             constructor() {
-                this.isPresentation = window.location.hash === '#presentation';
-                this.connection = null;
-                this.currentStroke = null;
+                this.canvas = document.getElementById('canvas');
+                this.menuToggle = document.getElementById('menuToggle');
+                this.sideMenu = document.getElementById('sideMenu');
+                this.statusText = document.getElementById('statusText');
+                this.inputIndicator = document.getElementById('inputIndicator');
+                
                 this.isDrawing = false;
-                this.currentColor = '#000000';
-                this.currentStrokeWidth = 3;
-                this.renderMode = 'svg'; // 'svg' or 'canvas'
-                this.mainCanvasContext = null;
-                this.presentationCanvasContext = null;
-                this.canvasStrokes = []; // Store canvas strokes for synchronization
+                this.currentPath = null;
+                this.currentTool = 'pen';
+                this.strokeWidth = 2;
+                this.strokes = [];
+                this.undoStack = [];
                 
-                // Performance optimization properties
-                this.animationFrame = null;
-                this.pendingUpdates = [];
-                this.messageBatch = [];
-                this.lastBatchTime = 0;
-                this.batchInterval = 16; // ~60fps
-                this.currentStrokePoints = [];
-                this.lastSentPoint = null;
-                this.simplificationTolerance = 2; // pixels
-                this.isThrottling = false;
-                
-                // Smoothing properties
-                this.smoothingEnabled = false;
-                this.smoothingAmount = 50; // 0-100
-                this.smoothingPoints = []; // Buffer for smoothing calculation
-                
-                // Eraser properties
-                this.isEraserMode = false;
-                this.eraserSize = 20; // Default eraser size
-                
-                if (this.isPresentation) {
-                    this.initPresentation();
-                } else {
-                    this.initController();
-                }
+                this.init();
             }
-
-            initController() {
-                this.setupControllerUI();
-                this.setupPresentationAPI();
-                this.initCanvasContexts();
+            
+            init() {
+                this.setupEventListeners();
+                this.updateCanvasSize();
+                window.addEventListener('resize', () => this.updateCanvasSize());
             }
-
-            initPresentation() {
-                document.getElementById('controller').classList.add('hidden');
-                document.getElementById('presentation').classList.remove('hidden');
-                this.setupDrawingCanvas();
-                this.setupPresentationReceiver();
-                this.initPresentationCanvas();
-            }
-
-            initCanvasContexts() {
-                const canvas = document.getElementById('mainCanvasHTML');
-                const rect = document.querySelector('.canvas-container').getBoundingClientRect();
+            
+            setupEventListeners() {
+                // Menu toggle
+                this.menuToggle.addEventListener('click', () => this.toggleMenu());
                 
-                // Get device pixel ratio for high DPI displays
-                const dpr = window.devicePixelRatio || 1;
+                // Tool selection
+                document.getElementById('penTool').addEventListener('click', () => this.setTool('pen'));
+                document.getElementById('eraserTool').addEventListener('click', () => this.setTool('eraser'));
                 
-                // Set canvas size accounting for device pixel ratio
-                canvas.width = rect.width * dpr;
-                canvas.height = rect.height * dpr;
-                
-                // Scale canvas back down using CSS
-                canvas.style.width = rect.width + 'px';
-                canvas.style.height = rect.height + 'px';
-                
-                // Hardware acceleration optimization
-                this.mainCanvasContext = canvas.getContext('2d', { 
-                    alpha: true, 
-                    willReadFrequently: false,
-                    desynchronized: true 
-                });
-                
-                // Scale the drawing context to match device pixel ratio
-                this.mainCanvasContext.scale(dpr, dpr);
-                
-                this.setupCanvasStyle(this.mainCanvasContext);
-                // Set white background
-                this.clearCanvasBackground(this.mainCanvasContext, rect.width, rect.height);
-            }
-
-            initPresentationCanvas() {
-                // Create canvas for presentation mode
-                const presentationContainer = document.getElementById('presentation');
-                const presentationCanvas = document.createElement('canvas');
-                presentationCanvas.id = 'presentationCanvasHTML';
-                presentationCanvas.className = 'drawing-canvas hidden';
-                
-                // Get device pixel ratio for high DPI displays
-                const dpr = window.devicePixelRatio || 1;
-                
-                // Set canvas size accounting for device pixel ratio
-                presentationCanvas.width = window.innerWidth * dpr;
-                presentationCanvas.height = window.innerHeight * dpr;
-                
-                // Scale canvas back down using CSS
-                presentationCanvas.style.width = window.innerWidth + 'px';
-                presentationCanvas.style.height = window.innerHeight + 'px';
-                
-                presentationContainer.appendChild(presentationCanvas);
-                
-                this.presentationCanvasContext = presentationCanvas.getContext('2d');
-                
-                // Scale the drawing context to match device pixel ratio
-                this.presentationCanvasContext.scale(dpr, dpr);
-                
-                this.setupCanvasStyle(this.presentationCanvasContext);
-                // Set white background for presentation canvas
-                this.clearCanvasBackground(this.presentationCanvasContext, window.innerWidth, window.innerHeight);
-            }
-
-            clearCanvasBackground(ctx, width, height) {
-                // Fill with white background
-                ctx.fillStyle = 'white';
-                ctx.fillRect(0, 0, width, height);
-            }
-
-            setupCanvasStyle(ctx) {
-                // Enable high-quality anti-aliasing
-                ctx.imageSmoothingEnabled = true;
-                ctx.imageSmoothingQuality = 'high';
-                
-                // Line style settings for smooth appearance
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-                ctx.strokeStyle = this.currentColor;
-                ctx.lineWidth = this.currentStrokeWidth;
-                
-                // Clear any shadows that cause gray background
-                ctx.shadowColor = 'transparent';
-                ctx.shadowBlur = 0;
-                ctx.shadowOffsetX = 0;
-                ctx.shadowOffsetY = 0;
-                
-                // Ensure full opacity for proper anti-aliasing
-                ctx.globalAlpha = 1.0;
-                ctx.globalCompositeOperation = 'source-over';
-                
-                // Additional anti-aliasing hint
-                ctx.textRenderingOptimization = 'optimizeQuality';
-            }
-
-            setupControllerUI() {
-                const presentBtn = document.getElementById('presentBtn');
-                const reconnectBtn = document.getElementById('reconnectBtn');
-                const disconnectBtn = document.getElementById('disconnectBtn');
-                const stopBtn = document.getElementById('stopBtn');
-                const clearBtn = document.getElementById('clearBtn');
-                const strokeWidth = document.getElementById('strokeWidth');
-                const strokeWidthValue = document.getElementById('strokeWidthValue');
-                const svgModeBtn = document.getElementById('svgMode');
-                const canvasModeBtn = document.getElementById('canvasMode');
-                
-                // Color picker
-                document.querySelectorAll('.color-option').forEach(option => {
-                    option.addEventListener('click', (e) => {
-                        document.querySelector('.color-option.active').classList.remove('active');
-                        e.target.classList.add('active');
-                        this.currentColor = e.target.dataset.color;
-                        this.updateCanvasStyle();
-                        this.sendMessage({
-                            type: 'colorChange',
-                            color: this.currentColor
-                        });
-                    });
-                });
-
                 // Stroke width
-                strokeWidth.addEventListener('input', (e) => {
-                    this.currentStrokeWidth = e.target.value;
-                    strokeWidthValue.textContent = e.target.value;
-                    this.updateCanvasStyle();
-                    this.sendMessage({
-                        type: 'strokeWidthChange',
-                        width: this.currentStrokeWidth
-                    });
+                const strokeWidthSlider = document.getElementById('strokeWidth');
+                strokeWidthSlider.addEventListener('input', (e) => {
+                    this.strokeWidth = parseInt(e.target.value);
+                    document.getElementById('strokeWidthValue').textContent = this.strokeWidth;
                 });
-
-                // Mode toggle
-                svgModeBtn.onclick = () => this.switchMode('svg');
-                canvasModeBtn.onclick = () => this.switchMode('canvas');
-
-                // Smoothing controls
-                const smoothingToggle = document.getElementById('smoothingToggle');
-                const smoothingSlider = document.getElementById('smoothingSlider');
-                const smoothingValue = document.getElementById('smoothingValue');
-
-                smoothingToggle.onclick = () => this.toggleSmoothing();
-                smoothingSlider.addEventListener('input', (e) => {
-                    this.smoothingAmount = parseInt(e.target.value);
-                    smoothingValue.textContent = e.target.value;
-                    this.sendMessage({
-                        type: 'smoothingChange',
-                        enabled: this.smoothingEnabled,
-                        amount: this.smoothingAmount
-                    });
-                });
-
-                // Buttons
-                presentBtn.onclick = () => this.startPresentation();
-                reconnectBtn.onclick = () => this.reconnectPresentation();
-                disconnectBtn.onclick = () => this.disconnect();
-                stopBtn.onclick = () => this.stop();
-                clearBtn.onclick = () => this.clearCanvas();
-
-                // Setup main drawing canvas
-                this.setupMainDrawingCanvas();
-            }
-
-            updateCanvasStyle() {
-                if (this.mainCanvasContext) {
-                    this.mainCanvasContext.strokeStyle = this.currentColor;
-                    this.mainCanvasContext.lineWidth = this.currentStrokeWidth;
-                }
-            }
-
-            switchMode(mode) {
-                if (this.renderMode === mode) return;
                 
-                this.renderMode = mode;
+                // Actions
+                document.getElementById('clearBtn').addEventListener('click', () => this.clearCanvas());
+                document.getElementById('undoBtn').addEventListener('click', () => this.undo());
+                
+                // Canvas drawing events - using pointer events for better performance
+                this.canvas.addEventListener('pointerdown', (e) => this.handlePointerDown(e));
+                this.canvas.addEventListener('pointermove', (e) => this.handlePointerMove(e));
+                this.canvas.addEventListener('pointerup', (e) => this.handlePointerUp(e));
+                this.canvas.addEventListener('pointercancel', (e) => this.handlePointerUp(e));
+                
+                // Add hover detection for pen
+                this.canvas.addEventListener('pointerenter', (e) => this.handlePointerHover(e));
+                this.canvas.addEventListener('pointerleave', (e) => this.resetInputIndicator());
+                
+                // Prevent context menu
+                this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+            }
+            
+            updateCanvasSize() {
+                const container = document.getElementById('canvasContainer');
+                const rect = container.getBoundingClientRect();
+                this.canvas.setAttribute('width', rect.width);
+                this.canvas.setAttribute('height', rect.height);
+            }
+            
+            toggleMenu() {
+                const isOpen = this.sideMenu.classList.toggle('open');
+                this.menuToggle.classList.toggle('open', isOpen);
+            }
+            
+            setTool(tool) {
+                this.currentTool = tool;
                 
                 // Update UI
-                document.getElementById('svgMode').classList.toggle('active', mode === 'svg');
-                document.getElementById('canvasMode').classList.toggle('active', mode === 'canvas');
+                document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+                document.getElementById(tool + 'Tool').classList.add('active');
                 
-                // Show/hide appropriate canvases
-                document.getElementById('mainCanvas').classList.toggle('hidden', mode === 'canvas');
-                document.getElementById('mainCanvasHTML').classList.toggle('hidden', mode === 'svg');
+                // Update cursor
+                this.canvas.style.cursor = tool === 'pen' ? 'crosshair' : 'grab';
                 
-                // Clear current content
-                this.clearCanvas();
+                this.updateStatus(`${tool.charAt(0).toUpperCase() + tool.slice(1)} selected`);
+            }
+            
+            handlePointerDown(e) {
+                // Filter input: only allow pen and mouse, block touch
+                if (e.pointerType === 'touch') {
+                    e.preventDefault();
+                    this.updateStatus('Touch input disabled');
+                    this.updateInputIndicator('touch', e);
+                    setTimeout(() => {
+                        this.resetInputIndicator();
+                    }, 1000);
+                    return;
+                }
                 
-                // Send mode change to presentation
-                this.sendMessage({
-                    type: 'modeChange',
-                    mode: mode
-                });
-            }
-
-            setupPresentationAPI() {
-                const presentationUrl = window.location.href + '#presentation';
-                this.request = new PresentationRequest([presentationUrl]);
+                // Update detailed input indicator
+                this.updateInputIndicator(e.pointerType, e);
                 
-                // Check availability
-                this.request.getAvailability()
-                    .then(availability => {
-                        this.handleAvailabilityChange(availability.value);
-                        availability.onchange = () => {
-                            this.handleAvailabilityChange(availability.value);
-                        };
-                    })
-                    .catch(() => {
-                        // Assume available for simplicity
-                        this.handleAvailabilityChange(true);
-                    });
-
-                // Set default request
-                if (navigator.presentation) {
-                    navigator.presentation.defaultRequest = this.request;
-                    navigator.presentation.defaultRequest.onconnectionavailable = (evt) => {
-                        this.setConnection(evt.connection);
-                    };
-                }
-
-                // Auto-reconnect
-                this.reconnectPresentation();
-            }
-
-            handleAvailabilityChange(available) {
-                const presentBtn = document.getElementById('presentBtn');
-                if (available) {
-                    presentBtn.classList.remove('hidden');
-                } else {
-                    presentBtn.classList.add('hidden');
-                }
-            }
-
-            startPresentation() {
-                this.request.start()
-                    .then(connection => this.setConnection(connection))
-                    .catch(err => this.updateStatus('Failed to start presentation: ' + err.message, 'error'));
-            }
-
-            reconnectPresentation() {
-                const presId = localStorage.getItem('presId');
-                if (presId) {
-                    this.request.reconnect(presId)
-                        .then(connection => this.setConnection(connection))
-                        .catch(() => {
-                            // Could not reconnect
-                            localStorage.removeItem('presId');
-                        });
-                }
-            }
-
-            setConnection(newConnection) {
-                if (this.connection && this.connection !== newConnection && this.connection.state !== 'closed') {
-                    this.connection.onclose = undefined;
-                    this.connection.close();
-                }
-
-                this.connection = newConnection;
-                localStorage.setItem('presId', this.connection.id);
-
-                this.connection.onconnect = () => {
-                    this.showConnectedUI();
-                    this.updateStatus('Connected to presentation display', 'connected');
-                    
-                    // Send initial settings
-                    this.sendMessage({
-                        type: 'init',
-                        color: this.currentColor,
-                        strokeWidth: this.currentStrokeWidth,
-                        mode: this.renderMode,
-                        smoothingEnabled: this.smoothingEnabled,
-                        smoothingAmount: this.smoothingAmount
-                    });
-                };
-
-                this.connection.onclose = () => {
-                    this.connection = null;
-                    this.showDisconnectedUI();
-                    this.updateStatus('Disconnected from presentation', 'disconnected');
-                };
-
-                this.connection.onterminate = () => {
-                    localStorage.removeItem('presId');
-                    this.connection = null;
-                    this.showDisconnectedUI();
-                    this.updateStatus('Presentation terminated', 'disconnected');
-                };
-
-                this.connection.onmessage = (message) => {
-                    console.log('Received message:', message.data);
-                };
-            }
-
-            showConnectedUI() {
-                document.getElementById('presentBtn').classList.add('hidden');
-                document.getElementById('reconnectBtn').classList.add('hidden');
-                document.getElementById('disconnectBtn').classList.remove('hidden');
-                document.getElementById('stopBtn').classList.remove('hidden');
-                document.getElementById('clearBtn').classList.remove('hidden');
-            }
-
-            showDisconnectedUI() {
-                document.getElementById('disconnectBtn').classList.add('hidden');
-                document.getElementById('stopBtn').classList.add('hidden');
-                document.getElementById('clearBtn').classList.add('hidden');
+                e.preventDefault();
+                this.canvas.setPointerCapture(e.pointerId);
                 
-                if (localStorage.getItem('presId')) {
-                    document.getElementById('reconnectBtn').classList.remove('hidden');
-                } else {
-                    document.getElementById('presentBtn').classList.remove('hidden');
-                }
-            }
-
-            disconnect() {
-                if (this.connection) {
-                    this.connection.close();
-                }
-            }
-
-            stop() {
-                if (this.connection) {
-                    this.connection.terminate();
-                }
-            }
-
-            clearCanvas() {
-                if (this.renderMode === 'svg') {
-                    this.clearDrawingCanvas('mainCanvas');
-                } else {
-                    this.clearCanvasDrawing('mainCanvasHTML');
-                }
-                this.sendMessage({ type: 'clear' });
-            }
-
-            clearCanvasDrawing(canvasId) {
-                const canvas = document.getElementById(canvasId);
-                if (canvas && canvas.getContext) {
-                    const ctx = canvas.getContext('2d');
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    // Restore white background after clearing
-                    this.clearCanvasBackground(ctx, canvas.width, canvas.height);
-                }
-                this.canvasStrokes = [];
-            }
-
-            sendMessage(message) {
-                if (this.connection && this.connection.state === 'connected') {
-                    this.connection.send(JSON.stringify(message));
-                }
-            }
-
-            updateStatus(message, type) {
-                const status = document.getElementById('status');
-                status.textContent = message;
-                status.className = `status ${type}`;
-            }
-
-            setupPresentationReceiver() {
-                if (navigator.presentation && navigator.presentation.receiver) {
-                    navigator.presentation.receiver.connectionList.then(list => {
-                        list.connections.forEach(connection => {
-                            this.addConnection(connection);
-                        });
-                        list.onconnectionavailable = (evt) => {
-                            this.addConnection(evt.connection);
-                        };
-                    });
-                }
-            }
-
-            addConnection(connection) {
-                connection.onmessage = (message) => {
-                    const data = JSON.parse(message.data);
-                    this.handlePresentationMessage(data);
-                };
-            }
-
-            handlePresentationMessage(data) {
-                switch (data.type) {
-                    case 'init':
-                        this.currentColor = data.color;
-                        this.currentStrokeWidth = data.strokeWidth;
-                        if (data.mode) {
-                            this.switchPresentationMode(data.mode);
-                        }
-                        if (data.smoothingEnabled !== undefined) {
-                            this.smoothingEnabled = data.smoothingEnabled;
-                        }
-                        if (data.smoothingAmount !== undefined) {
-                            this.smoothingAmount = data.smoothingAmount;
-                        }
-                        break;
-                    case 'colorChange':
-                        this.currentColor = data.color;
-                        if (this.presentationCanvasContext) {
-                            this.presentationCanvasContext.strokeStyle = data.color;
-                        }
-                        break;
-                    case 'strokeWidthChange':
-                        this.currentStrokeWidth = data.width;
-                        if (this.presentationCanvasContext) {
-                            this.presentationCanvasContext.lineWidth = data.width;
-                        }
-                        break;
-                    case 'modeChange':
-                        this.switchPresentationMode(data.mode);
-                        break;
-                    case 'clear':
-                        this.clearPresentationCanvas();
-                        break;
-                    case 'startStroke':
-                        if (data.mode === 'svg') {
-                            this.createPresentationStroke(data);
-                        } else {
-                            this.startCanvasStroke(data);
-                        }
-                        break;
-                    case 'drawPoint':
-                        if (data.mode === 'svg') {
-                            this.addPointToPresentationStroke(data);
-                        } else {
-                            this.drawCanvasPoint(data);
-                        }
-                        break;
-                    case 'drawBatch':
-                        // Process optimized batch drawing
-                        this.processBatchDrawing(data);
-                        break;
-                    case 'messageBatch':
-                        // Process multiple messages in batch
-                        data.messages.forEach(message => this.handlePresentationMessage(message));
-                        break;
-                    case 'smoothingChange':
-                        this.smoothingEnabled = data.enabled;
-                        this.smoothingAmount = data.amount;
-                        break;
-                    case 'endStroke':
-                        if (data.mode === 'canvas') {
-                            this.endCanvasStroke(data);
-                        }
-                        break;
-                    case 'eraserModeChange':
-                        this.isEraserMode = data.isEraserMode;
-                        this.updateCursor();
-                        break;
-                    case 'erase':
-                        this.eraseAtPoint(data.x, data.y, 'presentation');
-                        break;
-                }
-            }
-
-            processBatchDrawing(data) {
-                if (data.mode === 'svg' && data.strokeId) {
-                    const stroke = document.getElementById(data.strokeId);
-                    if (stroke) {
-                        if (data.smoothPath && data.smoothingEnabled) {
-                            // Use the complete smooth path sent from main
-                            stroke.setAttribute('d', data.smoothPath);
-                        } else if (data.points) {
-                            // Regular batch update SVG path
-                            let currentPath = stroke.getAttribute('d');
-                            for (const point of data.points) {
-                                currentPath += ` L ${point.x} ${point.y}`;
-                            }
-                            stroke.setAttribute('d', currentPath);
-                        }
-                    }
-                } else if (data.mode === 'canvas' && this.presentationCanvasContext) {
-                    // Apply smoothing for canvas if enabled
-                    if (data.points) {
-                        if (this.smoothingEnabled) {
-                            this.drawSmoothCanvas(this.presentationCanvasContext, data.points);
-                        } else {
-                            // Regular batch draw canvas points
-                            for (const point of data.points) {
-                                this.presentationCanvasContext.lineTo(point.x, point.y);
-                            }
-                        }
-                        this.presentationCanvasContext.stroke();
-                    }
-                }
-            }
-
-            switchPresentationMode(mode) {
-                this.renderMode = mode;
-                document.getElementById('drawingCanvas').classList.toggle('hidden', mode === 'canvas');
-                const presentationCanvasHTML = document.getElementById('presentationCanvasHTML');
-                if (presentationCanvasHTML) {
-                    presentationCanvasHTML.classList.toggle('hidden', mode === 'svg');
-                }
-                this.clearPresentationCanvas();
-            }
-
-            clearPresentationCanvas() {
-                if (this.renderMode === 'svg') {
-                    this.clearDrawingCanvas('drawingCanvas');
-                } else {
-                    this.clearCanvasDrawing('presentationCanvasHTML');
-                }
-            }
-
-            createPresentationStroke(data) {
-                const stroke = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                stroke.setAttribute('stroke', data.color);
-                stroke.setAttribute('stroke-width', data.strokeWidth);
-                stroke.setAttribute('fill', 'none');
-                stroke.setAttribute('stroke-linecap', 'round');
-                stroke.setAttribute('stroke-linejoin', 'round');
-                stroke.setAttribute('id', data.strokeId);
-                
-                const pathData = `M ${data.x} ${data.y}`;
-                stroke.setAttribute('d', pathData);
-                
-                document.getElementById('drawingCanvas').appendChild(stroke);
-            }
-
-            addPointToPresentationStroke(data) {
-                const stroke = document.getElementById(data.strokeId);
-                if (stroke) {
-                    const currentPath = stroke.getAttribute('d');
-                    const newPath = `${currentPath} L ${data.x} ${data.y}`;
-                    stroke.setAttribute('d', newPath);
-                }
-            }
-
-            startCanvasStroke(data) {
-                if (this.presentationCanvasContext) {
-                    this.presentationCanvasContext.strokeStyle = data.color;
-                    this.presentationCanvasContext.lineWidth = data.strokeWidth;
-                    this.presentationCanvasContext.beginPath();
-                    this.presentationCanvasContext.moveTo(data.x, data.y);
-                }
-            }
-
-            drawCanvasPoint(data) {
-                if (this.presentationCanvasContext) {
-                    this.presentationCanvasContext.lineTo(data.x, data.y);
-                    this.presentationCanvasContext.stroke();
-                }
-            }
-
-            endCanvasStroke(data) {
-                // Canvas stroke completed
-            }
-
-            setupMainDrawingCanvas() {
-                const svgCanvas = document.getElementById('mainCanvas');
-                const htmlCanvas = document.getElementById('mainCanvasHTML');
-                
-                // SVG Canvas events
-                this.setupCanvasEvents(svgCanvas);
-                // HTML Canvas events
-                this.setupCanvasEvents(htmlCanvas);
-            }
-
-            setupDrawingCanvas() {
-                const canvas = document.getElementById('drawingCanvas');
-                this.setupCanvasEvents(canvas);
-            }
-
-            setupCanvasEvents(canvas) {
-                canvas.addEventListener('pointerdown', (e) => {
-                    if (e.pointerType === 'pen' || e.pointerType === 'mouse') {
-                        // Detect eraser mode from stylus
-                        this.detectEraserMode(e);
-                        this.startDrawing(e, canvas.id.includes('main') ? 'main' : 'presentation');
-                    }
-                });
-
-                canvas.addEventListener('pointermove', (e) => {
-                    if (e.pointerType === 'pen' || e.pointerType === 'mouse') {
-                        // Update eraser detection during movement
-                        this.detectEraserMode(e);
-                        this.draw(e, canvas.id.includes('main') ? 'main' : 'presentation');
-                    }
-                });
-
-                canvas.addEventListener('pointerup', (e) => {
-                    if (e.pointerType === 'pen' || e.pointerType === 'mouse') {
-                        this.stopDrawing(e, canvas.id.includes('main') ? 'main' : 'presentation');
-                    }
-                });
-
-                canvas.addEventListener('touchstart', (e) => e.preventDefault());
-                canvas.addEventListener('touchmove', (e) => e.preventDefault());
-                canvas.addEventListener('touchend', (e) => e.preventDefault());
-            }
-
-            startDrawing(e, mode) {
+                const point = this.getCanvasPoint(e);
                 this.isDrawing = true;
-                const rect = e.target.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                const strokeId = 'stroke_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-
-                // Initialize stroke points buffer for SVG smoothing
-                this.allStrokePoints = [{ x, y }];
-
-                if (this.renderMode === 'svg') {
-                    this.currentStroke = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                    this.currentStroke.setAttribute('stroke', this.currentColor);
-                    this.currentStroke.setAttribute('stroke-width', this.currentStrokeWidth);
-                    this.currentStroke.setAttribute('fill', 'none');
-                    this.currentStroke.setAttribute('stroke-linecap', 'round');
-                    this.currentStroke.setAttribute('stroke-linejoin', 'round');
-                    this.currentStroke.setAttribute('id', strokeId);
-                    
-                    const pathData = `M ${x} ${y}`;
-                    this.currentStroke.setAttribute('d', pathData);
-                    
-                    if (mode === 'main') {
-                        document.getElementById('mainCanvas').appendChild(this.currentStroke);
-                    } else {
-                        document.getElementById('drawingCanvas').appendChild(this.currentStroke);
-                    }
-                } else {
-                    // Canvas mode
-                    const ctx = mode === 'main' ? this.mainCanvasContext : this.presentationCanvasContext;
-                    if (ctx) {
-                        ctx.strokeStyle = this.currentColor;
-                        ctx.lineWidth = this.currentStrokeWidth;
-                        ctx.beginPath();
-                        ctx.moveTo(x, y);
-                        this.currentStroke = { x, y, id: strokeId };
-                    }
-                }
-
-                if (mode === 'main') {
-                    this.sendMessage({
-                        type: 'startStroke',
-                        strokeId: strokeId,
-                        x: x,
-                        y: y,
-                        color: this.currentColor,
-                        strokeWidth: this.currentStrokeWidth,
-                        mode: this.renderMode
-                    });
+                
+                if (this.currentTool === 'pen') {
+                    this.startStroke(point);
+                } else if (this.currentTool === 'eraser') {
+                    this.eraseAtPoint(point);
                 }
             }
-
-            draw(e, mode) {
-                const rect = e.target.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-
-                // Handle erasing - works even when not in drawing state
-                if (this.isEraserMode) {
-                    this.eraseAtPoint(x, y, mode);
-                    
-                    // Send erase command to presentation
-                    if (mode === 'main') {
-                        this.sendMessage({
-                            type: 'erase',
-                            x: x,
-                            y: y,
-                            eraserSize: this.eraserSize,
-                            mode: this.renderMode
-                        });
-                    }
-                    return;
+            
+            handlePointerMove(e) {
+                // Update input indicator even when not drawing (for hover detection)
+                if (e.pointerType === 'pen' && !this.isDrawing) {
+                    this.updateInputIndicator(e.pointerType, e);
                 }
-
-                // Only continue with drawing if we're in drawing state
-                if (!this.isDrawing) return;
-
-                // Add point to current stroke buffer
-                this.currentStrokePoints.push({ x, y });
                 
-                // For SVG smoothing, also add to complete stroke points
-                if (this.renderMode === 'svg') {
-                    this.allStrokePoints.push({ x, y });
-                }
-
-                // Use throttling for smooth performance
-                if (!this.isThrottling) {
-                    this.isThrottling = true;
-                    this.animationFrame = requestAnimationFrame(() => {
-                        this.processDrawingUpdate(mode);
-                        this.isThrottling = false;
-                    });
+                if (!this.isDrawing || e.pointerType === 'touch') return;
+                
+                e.preventDefault();
+                const point = this.getCanvasPoint(e);
+                
+                if (this.currentTool === 'pen') {
+                    this.addPointToStroke(point);
+                } else if (this.currentTool === 'eraser') {
+                    this.eraseAtPoint(point);
                 }
             }
-
-            processDrawingUpdate(mode) {
-                if (!this.currentStrokePoints.length) return;
-
-                // Get simplified points to reduce data
-                const simplifiedPoints = this.simplifyPath(this.currentStrokePoints);
-                
-                if (this.renderMode === 'svg' && this.currentStroke) {
-                    if (this.smoothingEnabled) {
-                        // Use all accumulated points for smooth path generation
-                        const smoothedAllPoints = this.applySmoothing(this.allStrokePoints);
-                        const completePath = this.generateSmoothSVGPath(smoothedAllPoints);
-                        this.currentStroke.setAttribute('d', completePath);
-                    } else {
-                        // Regular incremental path building
-                        let currentPath = this.currentStroke.getAttribute('d');
-                        for (const point of simplifiedPoints) {
-                            currentPath += ` L ${point.x} ${point.y}`;
-                        }
-                        this.currentStroke.setAttribute('d', currentPath);
-                    }
-                } else if (this.renderMode === 'canvas') {
-                    const ctx = mode === 'main' ? this.mainCanvasContext : this.presentationCanvasContext;
-                    if (ctx) {
-                        // Apply smoothing to canvas drawing
-                        if (this.smoothingEnabled) {
-                            this.drawSmoothCanvas(ctx, this.currentStrokePoints);
-                        } else {
-                            // Regular line drawing
-                            for (const point of this.currentStrokePoints) {
-                                ctx.lineTo(point.x, point.y);
-                            }
-                        }
-                        ctx.stroke();
-                    }
-                }
-
-                if (mode === 'main') {
-                    // Add to message batch for network optimization
-                    let dataToSend = {
-                        type: 'drawBatch',
-                        strokeId: this.currentStroke ? (this.currentStroke.getAttribute ? this.currentStroke.getAttribute('id') : this.currentStroke.id) : null,
-                        points: simplifiedPoints,
-                        mode: this.renderMode
-                    };
-                    
-                    // If smoothing is enabled and we're in SVG mode, send the complete smooth path
-                    if (this.smoothingEnabled && this.renderMode === 'svg') {
-                        const smoothedAllPoints = this.applySmoothing(this.allStrokePoints);
-                        const completePath = this.generateSmoothSVGPath(smoothedAllPoints);
-                        dataToSend.smoothPath = completePath;
-                        dataToSend.smoothingEnabled = true;
-                        dataToSend.smoothingAmount = this.smoothingAmount;
-                    }
-                    
-                    this.addToBatch(dataToSend);
-                }
-
-                // Clear processed points
-                this.currentStrokePoints = [];
-            }
-
-            // Path simplification using Douglas-Peucker algorithm (simplified version)
-            simplifyPath(points) {
-                if (points.length <= 2) return points;
-                
-                const simplified = [points[0]];
-                for (let i = 1; i < points.length - 1; i++) {
-                    const prev = points[i - 1];
-                    const curr = points[i];
-                    const next = points[i + 1];
-                    
-                    // Calculate distance from current point to line between prev and next
-                    const distance = this.pointToLineDistance(curr, prev, next);
-                    
-                    // Only include point if it's significant enough
-                    if (distance > this.simplificationTolerance) {
-                        simplified.push(curr);
-                    }
-                }
-                simplified.push(points[points.length - 1]);
-                
-                return simplified;
-            }
-
-            pointToLineDistance(point, lineStart, lineEnd) {
-                const A = point.x - lineStart.x;
-                const B = point.y - lineStart.y;
-                const C = lineEnd.x - lineStart.x;
-                const D = lineEnd.y - lineStart.y;
-
-                const dot = A * C + B * D;
-                const lenSq = C * C + D * D;
-                
-                if (lenSq === 0) return Math.sqrt(A * A + B * B);
-                
-                const param = dot / lenSq;
-                let xx, yy;
-
-                if (param < 0) {
-                    xx = lineStart.x;
-                    yy = lineStart.y;
-                } else if (param > 1) {
-                    xx = lineEnd.x;
-                    yy = lineEnd.y;
-                } else {
-                    xx = lineStart.x + param * C;
-                    yy = lineStart.y + param * D;
-                }
-
-                const dx = point.x - xx;
-                const dy = point.y - yy;
-                return Math.sqrt(dx * dx + dy * dy);
-            }
-
-            addToBatch(message) {
-                this.messageBatch.push(message);
-                
-                const now = performance.now();
-                if (now - this.lastBatchTime >= this.batchInterval) {
-                    this.flushBatch();
-                    this.lastBatchTime = now;
+            
+            handlePointerHover(e) {
+                // Handle pen hover when entering canvas area
+                if (e.pointerType === 'pen') {
+                    this.updateInputIndicator(e.pointerType, e);
                 }
             }
-
-            flushBatch() {
-                if (this.messageBatch.length === 0) return;
+            
+            handlePointerUp(e) {
+                if (e.pointerType === 'touch') return;
                 
-                if (this.messageBatch.length === 1) {
-                    this.sendMessage(this.messageBatch[0]);
-                } else {
-                    // Send as batch
-                    this.sendMessage({
-                        type: 'messageBatch',
-                        messages: this.messageBatch
-                    });
+                e.preventDefault();
+                this.canvas.releasePointerCapture(e.pointerId);
+                
+                if (this.isDrawing && this.currentTool === 'pen') {
+                    this.finishStroke();
                 }
                 
-                this.messageBatch = [];
-            }
-
-            toggleSmoothing() {
-                this.smoothingEnabled = !this.smoothingEnabled;
-                const toggle = document.getElementById('smoothingToggle');
-                const slider = document.getElementById('smoothingSlider');
-                
-                toggle.textContent = this.smoothingEnabled ? 'ON' : 'OFF';
-                toggle.classList.toggle('active', this.smoothingEnabled);
-                slider.disabled = !this.smoothingEnabled;
-                
-                this.sendMessage({
-                    type: 'smoothingChange',
-                    enabled: this.smoothingEnabled,
-                    amount: this.smoothingAmount
-                });
-            }
-
-            applySmoothing(points) {
-                if (!this.smoothingEnabled || points.length < 3) return points;
-                
-                const smoothed = [];
-                const factor = this.smoothingAmount / 100; // Convert to 0-1
-                
-                // Catmull-Rom spline smoothing
-                smoothed.push(points[0]); // Keep first point
-                
-                for (let i = 1; i < points.length - 1; i++) {
-                    const prev = points[i - 1];
-                    const curr = points[i];
-                    const next = points[i + 1];
-                    
-                    // Calculate smooth point using weighted average
-                    const smoothX = curr.x + factor * ((prev.x + next.x) / 2 - curr.x);
-                    const smoothY = curr.y + factor * ((prev.y + next.y) / 2 - curr.y);
-                    
-                    smoothed.push({ x: smoothX, y: smoothY });
-                }
-                
-                smoothed.push(points[points.length - 1]); // Keep last point
-                return smoothed;
-            }
-
-            generateSmoothSVGPath(points) {
-                if (!this.smoothingEnabled || points.length < 3) {
-                    // Regular line path
-                    let path = `M ${points[0].x} ${points[0].y}`;
-                    for (let i = 1; i < points.length; i++) {
-                        path += ` L ${points[i].x} ${points[i].y}`;
-                    }
-                    return path;
-                }
-                
-                if (points.length < 4) {
-                    // Not enough points for smooth curves, use simple quadratic
-                    let path = `M ${points[0].x} ${points[0].y}`;
-                    const mid = points[Math.floor(points.length / 2)];
-                    path += ` Q ${mid.x} ${mid.y} ${points[points.length - 1].x} ${points[points.length - 1].y}`;
-                    return path;
-                }
-                
-                // Advanced cubic Bezier smoothing
-                const factor = Math.max(0.1, this.smoothingAmount / 100); // More aggressive smoothing
-                let path = `M ${points[0].x} ${points[0].y}`;
-                
-                // Create smooth cubic bezier curves
-                for (let i = 0; i < points.length - 1; i++) {
-                    const current = points[i];
-                    const next = points[i + 1];
-                    
-                    // Calculate control points for smoother curves
-                    let cp1x, cp1y, cp2x, cp2y;
-                    
-                    if (i === 0) {
-                        // First segment
-                        const afterNext = points[i + 2] || next;
-                        cp1x = current.x + factor * (next.x - current.x) * 0.5;
-                        cp1y = current.y + factor * (next.y - current.y) * 0.5;
-                        cp2x = next.x - factor * (afterNext.x - current.x) * 0.3;
-                        cp2y = next.y - factor * (afterNext.y - current.y) * 0.3;
-                    } else if (i === points.length - 2) {
-                        // Last segment
-                        const prev = points[i - 1];
-                        cp1x = current.x + factor * (next.x - prev.x) * 0.3;
-                        cp1y = current.y + factor * (next.y - prev.y) * 0.3;
-                        cp2x = next.x - factor * (next.x - current.x) * 0.5;
-                        cp2y = next.y - factor * (next.y - current.y) * 0.5;
-                    } else {
-                        // Middle segments
-                        const prev = points[i - 1];
-                        const afterNext = points[i + 2];
-                        
-                        cp1x = current.x + factor * (next.x - prev.x) * 0.25;
-                        cp1y = current.y + factor * (next.y - prev.y) * 0.25;
-                        cp2x = next.x - factor * (afterNext.x - current.x) * 0.25;
-                        cp2y = next.y - factor * (afterNext.y - current.y) * 0.25;
-                    }
-                    
-                    path += ` C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${next.x} ${next.y}`;
-                }
-                
-                return path;
-            }
-
-            drawSmoothCanvas(ctx, points) {
-                if (!this.smoothingEnabled || points.length < 3) {
-                    // Regular line drawing
-                    for (const point of points) {
-                        ctx.lineTo(point.x, point.y);
-                    }
-                    return;
-                }
-                
-                // Much more aggressive smooth curve drawing
-                const factor = Math.max(0.2, this.smoothingAmount / 50); // More aggressive factor
-                
-                if (points.length < 4) {
-                    // Simple quadratic for short strokes
-                    const mid = points[Math.floor(points.length / 2)];
-                    ctx.quadraticCurveTo(mid.x, mid.y, points[points.length - 1].x, points[points.length - 1].y);
-                    return;
-                }
-                
-                // Advanced smooth curve using multiple control points
-                for (let i = 0; i < points.length - 1; i++) {
-                    const current = points[i];
-                    const next = points[i + 1];
-                    
-                    if (i === 0) {
-                        // First segment - smooth entry
-                        const afterNext = points[i + 2] || next;
-                        const cp1x = current.x + factor * (next.x - current.x) * 0.6;
-                        const cp1y = current.y + factor * (next.y - current.y) * 0.6;
-                        const cp2x = next.x - factor * (afterNext.x - current.x) * 0.4;
-                        const cp2y = next.y - factor * (afterNext.y - current.y) * 0.4;
-                        
-                        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, next.x, next.y);
-                    } else if (i === points.length - 2) {
-                        // Last segment - smooth exit
-                        const prev = points[i - 1];
-                        const cp1x = current.x + factor * (next.x - prev.x) * 0.4;
-                        const cp1y = current.y + factor * (next.y - prev.y) * 0.4;
-                        const cp2x = next.x - factor * (next.x - current.x) * 0.6;
-                        const cp2y = next.y - factor * (next.y - current.y) * 0.6;
-                        
-                        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, next.x, next.y);
-                    } else {
-                        // Middle segments - maximum smoothing
-                        const prev = points[i - 1];
-                        const afterNext = points[i + 2] || next;
-                        
-                        const cp1x = current.x + factor * (next.x - prev.x) * 0.3;
-                        const cp1y = current.y + factor * (next.y - prev.y) * 0.3;
-                        const cp2x = next.x - factor * (afterNext.x - current.x) * 0.3;
-                        const cp2y = next.y - factor * (afterNext.y - current.y) * 0.3;
-                        
-                        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, next.x, next.y);
-                    }
-                }
-            }
-
-            detectEraserMode(e) {
-                // Multiple detection methods for stylus eraser
-                const wasEraserMode = this.isEraserMode;
-                
-                // Method 1: Check button 5 (eraser button on some styluses)
-                this.isEraserMode = e.button === 5 || 
-                                  // Method 2: Check buttons property for eraser
-                                  (e.buttons & 32) !== 0 ||
-                                  // Method 3: Check for tangentialPressure (barrel rotation on some styluses)
-                                  (e.tangentialPressure !== undefined && Math.abs(e.tangentialPressure) > 0.5) ||
-                                  // Method 4: Check for specific eraser properties
-                                  e.pointerType === 'eraser' ||
-                                  // Method 5: Check for inverted stylus (some drivers report this)
-                                  (e.twist !== undefined && Math.abs(e.twist) > 90);
-                
-                // Update cursor based on eraser mode
-                if (this.isEraserMode !== wasEraserMode) {
-                    this.updateCursor();
-                    
-                    // Sync eraser state to presentation
-                    if (!this.isPresentation) {
-                        this.sendMessage({
-                            type: 'eraserModeChange',
-                            isEraserMode: this.isEraserMode
-                        });
-                    }
-                }
-            }
-
-            updateCursor() {
-                const canvases = [
-                    document.getElementById('mainCanvas'),
-                    document.getElementById('mainCanvasHTML'),
-                    document.getElementById('drawingCanvas'),
-                    document.getElementById('presentationCanvasHTML')
-                ].filter(canvas => canvas);
-                
-                const cursor = this.isEraserMode ? 'grab' : 'crosshair';
-                canvases.forEach(canvas => {
-                    if (canvas) canvas.style.cursor = cursor;
-                });
-            }
-
-            eraseAtPoint(x, y, mode) {
-                if (this.renderMode === 'svg') {
-                    this.eraseSVGAtPoint(x, y, mode);
-                } else {
-                    this.eraseCanvasAtPoint(x, y, mode);
-                }
-            }
-
-            eraseSVGAtPoint(x, y, mode) {
-                const canvasId = mode === 'main' ? 'mainCanvas' : 'drawingCanvas';
-                const canvas = document.getElementById(canvasId);
-                if (!canvas) return;
-
-                const paths = canvas.querySelectorAll('path');
-                const eraserRadius = this.eraserSize;
-
-                paths.forEach(path => {
-                    const bbox = path.getBBox();
-                    // Check if eraser point is near this path
-                    if (x >= bbox.x - eraserRadius && x <= bbox.x + bbox.width + eraserRadius &&
-                        y >= bbox.y - eraserRadius && y <= bbox.y + bbox.height + eraserRadius) {
-                        
-                        // More precise hit detection would go here
-                        // For now, remove the entire path if within bounding box
-                        path.remove();
-                    }
-                });
-            }
-
-            eraseCanvasAtPoint(x, y, mode) {
-                const ctx = mode === 'main' ? this.mainCanvasContext : this.presentationCanvasContext;
-                if (!ctx) return;
-
-                // Save current composite operation
-                const prevCompositeOperation = ctx.globalCompositeOperation;
-                
-                // Switch to erase mode
-                ctx.globalCompositeOperation = 'destination-out';
-                
-                // Draw circular eraser
-                ctx.beginPath();
-                ctx.arc(x, y, this.eraserSize / 2, 0, 2 * Math.PI);
-                ctx.fill();
-                
-                // Restore previous composite operation
-                ctx.globalCompositeOperation = prevCompositeOperation;
-            }
-
-            stopDrawing(e, mode) {
-                if (mode === 'main' && this.currentStroke) {
-                    const strokeId = this.currentStroke.getAttribute ? this.currentStroke.getAttribute('id') : this.currentStroke.id;
-                    this.sendMessage({
-                        type: 'endStroke',
-                        strokeId: strokeId,
-                        mode: this.renderMode,
-                        isEraserMode: this.isEraserMode
-                    });
-                }
                 this.isDrawing = false;
-                this.currentStroke = null;
-                this.smoothingPoints = []; // Clear smoothing buffer
+                this.resetInputIndicator();
+                this.updateStatus('Ready');
             }
-
-            clearDrawingCanvas(canvasId = 'drawingCanvas') {
-                const canvas = document.getElementById(canvasId);
-                while (canvas.firstChild) {
-                    canvas.removeChild(canvas.firstChild);
+            
+            updateInputIndicator(pointerType, event) {
+                const deviceType = document.getElementById('deviceType');
+                const buttonState = document.getElementById('buttonState');
+                const indicator = this.inputIndicator;
+                
+                if (pointerType === 'touch') {
+                    indicator.className = 'w-2 h-2 bg-red-500 rounded-full';
+                    deviceType.textContent = 'TOUCH';
+                    buttonState.textContent = 'BLOCKED';
+                    this.updateStatus('Touch input disabled');
+                    return;
                 }
+                
+                if (pointerType === 'pen') {
+                    indicator.className = 'w-2 h-2 bg-blue-500 rounded-full';
+                    deviceType.textContent = 'PEN';
+                    
+                    // Detect pen button states
+                    const buttons = this.getPenButtonState(event);
+                    const pressure = Math.round((event.pressure || 0) * 100);
+                    const tilt = event.tiltX !== undefined ? `T:${Math.round(event.tiltX)}°,${Math.round(event.tiltY)}°` : '';
+                    
+                    buttonState.textContent = `${buttons} P:${pressure}% ${tilt}`.trim();
+                    
+                    this.updateStatus(`Pen: ${buttons} Pressure: ${pressure}%`);
+                    
+                } else if (pointerType === 'mouse') {
+                    indicator.className = 'w-2 h-2 bg-green-500 rounded-full';
+                    deviceType.textContent = 'MOUSE';
+                    
+                    // Detect mouse button states
+                    const buttons = this.getMouseButtonState(event);
+                    buttonState.textContent = buttons;
+                    
+                    this.updateStatus(`Mouse: ${buttons}`);
+                } else {
+                    indicator.className = 'w-2 h-2 bg-orange-500 rounded-full';
+                    deviceType.textContent = pointerType.toUpperCase();
+                    buttonState.textContent = 'Unknown';
+                    this.updateStatus(`${pointerType} input detected`);
+                }
+            }
+            
+            getPenButtonState(event) {
+                const buttons = event.buttons || 0;
+                const pressure = event.pressure || 0;
+                const parts = [];
+                
+                // Check for eraser detection first (button 32 is commonly eraser, but also check button 5)
+                // Different pens report eraser differently
+                if (buttons & 32 || buttons & 4 || (buttons === 0 && pressure > 0 && event.pointerType === 'pen' && this.isEraserEnd(event))) {
+                    parts.push('ERASER-TIP');
+                }
+                // Primary button (pen tip) - only if not eraser
+                else if (buttons & 1) {
+                    parts.push('TIP');
+                }
+                
+                // Secondary button (barrel button)
+                if (buttons & 2) parts.push('BARREL');
+                
+                // Additional barrel button or eraser button
+                if ((buttons & 4) && !(buttons & 32)) parts.push('AUX');
+                
+                // Additional buttons for advanced styluses
+                if (buttons & 8) parts.push('BTN4');
+                if (buttons & 16) parts.push('BTN5');
+                
+                // Check for specific Microsoft Pen 1776 characteristics
+                if (event.tangentialPressure !== undefined && Math.abs(event.tangentialPressure) > 0.01) {
+                    parts.push(`ROT:${Math.round(event.tangentialPressure * 360)}°`);
+                }
+                
+                // Determine hover vs contact state
+                if (parts.length === 0) {
+                    if (pressure > 0) {
+                        // Has pressure but no buttons - might be eraser
+                        return 'CONTACT';
+                    } else {
+                        // No pressure, no buttons - hovering
+                        return 'HOVER';
+                    }
+                }
+                
+                return parts.join('+');
+            }
+            
+            isEraserEnd(event) {
+                // Heuristic to detect eraser end:
+                // - Some pens report buttons=0 when using eraser tip but have pressure
+                // - Check for specific pen characteristics that might indicate eraser
+                // - Tilt might be inverted or specific values when using eraser end
+                
+                if (event.twist !== undefined && Math.abs(event.twist) > 90) {
+                    return true; // Pen might be flipped
+                }
+                
+                // Some pens report different tilt ranges when flipped
+                if (event.tiltX !== undefined && event.tiltY !== undefined) {
+                    const tiltMagnitude = Math.sqrt(event.tiltX * event.tiltX + event.tiltY * event.tiltY);
+                    if (tiltMagnitude > 60) {
+                        return true; // Pen is at extreme angle (possibly flipped)
+                    }
+                }
+                
+                return false;
+            }
+            
+            getMouseButtonState(event) {
+                const buttons = event.buttons || 0;
+                const parts = [];
+                
+                if (buttons & 1) parts.push('L'); // Left button
+                if (buttons & 2) parts.push('R'); // Right button  
+                if (buttons & 4) parts.push('M'); // Middle button
+                if (buttons & 8) parts.push('X1'); // Back button
+                if (buttons & 16) parts.push('X2'); // Forward button
+                
+                return parts.length > 0 ? parts.join('+') : 'HOVER';
+            }
+            
+            resetInputIndicator() {
+                this.inputIndicator.className = 'w-2 h-2 bg-gray-400 rounded-full';
+                document.getElementById('deviceType').textContent = '-';
+                document.getElementById('buttonState').textContent = '-';
+            }
+            
+            getCanvasPoint(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                return {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top
+                };
+            }
+            
+            startStroke(point) {
+                // Save state for undo
+                this.saveState();
+                
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.classList.add('stroke');
+                path.setAttribute('stroke-width', this.strokeWidth);
+                path.setAttribute('d', `M ${point.x} ${point.y}`);
+                
+                this.canvas.appendChild(path);
+                this.currentPath = path;
+                this.strokes.push(path);
+                
+                // Initialize points array for quadratic interpolation
+                this.currentPoints = [point];
+                this.pathData = `M ${point.x} ${point.y}`;
+            }
+            
+            addPointToStroke(point) {
+                if (!this.currentPath) return;
+                
+                this.currentPoints.push(point);
+                
+                // Apply quadratic midpoint interpolation
+                if (this.currentPoints.length >= 3) {
+                    this.updatePathWithQuadratic();
+                } else if (this.currentPoints.length === 2) {
+                    // For the second point, draw a line to start the stroke
+                    this.pathData += ` L ${point.x} ${point.y}`;
+                    this.currentPath.setAttribute('d', this.pathData);
+                }
+            }
+            
+            updatePathWithQuadratic() {
+                const len = this.currentPoints.length;
+                const p0 = this.currentPoints[len - 3]; // Previous point
+                const p1 = this.currentPoints[len - 2]; // Current control point
+                const p2 = this.currentPoints[len - 1]; // New point
+                
+                // Calculate midpoints for smooth interpolation
+                const mid1 = this.getMidpoint(p0, p1);
+                const mid2 = this.getMidpoint(p1, p2);
+                
+                // Remove the last line segment and replace with quadratic curve
+                if (len === 3) {
+                    // First quadratic curve - start from the first point to mid2
+                    this.pathData = `M ${this.currentPoints[0].x} ${this.currentPoints[0].y} Q ${p1.x} ${p1.y} ${mid2.x} ${mid2.y}`;
+                } else {
+                    // Continue with smooth quadratic curves
+                    this.pathData += ` Q ${p1.x} ${p1.y} ${mid2.x} ${mid2.y}`;
+                }
+                
+                this.currentPath.setAttribute('d', this.pathData);
+            }
+            
+            getMidpoint(p1, p2) {
+                return {
+                    x: (p1.x + p2.x) / 2,
+                    y: (p1.y + p2.y) / 2
+                };
+            }
+            
+            finishStroke() {
+                // Complete the final curve to the last point if we have points
+                if (this.currentPoints && this.currentPoints.length >= 2) {
+                    const lastPoint = this.currentPoints[this.currentPoints.length - 1];
+                    this.pathData += ` L ${lastPoint.x} ${lastPoint.y}`;
+                    this.currentPath.setAttribute('d', this.pathData);
+                }
+                
+                this.currentPath = null;
+                this.currentPoints = null;
+                this.pathData = null;
+            }
+            
+            eraseAtPoint(point) {
+                const eraseRadius = this.strokeWidth * 3;
+                
+                // Check for strokes to erase
+                this.strokes = this.strokes.filter(stroke => {
+                    if (this.isPointNearStroke(point, stroke, eraseRadius)) {
+                        stroke.remove();
+                        return false;
+                    }
+                    return true;
+                });
+            }
+            
+            isPointNearStroke(point, stroke, radius) {
+                // Simple collision detection - check if point is near stroke
+                const pathLength = stroke.getTotalLength();
+                for (let i = 0; i <= pathLength; i += 5) {
+                    const pathPoint = stroke.getPointAtLength(i);
+                    const distance = Math.sqrt(
+                        Math.pow(point.x - pathPoint.x, 2) + 
+                        Math.pow(point.y - pathPoint.y, 2)
+                    );
+                    if (distance < radius) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
+            clearCanvas() {
+                this.saveState();
+                this.strokes.forEach(stroke => stroke.remove());
+                this.strokes = [];
+                this.updateStatus('Canvas cleared');
+            }
+            
+            saveState() {
+                // Simple undo system - save canvas state
+                const state = this.strokes.map(stroke => stroke.cloneNode(true));
+                this.undoStack.push(state);
+                
+                // Limit undo stack size for performance
+                if (this.undoStack.length > 20) {
+                    this.undoStack.shift();
+                }
+            }
+            
+            undo() {
+                if (this.undoStack.length === 0) {
+                    this.updateStatus('Nothing to undo');
+                    return;
+                }
+                
+                // Clear current strokes
+                this.strokes.forEach(stroke => stroke.remove());
+                
+                // Restore previous state
+                const previousState = this.undoStack.pop();
+                this.strokes = [];
+                
+                previousState.forEach(stroke => {
+                    const newStroke = stroke.cloneNode(true);
+                    this.canvas.appendChild(newStroke);
+                    this.strokes.push(newStroke);
+                });
+                
+                this.updateStatus('Undone');
+            }
+            
+            updateStatus(message) {
+                this.statusText.textContent = message;
             }
         }
-
-        // Initialize the app
-        const app = new PresentationDrawingApp();
+        
+        // Initialize app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new AnnotationApp();
+        });
     </script>
 </body>
 </html>
