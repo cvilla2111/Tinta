@@ -4,135 +4,344 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Annotation App</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#000000',
-                        secondary: '#666666',
-                        accent: '#999999'
-                    }
-                }
-            }
-        }
-    </script>
     <style>
-        /* Performance optimizations */
+        /* Reset and base styles */
         * {
             box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
         
         body {
+            font-family: ui-monospace, SFMono-Regular, "SF Mono", Monaco, Inconsolata, "Roboto Mono", monospace;
             background: #ffffff;
+            color: #000000;
             overflow: hidden;
             user-select: none;
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
         }
-        
-        #canvas {
-            touch-action: none;
-            cursor: crosshair;
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3rem;
+            background: white;
+            border-bottom: 1px solid #d1d5db;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            padding: 0 1rem;
         }
-        
+
+        .header-title {
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .header-right {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        /* Hamburger menu */
         .hamburger {
-            transition: transform 0.2s ease;
+            padding: 0.5rem;
+            margin-right: 0.75rem;
+            background: none;
+            border: none;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: transform 0.2s ease, background-color 0.2s ease;
         }
-        
+
+        .hamburger:hover {
+            background: #f3f4f6;
+        }
+
         .hamburger.open {
             transform: rotate(90deg);
         }
-        
-        .menu-panel {
+
+        .hamburger-line {
+            width: 1.25rem;
+            height: 0.125rem;
+            background: black;
+            margin-bottom: 0.25rem;
+        }
+
+        .hamburger-line:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Side menu */
+        .side-menu {
+            position: fixed;
+            left: 0;
+            top: 3rem;
+            bottom: 0;
+            width: 16rem;
+            background: white;
+            border-right: 1px solid #d1d5db;
+            z-index: 10;
+            overflow-y: auto;
             transform: translateX(-100%);
             transition: transform 0.2s ease;
             will-change: transform;
         }
-        
-        .menu-panel.open {
+
+        .side-menu.open {
             transform: translateX(0);
         }
-        
+
+        .menu-content {
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .menu-section h3 {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #6b7280;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+
+        .section-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        /* Tool buttons */
         .tool-btn {
+            width: 100%;
+            text-align: left;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            border-radius: 0.25rem;
+            border: 1px solid #e5e7eb;
+            background: white;
+            cursor: pointer;
             transition: background-color 0.1s ease;
         }
-        
+
         .tool-btn:hover {
             background-color: #f5f5f5;
         }
-        
+
         .tool-btn.active {
             background-color: #e5e5e5;
         }
+
+        /* Range input */
+        .range-container {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .range-input {
+            width: 100%;
+            height: 0.25rem;
+            background: #d1d5db;
+            border-radius: 0.5rem;
+            appearance: none;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .range-input::-webkit-slider-thumb {
+            appearance: none;
+            width: 1rem;
+            height: 1rem;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+        }
+
+        .range-input::-moz-range-thumb {
+            width: 1rem;
+            height: 1rem;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            border: none;
+        }
+
+        .range-value {
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-top: 0.25rem;
+        }
+
+        /* Status indicators */
+        .status-text {
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+
+        .input-details {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .input-indicator {
+            width: 0.5rem;
+            height: 0.5rem;
+            border-radius: 50%;
+            background: #9ca3af;
+        }
+
+        .input-info {
+            font-size: 0.75rem;
+            color: #6b7280;
+            font-family: ui-monospace, monospace;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .device-type {
+            color: #6b7280;
+        }
+
+        .button-state {
+            color: #9ca3af;
+        }
+
+        /* Canvas area */
+        .canvas-container {
+            position: fixed;
+            top: 3rem;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: white;
+            overflow: hidden;
+        }
+
+        #canvas {
+            touch-action: none;
+            cursor: crosshair;
+            display: block;
+        }
+
+        /* Eraser indicator */
+        .eraser-indicator {
+            position: fixed;
+            pointer-events: none;
+            border-radius: 50%;
+            border: 1px solid #9ca3af;
+            transform: translate(-50%, -50%);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Input filter status */
+        .filter-status {
+            font-size: 0.75rem;
+            color: #6b7280;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        /* Color variants for indicators */
+        .bg-red-500 { background: #ef4444; }
+        .bg-blue-500 { background: #3b82f6; }
+        .bg-green-500 { background: #10b981; }
+        .bg-orange-500 { background: #f59e0b; }
+        .bg-gray-400 { background: #9ca3af; }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .side-menu {
+                width: 20rem;
+            }
+            
+            .header {
+                padding: 0 0.5rem;
+            }
+            
+            .header-title {
+                font-size: 0.75rem;
+            }
+            
+            .input-info {
+                display: none;
+            }
+        }
     </style>
 </head>
-<body class="bg-white text-black font-mono">
+<body>
     <!-- Header -->
-    <div class="fixed top-0 left-0 right-0 bg-white border-b border-gray-300 z-20 h-12 flex items-center px-4">
-        <button id="menuToggle" class="hamburger p-2 mr-3 hover:bg-gray-100 rounded">
-            <div class="w-5 h-0.5 bg-black mb-1"></div>
-            <div class="w-5 h-0.5 bg-black mb-1"></div>
-            <div class="w-5 h-0.5 bg-black"></div>
+    <div class="header">
+        <button id="menuToggle" class="hamburger">
+            <div class="hamburger-line"></div>
+            <div class="hamburger-line"></div>
+            <div class="hamburger-line"></div>
         </button>
-        <span class="text-sm font-medium">Annotation Tool</span>
-        <div class="ml-auto flex items-center space-x-3">
-            <span id="statusText" class="text-xs text-gray-600">Ready</span>
-            <div id="inputDetails" class="flex items-center space-x-2">
-                <div id="inputIndicator" class="w-2 h-2 bg-gray-400 rounded-full"></div>
-                <div id="inputInfo" class="text-xs text-gray-600 font-mono min-w-0">
-                    <div id="deviceType">-</div>
-                    <div id="buttonState" class="text-gray-500">-</div>
+        <span class="header-title">Annotation Tool</span>
+        <div class="header-right">
+            <span id="statusText" class="status-text">Ready</span>
+            <div id="inputDetails" class="input-details">
+                <div id="inputIndicator" class="input-indicator"></div>
+                <div id="inputInfo" class="input-info">
+                    <div id="deviceType" class="device-type">-</div>
+                    <div id="buttonState" class="button-state">-</div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Side Menu -->
-    <div id="sideMenu" class="menu-panel fixed left-0 top-12 bottom-0 w-64 bg-white border-r border-gray-300 z-10 overflow-y-auto">
-        <div class="p-4 space-y-4">
+    <div id="sideMenu" class="side-menu">
+        <div class="menu-content">
             <!-- Tools -->
-            <div>
-                <h3 class="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Tools</h3>
-                <div class="space-y-1">
-                    <button id="penTool" class="tool-btn w-full text-left px-3 py-2 text-sm rounded border border-gray-200 active">
-                        Pen
-                    </button>
-                    <button id="eraserTool" class="tool-btn w-full text-left px-3 py-2 text-sm rounded border border-gray-200">
-                        Eraser
-                    </button>
+            <div class="menu-section">
+                <h3>Tools</h3>
+                <div class="section-content">
+                    <button id="penTool" class="tool-btn active">Pen</button>
+                    <button id="eraserTool" class="tool-btn">Eraser</button>
                 </div>
             </div>
 
             <!-- Stroke Width -->
-            <div>
-                <h3 class="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Stroke Width</h3>
-                <input type="range" id="strokeWidth" min="1" max="20" value="2" 
-                       class="w-full h-1 bg-gray-300 rounded-lg appearance-none cursor-pointer">
-                <div class="text-xs text-gray-600 mt-1">
-                    <span id="strokeWidthValue">2</span>px
+            <div class="menu-section">
+                <h3>Stroke Width</h3>
+                <div class="range-container">
+                    <input type="range" id="strokeWidth" min="1" max="20" value="2" class="range-input">
+                    <div class="range-value">
+                        <span id="strokeWidthValue">2</span>px
+                    </div>
                 </div>
             </div>
 
             <!-- Actions -->
-            <div>
-                <h3 class="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Actions</h3>
-                <div class="space-y-1">
-                    <button id="clearBtn" class="tool-btn w-full text-left px-3 py-2 text-sm rounded border border-gray-200">
-                        Clear All
-                    </button>
-                    <button id="undoBtn" class="tool-btn w-full text-left px-3 py-2 text-sm rounded border border-gray-200">
-                        Undo
-                    </button>
+            <div class="menu-section">
+                <h3>Actions</h3>
+                <div class="section-content">
+                    <button id="clearBtn" class="tool-btn">Clear All</button>
+                    <button id="undoBtn" class="tool-btn">Undo</button>
                 </div>
             </div>
 
             <!-- Input Filter Status -->
-            <div>
-                <h3 class="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Input Filter</h3>
-                <div class="text-xs text-gray-600 space-y-1">
+            <div class="menu-section">
+                <h3>Input Filter</h3>
+                <div class="filter-status">
                     <div>✓ Pen Enabled</div>
                     <div>✓ Mouse Enabled</div>
                     <div>✗ Touch Disabled</div>
@@ -142,9 +351,9 @@
     </div>
 
     <!-- Canvas Area -->
-    <div id="canvasContainer" class="fixed top-12 left-0 right-0 bottom-0 bg-white overflow-hidden">
-        <canvas id="canvas" style="display: block;"></canvas>
-        <div id="eraserIndicator" class="fixed pointer-events-none rounded-full border border-gray-400 hidden" style="transform: translate(-50%, -50%);"></div>
+    <div id="canvasContainer" class="canvas-container">
+        <canvas id="canvas"></canvas>
+        <div id="eraserIndicator" class="eraser-indicator hidden"></div>
     </div>
 
     <script>
@@ -164,7 +373,40 @@
                 this.strokes = [];
                 this.undoStack = [];
                 
+                // Web Worker setup
+                this.worker = null;
+                this.workerSupported = false;
+                this.initWorker();
+                
                 this.init();
+            }
+            
+            initWorker() {
+                if (typeof Worker !== 'undefined') {
+                    try {
+                        // Use separate worker file instead of blob
+                        this.worker = new Worker('./src/worker.js');
+                        this.workerSupported = true;
+                        
+                        // Set up worker message handler
+                        this.worker.onmessage = (e) => this.handleWorkerMessage(e);
+                        
+                        // Worker task queue
+                        this.workerTasks = new Map();
+                        
+                        console.log('✅ Web Worker initialized successfully');
+                        this.updateStatus('Worker ready');
+                        
+                    } catch (error) {
+                        console.warn('Web Worker initialization failed:', error);
+                        this.workerSupported = false;
+                        this.updateStatus('Worker failed, using fallback');
+                    }
+                } else {
+                    console.warn('Web Workers not supported');
+                    this.workerSupported = false;
+                    this.updateStatus('Workers not supported');
+                }
             }
             
             init() {
@@ -175,14 +417,39 @@
             }
             
             setupCanvas() {
-                // Set up canvas for high-quality drawing
-                this.ctx.lineCap = 'round';
-                this.ctx.lineJoin = 'round';
-                this.ctx.imageSmoothingEnabled = true;
-                this.ctx.imageSmoothingQuality = 'high';
+                this.setupCanvasQuality();
                 
                 // Clear canvas
                 this.clearCanvas(false); // Don't save to undo stack
+            }
+            
+            setupCanvasQuality() {
+                // Essential anti-aliasing settings
+                this.ctx.lineCap = 'round';
+                this.ctx.lineJoin = 'round';
+                
+                // Maximum quality anti-aliasing
+                this.ctx.imageSmoothingEnabled = true;
+                this.ctx.imageSmoothingQuality = 'high';
+                
+                // Enhanced compositing for smoother strokes
+                this.ctx.globalCompositeOperation = 'source-over';
+                
+                // Cross-browser anti-aliasing
+                if (this.ctx.webkitImageSmoothingEnabled !== undefined) {
+                    this.ctx.webkitImageSmoothingEnabled = true;
+                }
+                if (this.ctx.mozImageSmoothingEnabled !== undefined) {
+                    this.ctx.mozImageSmoothingEnabled = true;
+                }
+                if (this.ctx.msImageSmoothingEnabled !== undefined) {
+                    this.ctx.msImageSmoothingEnabled = true;
+                }
+                
+                // Additional quality settings
+                this.ctx.miterLimit = 10;
+                this.ctx.shadowColor = 'transparent';
+                this.ctx.shadowBlur = 0;
             }
             
             setupEventListeners() {
@@ -223,19 +490,28 @@
                 const rect = container.getBoundingClientRect();
                 const dpr = window.devicePixelRatio || 1;
                 
-                // Set canvas size for high DPI displays
-                this.canvas.width = rect.width * dpr;
-                this.canvas.height = rect.height * dpr;
+                // Super-sampling for better quality (2x resolution)
+                const superSample = 2;
+                const totalScale = dpr * superSample;
+                
+                // Set canvas size with super-sampling
+                this.canvas.width = rect.width * totalScale;
+                this.canvas.height = rect.height * totalScale;
                 
                 // Scale back down with CSS
                 this.canvas.style.width = rect.width + 'px';
                 this.canvas.style.height = rect.height + 'px';
                 
                 // Scale the drawing context
-                this.ctx.scale(dpr, dpr);
+                this.ctx.scale(totalScale, totalScale);
                 
-                // Store DPR for coordinate calculations
+                // Store scaling factors
                 this.devicePixelRatio = dpr;
+                this.superSample = superSample;
+                this.totalScale = totalScale;
+                
+                // Re-apply high-quality settings after scaling
+                this.setupCanvasQuality();
                 
                 // Redraw existing strokes after resize
                 this.redrawCanvas();
@@ -271,6 +547,9 @@
                     return;
                 }
                 
+                // Auto-detect eraser tip for pen input
+                const effectiveTool = this.getEffectiveTool(e);
+                
                 // Update detailed input indicator
                 this.updateInputIndicator(e.pointerType, e);
                 
@@ -280,9 +559,9 @@
                 const point = this.getCanvasPoint(e);
                 this.isDrawing = true;
                 
-                if (this.currentTool === 'pen') {
+                if (effectiveTool === 'pen') {
                     this.startStroke(point);
-                } else if (this.currentTool === 'eraser') {
+                } else if (effectiveTool === 'eraser') {
                     this.eraseAtPoint(point);
                 }
             }
@@ -301,9 +580,12 @@
                 e.preventDefault();
                 const point = this.getCanvasPoint(e);
                 
-                if (this.currentTool === 'pen') {
+                // Use effective tool (auto-detects eraser tip)
+                const effectiveTool = this.getEffectiveTool(e);
+                
+                if (effectiveTool === 'pen') {
                     this.addPointToStroke(point);
-                } else if (this.currentTool === 'eraser') {
+                } else if (effectiveTool === 'eraser') {
                     this.eraseAtPoint(point);
                 }
             }
@@ -337,6 +619,7 @@
             
             getCanvasPoint(e) {
                 const rect = this.canvas.getBoundingClientRect();
+                // Use natural coordinates without rounding for smoothest rendering
                 return {
                     x: e.clientX - rect.left,
                     y: e.clientY - rect.top
@@ -413,11 +696,37 @@
                 this.currentStroke = null;
             }
             
-            eraseAtPoint(point) {
+            async eraseAtPoint(point) {
+                const eraseRadius = this.strokeWidth * 3;
+                
+                try {
+                    // Try Web Worker first for better performance
+                    const hitIndices = await this.runWorkerTask('COLLISION_DETECTION', {
+                        point,
+                        strokes: this.strokes,
+                        radius: eraseRadius
+                    });
+                    
+                    if (hitIndices.length > 0) {
+                        // Remove strokes by index (in reverse order to maintain indices)
+                        hitIndices.sort((a, b) => b - a).forEach(index => {
+                            this.strokes.splice(index, 1);
+                        });
+                        this.redrawCanvas();
+                    }
+                    
+                } catch (error) {
+                    // Fallback to main thread if worker fails
+                    console.warn('Worker collision detection failed, using fallback:', error);
+                    this.eraseAtPointFallback(point);
+                }
+            }
+            
+            eraseAtPointFallback(point) {
                 const eraseRadius = this.strokeWidth * 3;
                 let needsRedraw = false;
                 
-                // Check for strokes to erase
+                // Fallback collision detection on main thread
                 this.strokes = this.strokes.filter(stroke => {
                     if (this.isPointNearStroke(point, stroke, eraseRadius)) {
                         needsRedraw = true;
@@ -447,8 +756,8 @@
             }
             
             redrawCanvas() {
-                // Clear canvas
-                this.ctx.clearRect(0, 0, this.canvas.width / this.devicePixelRatio, this.canvas.height / this.devicePixelRatio);
+                // Clear canvas with correct scaling
+                this.ctx.clearRect(0, 0, this.canvas.width / this.totalScale, this.canvas.height / this.totalScale);
                 
                 // Redraw all strokes
                 this.strokes.forEach(stroke => {
@@ -459,38 +768,53 @@
             drawStroke(stroke) {
                 if (!stroke.points || stroke.points.length === 0) return;
                 
+                // Use fractional stroke width for better anti-aliasing
+                const antiAliasedWidth = stroke.width + 0.5;
+                
                 this.ctx.strokeStyle = stroke.color;
-                this.ctx.lineWidth = stroke.width;
-                this.ctx.beginPath();
+                this.ctx.lineWidth = antiAliasedWidth;
+                
+                // Use Path2D for better rendering quality
+                const path = new Path2D();
                 
                 if (stroke.points.length === 1) {
-                    // Single point
+                    // Single point - draw as circle
                     const p = stroke.points[0];
-                    this.ctx.arc(p.x, p.y, stroke.width / 2, 0, Math.PI * 2);
-                    this.ctx.fill();
+                    path.arc(p.x, p.y, antiAliasedWidth / 2, 0, Math.PI * 2);
+                    this.ctx.fillStyle = stroke.color;
+                    this.ctx.fill(path);
                     return;
                 }
                 
                 // Start the path
-                this.ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+                path.moveTo(stroke.points[0].x, stroke.points[0].y);
                 
                 if (stroke.points.length === 2) {
                     // Simple line
-                    this.ctx.lineTo(stroke.points[1].x, stroke.points[1].y);
+                    path.lineTo(stroke.points[1].x, stroke.points[1].y);
                 } else {
-                    // Quadratic curves for smooth lines
+                    // Enhanced quadratic curves with better smoothing
                     for (let i = 1; i < stroke.points.length - 1; i++) {
                         const current = stroke.points[i];
                         const next = stroke.points[i + 1];
                         const mid = this.getMidpoint(current, next);
-                        this.ctx.quadraticCurveTo(current.x, current.y, mid.x, mid.y);
+                        path.quadraticCurveTo(current.x, current.y, mid.x, mid.y);
                     }
                     // Final point
                     const lastPoint = stroke.points[stroke.points.length - 1];
-                    this.ctx.lineTo(lastPoint.x, lastPoint.y);
+                    path.lineTo(lastPoint.x, lastPoint.y);
                 }
                 
-                this.ctx.stroke();
+                // Apply subtle shadow for depth without blur
+                this.ctx.shadowColor = 'rgba(0,0,0,0.1)';
+                this.ctx.shadowOffsetX = 0;
+                this.ctx.shadowOffsetY = 0;
+                this.ctx.shadowBlur = 0;
+                
+                this.ctx.stroke(path);
+                
+                // Reset shadow
+                this.ctx.shadowColor = 'transparent';
             }
             
             clearCanvas(saveToUndo = true) {
@@ -499,7 +823,7 @@
                 }
                 
                 this.strokes = [];
-                this.ctx.clearRect(0, 0, this.canvas.width / this.devicePixelRatio, this.canvas.height / this.devicePixelRatio);
+                this.ctx.clearRect(0, 0, this.canvas.width / this.totalScale, this.canvas.height / this.totalScale);
                 
                 if (saveToUndo) {
                     this.updateStatus('Canvas cleared');
@@ -535,7 +859,7 @@
                 const indicator = this.inputIndicator;
                 
                 if (pointerType === 'touch') {
-                    indicator.className = 'w-2 h-2 bg-red-500 rounded-full';
+                    indicator.className = 'input-indicator bg-red-500';
                     deviceType.textContent = 'TOUCH';
                     buttonState.textContent = 'BLOCKED';
                     this.updateStatus('Touch input disabled');
@@ -543,7 +867,7 @@
                 }
                 
                 if (pointerType === 'pen') {
-                    indicator.className = 'w-2 h-2 bg-blue-500 rounded-full';
+                    indicator.className = 'input-indicator bg-blue-500';
                     deviceType.textContent = 'PEN';
                     
                     const buttons = this.getPenButtonState(event);
@@ -554,14 +878,14 @@
                     this.updateStatus(`Pen: ${buttons} Pressure: ${pressure}%`);
                     
                 } else if (pointerType === 'mouse') {
-                    indicator.className = 'w-2 h-2 bg-green-500 rounded-full';
+                    indicator.className = 'input-indicator bg-green-500';
                     deviceType.textContent = 'MOUSE';
                     
                     const buttons = this.getMouseButtonState(event);
                     buttonState.textContent = buttons;
                     this.updateStatus(`Mouse: ${buttons}`);
                 } else {
-                    indicator.className = 'w-2 h-2 bg-orange-500 rounded-full';
+                    indicator.className = 'input-indicator bg-orange-500';
                     deviceType.textContent = pointerType.toUpperCase();
                     buttonState.textContent = 'Unknown';
                     this.updateStatus(`${pointerType} input detected`);
@@ -624,15 +948,32 @@
             }
             
             resetInputIndicator() {
-                this.inputIndicator.className = 'w-2 h-2 bg-gray-400 rounded-full';
+                this.inputIndicator.className = 'input-indicator bg-gray-400';
                 document.getElementById('deviceType').textContent = '-';
                 document.getElementById('buttonState').textContent = '-';
             }
             
+            getEffectiveTool(event) {
+                // Check if pen eraser tip is being used
+                if (event.pointerType === 'pen') {
+                    const buttons = event.buttons || 0;
+                    const pressure = event.pressure || 0;
+                    
+                    // Detect eraser tip usage
+                    if (buttons & 32 || buttons & 4 || (buttons === 0 && pressure > 0 && this.isEraserEnd(event))) {
+                        return 'eraser';
+                    }
+                }
+                
+                // Default to current tool selection
+                return this.currentTool;
+            }
+            
             updateEraserIndicator(e) {
                 const indicator = document.getElementById('eraserIndicator');
+                const effectiveTool = this.getEffectiveTool(e);
                 
-                if (this.currentTool === 'eraser' && e.pointerType !== 'touch') {
+                if (effectiveTool === 'eraser' && e.pointerType !== 'touch') {
                     const radius = this.strokeWidth * 3;
                     indicator.style.left = e.clientX + 'px';
                     indicator.style.top = e.clientY + 'px';
@@ -642,6 +983,55 @@
                 } else {
                     indicator.classList.add('hidden');
                 }
+            }
+            
+            handleWorkerMessage(e) {
+                const { type, taskId, hits, strokes, serialized } = e.data;
+                const taskResolver = this.workerTasks.get(taskId);
+                
+                if (!taskResolver) return;
+                
+                switch(type) {
+                    case 'COLLISION_RESULT':
+                        taskResolver.resolve(hits);
+                        break;
+                    case 'OPTIMIZE_RESULT':
+                        taskResolver.resolve(strokes);
+                        break;
+                    case 'SAVE_RESULT':
+                        taskResolver.resolve(serialized);
+                        break;
+                }
+                
+                this.workerTasks.delete(taskId);
+            }
+            
+            // Async wrapper for worker tasks
+            runWorkerTask(type, data) {
+                return new Promise((resolve, reject) => {
+                    if (!this.workerSupported) {
+                        // Fallback to main thread
+                        reject(new Error('Worker not supported'));
+                        return;
+                    }
+                    
+                    const taskId = Date.now() + Math.random();
+                    this.workerTasks.set(taskId, { resolve, reject });
+                    
+                    this.worker.postMessage({
+                        type,
+                        taskId,
+                        data
+                    });
+                    
+                    // Timeout after 5 seconds
+                    setTimeout(() => {
+                        if (this.workerTasks.has(taskId)) {
+                            this.workerTasks.delete(taskId);
+                            reject(new Error('Worker task timeout'));
+                        }
+                    }, 5000);
+                });
             }
             
             updateStatus(message) {
