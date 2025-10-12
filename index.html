@@ -56,12 +56,6 @@
             transform: translateX(0);
         }
         
-        /* SVG optimization */
-        svg {
-            shape-rendering: auto;
-            text-rendering: auto;
-        }
-        
         .tool-btn {
             transition: background-color 0.1s ease;
         }
@@ -149,40 +143,25 @@
 
     <!-- Canvas Area -->
     <div id="canvasContainer" class="fixed top-12 left-0 right-0 bottom-0 bg-white overflow-hidden">
-        <svg id="canvas" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-                <style>
-                    .stroke {
-                        fill: none;
-                        stroke: #000000;
-                        stroke-linecap: round;
-                        stroke-linejoin: round;
-                    }
-                </style>
-            </defs>
-        </svg>
+        <canvas id="canvas" style="display: block;"></canvas>
     </div>
 
     <script>
         class AnnotationApp {
             constructor() {
                 this.canvas = document.getElementById('canvas');
+                this.ctx = this.canvas.getContext('2d');
                 this.menuToggle = document.getElementById('menuToggle');
                 this.sideMenu = document.getElementById('sideMenu');
                 this.statusText = document.getElementById('statusText');
                 this.inputIndicator = document.getElementById('inputIndicator');
                 
                 this.isDrawing = false;
-                this.currentPath = null;
+                this.currentStroke = null;
                 this.currentTool = 'pen';
                 this.strokeWidth = 2;
                 this.strokes = [];
                 this.undoStack = [];
-                
-                // Performance optimization
-                this.pendingUpdate = false;
-                this.lastUpdateTime = 0;
-                this.updateThrottle = 16; // ~60fps
                 
                 this.init();
             }
@@ -190,7 +169,19 @@
             init() {
                 this.setupEventListeners();
                 this.updateCanvasSize();
+                this.setupCanvas();
                 window.addEventListener('resize', () => this.updateCanvasSize());
+            }
+            
+            setupCanvas() {
+                // Set up canvas for high-quality drawing
+                this.ctx.lineCap = 'round';
+                this.ctx.lineJoin = 'round';
+                this.ctx.imageSmoothingEnabled = true;
+                this.ctx.imageSmoothingQuality = 'high';
+                
+                // Clear canvas
+                this.clearCanvas(false); // Don't save to undo stack
             }
             
             setupEventListeners() {
@@ -209,10 +200,10 @@
                 });
                 
                 // Actions
-                document.getElementById('clearBtn').addEventListener('click', () => this.clearCanvas());
+                document.getElementById('clearBtn').addEventListener('click', () => this.clearCanvas(true));
                 document.getElementById('undoBtn').addEventListener('click', () => this.undo());
                 
-                // Canvas drawing events - using pointer events for better performance
+                // Canvas drawing events
                 this.canvas.addEventListener('pointerdown', (e) => this.handlePointerDown(e));
                 this.canvas.addEventListener('pointermove', (e) => this.handlePointerMove(e));
                 this.canvas.addEventListener('pointerup', (e) => this.handlePointerUp(e));
@@ -229,8 +220,24 @@
             updateCanvasSize() {
                 const container = document.getElementById('canvasContainer');
                 const rect = container.getBoundingClientRect();
-                this.canvas.setAttribute('width', rect.width);
-                this.canvas.setAttribute('height', rect.height);
+                const dpr = window.devicePixelRatio || 1;
+                
+                // Set canvas size for high DPI displays
+                this.canvas.width = rect.width * dpr;
+                this.canvas.height = rect.height * dpr;
+                
+                // Scale back down with CSS
+                this.canvas.style.width = rect.width + 'px';
+                this.canvas.style.height = rect.height + 'px';
+                
+                // Scale the drawing context
+                this.ctx.scale(dpr, dpr);
+                
+                // Store DPR for coordinate calculations
+                this.devicePixelRatio = dpr;
+                
+                // Redraw existing strokes after resize
+                this.redrawCanvas();
             }
             
             toggleMenu() {
@@ -298,7 +305,6 @@
             }
             
             handlePointerHover(e) {
-                // Handle pen hover when entering canvas area
                 if (e.pointerType === 'pen') {
                     this.updateInputIndicator(e.pointerType, e);
                 }
@@ -319,6 +325,200 @@
                 this.updateStatus('Ready');
             }
             
+            getCanvasPoint(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                return {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top
+                };
+            }
+            
+            startStroke(point) {
+                // Save state for undo
+                this.saveState();
+                
+                this.currentStroke = {
+                    points: [point],
+                    width: this.strokeWidth,
+                    color: '#000000'
+                };
+                
+                // Draw initial point
+                this.ctx.strokeStyle = this.currentStroke.color;
+                this.ctx.lineWidth = this.currentStroke.width;
+                this.ctx.beginPath();
+                this.ctx.moveTo(point.x, point.y);
+            }
+            
+            addPointToStroke(point) {
+                if (!this.currentStroke) return;
+                
+                this.currentStroke.points.push(point);
+                
+                // Apply quadratic midpoint interpolation for smooth curves
+                if (this.currentStroke.points.length >= 3) {
+                    this.drawQuadraticCurve();
+                } else if (this.currentStroke.points.length === 2) {
+                    // For the second point, draw a line
+                    this.ctx.lineTo(point.x, point.y);
+                    this.ctx.stroke();
+                }
+            }
+            
+            drawQuadraticCurve() {
+                const points = this.currentStroke.points;
+                const len = points.length;
+                const p0 = points[len - 3]; // Previous point
+                const p1 = points[len - 2]; // Current control point
+                const p2 = points[len - 1]; // New point
+                
+                // Calculate midpoints for smooth interpolation
+                const mid1 = this.getMidpoint(p0, p1);
+                const mid2 = this.getMidpoint(p1, p2);
+                
+                // Draw quadratic curve
+                this.ctx.quadraticCurveTo(p1.x, p1.y, mid2.x, mid2.y);
+                this.ctx.stroke();
+            }
+            
+            getMidpoint(p1, p2) {
+                return {
+                    x: (p1.x + p2.x) / 2,
+                    y: (p1.y + p2.y) / 2
+                };
+            }
+            
+            finishStroke() {
+                if (!this.currentStroke) return;
+                
+                // Complete the stroke to the last point
+                if (this.currentStroke.points.length >= 2) {
+                    const lastPoint = this.currentStroke.points[this.currentStroke.points.length - 1];
+                    this.ctx.lineTo(lastPoint.x, lastPoint.y);
+                    this.ctx.stroke();
+                }
+                
+                // Store completed stroke
+                this.strokes.push({ ...this.currentStroke });
+                this.currentStroke = null;
+            }
+            
+            eraseAtPoint(point) {
+                const eraseRadius = this.strokeWidth * 3;
+                let needsRedraw = false;
+                
+                // Check for strokes to erase
+                this.strokes = this.strokes.filter(stroke => {
+                    if (this.isPointNearStroke(point, stroke, eraseRadius)) {
+                        needsRedraw = true;
+                        return false; // Remove this stroke
+                    }
+                    return true; // Keep this stroke
+                });
+                
+                if (needsRedraw) {
+                    this.redrawCanvas();
+                }
+            }
+            
+            isPointNearStroke(point, stroke, radius) {
+                // Simple collision detection - check if point is near any stroke point
+                for (let i = 0; i < stroke.points.length; i++) {
+                    const strokePoint = stroke.points[i];
+                    const distance = Math.sqrt(
+                        Math.pow(point.x - strokePoint.x, 2) + 
+                        Math.pow(point.y - strokePoint.y, 2)
+                    );
+                    if (distance < radius) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
+            redrawCanvas() {
+                // Clear canvas
+                this.ctx.clearRect(0, 0, this.canvas.width / this.devicePixelRatio, this.canvas.height / this.devicePixelRatio);
+                
+                // Redraw all strokes
+                this.strokes.forEach(stroke => {
+                    this.drawStroke(stroke);
+                });
+            }
+            
+            drawStroke(stroke) {
+                if (!stroke.points || stroke.points.length === 0) return;
+                
+                this.ctx.strokeStyle = stroke.color;
+                this.ctx.lineWidth = stroke.width;
+                this.ctx.beginPath();
+                
+                if (stroke.points.length === 1) {
+                    // Single point
+                    const p = stroke.points[0];
+                    this.ctx.arc(p.x, p.y, stroke.width / 2, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    return;
+                }
+                
+                // Start the path
+                this.ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+                
+                if (stroke.points.length === 2) {
+                    // Simple line
+                    this.ctx.lineTo(stroke.points[1].x, stroke.points[1].y);
+                } else {
+                    // Quadratic curves for smooth lines
+                    for (let i = 1; i < stroke.points.length - 1; i++) {
+                        const current = stroke.points[i];
+                        const next = stroke.points[i + 1];
+                        const mid = this.getMidpoint(current, next);
+                        this.ctx.quadraticCurveTo(current.x, current.y, mid.x, mid.y);
+                    }
+                    // Final point
+                    const lastPoint = stroke.points[stroke.points.length - 1];
+                    this.ctx.lineTo(lastPoint.x, lastPoint.y);
+                }
+                
+                this.ctx.stroke();
+            }
+            
+            clearCanvas(saveToUndo = true) {
+                if (saveToUndo) {
+                    this.saveState();
+                }
+                
+                this.strokes = [];
+                this.ctx.clearRect(0, 0, this.canvas.width / this.devicePixelRatio, this.canvas.height / this.devicePixelRatio);
+                
+                if (saveToUndo) {
+                    this.updateStatus('Canvas cleared');
+                }
+            }
+            
+            saveState() {
+                // Save current strokes state for undo
+                const state = JSON.parse(JSON.stringify(this.strokes));
+                this.undoStack.push(state);
+                
+                // Limit undo stack size for performance
+                if (this.undoStack.length > 20) {
+                    this.undoStack.shift();
+                }
+            }
+            
+            undo() {
+                if (this.undoStack.length === 0) {
+                    this.updateStatus('Nothing to undo');
+                    return;
+                }
+                
+                // Restore previous state
+                this.strokes = this.undoStack.pop();
+                this.redrawCanvas();
+                this.updateStatus('Undone');
+            }
+            
             updateInputIndicator(pointerType, event) {
                 const deviceType = document.getElementById('deviceType');
                 const buttonState = document.getElementById('buttonState');
@@ -336,23 +536,19 @@
                     indicator.className = 'w-2 h-2 bg-blue-500 rounded-full';
                     deviceType.textContent = 'PEN';
                     
-                    // Detect pen button states
                     const buttons = this.getPenButtonState(event);
                     const pressure = Math.round((event.pressure || 0) * 100);
                     const tilt = event.tiltX !== undefined ? `T:${Math.round(event.tiltX)}°,${Math.round(event.tiltY)}°` : '';
                     
                     buttonState.textContent = `${buttons} P:${pressure}% ${tilt}`.trim();
-                    
                     this.updateStatus(`Pen: ${buttons} Pressure: ${pressure}%`);
                     
                 } else if (pointerType === 'mouse') {
                     indicator.className = 'w-2 h-2 bg-green-500 rounded-full';
                     deviceType.textContent = 'MOUSE';
                     
-                    // Detect mouse button states
                     const buttons = this.getMouseButtonState(event);
                     buttonState.textContent = buttons;
-                    
                     this.updateStatus(`Mouse: ${buttons}`);
                 } else {
                     indicator.className = 'w-2 h-2 bg-orange-500 rounded-full';
@@ -367,60 +563,37 @@
                 const pressure = event.pressure || 0;
                 const parts = [];
                 
-                // Check for eraser detection first (button 32 is commonly eraser, but also check button 5)
-                // Different pens report eraser differently
                 if (buttons & 32 || buttons & 4 || (buttons === 0 && pressure > 0 && event.pointerType === 'pen' && this.isEraserEnd(event))) {
                     parts.push('ERASER-TIP');
-                }
-                // Primary button (pen tip) - only if not eraser
-                else if (buttons & 1) {
+                } else if (buttons & 1) {
                     parts.push('TIP');
                 }
                 
-                // Secondary button (barrel button)
                 if (buttons & 2) parts.push('BARREL');
-                
-                // Additional barrel button or eraser button
                 if ((buttons & 4) && !(buttons & 32)) parts.push('AUX');
-                
-                // Additional buttons for advanced styluses
                 if (buttons & 8) parts.push('BTN4');
                 if (buttons & 16) parts.push('BTN5');
                 
-                // Check for specific Microsoft Pen 1776 characteristics
                 if (event.tangentialPressure !== undefined && Math.abs(event.tangentialPressure) > 0.01) {
                     parts.push(`ROT:${Math.round(event.tangentialPressure * 360)}°`);
                 }
                 
-                // Determine hover vs contact state
                 if (parts.length === 0) {
-                    if (pressure > 0) {
-                        // Has pressure but no buttons - might be eraser
-                        return 'CONTACT';
-                    } else {
-                        // No pressure, no buttons - hovering
-                        return 'HOVER';
-                    }
+                    return pressure > 0 ? 'CONTACT' : 'HOVER';
                 }
                 
                 return parts.join('+');
             }
             
             isEraserEnd(event) {
-                // Heuristic to detect eraser end:
-                // - Some pens report buttons=0 when using eraser tip but have pressure
-                // - Check for specific pen characteristics that might indicate eraser
-                // - Tilt might be inverted or specific values when using eraser end
-                
                 if (event.twist !== undefined && Math.abs(event.twist) > 90) {
-                    return true; // Pen might be flipped
+                    return true;
                 }
                 
-                // Some pens report different tilt ranges when flipped
                 if (event.tiltX !== undefined && event.tiltY !== undefined) {
                     const tiltMagnitude = Math.sqrt(event.tiltX * event.tiltX + event.tiltY * event.tiltY);
                     if (tiltMagnitude > 60) {
-                        return true; // Pen is at extreme angle (possibly flipped)
+                        return true;
                     }
                 }
                 
@@ -431,11 +604,11 @@
                 const buttons = event.buttons || 0;
                 const parts = [];
                 
-                if (buttons & 1) parts.push('L'); // Left button
-                if (buttons & 2) parts.push('R'); // Right button  
-                if (buttons & 4) parts.push('M'); // Middle button
-                if (buttons & 8) parts.push('X1'); // Back button
-                if (buttons & 16) parts.push('X2'); // Forward button
+                if (buttons & 1) parts.push('L');
+                if (buttons & 2) parts.push('R');
+                if (buttons & 4) parts.push('M');
+                if (buttons & 8) parts.push('X1');
+                if (buttons & 16) parts.push('X2');
                 
                 return parts.length > 0 ? parts.join('+') : 'HOVER';
             }
@@ -444,180 +617,6 @@
                 this.inputIndicator.className = 'w-2 h-2 bg-gray-400 rounded-full';
                 document.getElementById('deviceType').textContent = '-';
                 document.getElementById('buttonState').textContent = '-';
-            }
-            
-            getCanvasPoint(e) {
-                const rect = this.canvas.getBoundingClientRect();
-                return {
-                    x: e.clientX - rect.left,
-                    y: e.clientY - rect.top
-                };
-            }
-            
-            startStroke(point) {
-                // Save state for undo
-                this.saveState();
-                
-                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                path.classList.add('stroke');
-                path.setAttribute('stroke-width', this.strokeWidth);
-                path.setAttribute('d', `M ${point.x} ${point.y}`);
-                
-                this.canvas.appendChild(path);
-                this.currentPath = path;
-                this.strokes.push(path);
-                
-                // Initialize points array for quadratic interpolation
-                this.currentPoints = [point];
-                this.pathData = `M ${point.x} ${point.y}`;
-            }
-            
-            addPointToStroke(point) {
-                if (!this.currentPath) return;
-                
-                this.currentPoints.push(point);
-                
-                // Apply quadratic midpoint interpolation
-                if (this.currentPoints.length >= 3) {
-                    this.updatePathWithQuadratic();
-                } else if (this.currentPoints.length === 2) {
-                    // For the second point, draw a line to start the stroke
-                    this.pathData += ` L ${point.x} ${point.y}`;
-                    this.schedulePathUpdate();
-                }
-            }
-            
-            schedulePathUpdate() {
-                if (this.pendingUpdate) return;
-                
-                const now = performance.now();
-                if (now - this.lastUpdateTime < this.updateThrottle) {
-                    this.pendingUpdate = true;
-                    requestAnimationFrame(() => {
-                        this.flushPathUpdate();
-                    });
-                } else {
-                    this.flushPathUpdate();
-                }
-            }
-            
-            flushPathUpdate() {
-                if (this.currentPath && this.pathData) {
-                    this.currentPath.setAttribute('d', this.pathData);
-                }
-                this.pendingUpdate = false;
-                this.lastUpdateTime = performance.now();
-            }
-            
-            updatePathWithQuadratic() {
-                const len = this.currentPoints.length;
-                const p0 = this.currentPoints[len - 3]; // Previous point
-                const p1 = this.currentPoints[len - 2]; // Current control point
-                const p2 = this.currentPoints[len - 1]; // New point
-                
-                // Calculate midpoints for smooth interpolation
-                const mid1 = this.getMidpoint(p0, p1);
-                const mid2 = this.getMidpoint(p1, p2);
-                
-                // Remove the last line segment and replace with quadratic curve
-                if (len === 3) {
-                    // First quadratic curve - start from the first point to mid2
-                    this.pathData = `M ${this.currentPoints[0].x} ${this.currentPoints[0].y} Q ${p1.x} ${p1.y} ${mid2.x} ${mid2.y}`;
-                } else {
-                    // Continue with smooth quadratic curves
-                    this.pathData += ` Q ${p1.x} ${p1.y} ${mid2.x} ${mid2.y}`;
-                }
-                
-                this.schedulePathUpdate();
-            }
-            
-            getMidpoint(p1, p2) {
-                return {
-                    x: (p1.x + p2.x) / 2,
-                    y: (p1.y + p2.y) / 2
-                };
-            }
-            
-            finishStroke() {
-                // Complete the final curve to the last point if we have points
-                if (this.currentPoints && this.currentPoints.length >= 2) {
-                    const lastPoint = this.currentPoints[this.currentPoints.length - 1];
-                    this.pathData += ` L ${lastPoint.x} ${lastPoint.y}`;
-                    this.currentPath.setAttribute('d', this.pathData);
-                }
-                
-                this.currentPath = null;
-                this.currentPoints = null;
-                this.pathData = null;
-            }
-            
-            eraseAtPoint(point) {
-                const eraseRadius = this.strokeWidth * 3;
-                
-                // Check for strokes to erase
-                this.strokes = this.strokes.filter(stroke => {
-                    if (this.isPointNearStroke(point, stroke, eraseRadius)) {
-                        stroke.remove();
-                        return false;
-                    }
-                    return true;
-                });
-            }
-            
-            isPointNearStroke(point, stroke, radius) {
-                // Simple collision detection - check if point is near stroke
-                const pathLength = stroke.getTotalLength();
-                for (let i = 0; i <= pathLength; i += 5) {
-                    const pathPoint = stroke.getPointAtLength(i);
-                    const distance = Math.sqrt(
-                        Math.pow(point.x - pathPoint.x, 2) + 
-                        Math.pow(point.y - pathPoint.y, 2)
-                    );
-                    if (distance < radius) {
-                        return true;
-                    }
-                }
-                return false;
-            }
-            
-            clearCanvas() {
-                this.saveState();
-                this.strokes.forEach(stroke => stroke.remove());
-                this.strokes = [];
-                this.updateStatus('Canvas cleared');
-            }
-            
-            saveState() {
-                // Simple undo system - save canvas state
-                const state = this.strokes.map(stroke => stroke.cloneNode(true));
-                this.undoStack.push(state);
-                
-                // Limit undo stack size for performance
-                if (this.undoStack.length > 20) {
-                    this.undoStack.shift();
-                }
-            }
-            
-            undo() {
-                if (this.undoStack.length === 0) {
-                    this.updateStatus('Nothing to undo');
-                    return;
-                }
-                
-                // Clear current strokes
-                this.strokes.forEach(stroke => stroke.remove());
-                
-                // Restore previous state
-                const previousState = this.undoStack.pop();
-                this.strokes = [];
-                
-                previousState.forEach(stroke => {
-                    const newStroke = stroke.cloneNode(true);
-                    this.canvas.appendChild(newStroke);
-                    this.strokes.push(newStroke);
-                });
-                
-                this.updateStatus('Undone');
             }
             
             updateStatus(message) {
