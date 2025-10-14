@@ -1,99 +1,133 @@
-console.log('📦 External worker loaded');
-
+// Web Worker for drawing app computations
 self.onmessage = function(e) {
-    const { operation, data, id } = e.data;
+    const { type, data } = e.data;
     
-    // Handle connection test
-    if (operation === 'connectionTest') {
-        self.postMessage({ operation, id, result: 'connected' });
-        return;
-    }
-    
-    switch(operation) {
-        case 'optimizePath':
-            const optimized = optimizePath(data.points);
-            self.postMessage({ operation, result: optimized, id, timestamp: Date.now() });
+    switch(type) {
+        case 'smoothStroke':
+            const smoothedStroke = smoothStrokePoints(data.points, data.threshold);
+            self.postMessage({
+                type: 'smoothStrokeResult',
+                id: data.id,
+                result: smoothedStroke
+            });
             break;
             
-        case 'analyzePath':
-            const analysis = analyzePath(data.points);
-            self.postMessage({ operation, result: analysis, id, timestamp: Date.now() });
+        case 'processImageData':
+            const processedData = processCanvasImageData(data.imageData, data.operation);
+            self.postMessage({
+                type: 'processImageDataResult',
+                id: data.id,
+                result: processedData
+            });
             break;
             
-        case 'smoothPath':
-            const smoothed = smoothPath(data.points, data.intensity || 0.5);
-            self.postMessage({ operation, result: smoothed, id, timestamp: Date.now() });
+        case 'calculateBounds':
+            const bounds = calculateStrokeBounds(data.strokes);
+            self.postMessage({
+                type: 'calculateBoundsResult',
+                id: data.id,
+                result: bounds
+            });
             break;
+            
+        default:
+            self.postMessage({
+                type: 'error',
+                message: 'Unknown task type: ' + type
+            });
     }
 };
 
-function optimizePath(points) {
+// Smooth stroke points using quadratic interpolation
+function smoothStrokePoints(points, threshold = 3) {
     if (points.length < 3) return points;
-    const optimized = [points[0]];
-    const tolerance = 3;
+    
+    const smoothed = [points[0]]; // Keep first point
     
     for (let i = 1; i < points.length - 1; i++) {
         const prev = points[i - 1];
         const curr = points[i];
         const next = points[i + 1];
         
-        const d1 = Math.sqrt((next.x - prev.x) ** 2 + (next.y - prev.y) ** 2);
-        const d2 = Math.sqrt((curr.x - prev.x) ** 2 + (curr.y - prev.y) ** 2);
-        const d3 = Math.sqrt((next.x - curr.x) ** 2 + (next.y - curr.y) ** 2);
+        // Calculate distance
+        const dist = Math.sqrt(
+            Math.pow(curr.x - prev.x, 2) + 
+            Math.pow(curr.y - prev.y, 2)
+        );
         
-        if (Math.abs(d2 + d3 - d1) > tolerance) {
-            optimized.push(curr);
+        if (dist >= threshold) {
+            // Apply smoothing
+            const smoothedPoint = {
+                x: (prev.x + curr.x + next.x) / 3,
+                y: (prev.y + curr.y + next.y) / 3,
+                tool: curr.tool,
+                width: curr.width
+            };
+            smoothed.push(smoothedPoint);
+        } else {
+            smoothed.push(curr);
         }
     }
     
-    optimized.push(points[points.length - 1]);
-    return optimized;
+    smoothed.push(points[points.length - 1]); // Keep last point
+    return smoothed;
 }
 
-function analyzePath(points) {
-    if (points.length < 2) return { length: 0, complexity: 0, points: 0 };
+// Process canvas image data (example: invert colors)
+function processCanvasImageData(imageData, operation) {
+    const data = new Uint8ClampedArray(imageData.data);
     
-    let totalLength = 0;
-    let totalCurvature = 0;
-    
-    for (let i = 1; i < points.length; i++) {
-        const dist = Math.sqrt(
-            (points[i].x - points[i-1].x) ** 2 + 
-            (points[i].y - points[i-1].y) ** 2
-        );
-        totalLength += dist;
-        
-        if (i > 1) {
-            const a1 = Math.atan2(points[i-1].y - points[i-2].y, points[i-1].x - points[i-2].x);
-            const a2 = Math.atan2(points[i].y - points[i-1].y, points[i].x - points[i-1].x);
-            const curvature = Math.abs(a2 - a1);
-            totalCurvature += curvature;
-        }
+    switch(operation) {
+        case 'invert':
+            for (let i = 0; i < data.length; i += 4) {
+                data[i] = 255 - data[i];     // Red
+                data[i + 1] = 255 - data[i + 1]; // Green
+                data[i + 2] = 255 - data[i + 2]; // Blue
+                // Alpha stays the same
+            }
+            break;
+            
+        case 'grayscale':
+            for (let i = 0; i < data.length; i += 4) {
+                const gray = Math.round(data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
+                data[i] = gray;     // Red
+                data[i + 1] = gray; // Green
+                data[i + 2] = gray; // Blue
+            }
+            break;
     }
     
     return {
-        length: Math.round(totalLength),
-        complexity: Math.round(totalCurvature * 100) / 100,
-        points: points.length
+        data: data,
+        width: imageData.width,
+        height: imageData.height
     };
 }
 
-function smoothPath(points, intensity) {
-    if (points.length < 3) return points;
-    
-    const smoothed = [points[0]];
-    
-    for (let i = 1; i < points.length - 1; i++) {
-        const prev = points[i - 1];
-        const curr = points[i];
-        const next = points[i + 1];
-        
-        const smoothX = curr.x + (prev.x + next.x - 2 * curr.x) * intensity;
-        const smoothY = curr.y + (prev.y + next.y - 2 * curr.y) * intensity;
-        
-        smoothed.push({ x: smoothX, y: smoothY });
+// Calculate bounds of all strokes
+function calculateStrokeBounds(strokes) {
+    if (!strokes || strokes.length === 0) {
+        return { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 };
     }
     
-    smoothed.push(points[points.length - 1]);
-    return smoothed;
+    let minX = Infinity, minY = Infinity;
+    let maxX = -Infinity, maxY = -Infinity;
+    
+    strokes.forEach(stroke => {
+        stroke.forEach(point => {
+            minX = Math.min(minX, point.x);
+            minY = Math.min(minY, point.y);
+            maxX = Math.max(maxX, point.x);
+            maxY = Math.max(maxY, point.y);
+        });
+    });
+    
+    return {
+        minX: minX,
+        minY: minY,
+        maxX: maxX,
+        maxY: maxY,
+        width: maxX - minX,
+        height: maxY - minY
+    };
 }
