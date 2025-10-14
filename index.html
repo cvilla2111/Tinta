@@ -1,7 +1,7 @@
 <!DOCTYPE html><html lang="en"><head><meta name="x-poe-datastore-behavior" content="local_only"><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Drawing App - Hybrid Worker</title>
+    <title>Drawing App</title>
     <style>
         /* Reset and base styles */
         * {
@@ -46,44 +46,6 @@
             display: flex;
             align-items: center;
             gap: 0.75rem;
-        }
-
-        /* Worker notification */
-        .worker-notification {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.25rem 0.5rem;
-            background: #f0f9ff;
-            border: 1px solid #0ea5e9;
-            border-radius: 0.25rem;
-            font-size: 0.75rem;
-            color: #0c4a6e;
-            margin-right: 0.75rem;
-            transition: opacity 0.3s ease;
-        }
-
-        .worker-indicator {
-            width: 0.5rem;
-            height: 0.5rem;
-            background: #0ea5e9;
-            border-radius: 50%;
-            animation: pulse 1.5s ease-in-out infinite;
-        }
-
-        .worker-text {
-            font-weight: 500;
-        }
-
-        @keyframes pulse {
-            0%, 100% {
-                opacity: 1;
-                transform: scale(1);
-            }
-            50% {
-                opacity: 0.5;
-                transform: scale(1.1);
-            }
         }
 
         /* Hamburger menu */
@@ -264,32 +226,14 @@
             bottom: 0;
             background: white;
             overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
 
         #drawingCanvas {
-            border: 1px solid #e5e7eb;
+            display: block;
             cursor: crosshair;
             touch-action: none;
-        }
-
-        /* Lightweight eraser indicator */
-        .eraser-indicator {
-            position: fixed;
-            border: 1px solid #ef4444;
-            border-radius: 50%;
-            background: rgba(239, 68, 68, 0.1);
-            pointer-events: none;
-            z-index: 1000;
-            opacity: 0;
-            transition: opacity 0.1s ease;
-            transform: translate(-50%, -50%);
-        }
-
-        .eraser-indicator.visible {
-            opacity: 1;
+            width: 100%;
+            height: 100%;
         }
 
         /* Filter status */
@@ -308,15 +252,20 @@
         .bg-orange-500 { background: #f59e0b; }
         .bg-gray-400 { background: #9ca3af; }
 
-        .hidden {
+        /* Eraser indicator */
+        .eraser-indicator {
+            position: fixed;
+            border: 1px solid #6b7280;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 15;
+            background: rgba(107, 114, 128, 0.1);
+            transform: translate(-50%, -50%);
             display: none;
         }
 
-        /* DPR Info */
-        .dpr-info {
-            font-size: 0.75rem;
-            color: #6b7280;
-            margin-top: 0.5rem;
+        .hidden {
+            display: none;
         }
 
         /* Responsive design */
@@ -347,15 +296,11 @@
             <div class="hamburger-line"></div>
             <div class="hamburger-line"></div>
         </button>
-        <span class="header-title">Drawing App - Hybrid Worker</span>
+        <span class="header-title">Drawing App</span>
         <div class="header-right">
-            <div id="workerNotification" class="worker-notification hidden">
-                <div class="worker-indicator"></div>
-                <span class="worker-text">Worker Active</span>
-            </div>
             <span id="statusText" class="status-text">Ready</span>
             <div id="inputDetails" class="input-details">
-                <div id="inputIndicator" class="input-indicator bg-gray-400"></div>
+                <div id="inputIndicator" class="input-indicator"></div>
                 <div id="inputInfo" class="input-info">
                     <div id="deviceType" class="device-type">-</div>
                     <div id="buttonState" class="button-state">-</div>
@@ -387,16 +332,55 @@
                 </div>
             </div>
 
-            <!-- Eraser Size (only shown when eraser is selected) -->
-            <div id="eraserSizeSection" class="menu-section hidden">
-                <h3>Eraser Size</h3>
-                <div class="range-container">
-                    <input type="range" id="eraserSize" min="5" max="50" value="10" class="range-input">
+            <!-- Smoothing -->
+            <div class="menu-section">
+                <h3>Smoothing</h3>
+                <div class="section-content">
+                    <button id="smoothingToggle" class="tool-btn active">Quadratic Smoothing: ON</button>
+                </div>
+                <div class="range-container" style="margin-top: 0.5rem;">
+                    <label style="font-size: 0.75rem; color: #6b7280; margin-bottom: 0.25rem;">Smoothing Threshold</label>
+                    <input type="range" id="smoothingThreshold" min="1" max="10" value="3" class="range-input">
                     <div class="range-value">
-                        <span id="eraserSizeValue">10</span>px
+                        <span id="smoothingThresholdValue">3</span>px
                     </div>
                 </div>
             </div>
+
+            <!-- Dynamic Eraser -->
+            <div class="menu-section">
+                <h3>Dynamic Eraser</h3>
+                <div class="section-content">
+                    <button id="dynamicEraserToggle" class="tool-btn active">Speed Dynamic: ON</button>
+                </div>
+                <div class="range-container" style="margin-top: 0.5rem;">
+                    <label style="font-size: 0.75rem; color: #6b7280; margin-bottom: 0.25rem;">Min Size</label>
+                    <input type="range" id="eraserMinSize" min="1" max="15" value="2" class="range-input">
+                    <div class="range-value">
+                        <span id="eraserMinSizeValue">2</span>px
+                    </div>
+                </div>
+                <div class="range-container" style="margin-top: 0.5rem;">
+                    <label style="font-size: 0.75rem; color: #6b7280; margin-bottom: 0.25rem;">Max Size</label>
+                    <input type="range" id="eraserMaxSize" min="5" max="200" value="20" class="range-input">
+                    <div class="range-value">
+                        <span id="eraserMaxSizeValue">20</span>px
+                    </div>
+                </div>
+                <div class="range-container" style="margin-top: 0.5rem;">
+                    <label style="font-size: 0.75rem; color: #6b7280; margin-bottom: 0.25rem;">Sensitivity</label>
+                    <input type="range" id="eraserSensitivity" min="1" max="10" value="5" class="range-input">
+                    <div class="range-value">
+                        <span id="eraserSensitivityValue">5</span>
+                    </div>
+                </div>
+                <div class="filter-status" style="margin-top: 0.5rem;">
+                    <div>Current Size: <span id="currentEraserSize">2</span>px</div>
+                    <div>Speed: <span id="currentSpeed">0</span> px/s</div>
+                </div>
+            </div>
+
+
 
             <!-- Actions -->
             <div class="menu-section">
@@ -404,8 +388,6 @@
                 <div class="section-content">
                     <button id="clearBtn" class="tool-btn">Clear All</button>
                     <button id="undoBtn" class="tool-btn">Undo</button>
-                    <button id="testWorkerBtn" class="tool-btn">Test Worker</button>
-                    <button id="switchWorkerBtn" class="tool-btn">Switch Worker Type</button>
                 </div>
             </div>
 
@@ -419,14 +401,30 @@
                 </div>
             </div>
 
+            <!-- Worker Controls -->
+            <div class="menu-section">
+                <h3>Web Worker</h3>
+                <div class="section-content">
+                    <button id="inlineWorkerBtn" class="tool-btn">Use Inline Worker</button>
+                    <button id="fileWorkerBtn" class="tool-btn">Use File Worker</button>
+                    <button id="noWorkerBtn" class="tool-btn">Disable Worker</button>
+                </div>
+                <div class="filter-status" style="margin-top: 0.5rem;">
+                    <div id="workerStatus">Status: <span id="workerStatusValue">Initializing...</span></div>
+                    <div id="workerType">Type: <span id="workerTypeValue">-</span></div>
+                    <div id="workerActive">Active: <span id="workerActiveValue">-</span></div>
+                </div>
+                <div style="margin-top: 0.5rem;">
+                    <button id="testWorkerBtn" class="tool-btn" style="font-size: 0.75rem;">Test Worker</button>
+                </div>
+            </div>
+
             <!-- DPR Info -->
             <div class="menu-section">
-                <h3>System Info</h3>
-                <div class="dpr-info">
-                    <div>DPR: <span id="dprValue">-</span></div>
-                    <div>Canvas: <span id="canvasSize">-</span></div>
-                    <div>Worker: <span id="workerStatus">-</span></div>
-                    <div>Environment: <span id="envType">-</span></div>
+                <h3>Display Info</h3>
+                <div class="filter-status">
+                    <div id="dprInfo">DPR: <span id="dprValue">-</span></div>
+                    <div id="canvasSize">Canvas: <span id="canvasSizeValue">-</span></div>
                 </div>
             </div>
         </div>
@@ -435,729 +433,1053 @@
     <!-- Canvas Area -->
     <div id="canvasContainer" class="canvas-container">
         <canvas id="drawingCanvas"></canvas>
+        <!-- Eraser indicator -->
         <div id="eraserIndicator" class="eraser-indicator"></div>
     </div>
 
     <script>
-        // Drawing App with Hybrid Worker Support
-        class DrawingApp {
-            constructor() {
-                this.canvas = document.getElementById('drawingCanvas');
-                this.ctx = this.canvas.getContext('2d');
-                this.isDrawing = false;
-                this.currentTool = 'pen';
-                this.strokeWidth = 2;
-                this.eraserSize = 10;
-                this.lastX = 0;
-                this.lastY = 0;
-                this.undoStack = [];
-                this.maxUndoSteps = 50;
-                
-                // Smooth drawing with quadratic curves
-                this.points = [];
-                this.minDistance = 2;
-                
-                // Worker properties
-                this.worker = null;
-                this.workerType = null; // 'external' or 'inline'
-                this.workerStartTime = 0;
-                this.workerData = {};
-                
-                // DPR detection
-                this.dpr = window.devicePixelRatio || 1;
-                
-                // Initialize
-                this.detectEnvironment();
-                this.setupCanvas();
-                this.setupEventListeners();
-                this.updateUI();
-                this.saveState();
-                this.initializeWorker();
+        // Canvas and drawing state
+        const canvas = document.getElementById('drawingCanvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let currentTool = 'pen';
+        let strokeWidth = 2;
+        let strokes = [];
+        let currentStroke = [];
+        
+        // Smoothing settings
+        let smoothingEnabled = true;
+        let smoothingThreshold = 3;
+        
+        // Dynamic eraser settings
+        let dynamicEraserEnabled = true;
+        let eraserMinSize = 2;
+        let eraserMaxSize = 20;
+        let eraserSensitivity = 5;
+        let currentEraserSize = 2;
+        let targetEraserSize = 2;
+        
+        // Speed tracking for dynamic eraser
+        let lastMousePos = null;
+        let lastMouseTime = 0;
+        let currentSpeed = 0;
+        let lastSpeedUpdateTime = 0;
+        
+        // Smooth animation variables
+        let smoothingAnimationId = null;
+        
+        // Antialiasing - permanently disabled to use native AA
+        let antialiasingEnabled = false;
+        
+        // UI elements
+        const menuToggle = document.getElementById('menuToggle');
+        const sideMenu = document.getElementById('sideMenu');
+        const statusText = document.getElementById('statusText');
+        const inputIndicator = document.getElementById('inputIndicator');
+        const deviceType = document.getElementById('deviceType');
+        const buttonState = document.getElementById('buttonState');
+        const eraserIndicator = document.getElementById('eraserIndicator');
+        
+        // DPR Detection and Canvas Setup
+        function setupCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            
+            // Set display size
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = rect.height + 'px';
+            
+            // Set actual size accounting for DPR
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            
+            // Scale context to ensure correct drawing operations
+            ctx.scale(dpr, dpr);
+            
+            // Set canvas style with antialiasing
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            
+            // Enable antialiasing for drawing
+            if (ctx.webkitImageSmoothingEnabled !== undefined) {
+                ctx.webkitImageSmoothingEnabled = true;
             }
-
-            detectEnvironment() {
-                const isLocalhost = window.location.hostname === 'localhost' || 
-                                   window.location.hostname === '127.0.0.1';
-                const isPoeIframe = window.parent !== window;
-                
-                let envType = 'Unknown';
-                if (isLocalhost) envType = 'Localhost';
-                else if (isPoeIframe) envType = 'Poe Iframe';
-                else envType = 'Remote';
-                
-                document.getElementById('envType').textContent = envType;
-                
-                this.environment = { isLocalhost, isPoeIframe, envType };
-                console.log('🔍 Environment detected:', this.environment);
+            if (ctx.mozImageSmoothingEnabled !== undefined) {
+                ctx.mozImageSmoothingEnabled = true;
             }
-
-            async initializeWorker() {
-                console.log('🚀 Initializing hybrid worker system...');
-                
-                // Try external worker first (for local development)
-                if (await this.tryExternalWorker()) {
-                    return;
-                }
-                
-                // Fall back to inline worker
-                this.createInlineWorker();
+            if (ctx.msImageSmoothingEnabled !== undefined) {
+                ctx.msImageSmoothingEnabled = true;
             }
-
-            async tryExternalWorker() {
-                const workerFiles = [
-                    'drawing-worker.js',
-                    'worker.js', 
-                    'js/drawing-worker.js',
-                    'workers/drawing-worker.js'
-                ];
-                
-                for (const workerFile of workerFiles) {
-                    try {
-                        console.log(`🔄 Trying external worker: ${workerFile}`);
-                        
-                        // Test if file exists
-                        const response = await fetch(workerFile, { method: 'HEAD' });
-                        if (!response.ok) {
-                            console.log(`❌ Worker file not found: ${workerFile} (${response.status})`);
-                            continue;
-                        }
-                        
-                        // Try to create worker from file
-                        this.worker = new Worker(workerFile);
-                        this.worker.onmessage = (e) => this.handleWorkerResult(e.data);
-                        this.worker.onerror = (e) => {
-                            console.log(`❌ External worker error (${workerFile}):`, e);
-                            this.worker.terminate();
-                            this.worker = null;
-                            return false;
-                        };
-                        
-                        // Test the worker works
-                        const testResult = await this.testWorkerConnection();
-                        if (testResult) {
-                            console.log(`✅ External worker initialized: ${workerFile}`);
-                            document.getElementById('workerStatus').textContent = `External (${workerFile})`;
-                            this.workerType = 'external';
-                            setTimeout(() => this.testWorker(), 2000);
-                            return true;
-                        } else {
-                            this.worker.terminate();
-                            this.worker = null;
-                        }
-                        
-                    } catch (error) {
-                        console.log(`❌ Failed to load external worker ${workerFile}:`, error);
-                        if (this.worker) {
-                            this.worker.terminate();
-                            this.worker = null;
-                        }
-                    }
-                }
-                
-                console.log('❌ All external worker attempts failed');
+            
+            // Update DPR info
+            document.getElementById('dprValue').textContent = dpr.toFixed(2);
+            document.getElementById('canvasSizeValue').textContent = `${canvas.width}×${canvas.height}`;
+            
+            statusText.textContent = `Canvas ready (DPR: ${dpr})`;
+        }
+        
+        // Resize canvas when window resizes
+        function resizeCanvas() {
+            const container = document.getElementById('canvasContainer');
+            const rect = container.getBoundingClientRect();
+            
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = rect.height + 'px';
+            
+            setupCanvas();
+            redrawCanvas();
+        }
+        
+        // Store original tool for stylus eraser switching
+        let originalTool = 'pen';
+        let isUsingStylesEraser = false;
+        
+        // Input filtering - only allow pen and mouse
+        function isValidInput(event) {
+            const pointerType = event.pointerType;
+            
+            // Block touch input
+            if (pointerType === 'touch') {
+                updateInputIndicator('TOUCH', 'BLOCKED', 'bg-red-500');
                 return false;
             }
-
-            testWorkerConnection() {
-                return new Promise((resolve) => {
-                    if (!this.worker) {
-                        resolve(false);
-                        return;
-                    }
-                    
-                    const testId = 'connection-test-' + Date.now();
-                    const timeout = setTimeout(() => {
-                        console.log('❌ Worker connection test timeout');
-                        resolve(false);
-                    }, 2000);
-                    
-                    const testHandler = (e) => {
-                        if (e.data.id === testId && e.data.operation === 'connectionTest') {
-                            console.log('✅ Worker connection test passed');
-                            clearTimeout(timeout);
-                            this.worker.removeEventListener('message', testHandler);
-                            resolve(true);
-                        }
-                    };
-                    
-                    this.worker.addEventListener('message', testHandler);
-                    this.worker.postMessage({ 
-                        operation: 'connectionTest', 
-                        data: {}, 
-                        id: testId 
-                    });
-                });
-            }
-
-            createInlineWorker() {
-                console.log('🔄 Creating inline worker...');
+            
+            // Handle pen input (including stylus eraser)
+            if (pointerType === 'pen') {
+                const pressure = event.pressure || 0;
+                const button = event.button;
+                const buttons = event.buttons;
                 
-                const workerCode = `
-                    console.log('📦 Inline worker started');
-                    
-                    self.onmessage = function(e) {
-                        const { operation, data, id } = e.data;
-                        
-                        // Handle connection test
-                        if (operation === 'connectionTest') {
-                            self.postMessage({ operation, id, result: 'connected' });
-                            return;
-                        }
-                        
-                        switch(operation) {
-                            case 'optimizePath':
-                                const optimized = optimizePath(data.points);
-                                self.postMessage({ operation, result: optimized, id, timestamp: Date.now() });
-                                break;
-                                
-                            case 'analyzePath':
-                                const analysis = analyzePath(data.points);
-                                self.postMessage({ operation, result: analysis, id, timestamp: Date.now() });
-                                break;
-                                
-                            case 'smoothPath':
-                                const smoothed = smoothPath(data.points, data.intensity || 0.5);
-                                self.postMessage({ operation, result: smoothed, id, timestamp: Date.now() });
-                                break;
-                        }
-                    };
-                    
-                    function optimizePath(points) {
-                        if (points.length < 3) return points;
-                        const optimized = [points[0]];
-                        const tolerance = 3;
-                        
-                        for (let i = 1; i < points.length - 1; i++) {
-                            const prev = points[i - 1];
-                            const curr = points[i];
-                            const next = points[i + 1];
-                            
-                            const d1 = Math.sqrt((next.x - prev.x) ** 2 + (next.y - prev.y) ** 2);
-                            const d2 = Math.sqrt((curr.x - prev.x) ** 2 + (curr.y - prev.y) ** 2);
-                            const d3 = Math.sqrt((next.x - curr.x) ** 2 + (next.y - curr.y) ** 2);
-                            
-                            if (Math.abs(d2 + d3 - d1) > tolerance) {
-                                optimized.push(curr);
-                            }
-                        }
-                        
-                        optimized.push(points[points.length - 1]);
-                        return optimized;
-                    }
-                    
-                    function analyzePath(points) {
-                        if (points.length < 2) return { length: 0, complexity: 0, points: 0 };
-                        
-                        let totalLength = 0;
-                        let totalCurvature = 0;
-                        
-                        for (let i = 1; i < points.length; i++) {
-                            const dist = Math.sqrt(
-                                (points[i].x - points[i-1].x) ** 2 + 
-                                (points[i].y - points[i-1].y) ** 2
-                            );
-                            totalLength += dist;
-                            
-                            if (i > 1) {
-                                const a1 = Math.atan2(points[i-1].y - points[i-2].y, points[i-1].x - points[i-2].x);
-                                const a2 = Math.atan2(points[i].y - points[i-1].y, points[i].x - points[i-1].x);
-                                const curvature = Math.abs(a2 - a1);
-                                totalCurvature += curvature;
-                            }
-                        }
-                        
-                        return {
-                            length: Math.round(totalLength),
-                            complexity: Math.round(totalCurvature * 100) / 100,
-                            points: points.length
-                        };
-                    }
-                    
-                    function smoothPath(points, intensity) {
-                        if (points.length < 3) return points;
-                        
-                        const smoothed = [points[0]];
-                        
-                        for (let i = 1; i < points.length - 1; i++) {
-                            const prev = points[i - 1];
-                            const curr = points[i];
-                            const next = points[i + 1];
-                            
-                            const smoothX = curr.x + (prev.x + next.x - 2 * curr.x) * intensity;
-                            const smoothY = curr.y + (prev.y + next.y - 2 * curr.y) * intensity;
-                            
-                            smoothed.push({ x: smoothX, y: smoothY });
-                        }
-                        
-                        smoothed.push(points[points.length - 1]);
-                        return smoothed;
-                    }
-                `;
-
-                try {
-                    this.worker = new Worker(URL.createObjectURL(new Blob([workerCode], { type: 'application/javascript' })));
-                    this.worker.onmessage = (e) => this.handleWorkerResult(e.data);
-                    this.worker.onerror = (e) => {
-                        console.log('❌ Inline worker error:', e);
-                        this.worker = null;
-                        document.getElementById('workerStatus').textContent = 'Failed';
-                    };
-                    
-                    console.log('✅ Inline worker initialized');
-                    document.getElementById('workerStatus').textContent = 'Inline';
-                    this.workerType = 'inline';
-                    
-                    // Test worker automatically after 2 seconds
-                    setTimeout(() => this.testWorker(), 2000);
-                    
-                } catch (error) {
-                    console.log('❌ Inline worker initialization failed:', error);
-                    this.worker = null;
-                    document.getElementById('workerStatus').textContent = 'Unavailable';
-                }
-            }
-
-            switchWorkerType() {
-                if (this.worker) {
-                    this.worker.terminate();
-                    this.worker = null;
-                }
+                // Detect stylus eraser (button 5 or buttons with eraser flag)
+                const isEraserEnd = button === 5 || (buttons & 32) === 32;
                 
-                if (this.workerType === 'inline') {
-                    console.log('🔄 Switching to external worker...');
-                    this.tryExternalWorker().then(success => {
-                        if (!success) {
-                            console.log('❌ External worker failed, reverting to inline');
-                            this.createInlineWorker();
-                        }
-                    });
+                if (isEraserEnd) {
+                    // Using eraser end of stylus
+                    if (!isUsingStylesEraser) {
+                        // First time using eraser end - switch to eraser tool
+                        originalTool = currentTool;
+                        setTool('eraser');
+                        isUsingStylesEraser = true;
+                        statusText.textContent = 'Stylus eraser detected - switched to eraser';
+                    }
+                    updateInputIndicator('PEN', `ERASER P:${Math.round(pressure * 100)}%`, 'bg-orange-500');
                 } else {
-                    console.log('🔄 Switching to inline worker...');
-                    this.createInlineWorker();
+                    // Using normal pen tip
+                    if (isUsingStylesEraser) {
+                        // Switch back to original tool
+                        setTool(originalTool);
+                        isUsingStylesEraser = false;
+                        statusText.textContent = `Stylus tip detected - switched back to ${originalTool}`;
+                    }
+                    updateInputIndicator('PEN', `TIP P:${Math.round(pressure * 100)}%`, 'bg-blue-500');
                 }
-            }
-
-            showWorkerNotification(text = 'Worker Active') {
-                const notification = document.getElementById('workerNotification');
-                if (notification) {
-                    notification.querySelector('.worker-text').textContent = text;
-                    notification.classList.remove('hidden');
-                }
-            }
-
-            hideWorkerNotification() {
-                const notification = document.getElementById('workerNotification');
-                if (notification) {
-                    setTimeout(() => notification.classList.add('hidden'), 800);
-                }
-            }
-
-            handleWorkerResult(data) {
-                const { operation, result } = data;
-                const processingTime = Date.now() - this.workerStartTime;
-                
-                console.log(`✅ Worker (${this.workerType}) completed ${operation} in ${processingTime}ms`);
-                
-                switch(operation) {
-                    case 'optimizePath':
-                        this.updateStatus(`Optimized: ${this.workerData.originalPoints} → ${result.length} points`);
-                        break;
-                    case 'analyzePath':
-                        this.updateStatus(`Analysis: ${result.length}px, complexity ${result.complexity}`);
-                        break;
-                    case 'smoothPath':
-                        this.updateStatus(`Smoothed ${result.length} points`);
-                        break;
-                }
-                
-                this.hideWorkerNotification();
-                setTimeout(() => this.updateStatus('Ready'), 3000);
-            }
-
-            useWorker(operation, data) {
-                if (!this.worker) {
-                    console.log('Worker not available');
-                    this.updateStatus('Worker unavailable');
-                    return false;
-                }
-                
-                this.workerStartTime = Date.now();
-                this.workerData = { originalPoints: data.points ? data.points.length : 0 };
-                
-                this.showWorkerNotification(`Processing ${operation}...`);
-                this.worker.postMessage({ operation, data, id: Date.now() });
                 
                 return true;
             }
+            
+            if (pointerType === 'mouse') {
+                const buttons = event.buttons;
+                const buttonText = buttons === 1 ? 'L' : buttons === 2 ? 'R' : buttons === 4 ? 'M' : '-';
+                updateInputIndicator('MOUSE', buttonText, 'bg-green-500');
+                return true;
+            }
+            
+            // Block unknown input types
+            updateInputIndicator('OTHER', 'Unknown', 'bg-orange-500');
+            return false;
+        }
+        
+        // Update input indicator
+        function updateInputIndicator(device, state, colorClass) {
+            deviceType.textContent = device;
+            buttonState.textContent = state;
+            inputIndicator.className = 'input-indicator ' + colorClass;
+        }
+        
+        // Get coordinates relative to canvas
+        function getCoordinates(event) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: event.clientX - rect.left,
+                y: event.clientY - rect.top
+            };
+        }
+        
+        // Drawing state for smoothing
+        let lastPoint = null;
+        let lastMidPoint = null;
+        
+        // Drawing functions with quadratic smoothing (no pressure sensitivity)
+        function startDrawing(event) {
+            if (!isValidInput(event)) {
+                event.preventDefault();
+                return false;
+            }
+            
+            isDrawing = true;
+            const coords = getCoordinates(event);
+            
+            // Reset eraser size to minimum at start of new stroke
+            if (currentTool === 'eraser' && dynamicEraserEnabled) {
+                currentEraserSize = eraserMinSize;
+                targetEraserSize = eraserMinSize;
+                document.getElementById('currentEraserSize').textContent = currentEraserSize;
+                currentSpeed = 0;
+                document.getElementById('currentSpeed').textContent = currentSpeed;
+            }
+            
+            currentStroke = [{
+                x: coords.x,
+                y: coords.y,
+                tool: currentTool,
+                width: strokeWidth
+            }];
+            
+            // Initialize smoothing variables
+            lastPoint = { x: coords.x, y: coords.y };
+            lastMidPoint = null;
+            
+            // Set drawing style - use dynamic eraser size if enabled
+            const activeStrokeWidth = (currentTool === 'eraser' && dynamicEraserEnabled) ? currentEraserSize : strokeWidth;
+            ctx.globalCompositeOperation = currentTool === 'eraser' ? 'destination-out' : 'source-over';
+            ctx.strokeStyle = currentTool === 'eraser' ? 'rgba(0,0,0,1)' : '#000000';
+            ctx.lineWidth = activeStrokeWidth;
+            
+            // Begin path
+            ctx.beginPath();
+            ctx.moveTo(coords.x, coords.y);
+            
+            event.preventDefault();
+            return true;
+        }
+        
+        // Minimal drawing function that enables native AA
+        function drawWithAntialiasing(startPoint, endPoint, width, tool) {
+            // Always use native AA (antialiasingEnabled is permanently false)
+            ctx.lineWidth = width;
+            ctx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over';
+            ctx.strokeStyle = tool === 'eraser' ? 'rgba(0,0,0,1)' : '#000000';
+            ctx.beginPath();
+            ctx.moveTo(startPoint.x, startPoint.y);
+            ctx.lineTo(endPoint.x, endPoint.y);
+            ctx.stroke();
+        }
 
-            testWorker() {
-                // Generate sample path data
-                const samplePoints = [];
-                for (let i = 0; i < 100; i++) {
-                    samplePoints.push({
-                        x: 100 + i * 2 + Math.sin(i * 0.1) * 20,
-                        y: 100 + Math.cos(i * 0.05) * 30
-                    });
+        function draw(event) {
+            if (!isDrawing || !isValidInput(event)) {
+                return;
+            }
+            
+            const coords = getCoordinates(event);
+            const currentPoint = { x: coords.x, y: coords.y };
+            
+            // Add point to current stroke
+            currentStroke.push({
+                x: coords.x,
+                y: coords.y,
+                tool: currentTool,
+                width: strokeWidth
+            });
+            
+            if (lastPoint) {
+                // Check distance for smoothing threshold
+                const distance = Math.sqrt(
+                    Math.pow(currentPoint.x - lastPoint.x, 2) + 
+                    Math.pow(currentPoint.y - lastPoint.y, 2)
+                );
+                
+                // Use lower threshold for eraser to make it more responsive
+                const activeThreshold = currentTool === 'eraser' ? 1 : smoothingThreshold;
+                
+                if (smoothingEnabled && distance >= activeThreshold) {
+                    // Calculate midpoint between last point and current point
+                    const midPoint = {
+                        x: (lastPoint.x + currentPoint.x) / 2,
+                        y: (lastPoint.y + currentPoint.y) / 2
+                    };
+                    
+                    if (lastMidPoint) {
+                        // Standard quadratic curve (native AA) - use dynamic eraser size if enabled
+                        const activeStrokeWidth = (currentTool === 'eraser' && dynamicEraserEnabled) ? currentEraserSize : strokeWidth;
+                        ctx.lineWidth = activeStrokeWidth;
+                        ctx.globalCompositeOperation = currentTool === 'eraser' ? 'destination-out' : 'source-over';
+                        ctx.strokeStyle = currentTool === 'eraser' ? 'rgba(0,0,0,1)' : '#000000';
+                        ctx.beginPath();
+                        ctx.moveTo(lastMidPoint.x, lastMidPoint.y);
+                        ctx.quadraticCurveTo(lastPoint.x, lastPoint.y, midPoint.x, midPoint.y);
+                        ctx.stroke();
+                    } else {
+                        // First segment - use dynamic eraser size if enabled
+                        const activeStrokeWidth = (currentTool === 'eraser' && dynamicEraserEnabled) ? currentEraserSize : strokeWidth;
+                        drawWithAntialiasing(lastPoint, midPoint, activeStrokeWidth, currentTool);
+                    }
+                    
+                    // Update for next iteration
+                    lastMidPoint = midPoint;
+                } else if (!smoothingEnabled) {
+                    // Direct line drawing
+                    drawWithAntialiasing(lastPoint, currentPoint, strokeWidth, currentTool);
                 }
-                
-                console.log(`🧪 Testing ${this.workerType} worker with sample data...`);
-                this.useWorker('analyzePath', { points: samplePoints });
             }
-
-            setupCanvas() {
-                const container = document.getElementById('canvasContainer');
-                const rect = container.getBoundingClientRect();
-                
-                const width = Math.min(rect.width - 40, 1200);
-                const height = Math.min(rect.height - 40, 800);
-                
-                this.canvas.style.width = width + 'px';
-                this.canvas.style.height = height + 'px';
-                
-                this.canvas.width = width * this.dpr;
-                this.canvas.height = height * this.dpr;
-                
-                this.ctx.scale(this.dpr, this.dpr);
-                this.ctx.lineCap = 'round';
-                this.ctx.lineJoin = 'round';
-                this.ctx.fillStyle = 'white';
-                this.ctx.fillRect(0, 0, width, height);
-                
-                document.getElementById('dprValue').textContent = this.dpr.toFixed(2);
-                document.getElementById('canvasSize').textContent = `${width}x${height}`;
+            
+            lastPoint = currentPoint;
+            event.preventDefault();
+        }
+        
+        function stopDrawing(event) {
+            if (!isDrawing) return;
+            
+            isDrawing = false;
+            
+            // Save stroke to history
+            if (currentStroke.length > 0) {
+                strokes.push([...currentStroke]);
+                statusText.textContent = `Stroke completed (${strokes.length} total)`;
             }
-
-            setupEventListeners() {
-                document.getElementById('menuToggle').addEventListener('click', () => this.toggleMenu());
-                document.getElementById('penTool').addEventListener('click', () => this.setTool('pen'));
-                document.getElementById('eraserTool').addEventListener('click', () => this.setTool('eraser'));
-                document.getElementById('strokeWidth').addEventListener('input', (e) => {
-                    this.strokeWidth = parseInt(e.target.value);
-                    document.getElementById('strokeWidthValue').textContent = this.strokeWidth;
-                    this.updateStatus(`Stroke width: ${this.strokeWidth}px`);
-                });
-                document.getElementById('eraserSize').addEventListener('input', (e) => {
-                    this.eraserSize = parseInt(e.target.value);
-                    document.getElementById('eraserSizeValue').textContent = this.eraserSize;
-                    this.updateEraserIndicatorSize();
-                    this.updateStatus(`Eraser size: ${this.eraserSize}px`);
-                });
-                document.getElementById('clearBtn').addEventListener('click', () => this.clearCanvas());
-                document.getElementById('undoBtn').addEventListener('click', () => this.undo());
-                document.getElementById('testWorkerBtn').addEventListener('click', () => this.testWorker());
-                document.getElementById('switchWorkerBtn').addEventListener('click', () => this.switchWorkerType());
-
-                this.canvas.addEventListener('pointerdown', (e) => this.handlePointerDown(e));
-                this.canvas.addEventListener('pointermove', (e) => this.handlePointerMove(e));
-                this.canvas.addEventListener('pointerup', (e) => this.handlePointerUp(e));
-                this.canvas.addEventListener('pointerleave', (e) => this.handlePointerUp(e));
-                this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-
-                // Lightweight eraser indicator events
-                this.canvas.addEventListener('pointerenter', (e) => this.showEraserIndicator(e));
-                this.canvas.addEventListener('pointerleave', () => this.hideEraserIndicator());
-                document.addEventListener('pointermove', (e) => this.updateEraserIndicator(e));
-
-                document.addEventListener('click', (e) => {
-                    const sideMenu = document.getElementById('sideMenu');
-                    const menuToggle = document.getElementById('menuToggle');
-                    if (!sideMenu.contains(e.target) && !menuToggle.contains(e.target)) {
-                        if (sideMenu.classList.contains('open')) {
-                            sideMenu.classList.remove('open');
-                            menuToggle.classList.remove('open');
-                            this.updateStatus('Ready');
+            
+            currentStroke = [];
+            updateInputIndicator('-', '-', 'bg-gray-400');
+            
+            event.preventDefault();
+        }
+        
+        // Redraw entire canvas with quadratic smoothing (no pressure sensitivity)
+        function redrawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            strokes.forEach(stroke => {
+                if (stroke.length < 2) return;
+                
+                // Set drawing style for this stroke
+                ctx.globalCompositeOperation = stroke[0].tool === 'eraser' ? 'destination-out' : 'source-over';
+                ctx.strokeStyle = stroke[0].tool === 'eraser' ? 'rgba(0,0,0,1)' : '#000000';
+                ctx.lineWidth = stroke[0].width;
+                
+                ctx.beginPath();
+                ctx.moveTo(stroke[0].x, stroke[0].y);
+                
+                if (stroke.length === 2) {
+                    // Just two points - draw a line
+                    ctx.lineTo(stroke[1].x, stroke[1].y);
+                    ctx.stroke();
+                } else {
+                    // Multiple points - use quadratic smoothing
+                    let lastMidPoint = null;
+                    
+                    for (let i = 1; i < stroke.length; i++) {
+                        const lastPoint = stroke[i - 1];
+                        const currentPoint = stroke[i];
+                        
+                        // Calculate midpoint
+                        const midPoint = {
+                            x: (lastPoint.x + currentPoint.x) / 2,
+                            y: (lastPoint.y + currentPoint.y) / 2
+                        };
+                        
+                        if (i === 1) {
+                            // First segment
+                            ctx.lineTo(midPoint.x, midPoint.y);
+                        } else {
+                            // Quadratic curve from last midpoint to current midpoint
+                            ctx.quadraticCurveTo(lastPoint.x, lastPoint.y, midPoint.x, midPoint.y);
+                        }
+                        
+                        lastMidPoint = midPoint;
+                    }
+                    
+                    // Draw final segment to last point
+                    if (lastMidPoint && stroke.length > 2) {
+                        const lastPoint = stroke[stroke.length - 1];
+                        ctx.quadraticCurveTo(stroke[stroke.length - 2].x, stroke[stroke.length - 2].y, lastPoint.x, lastPoint.y);
+                    }
+                    
+                    ctx.stroke();
+                }
+            });
+        }
+        
+        // Event listeners for canvas
+        canvas.addEventListener('pointerdown', startDrawing);
+        canvas.addEventListener('pointermove', draw);
+        canvas.addEventListener('pointerup', stopDrawing);
+        canvas.addEventListener('pointerout', stopDrawing);
+        canvas.addEventListener('pointercancel', stopDrawing);
+        
+        // Prevent context menu
+        canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+        
+        // Menu toggle functionality
+        menuToggle.addEventListener('click', () => {
+            const isOpen = sideMenu.classList.toggle('open');
+            menuToggle.classList.toggle('open', isOpen);
+            statusText.textContent = isOpen ? 'Menu opened' : 'Ready';
+        });
+        
+        // Tool selection
+        document.getElementById('penTool').addEventListener('click', () => setTool('pen'));
+        document.getElementById('eraserTool').addEventListener('click', () => setTool('eraser'));
+        
+        function setTool(tool) {
+            currentTool = tool;
+            document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(tool + 'Tool').classList.add('active');
+            
+            canvas.style.cursor = tool === 'eraser' ? 'grab' : 'crosshair';
+            statusText.textContent = `${tool.charAt(0).toUpperCase() + tool.slice(1)} selected`;
+            
+            // Update eraser indicator
+            updateEraserIndicator();
+        }
+        
+        // Calculate dynamic eraser size based on speed
+        function calculateDynamicEraserSize(speed) {
+            if (!dynamicEraserEnabled || currentTool !== 'eraser') {
+                return currentTool === 'eraser' ? strokeWidth : strokeWidth;
+            }
+            
+            // Normalize speed (0-1000+ px/s to 0-1)
+            const normalizedSpeed = Math.min(speed / (eraserSensitivity * 100), 1);
+            
+            // Interpolate between min and max size
+            const size = eraserMinSize + (eraserMaxSize - eraserMinSize) * normalizedSpeed;
+            
+            return Math.round(size);
+        }
+        
+        // Update eraser indicator size and visibility - only show when drawing
+        function updateEraserIndicator() {
+            if (currentTool === 'eraser' && isDrawing) {
+                const size = dynamicEraserEnabled ? currentEraserSize : strokeWidth;
+                eraserIndicator.style.width = size + 'px';
+                eraserIndicator.style.height = size + 'px';
+                eraserIndicator.style.display = 'block';
+            } else {
+                eraserIndicator.style.display = 'none';
+            }
+        }
+        
+        // Smooth eraser size animation function
+        function animateEraserSize() {
+            if (currentTool !== 'eraser' || !dynamicEraserEnabled) {
+                if (smoothingAnimationId) {
+                    cancelAnimationFrame(smoothingAnimationId);
+                    smoothingAnimationId = null;
+                }
+                return;
+            }
+            
+            // Smooth interpolation towards target size
+            const sizeDiff = targetEraserSize - currentEraserSize;
+            if (Math.abs(sizeDiff) > 0.1) {
+                currentEraserSize += sizeDiff * 0.15; // Smooth transition speed
+                
+                // Update UI and indicator
+                document.getElementById('currentEraserSize').textContent = Math.round(currentEraserSize);
+                updateEraserIndicator();
+                
+                // Continue animation
+                smoothingAnimationId = requestAnimationFrame(animateEraserSize);
+            } else {
+                // Close enough, snap to target
+                currentEraserSize = targetEraserSize;
+                document.getElementById('currentEraserSize').textContent = Math.round(currentEraserSize);
+                updateEraserIndicator();
+                smoothingAnimationId = null;
+            }
+        }
+        
+        // Start eraser decay animation (return to min size)
+        function startEraserDecay() {
+            if (currentTool !== 'eraser' || !dynamicEraserEnabled) return;
+            
+            // Gradually decay back to minimum size
+            const decayStep = () => {
+                const currentTime = performance.now();
+                const timeSinceLastUpdate = currentTime - lastSpeedUpdateTime;
+                
+                // If no movement for 300ms, start decaying
+                if (timeSinceLastUpdate > 300) {
+                    targetEraserSize = eraserMinSize;
+                    
+                    // Start smooth animation if not already running
+                    if (!smoothingAnimationId) {
+                        animateEraserSize();
+                    }
+                } else {
+                    // Check again soon
+                    setTimeout(decayStep, 50);
+                }
+            };
+            
+            setTimeout(decayStep, 50);
+        }
+        
+        // Update eraser indicator position and calculate speed
+        function updateEraserPosition(event) {
+            if (currentTool === 'eraser') {
+                const currentTime = performance.now();
+                const currentPos = { x: event.clientX, y: event.clientY };
+                
+                // Calculate speed for dynamic sizing
+                if (lastMousePos && lastMouseTime) {
+                    const deltaTime = currentTime - lastMouseTime;
+                    const deltaX = currentPos.x - lastMousePos.x;
+                    const deltaY = currentPos.y - lastMousePos.y;
+                    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                    
+                    if (deltaTime > 0) {
+                        currentSpeed = Math.round((distance / deltaTime) * 1000); // px/s
+                        lastSpeedUpdateTime = currentTime;
+                        
+                        if (dynamicEraserEnabled) {
+                            // Set target size instead of immediate size
+                            targetEraserSize = calculateDynamicEraserSize(currentSpeed);
+                            
+                            // Update UI indicators
+                            document.getElementById('currentSpeed').textContent = currentSpeed;
+                            
+                            // Start smooth animation if not already running
+                            if (!smoothingAnimationId) {
+                                animateEraserSize();
+                            }
+                            
+                            // Start decay timer
+                            startEraserDecay();
                         }
                     }
-                });
-
-                window.addEventListener('resize', () => this.setupCanvas());
-            }
-
-            isAllowedInput(e) {
-                return e.pointerType === 'mouse' || e.pointerType === 'pen';
-            }
-
-            updateInputIndicator(e) {
-                const indicator = document.getElementById('inputIndicator');
-                const deviceType = document.getElementById('deviceType');
-                const buttonState = document.getElementById('buttonState');
-
-                if (e.pointerType === 'mouse') {
-                    indicator.className = 'input-indicator bg-green-500';
-                    deviceType.textContent = 'MOUSE';
-                    buttonState.textContent = e.pressure > 0 ? `L:${Math.round(e.pressure * 100)}%` : 'HOVER';
-                } else if (e.pointerType === 'pen') {
-                    indicator.className = 'input-indicator bg-blue-500';
-                    deviceType.textContent = 'PEN';
-                    buttonState.textContent = e.pressure > 0 ? `TIP P:${Math.round(e.pressure * 100)}%` : 'HOVER';
-                } else if (e.pointerType === 'touch') {
-                    indicator.className = 'input-indicator bg-red-500';
-                    deviceType.textContent = 'TOUCH';
-                    buttonState.textContent = 'BLOCKED';
-                } else {
-                    indicator.className = 'input-indicator bg-orange-500';
-                    deviceType.textContent = 'OTHER';
-                    buttonState.textContent = 'UNKNOWN';
                 }
-            }
-
-            distance(p1, p2) {
-                return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
-            }
-
-            handlePointerDown(e) {
-                this.updateInputIndicator(e);
                 
-                if (!this.isAllowedInput(e)) {
-                    e.preventDefault();
-                    this.updateStatus('Input blocked: Touch not allowed');
-                    return;
-                }
-
-                this.isDrawing = true;
-                const rect = this.canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-
-                this.points = [{ x, y }];
-                this.lastX = x;
-                this.lastY = y;
-
-                if (this.currentTool === 'pen') {
-                    this.ctx.globalCompositeOperation = 'source-over';
-                    this.ctx.strokeStyle = '#000000';
-                    this.ctx.lineWidth = this.strokeWidth;
-                } else if (this.currentTool === 'eraser') {
-                    this.ctx.globalCompositeOperation = 'destination-out';
-                    this.ctx.lineWidth = this.eraserSize;
-                }
-
-                this.ctx.beginPath();
-                this.ctx.arc(x, y, this.strokeWidth / 2, 0, 2 * Math.PI);
-                this.ctx.fill();
-
-                this.updateStatus(`Drawing with ${e.pointerType}`);
-                e.preventDefault();
-            }
-
-            handlePointerMove(e) {
-                this.updateInputIndicator(e);
+                // Update position
+                eraserIndicator.style.left = event.clientX + 'px';
+                eraserIndicator.style.top = event.clientY + 'px';
                 
-                if (!this.isAllowedInput(e)) {
-                    e.preventDefault();
-                    return;
+                // Store current position and time for next calculation
+                lastMousePos = currentPos;
+                lastMouseTime = currentTime;
+            }
+        }
+        
+        // Stroke width control
+        const strokeWidthSlider = document.getElementById('strokeWidth');
+        strokeWidthSlider.addEventListener('input', (e) => {
+            strokeWidth = parseInt(e.target.value);
+            document.getElementById('strokeWidthValue').textContent = strokeWidth;
+            statusText.textContent = `Stroke width: ${strokeWidth}px`;
+            updateEraserIndicator(); // Update eraser size
+        });
+        
+        // Smoothing controls
+        document.getElementById('smoothingToggle').addEventListener('click', () => {
+            smoothingEnabled = !smoothingEnabled;
+            const toggleBtn = document.getElementById('smoothingToggle');
+            if (smoothingEnabled) {
+                toggleBtn.textContent = 'Quadratic Smoothing: ON';
+                toggleBtn.classList.add('active');
+                statusText.textContent = 'Smoothing enabled';
+            } else {
+                toggleBtn.textContent = 'Quadratic Smoothing: OFF';
+                toggleBtn.classList.remove('active');
+                statusText.textContent = 'Smoothing disabled';
+            }
+        });
+        
+        const smoothingThresholdSlider = document.getElementById('smoothingThreshold');
+        smoothingThresholdSlider.addEventListener('input', (e) => {
+            smoothingThreshold = parseInt(e.target.value);
+            document.getElementById('smoothingThresholdValue').textContent = smoothingThreshold;
+            statusText.textContent = `Smoothing threshold: ${smoothingThreshold}px`;
+        });
+
+        // Dynamic eraser controls
+        document.getElementById('dynamicEraserToggle').addEventListener('click', () => {
+            dynamicEraserEnabled = !dynamicEraserEnabled;
+            const toggleBtn = document.getElementById('dynamicEraserToggle');
+            if (dynamicEraserEnabled) {
+                toggleBtn.textContent = 'Speed Dynamic: ON';
+                toggleBtn.classList.add('active');
+                statusText.textContent = 'Dynamic eraser enabled';
+            } else {
+                toggleBtn.textContent = 'Speed Dynamic: OFF';
+                toggleBtn.classList.remove('active');
+                statusText.textContent = 'Dynamic eraser disabled';
+                currentEraserSize = strokeWidth; // Reset to normal size
+                updateEraserIndicator();
+            }
+        });
+
+        const eraserMinSizeSlider = document.getElementById('eraserMinSize');
+        eraserMinSizeSlider.addEventListener('input', (e) => {
+            eraserMinSize = parseInt(e.target.value);
+            document.getElementById('eraserMinSizeValue').textContent = eraserMinSize;
+            
+            // Ensure max size is always greater than min size
+            if (eraserMaxSize <= eraserMinSize) {
+                eraserMaxSize = eraserMinSize + 1;
+                document.getElementById('eraserMaxSize').value = eraserMaxSize;
+                document.getElementById('eraserMaxSizeValue').textContent = eraserMaxSize;
+            }
+            
+            statusText.textContent = `Eraser min size: ${eraserMinSize}px`;
+        });
+
+        const eraserMaxSizeSlider = document.getElementById('eraserMaxSize');
+        eraserMaxSizeSlider.addEventListener('input', (e) => {
+            eraserMaxSize = parseInt(e.target.value);
+            document.getElementById('eraserMaxSizeValue').textContent = eraserMaxSize;
+            
+            // Ensure min size is always less than max size
+            if (eraserMinSize >= eraserMaxSize) {
+                eraserMinSize = eraserMaxSize - 1;
+                document.getElementById('eraserMinSize').value = eraserMinSize;
+                document.getElementById('eraserMinSizeValue').textContent = eraserMinSize;
+            }
+            
+            statusText.textContent = `Eraser max size: ${eraserMaxSize}px`;
+        });
+
+        const eraserSensitivitySlider = document.getElementById('eraserSensitivity');
+        eraserSensitivitySlider.addEventListener('input', (e) => {
+            eraserSensitivity = parseInt(e.target.value);
+            document.getElementById('eraserSensitivityValue').textContent = eraserSensitivity;
+            statusText.textContent = `Eraser sensitivity: ${eraserSensitivity}`;
+        });
+
+        
+        // Clear canvas
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            strokes = [];
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            statusText.textContent = 'Canvas cleared';
+        });
+        
+        // Undo last stroke
+        document.getElementById('undoBtn').addEventListener('click', () => {
+            if (strokes.length > 0) {
+                strokes.pop();
+                redrawCanvas();
+                statusText.textContent = `Undone (${strokes.length} strokes remaining)`;
+            } else {
+                statusText.textContent = 'Nothing to undo';
+            }
+        });
+        
+        // Worker control event listeners
+        document.getElementById('inlineWorkerBtn').addEventListener('click', switchToInlineWorker);
+        document.getElementById('fileWorkerBtn').addEventListener('click', switchToFileWorker);
+        document.getElementById('noWorkerBtn').addEventListener('click', disableWorker);
+        document.getElementById('testWorkerBtn').addEventListener('click', testWorker);
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!sideMenu.contains(e.target) && !menuToggle.contains(e.target)) {
+                if (sideMenu.classList.contains('open')) {
+                    sideMenu.classList.remove('open');
+                    menuToggle.classList.remove('open');
+                    statusText.textContent = 'Ready';
                 }
-
-                if (!this.isDrawing) return;
-
-                const rect = this.canvas.getBoundingClientRect();
-                const currentX = e.clientX - rect.left;
-                const currentY = e.clientY - rect.top;
-
-                const distance = this.distance({ x: currentX, y: currentY }, { x: this.lastX, y: this.lastY });
-                if (distance >= this.minDistance) {
-                    this.points.push({ x: currentX, y: currentY });
+            }
+        });
+        
+        // Window resize handler
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Web Worker setup
+        let worker = null;
+        
+        function createInlineWorker() {
+            const workerScript = `
+                // Web Worker for drawing app computations
+                self.onmessage = function(e) {
+                    const { type, data } = e.data;
                     
-                    if (this.points.length >= 3) {
-                        this.drawSmoothSegment();
-                    } else if (this.points.length === 2) {
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(this.points[0].x, this.points[0].y);
-                        this.ctx.lineTo(this.points[1].x, this.points[1].y);
-                        this.ctx.stroke();
+                    switch(type) {
+                        case 'smoothStroke':
+                            const smoothedStroke = smoothStrokePoints(data.points, data.threshold);
+                            self.postMessage({
+                                type: 'smoothStrokeResult',
+                                id: data.id,
+                                result: smoothedStroke
+                            });
+                            break;
+                            
+                        case 'processImageData':
+                            const processedData = processCanvasImageData(data.imageData, data.operation);
+                            self.postMessage({
+                                type: 'processImageDataResult',
+                                id: data.id,
+                                result: processedData
+                            });
+                            break;
+                            
+                        case 'calculateBounds':
+                            const bounds = calculateStrokeBounds(data.strokes);
+                            self.postMessage({
+                                type: 'calculateBoundsResult',
+                                id: data.id,
+                                result: bounds
+                            });
+                            break;
+                            
+                        default:
+                            self.postMessage({
+                                type: 'error',
+                                message: 'Unknown task type: ' + type
+                            });
+                    }
+                };
+                
+                // Smooth stroke points using quadratic interpolation
+                function smoothStrokePoints(points, threshold = 3) {
+                    if (points.length < 3) return points;
+                    
+                    const smoothed = [points[0]]; // Keep first point
+                    
+                    for (let i = 1; i < points.length - 1; i++) {
+                        const prev = points[i - 1];
+                        const curr = points[i];
+                        const next = points[i + 1];
+                        
+                        // Calculate distance
+                        const dist = Math.sqrt(
+                            Math.pow(curr.x - prev.x, 2) + 
+                            Math.pow(curr.y - prev.y, 2)
+                        );
+                        
+                        if (dist >= threshold) {
+                            // Apply smoothing
+                            const smoothedPoint = {
+                                x: (prev.x + curr.x + next.x) / 3,
+                                y: (prev.y + curr.y + next.y) / 3,
+                                tool: curr.tool,
+                                width: curr.width
+                            };
+                            smoothed.push(smoothedPoint);
+                        } else {
+                            smoothed.push(curr);
+                        }
                     }
                     
-                    this.lastX = currentX;
-                    this.lastY = currentY;
+                    smoothed.push(points[points.length - 1]); // Keep last point
+                    return smoothed;
                 }
-
-                e.preventDefault();
-            }
-
-            drawSmoothSegment() {
-                const len = this.points.length;
-                if (len < 3) return;
-
-                const p1 = this.points[len - 3];
-                const p2 = this.points[len - 2];
-                const p3 = this.points[len - 1];
-
-                const midPoint1 = {
-                    x: (p1.x + p2.x) / 2,
-                    y: (p1.y + p2.y) / 2
-                };
-                const midPoint2 = {
-                    x: (p2.x + p3.x) / 2,
-                    y: (p2.y + p3.y) / 2
-                };
-
-                this.ctx.beginPath();
                 
-                if (len === 3) {
-                    this.ctx.moveTo(p1.x, p1.y);
-                    this.ctx.quadraticCurveTo(p2.x, p2.y, midPoint2.x, midPoint2.y);
-                } else {
-                    const prevP1 = this.points[len - 4];
-                    const prevP2 = this.points[len - 3];
-                    const prevMidPoint = {
-                        x: (prevP1.x + prevP2.x) / 2,
-                        y: (prevP1.y + prevP2.y) / 2
-                    };
+                // Process canvas image data (example: invert colors)
+                function processCanvasImageData(imageData, operation) {
+                    const data = new Uint8ClampedArray(imageData.data);
                     
-                    this.ctx.moveTo(prevMidPoint.x, prevMidPoint.y);
-                    this.ctx.quadraticCurveTo(p1.x, p1.y, midPoint1.x, midPoint1.y);
-                    this.ctx.quadraticCurveTo(p2.x, p2.y, midPoint2.x, midPoint2.y);
-                }
-
-                this.ctx.stroke();
-            }
-
-            handlePointerUp(e) {
-                if (!this.isAllowedInput(e) && this.isDrawing) {
-                    this.isDrawing = false;
-                    return;
-                }
-
-                if (this.isDrawing) {
-                    this.isDrawing = false;
-                    
-                    // Use worker to analyze completed stroke if it's long enough
-                    if (this.points.length > 10 && this.worker) {
-                        this.useWorker('optimizePath', { points: this.points });
+                    switch(operation) {
+                        case 'invert':
+                            for (let i = 0; i < data.length; i += 4) {
+                                data[i] = 255 - data[i];     // Red
+                                data[i + 1] = 255 - data[i + 1]; // Green
+                                data[i + 2] = 255 - data[i + 2]; // Blue
+                                // Alpha stays the same
+                            }
+                            break;
+                            
+                        case 'grayscale':
+                            for (let i = 0; i < data.length; i += 4) {
+                                const gray = Math.round(data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
+                                data[i] = gray;     // Red
+                                data[i + 1] = gray; // Green
+                                data[i + 2] = gray; // Blue
+                            }
+                            break;
                     }
                     
-                    this.saveState();
-                    this.updateStatus('Ready');
-                }
-
-                setTimeout(() => {
-                    const indicator = document.getElementById('inputIndicator');
-                    const deviceType = document.getElementById('deviceType');
-                    const buttonState = document.getElementById('buttonState');
-                    
-                    indicator.className = 'input-indicator bg-gray-400';
-                    deviceType.textContent = '-';
-                    buttonState.textContent = '-';
-                }, 500);
-
-                e.preventDefault();
-            }
-
-            setTool(tool) {
-                this.currentTool = tool;
-                
-                document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
-                document.getElementById(tool + 'Tool').classList.add('active');
-                
-                // Show/hide eraser size control
-                const eraserSizeSection = document.getElementById('eraserSizeSection');
-                if (tool === 'eraser') {
-                    eraserSizeSection.classList.remove('hidden');
-                    this.canvas.style.cursor = 'grab';
-                } else {
-                    eraserSizeSection.classList.add('hidden');
-                    this.canvas.style.cursor = 'crosshair';
-                }
-                
-                this.updateStatus(`${tool.charAt(0).toUpperCase() + tool.slice(1)} selected`);
-            }
-
-            clearCanvas() {
-                const width = this.canvas.style.width.replace('px', '');
-                const height = this.canvas.style.height.replace('px', '');
-                
-                this.ctx.fillStyle = 'white';
-                this.ctx.fillRect(0, 0, width, height);
-                
-                this.saveState();
-                this.updateStatus('Canvas cleared');
-                setTimeout(() => this.updateStatus('Ready'), 2000);
-            }
-
-            saveState() {
-                if (this.undoStack.length >= this.maxUndoSteps) {
-                    this.undoStack.shift();
-                }
-                this.undoStack.push(this.canvas.toDataURL());
-            }
-
-            undo() {
-                if (this.undoStack.length > 1) {
-                    this.undoStack.pop();
-                    const previousState = this.undoStack[this.undoStack.length - 1];
-                    
-                    const img = new Image();
-                    img.onload = () => {
-                        const width = parseInt(this.canvas.style.width);
-                        const height = parseInt(this.canvas.style.height);
-                        this.ctx.clearRect(0, 0, width, height);
-                        this.ctx.drawImage(img, 0, 0, width, height);
+                    return {
+                        data: data,
+                        width: imageData.width,
+                        height: imageData.height
                     };
-                    img.src = previousState;
+                }
+                
+                // Calculate bounds of all strokes
+                function calculateStrokeBounds(strokes) {
+                    if (!strokes || strokes.length === 0) {
+                        return { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 };
+                    }
                     
-                    this.updateStatus('Undone');
-                    setTimeout(() => this.updateStatus('Ready'), 2000);
+                    let minX = Infinity, minY = Infinity;
+                    let maxX = -Infinity, maxY = -Infinity;
+                    
+                    strokes.forEach(stroke => {
+                        stroke.forEach(point => {
+                            minX = Math.min(minX, point.x);
+                            minY = Math.min(minY, point.y);
+                            maxX = Math.max(maxX, point.x);
+                            maxY = Math.max(maxY, point.y);
+                        });
+                    });
+                    
+                    return {
+                        minX: minX,
+                        minY: minY,
+                        maxX: maxX,
+                        maxY: maxY,
+                        width: maxX - minX,
+                        height: maxY - minY
+                    };
+                }
+            `;
+            
+            const blob = new Blob([workerScript], { type: 'application/javascript' });
+            return new Worker(URL.createObjectURL(blob));
+        }
+        
+        function createFallbackWorker() {
+            try {
+                return new Worker('worker.js');
+            } catch (error) {
+                console.warn('Fallback worker.js not found:', error);
+                return null;
+            }
+        }
+        
+        // Detect environment
+        function isLocalhost() {
+            return location.hostname === 'localhost' || 
+                   location.hostname === '127.0.0.1' || 
+                   location.protocol === 'file:';
+        }
+        
+        function initWorker() {
+            updateWorkerStatus('Initializing...', 'none', false);
+            
+            if (isLocalhost()) {
+                // Localhost: try file worker first, then inline as fallback
+                console.log('Detected localhost environment');
+                worker = createFallbackWorker();
+                if (worker) {
+                    setupWorkerHandlers();
+                    updateWorkerStatus('Ready', 'file', true);
+                    console.log('Using file worker (worker.js)');
                 } else {
-                    this.updateStatus('Nothing to undo');
-                    setTimeout(() => this.updateStatus('Ready'), 2000);
+                    console.warn('File worker failed, trying inline worker');
+                    try {
+                        worker = createInlineWorker();
+                        setupWorkerHandlers();
+                        updateWorkerStatus('Ready', 'inline', true);
+                        console.log('Using inline worker as fallback');
+                    } catch (error) {
+                        updateWorkerStatus('Not Available', 'none', false);
+                        console.warn('No web worker available, running on main thread');
+                    }
                 }
-            }
-
-            toggleMenu() {
-                const sideMenu = document.getElementById('sideMenu');
-                const menuToggle = document.getElementById('menuToggle');
-                
-                const isOpen = sideMenu.classList.toggle('open');
-                menuToggle.classList.toggle('open', isOpen);
-                
-                this.updateStatus(isOpen ? 'Menu opened' : 'Ready');
-            }
-
-            updateStatus(message) {
-                document.getElementById('statusText').textContent = message;
-            }
-
-            updateUI() {
-                document.getElementById('strokeWidthValue').textContent = this.strokeWidth;
-                document.getElementById('eraserSizeValue').textContent = this.eraserSize;
-                this.updateEraserIndicatorSize();
-                this.updateStatus('Ready');
-            }
-
-            // Lightweight eraser indicator methods
-            updateEraserIndicatorSize() {
-                const indicator = document.getElementById('eraserIndicator');
-                indicator.style.width = this.eraserSize + 'px';
-                indicator.style.height = this.eraserSize + 'px';
-            }
-
-            showEraserIndicator(e) {
-                if (this.currentTool === 'eraser' && this.isAllowedInput(e)) {
-                    const indicator = document.getElementById('eraserIndicator');
-                    indicator.classList.add('visible');
-                    this.updateEraserIndicator(e);
-                }
-            }
-
-            hideEraserIndicator() {
-                const indicator = document.getElementById('eraserIndicator');
-                indicator.classList.remove('visible');
-            }
-
-            updateEraserIndicator(e) {
-                if (this.currentTool === 'eraser') {
-                    const indicator = document.getElementById('eraserIndicator');
-                    if (indicator.classList.contains('visible')) {
-                        indicator.style.left = e.clientX + 'px';
-                        indicator.style.top = e.clientY + 'px';
+            } else {
+                // Poe Canvas or other: try inline worker first, then file as fallback
+                console.log('Detected Poe Canvas or other environment');
+                try {
+                    worker = createInlineWorker();
+                    setupWorkerHandlers();
+                    updateWorkerStatus('Ready', 'inline', true);
+                    console.log('Using inline web worker');
+                } catch (error) {
+                    console.warn('Inline worker failed, trying file worker:', error);
+                    worker = createFallbackWorker();
+                    if (worker) {
+                        setupWorkerHandlers();
+                        updateWorkerStatus('Ready', 'file', true);
+                        console.log('Using file worker as fallback');
+                    } else {
+                        updateWorkerStatus('Not Available', 'none', false);
+                        console.warn('No web worker available, running on main thread');
                     }
                 }
             }
         }
-
-        // Initialize the drawing app when page loads
-        document.addEventListener('DOMContentLoaded', () => {
-            window.drawingApp = new DrawingApp();
+        
+        // Worker task handlers
+        function handleSmoothStrokeResult(id, result) {
+            console.log('Smooth stroke result:', result);
+            statusText.textContent = `Stroke smoothed (${result.length} points)`;
+        }
+        
+        function handleImageDataResult(id, result) {
+            console.log('Image data processed:', result);
+            statusText.textContent = 'Image processing completed';
+        }
+        
+        function handleBoundsResult(id, result) {
+            console.log('Stroke bounds:', result);
+            statusText.textContent = `Canvas bounds: ${Math.round(result.width)}×${Math.round(result.height)}`;
+        }
+        
+        // Helper function to send tasks to worker
+        function sendWorkerTask(type, data, id = Date.now()) {
+            if (worker) {
+                worker.postMessage({ type, data: { ...data, id } });
+                return true;
+            } else {
+                console.warn('No worker available for task:', type);
+                return false;
+            }
+        }
+        
+        // Worker state tracking
+        let currentWorkerType = 'none';
+        
+        // Update worker status UI
+        function updateWorkerStatus(status, type, active) {
+            document.getElementById('workerStatusValue').textContent = status;
+            document.getElementById('workerTypeValue').textContent = type;
+            document.getElementById('workerActiveValue').textContent = active ? '✓ Yes' : '✗ No';
+            currentWorkerType = type;
+            
+            // Update button states
+            document.querySelectorAll('#inlineWorkerBtn, #fileWorkerBtn, #noWorkerBtn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            if (type === 'inline') {
+                document.getElementById('inlineWorkerBtn').classList.add('active');
+            } else if (type === 'file') {
+                document.getElementById('fileWorkerBtn').classList.add('active');
+            } else {
+                document.getElementById('noWorkerBtn').classList.add('active');
+            }
+        }
+        
+        // Terminate current worker
+        function terminateWorker() {
+            if (worker) {
+                worker.terminate();
+                worker = null;
+                console.log('Worker terminated');
+            }
+        }
+        
+        // Switch to inline worker
+        function switchToInlineWorker() {
+            terminateWorker();
+            updateWorkerStatus('Loading...', 'inline', false);
+            
+            try {
+                worker = createInlineWorker();
+                setupWorkerHandlers();
+                updateWorkerStatus('Ready', 'inline', true);
+                statusText.textContent = 'Switched to inline worker';
+                console.log('Switched to inline worker');
+            } catch (error) {
+                updateWorkerStatus('Failed', 'none', false);
+                statusText.textContent = 'Inline worker failed';
+                console.error('Inline worker failed:', error);
+            }
+        }
+        
+        // Switch to file worker
+        function switchToFileWorker() {
+            terminateWorker();
+            updateWorkerStatus('Loading...', 'file', false);
+            
+            try {
+                worker = createFallbackWorker();
+                if (worker) {
+                    setupWorkerHandlers();
+                    updateWorkerStatus('Ready', 'file', true);
+                    statusText.textContent = 'Switched to file worker';
+                    console.log('Switched to file worker');
+                } else {
+                    updateWorkerStatus('Not Found', 'none', false);
+                    statusText.textContent = 'worker.js not found';
+                }
+            } catch (error) {
+                updateWorkerStatus('Failed', 'none', false);
+                statusText.textContent = 'File worker failed';
+                console.error('File worker failed:', error);
+            }
+        }
+        
+        // Disable worker
+        function disableWorker() {
+            terminateWorker();
+            updateWorkerStatus('Disabled', 'none', false);
+            statusText.textContent = 'Worker disabled';
+            console.log('Worker disabled');
+        }
+        
+        // Setup worker message handlers
+        function setupWorkerHandlers() {
+            if (!worker) return;
+            
+            worker.onmessage = function(e) {
+                const { type, id, result, message } = e.data;
+                
+                switch(type) {
+                    case 'smoothStrokeResult':
+                        handleSmoothStrokeResult(id, result);
+                        break;
+                        
+                    case 'processImageDataResult':
+                        handleImageDataResult(id, result);
+                        break;
+                        
+                    case 'calculateBoundsResult':
+                        handleBoundsResult(id, result);
+                        break;
+                        
+                    case 'error':
+                        console.error('Worker error:', message);
+                        statusText.textContent = 'Worker error: ' + message;
+                        break;
+                }
+            };
+            
+            worker.onerror = function(error) {
+                console.error('Worker error:', error);
+                updateWorkerStatus('Error', currentWorkerType, false);
+                statusText.textContent = 'Worker encountered an error';
+            };
+        }
+        
+        // Test worker functionality
+        function testWorker() {
+            if (!worker) {
+                statusText.textContent = 'No worker to test';
+                return;
+            }
+            
+            statusText.textContent = 'Testing worker...';
+            
+            // Test with current strokes if available, otherwise use dummy data
+            const testStrokes = strokes.length > 0 ? strokes : [[
+                { x: 10, y: 10, tool: 'pen', width: 2 },
+                { x: 50, y: 50, tool: 'pen', width: 2 },
+                { x: 100, y: 30, tool: 'pen', width: 2 }
+            ]];
+            
+            sendWorkerTask('calculateBounds', { strokes: testStrokes });
+        }
+        
+        // Initialize
+        initWorker();
+        setupCanvas();
+        setTool('pen');
+        updateInputIndicator('-', '-', 'bg-gray-400');
+        
+        // Performance optimization: limit pointer move events
+        let lastMoveTime = 0;
+        const originalPointermove = canvas.pointermove;
+        canvas.addEventListener('pointermove', (e) => {
+            const now = performance.now();
+            if (now - lastMoveTime > 8) { // ~120fps limit for slow devices
+                lastMoveTime = now;
+                draw(e);
+                updateEraserPosition(e); // Update eraser indicator position
+            }
+        });
+        
+        // Add mouse movement tracking for eraser indicator (canvas area only)
+        canvas.addEventListener('mousemove', updateEraserPosition);
+        canvas.addEventListener('mouseenter', () => {
+            if (currentTool === 'eraser') {
+                eraserIndicator.style.display = 'block';
+            }
+        });
+        canvas.addEventListener('mouseleave', () => {
+            eraserIndicator.style.display = 'none';
         });
     </script>
 
