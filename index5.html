@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChordPro Viewer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .chord-line {
+            position: relative;
+            line-height: 2.5em;
+            margin-bottom: 0.5em;
+            display: block;
+            text-align: center;
+        }
+        .chord-line-content {
+            display: inline-block;
+            position: relative;
+            text-align: left;
+        }
+        .chord {
+            position: absolute;
+            font-weight: bold;
+            color: #5D5CDE;
+            font-size: 0.85em;
+            top: -1.2em;
+            white-space: nowrap;
+        }
+        .dark .chord {
+            color: #8B7CF6;
+        }
+        .lyrics {
+            font-family: monospace;
+        }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; }
+        }
+    </style>
+</head>
+<body class="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors">
+    <!-- Hamburger Menu Button -->
+    <div class="no-print fixed top-4 left-4 z-50">
+        <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-2 shadow-lg border border-gray-200 dark:border-gray-700">
+            <button id="menuToggle" class="flex items-center px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Floating Text Size Controls -->
+    <div class="no-print fixed top-4 right-4 z-50">
+        <div class="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 rounded-lg p-2 shadow-lg border border-gray-200 dark:border-gray-700">
+            <button id="decreaseText" class="flex items-center px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm">
+                <span class="font-bold">T</span><span class="ml-1">-</span>
+            </button>
+            <span id="currentSize" class="text-xs text-gray-600 dark:text-gray-400 min-w-8 text-center font-medium">100%</span>
+            <button id="increaseText" class="flex items-center px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm">
+                <span class="font-bold">T</span><span class="ml-1">+</span>
+            </button>
+            <button id="resetText" class="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-400 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                Reset
+            </button>
+        </div>
+    </div>
+
+    <!-- Slide-out Menu -->
+    <div id="sideMenu" class="no-print fixed top-0 left-0 h-full w-96 bg-white dark:bg-gray-900 shadow-2xl transform -translate-x-full transition-transform duration-300 ease-in-out z-40 overflow-y-auto">
+        <div class="p-6">
+            <!-- Header -->
+            <div class="mb-8">
+                <div class="flex items-center justify-between mb-4">
+                    <h1 class="text-2xl font-bold">ChordPro Viewer</h1>
+                    <button id="closeMenu" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                <p class="text-gray-600 dark:text-gray-400 text-sm">Paste your ChordPro formatted song to view it with proper chord positioning</p>
+            </div>
+
+
+
+            <!-- Input Section -->
+            <div class="mb-8">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold">ChordPro Input</h2>
+                    <div class="flex gap-2">
+                        <button id="loadSample" class="px-3 py-1 text-sm bg-primary text-white rounded hover:bg-primary/90 transition-colors">
+                            Load Sample
+                        </button>
+                        <button id="clearInput" class="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors">
+                            Clear
+                        </button>
+                    </div>
+                </div>
+                <textarea 
+                    id="chordproInput" 
+                    class="w-full h-64 p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-base font-mono resize-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    placeholder="Paste your ChordPro content here...
+
+Example:
+{title: Amazing Grace}
+{artist: Traditional}
+{key: G}
+
+{start_of_verse}
+A[G]mazing [G7]grace how [C]sweet the [G]sound
+That [G]saved a [Em]wretch like [D]me
+{end_of_verse}"
+                ></textarea>
+            </div>
+
+            <!-- Instructions -->
+            <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <h3 class="text-lg font-semibold mb-3">ChordPro Format Guide</h3>
+                <div class="space-y-4 text-sm">
+                    <div>
+                        <h4 class="font-medium mb-2">Basic Syntax:</h4>
+                        <ul class="space-y-1 text-gray-600 dark:text-gray-400">
+                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">[Am]word</code> - Chord above word</li>
+                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{title: Song Name}</code> - Song title</li>
+                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{artist: Artist}</code> - Artist name</li>
+                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{key: C}</code> - Song key</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-medium mb-2">Sections:</h4>
+                        <ul class="space-y-1 text-gray-600 dark:text-gray-400">
+                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{start_of_verse}</code> - Begin verse</li>
+                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{start_of_chorus}</code> - Begin chorus</li>
+                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{comment: Note}</code> - Add comment</li>
+                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{capo: 3}</code> - Capo position</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overlay -->
+    <div id="menuOverlay" class="no-print fixed inset-0 bg-black bg-opacity-50 z-30 opacity-0 pointer-events-none transition-opacity duration-300"></div>
+
+    <!-- Main Content Area - Full Screen -->
+    <div class="min-h-screen bg-white dark:bg-gray-900 p-6">
+        <div id="output" class="max-w-none">
+            <div class="text-gray-500 dark:text-gray-400 text-center py-20">
+                Click the menu button (☰) in the top-left to enter ChordPro content
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Dark mode detection
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+
+        const input = document.getElementById('chordproInput');
+        const output = document.getElementById('output');
+        const loadSampleBtn = document.getElementById('loadSample');
+        const clearInputBtn = document.getElementById('clearInput');
+
+        // Text size management
+        let currentFontSize = 100; // Percentage
+        const minFontSize = 50;
+        const maxFontSize = 200;
+        const fontSizeStep = 10;
+
+        // Sample ChordPro content
+        const sampleContent = `{title: Amazing Grace}
+{artist: Traditional}
+{key: G}
+{capo: 0}
+
+{start_of_verse}
+A[G]mazing [G7]grace how [C]sweet the [G]sound
+That [G]saved a [Em]wretch like [D]me
+I [G]once was [G7]lost but [C]now I'm [G]found
+Was [G]blind but [D]now I [G]see
+{end_of_verse}
+
+{start_of_verse}
+'Twas [G]grace that [G7]taught my [C]heart to [G]fear
+And [G]grace my [Em]fears re[D]lieved
+How [G]precious [G7]did that [C]grace ap[G]pear
+The [G]hour I [D]first be[G]lieved
+{end_of_verse}
+
+{start_of_chorus}
+A[G]mazing [C]grace how [G]sweet the sound
+That [Em]saved a [D]wretch like [G]me
+{end_of_chorus}
+
+{comment: Play slowly and with feeling}`;
+
+        // Parse ChordPro content
+        function parseChordPro(content) {
+            const lines = content.split('\n');
+            const result = {
+                metadata: {},
+                sections: [],
+                currentSection: null
+            };
+
+            for (let line of lines) {
+                line = line.trim();
+                if (!line) continue;
+
+                // Parse directives
+                if (line.startsWith('{') && line.endsWith('}')) {
+                    const directive = line.slice(1, -1);
+                    const colonIndex = directive.indexOf(':');
+                    
+                    if (colonIndex > -1) {
+                        const key = directive.substring(0, colonIndex).trim();
+                        const value = directive.substring(colonIndex + 1).trim();
+                        
+                        // Handle metadata
+                        if (['title', 't', 'artist', 'key', 'capo', 'tempo'].includes(key)) {
+                            result.metadata[key] = value;
+                        }
+                        // Handle section starts
+                        else if (key.startsWith('start_of_') || ['sov', 'soc', 'sob'].includes(key)) {
+                            const sectionType = key.replace('start_of_', '').replace('sov', 'verse').replace('soc', 'chorus').replace('sob', 'bridge');
+                            result.currentSection = {
+                                type: sectionType,
+                                lines: []
+                            };
+                        }
+                        // Handle comments
+                        else if (key === 'comment' || key === 'c') {
+                            if (result.currentSection) {
+                                result.currentSection.lines.push({ type: 'comment', content: value });
+                            } else {
+                                result.sections.push({ type: 'comment', content: value });
+                            }
+                        }
+                    }
+                    // Handle section ends
+                    else if (directive.startsWith('end_of_') || ['eov', 'eoc', 'eob'].includes(directive)) {
+                        if (result.currentSection) {
+                            result.sections.push(result.currentSection);
+                            result.currentSection = null;
+                        }
+                    }
+                }
+                // Parse chord/lyric lines
+                else {
+                    const parsedLine = parseChordLine(line);
+                    if (result.currentSection) {
+                        result.currentSection.lines.push(parsedLine);
+                    } else {
+                        result.sections.push(parsedLine);
+                    }
+                }
+            }
+
+            // Add any remaining section
+            if (result.currentSection) {
+                result.sections.push(result.currentSection);
+            }
+
+            return result;
+        }
+
+        // Parse a line with chords and lyrics
+        function parseChordLine(line) {
+            const chords = [];
+            const lyrics = [];
+            let position = 0;
+            let lyricPosition = 0;
+
+            while (position < line.length) {
+                const chordStart = line.indexOf('[', position);
+                if (chordStart === -1) {
+                    // No more chords, add remaining lyrics
+                    lyrics.push(line.substring(position));
+                    break;
+                }
+
+                // Add lyrics before chord
+                if (chordStart > position) {
+                    const lyricText = line.substring(position, chordStart);
+                    lyrics.push(lyricText);
+                    lyricPosition += lyricText.length;
+                }
+
+                // Find chord end
+                const chordEnd = line.indexOf(']', chordStart);
+                if (chordEnd === -1) {
+                    // Malformed chord, treat as lyrics
+                    lyrics.push(line.substring(chordStart));
+                    break;
+                }
+
+                // Extract chord
+                const chord = line.substring(chordStart + 1, chordEnd);
+                chords.push({
+                    chord: chord,
+                    position: lyricPosition
+                });
+
+                position = chordEnd + 1;
+            }
+
+            return {
+                type: 'chordline',
+                chords: chords,
+                lyrics: lyrics.join('')
+            };
+        }
+
+        // Render parsed ChordPro to HTML
+        function renderChordPro(parsed) {
+            let html = '';
+
+            // Render metadata (perfectly centered)
+            if (Object.keys(parsed.metadata).length > 0) {
+                html += '<div class="mb-6 text-center border-b border-gray-300 dark:border-gray-600 pb-4">';
+                
+                if (parsed.metadata.title || parsed.metadata.t) {
+                    html += `<h1 class="text-2xl font-bold mb-2">${parsed.metadata.title || parsed.metadata.t}</h1>`;
+                }
+                if (parsed.metadata.artist) {
+                    html += `<p class="text-lg text-gray-600 dark:text-gray-400 mb-2">${parsed.metadata.artist}</p>`;
+                }
+                
+                const details = [];
+                if (parsed.metadata.key) details.push(`Key: ${parsed.metadata.key}`);
+                if (parsed.metadata.capo && parsed.metadata.capo !== '0') details.push(`Capo: ${parsed.metadata.capo}`);
+                if (parsed.metadata.tempo) details.push(`Tempo: ${parsed.metadata.tempo}`);
+                
+                if (details.length > 0) {
+                    html += `<p class="text-sm text-gray-500 dark:text-gray-500">${details.join(' • ')}</p>`;
+                }
+                
+                html += '</div>';
+            }
+
+            // Render sections
+            for (const section of parsed.sections) {
+                if (section.type === 'chordline') {
+                    html += renderLine(section);
+                } else if (section.type === 'comment') {
+                    html += `<div class="text-sm text-gray-500 dark:text-gray-400 italic mb-2 bg-gray-100 dark:bg-gray-800 p-2 rounded">${section.content}</div>`;
+                } else if (section.lines && Array.isArray(section.lines)) {
+                    // Section with multiple lines
+                    const sectionClass = getSectionClass(section.type);
+                    html += `<div class="mb-6 ${sectionClass}">`;
+                    html += `<div class="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">${section.type}</div>`;
+                    html += '<div class="pl-4 border-l-2 border-gray-300 dark:border-gray-600">';
+                    
+                    for (const line of section.lines) {
+                        if (line.type === 'comment') {
+                            html += `<div class="text-sm text-gray-500 dark:text-gray-400 italic mb-2">${line.content}</div>`;
+                        } else {
+                            html += renderLine(line);
+                        }
+                    }
+                    
+                    html += '</div></div>';
+                }
+            }
+
+            return html || '<div class="text-gray-500 dark:text-gray-400 text-center py-8">No content to display</div>';
+        }
+
+        // Render a single chord/lyric line
+        function renderLine(line) {
+            if (!line.lyrics && line.chords.length === 0) return '';
+
+            let html = '<div class="chord-line lyrics mb-3">';
+            html += '<div class="chord-line-content">';
+            
+            if (line.chords.length > 0) {
+                // Create chord positions
+                for (const chordInfo of line.chords) {
+                    const leftPosition = chordInfo.position * 0.6; // Approximate character width
+                    html += `<span class="chord" style="left: ${leftPosition}em">${chordInfo.chord}</span>`;
+                }
+            }
+            
+            html += `<span>${line.lyrics || ''}</span>`;
+            html += '</div>';
+            html += '</div>';
+            
+            return html;
+        }
+
+        // Get CSS class for section type
+        function getSectionClass(type) {
+            switch (type) {
+                case 'chorus': return 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4';
+                case 'verse': return 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4';
+                case 'bridge': return 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4';
+                default: return 'bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4';
+            }
+        }
+
+        // Update output when input changes
+        function updateOutput() {
+            const content = input.value.trim();
+            if (!content) {
+                output.innerHTML = '<div class="text-gray-500 dark:text-gray-400 text-center py-8">Enter ChordPro content to see formatted output here</div>';
+                return;
+            }
+
+            try {
+                const parsed = parseChordPro(content);
+                const rendered = renderChordPro(parsed);
+                output.innerHTML = rendered;
+            } catch (error) {
+                output.innerHTML = `<div class="text-red-500 text-center py-8">Error parsing ChordPro content: ${error.message}</div>`;
+            }
+        }
+
+        // Event listeners
+        input.addEventListener('input', updateOutput);
+
+        loadSampleBtn.addEventListener('click', () => {
+            input.value = sampleContent;
+            updateOutput();
+        });
+
+        clearInputBtn.addEventListener('click', () => {
+            input.value = '';
+            updateOutput();
+        });
+
+        // Text size functions
+        function updateFontSize() {
+            output.style.fontSize = `${currentFontSize}%`;
+            
+            // Update current size display
+            const currentSizeSpan = document.getElementById('currentSize');
+            if (currentSizeSpan) {
+                currentSizeSpan.textContent = `${currentFontSize}%`;
+            }
+            
+            // Update button states
+            const decreaseTextBtn = document.getElementById('decreaseText');
+            const increaseTextBtn = document.getElementById('increaseText');
+            
+            if (decreaseTextBtn) {
+                decreaseTextBtn.disabled = currentFontSize <= minFontSize;
+                if (decreaseTextBtn.disabled) {
+                    decreaseTextBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                } else {
+                    decreaseTextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            }
+            
+            if (increaseTextBtn) {
+                increaseTextBtn.disabled = currentFontSize >= maxFontSize;
+                if (increaseTextBtn.disabled) {
+                    increaseTextBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                } else {
+                    increaseTextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            }
+        }
+
+        // Use event delegation for text size buttons (now on document for floating buttons)
+        document.addEventListener('click', (e) => {
+            if (e.target.id === 'decreaseText' || e.target.closest('#decreaseText')) {
+                if (currentFontSize > minFontSize) {
+                    currentFontSize -= fontSizeStep;
+                    updateFontSize();
+                }
+            } else if (e.target.id === 'increaseText' || e.target.closest('#increaseText')) {
+                if (currentFontSize < maxFontSize) {
+                    currentFontSize += fontSizeStep;
+                    updateFontSize();
+                }
+            } else if (e.target.id === 'resetText' || e.target.closest('#resetText')) {
+                currentFontSize = 100;
+                updateFontSize();
+            }
+        });
+
+        // Menu functionality
+        const menuToggle = document.getElementById('menuToggle');
+        const closeMenu = document.getElementById('closeMenu');
+        const sideMenu = document.getElementById('sideMenu');
+        const menuOverlay = document.getElementById('menuOverlay');
+
+        function openMenu() {
+            sideMenu.classList.remove('-translate-x-full');
+            menuOverlay.classList.remove('opacity-0', 'pointer-events-none');
+            menuOverlay.classList.add('opacity-100');
+            document.body.style.overflow = 'hidden';
+            // Hide hamburger button when menu is open
+            document.querySelector('#menuToggle').parentElement.classList.add('opacity-0', 'pointer-events-none');
+        }
+
+        function closeMenuFunc() {
+            sideMenu.classList.add('-translate-x-full');
+            menuOverlay.classList.add('opacity-0', 'pointer-events-none');
+            menuOverlay.classList.remove('opacity-100');
+            document.body.style.overflow = '';
+            // Show hamburger button when menu is closed
+            document.querySelector('#menuToggle').parentElement.classList.remove('opacity-0', 'pointer-events-none');
+        }
+
+        menuToggle.addEventListener('click', openMenu);
+        closeMenu.addEventListener('click', closeMenuFunc);
+        menuOverlay.addEventListener('click', closeMenuFunc);
+
+        // Close menu on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeMenuFunc();
+            }
+        });
+
+        // Initial load
+        updateOutput();
+        updateFontSize();
+    </script>
+</body>
+</html>
