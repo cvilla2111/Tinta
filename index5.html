@@ -24,7 +24,7 @@
         .chord-line {
             position: relative;
             line-height: 2.5em;
-            margin-bottom: 0.5em;
+            margin-bottom: 0.1em;
             display: block;
             text-align: center;
             font-size: 1em;
@@ -87,6 +87,20 @@
             .no-print { display: none !important; }
             body { background: white !important; }
         }
+        /* Blinking animation for edit mode */
+        @keyframes blink-red {
+            0%, 100% {
+                background-color: rgb(239 68 68);
+                color: white;
+            }
+            50% {
+                background-color: transparent;
+                color: inherit;
+            }
+        }
+        .edit-mode-active {
+            animation: blink-red 1.5s ease-in-out infinite;
+        }
     </style>
 </head>
 <body class="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors">
@@ -102,7 +116,8 @@
     </div>
 
     <!-- Floating Text Size Controls -->
-    <div class="no-print fixed top-4 right-4 z-50">
+    <div class="no-print fixed top-4 right-4 z-50 flex flex-col gap-2 items-end">
+        <!-- Text Scaling -->
         <div class="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 rounded-lg p-2 shadow-lg border border-gray-200 dark:border-gray-700">
             <button id="decreaseText" class="flex items-center px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm">
                 <span class="font-bold">T</span><span class="ml-1">-</span>
@@ -110,6 +125,13 @@
             <span id="currentSize" class="text-xs text-gray-600 dark:text-gray-400 min-w-8 text-center font-medium">100%</span>
             <button id="increaseText" class="flex items-center px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm">
                 <span class="font-bold">T</span><span class="ml-1">+</span>
+            </button>
+        </div>
+
+        <!-- Edit Button -->
+        <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-2 shadow-lg border border-gray-200 dark:border-gray-700">
+            <button id="editButton" class="px-3 py-1 text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                Edit
             </button>
         </div>
     </div>
@@ -243,6 +265,10 @@ That [G]saved a [Em]wretch like [D]me
         const minFontSize = 50;
         const maxFontSize = 200;
         const fontSizeStep = 10;
+
+        // Edit mode management
+        let isEditMode = false;
+        let currentChordProContent = '';
 
         // Sample ChordPro content
         const sampleContent = `{title: Amazing Grace}
@@ -430,6 +456,7 @@ That [Em]saved a [D]wretch like [G]me
         // Render parsed ChordPro to HTML
         function renderChordPro(parsed) {
             let html = '';
+            let lineIndex = 0;
 
             // Render metadata (perfectly centered)
             if (Object.keys(parsed.metadata).length > 0) {
@@ -457,7 +484,7 @@ That [Em]saved a [D]wretch like [G]me
             // Render sections
             for (const section of parsed.sections) {
                 if (section.type === 'chordline') {
-                    html += renderLine(section);
+                    html += renderLine(section, lineIndex++);
                 } else if (section.type === 'comment') {
                     html += `<div class="text-sm text-gray-500 dark:text-gray-400 italic mb-2 bg-gray-100 dark:bg-gray-800 p-2 rounded">${section.content}</div>`;
                 } else if (section.lines && Array.isArray(section.lines)) {
@@ -471,7 +498,7 @@ That [Em]saved a [D]wretch like [G]me
                         if (line.type === 'comment') {
                             html += `<div class="text-sm text-gray-500 dark:text-gray-400 italic mb-2">${line.content}</div>`;
                         } else {
-                            html += renderLine(line);
+                            html += renderLine(line, lineIndex++);
                         }
                     }
 
@@ -483,10 +510,24 @@ That [Em]saved a [D]wretch like [G]me
         }
 
         // Render a single chord/lyric line
-        function renderLine(line) {
+        function renderLine(line, lineIndex) {
             if (!line.lyrics && line.chords.length === 0) return '';
 
-            let html = '<div class="chord-line lyrics mb-3">';
+            // Reconstruct the ChordPro format for this line
+            let chordProLine = '';
+            let lastPos = 0;
+
+            // Sort chords by position
+            const sortedChords = [...line.chords].sort((a, b) => a.position - b.position);
+
+            for (const chordInfo of sortedChords) {
+                chordProLine += line.lyrics.substring(lastPos, chordInfo.position);
+                chordProLine += `[${chordInfo.chord}]`;
+                lastPos = chordInfo.position;
+            }
+            chordProLine += line.lyrics.substring(lastPos);
+
+            let html = `<div class="chord-line lyrics mb-1 editable-line cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded p-2 transition-colors" data-chordpro="${chordProLine.replace(/"/g, '&quot;')}" data-line-index="${lineIndex}">`;
             html += '<div class="chord-line-content">';
 
             if (line.chords.length > 0) {
@@ -517,6 +558,8 @@ That [Em]saved a [D]wretch like [G]me
         // Update output when input changes
         function updateOutput() {
             const content = input.value.trim();
+            currentChordProContent = content;
+
             if (!content) {
                 output.innerHTML = '<div class="text-gray-500 dark:text-gray-400 text-center py-8">Enter ChordPro content to see formatted output here</div>';
                 return;
@@ -552,6 +595,15 @@ That [Em]saved a [D]wretch like [G]me
             const currentSizeSpan = document.getElementById('currentSize');
             if (currentSizeSpan) {
                 currentSizeSpan.textContent = `${currentFontSize}%`;
+            }
+
+            // Update edit mode textarea if in edit mode
+            if (isEditMode) {
+                const textarea = document.getElementById('inlineEditor');
+                if (textarea) {
+                    const scaledFontSize = 13 * (currentFontSize / 100);
+                    textarea.style.fontSize = scaledFontSize + 'px';
+                }
             }
 
             // Update button states
@@ -594,6 +646,7 @@ That [Em]saved a [D]wretch like [G]me
 
         // Menu functionality
         const menuToggle = document.getElementById('menuToggle');
+        const editButton = document.getElementById('editButton');
         const closeMenu = document.getElementById('closeMenu');
         const sideMenu = document.getElementById('sideMenu');
         const menuOverlay = document.getElementById('menuOverlay');
@@ -603,9 +656,9 @@ That [Em]saved a [D]wretch like [G]me
             menuOverlay.classList.remove('opacity-0', 'pointer-events-none');
             menuOverlay.classList.add('opacity-100');
             document.body.style.overflow = 'hidden';
-            // Hide hamburger button and text scaling controls when menu opens
+            // Hide hamburger button and right controls (text scaling + edit button) when menu opens
             document.querySelector('#menuToggle').parentElement.classList.add('opacity-0', 'pointer-events-none');
-            document.querySelectorAll('.no-print.fixed')[1].classList.add('opacity-0', 'pointer-events-none');
+            document.querySelectorAll('.no-print.fixed.top-4.right-4')[0].classList.add('opacity-0', 'pointer-events-none');
         }
 
         function closeMenuFunc() {
@@ -613,14 +666,32 @@ That [Em]saved a [D]wretch like [G]me
             menuOverlay.classList.add('opacity-0', 'pointer-events-none');
             menuOverlay.classList.remove('opacity-100');
             document.body.style.overflow = '';
-            // Show hamburger button and text scaling controls only after menu animation completes (300ms)
+            // Show hamburger button and right controls only after menu animation completes (300ms)
             setTimeout(() => {
                 document.querySelector('#menuToggle').parentElement.classList.remove('opacity-0', 'pointer-events-none');
-                document.querySelectorAll('.no-print.fixed')[1].classList.remove('opacity-0', 'pointer-events-none');
+                document.querySelectorAll('.no-print.fixed.top-4.right-4')[0].classList.remove('opacity-0', 'pointer-events-none');
             }, 300);
         }
 
+        // Edit mode toggle
+        function toggleEditMode() {
+            const editBtn = document.getElementById('editButton');
+
+            if (!isEditMode) {
+                // Enter edit mode
+                isEditMode = true;
+                editBtn.textContent = 'Done';
+                editBtn.classList.add('edit-mode-active');
+            } else {
+                // Exit edit mode
+                isEditMode = false;
+                editBtn.textContent = 'Edit';
+                editBtn.classList.remove('edit-mode-active');
+            }
+        }
+
         menuToggle.addEventListener('click', openMenu);
+        editButton.addEventListener('click', toggleEditMode);
         closeMenu.addEventListener('click', closeMenuFunc);
         menuOverlay.addEventListener('click', closeMenuFunc);
 
@@ -653,6 +724,63 @@ That [Em]saved a [D]wretch like [G]me
             // Close if clicking the overlay background
             if (e.target === helpModal) {
                 closeHelpModal();
+            }
+        });
+
+        // Make lines editable on click (only when in edit mode)
+        document.addEventListener('click', (e) => {
+            const editableLine = e.target.closest('.editable-line');
+            if (editableLine && isEditMode) {
+                const chordProText = editableLine.getAttribute('data-chordpro');
+                const lineIndex = editableLine.getAttribute('data-line-index');
+
+                // Create inline input
+                const inputField = document.createElement('input');
+                inputField.type = 'text';
+                inputField.value = chordProText;
+                inputField.className = 'w-full p-2 border-2 border-primary rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-mono text-base text-center';
+
+                // Replace the line with input
+                editableLine.innerHTML = '';
+                editableLine.appendChild(inputField);
+                editableLine.classList.remove('cursor-pointer', 'hover:bg-gray-100', 'dark:hover:bg-gray-800');
+                inputField.focus();
+                inputField.select();
+
+                // Save on Enter or blur
+                const saveLine = () => {
+                    const newValue = inputField.value;
+                    // Update the ChordPro content
+                    const lines = currentChordProContent.split('\n');
+                    let currentLineIndex = 0;
+
+                    for (let i = 0; i < lines.length; i++) {
+                        const line = lines[i].trim();
+                        // Check if this is a lyric line (contains chords)
+                        if (line.includes('[') && line.includes(']') && !line.startsWith('{')) {
+                            if (currentLineIndex == lineIndex) {
+                                lines[i] = newValue;
+                                break;
+                            }
+                            currentLineIndex++;
+                        }
+                    }
+
+                    // Update content and re-render
+                    currentChordProContent = lines.join('\n');
+                    input.value = currentChordProContent;
+                    updateOutput();
+                };
+
+                inputField.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        saveLine();
+                    } else if (e.key === 'Escape') {
+                        updateOutput(); // Cancel edit
+                    }
+                });
+
+                inputField.addEventListener('blur', saveLine);
             }
         });
 
