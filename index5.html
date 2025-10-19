@@ -89,9 +89,6 @@
             <button id="increaseText" class="flex items-center px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm">
                 <span class="font-bold">T</span><span class="ml-1">+</span>
             </button>
-            <button id="resetText" class="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-400 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                Reset
-            </button>
         </div>
     </div>
 
@@ -512,9 +509,6 @@ That [Em]saved a [D]wretch like [G]me
                     currentFontSize += fontSizeStep;
                     updateFontSize();
                 }
-            } else if (e.target.id === 'resetText' || e.target.closest('#resetText')) {
-                currentFontSize = 100;
-                updateFontSize();
             }
         });
 
