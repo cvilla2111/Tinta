@@ -17,12 +17,17 @@
         }
     </script>
     <style>
+        /* Set explicit base font size for output */
+        #output {
+            font-size: 16px;
+        }
         .chord-line {
             position: relative;
             line-height: 2.5em;
             margin-bottom: 0.5em;
             display: block;
             text-align: center;
+            font-size: 1em;
         }
         .chord-line-content {
             display: inline-block;
@@ -42,6 +47,19 @@
         }
         .lyrics {
             font-family: monospace;
+            font-size: 1em;
+        }
+        /* Make title 20px (1.25em of the 16px base) */
+        #output .song-title {
+            font-size: 1.25em;
+        }
+        /* Make artist name scalable - 16px (1em of the 16px base) */
+        #output .song-artist {
+            font-size: 1em;
+        }
+        /* Make song details (key, capo, tempo) scalable - 12px (0.75em of the 16px base) */
+        #output .song-details {
+            font-size: 0.75em;
         }
         @media print {
             .no-print { display: none !important; }
@@ -108,8 +126,8 @@
                         </button>
                     </div>
                 </div>
-                <textarea 
-                    id="chordproInput" 
+                <textarea
+                    id="chordproInput"
                     class="w-full h-64 p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-base font-mono resize-none focus:ring-2 focus:ring-primary focus:border-transparent"
                     placeholder="Paste your ChordPro content here...
 
@@ -232,11 +250,11 @@ That [Em]saved a [D]wretch like [G]me
                 if (line.startsWith('{') && line.endsWith('}')) {
                     const directive = line.slice(1, -1);
                     const colonIndex = directive.indexOf(':');
-                    
+
                     if (colonIndex > -1) {
                         const key = directive.substring(0, colonIndex).trim();
                         const value = directive.substring(colonIndex + 1).trim();
-                        
+
                         // Handle metadata
                         if (['title', 't', 'artist', 'key', 'capo', 'tempo'].includes(key)) {
                             result.metadata[key] = value;
@@ -339,23 +357,23 @@ That [Em]saved a [D]wretch like [G]me
             // Render metadata (perfectly centered)
             if (Object.keys(parsed.metadata).length > 0) {
                 html += '<div class="mb-6 text-center border-b border-gray-300 dark:border-gray-600 pb-4">';
-                
+
                 if (parsed.metadata.title || parsed.metadata.t) {
-                    html += `<h1 class="text-2xl font-bold mb-2">${parsed.metadata.title || parsed.metadata.t}</h1>`;
+                    html += `<h1 class="song-title font-bold mb-2">${parsed.metadata.title || parsed.metadata.t}</h1>`;
                 }
                 if (parsed.metadata.artist) {
-                    html += `<p class="text-lg text-gray-600 dark:text-gray-400 mb-2">${parsed.metadata.artist}</p>`;
+                    html += `<p class="song-artist text-gray-600 dark:text-gray-400 mb-2">${parsed.metadata.artist}</p>`;
                 }
-                
+
                 const details = [];
                 if (parsed.metadata.key) details.push(`Key: ${parsed.metadata.key}`);
                 if (parsed.metadata.capo && parsed.metadata.capo !== '0') details.push(`Capo: ${parsed.metadata.capo}`);
                 if (parsed.metadata.tempo) details.push(`Tempo: ${parsed.metadata.tempo}`);
-                
+
                 if (details.length > 0) {
-                    html += `<p class="text-sm text-gray-500 dark:text-gray-500">${details.join(' • ')}</p>`;
+                    html += `<p class="song-details text-gray-500 dark:text-gray-500">${details.join(' • ')}</p>`;
                 }
-                
+
                 html += '</div>';
             }
 
@@ -371,7 +389,7 @@ That [Em]saved a [D]wretch like [G]me
                     html += `<div class="mb-6 ${sectionClass}">`;
                     html += `<div class="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">${section.type}</div>`;
                     html += '<div class="pl-4 border-l-2 border-gray-300 dark:border-gray-600">';
-                    
+
                     for (const line of section.lines) {
                         if (line.type === 'comment') {
                             html += `<div class="text-sm text-gray-500 dark:text-gray-400 italic mb-2">${line.content}</div>`;
@@ -379,7 +397,7 @@ That [Em]saved a [D]wretch like [G]me
                             html += renderLine(line);
                         }
                     }
-                    
+
                     html += '</div></div>';
                 }
             }
@@ -393,7 +411,7 @@ That [Em]saved a [D]wretch like [G]me
 
             let html = '<div class="chord-line lyrics mb-3">';
             html += '<div class="chord-line-content">';
-            
+
             if (line.chords.length > 0) {
                 // Create chord positions
                 for (const chordInfo of line.chords) {
@@ -401,11 +419,11 @@ That [Em]saved a [D]wretch like [G]me
                     html += `<span class="chord" style="left: ${leftPosition}em">${chordInfo.chord}</span>`;
                 }
             }
-            
+
             html += `<span>${line.lyrics || ''}</span>`;
             html += '</div>';
             html += '</div>';
-            
+
             return html;
         }
 
@@ -452,17 +470,17 @@ That [Em]saved a [D]wretch like [G]me
         // Text size functions
         function updateFontSize() {
             output.style.fontSize = `${currentFontSize}%`;
-            
+
             // Update current size display
             const currentSizeSpan = document.getElementById('currentSize');
             if (currentSizeSpan) {
                 currentSizeSpan.textContent = `${currentFontSize}%`;
             }
-            
+
             // Update button states
             const decreaseTextBtn = document.getElementById('decreaseText');
             const increaseTextBtn = document.getElementById('increaseText');
-            
+
             if (decreaseTextBtn) {
                 decreaseTextBtn.disabled = currentFontSize <= minFontSize;
                 if (decreaseTextBtn.disabled) {
@@ -471,7 +489,7 @@ That [Em]saved a [D]wretch like [G]me
                     decreaseTextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
                 }
             }
-            
+
             if (increaseTextBtn) {
                 increaseTextBtn.disabled = currentFontSize >= maxFontSize;
                 if (increaseTextBtn.disabled) {
@@ -541,3 +559,4 @@ That [Em]saved a [D]wretch like [G]me
     </script>
 </body>
 </html>
+
