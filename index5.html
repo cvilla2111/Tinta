@@ -29,6 +29,54 @@
             text-align: center;
             font-size: 1em;
         }
+        .line-edit-modal {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            right: 0;
+            min-height: 80px;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+        }
+        .line-edit-modal.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        /* Keyframe animation for margin push */
+        @keyframes pushDown {
+            from {
+                margin-top: 0px;
+            }
+            to {
+                margin-top: 90px;
+            }
+        }
+        @keyframes pushUp {
+            from {
+                margin-top: 90px;
+            }
+            to {
+                margin-top: 0px;
+            }
+        }
+        /* Add top margin to line when editing to push content up */
+        .editable-line.editing {
+            animation: pushDown 0.2s ease-in-out forwards;
+        }
+        .editable-line.closing {
+            animation: pushUp 0.2s ease-in-out forwards;
+        }
+        /* Only show hover and cursor pointer when in edit mode */
+        body.in-edit-mode .editable-line {
+            cursor: pointer;
+        }
+        body.in-edit-mode .editable-line:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        body.dark.in-edit-mode .editable-line:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
         .chord-line-content {
             display: inline-block;
             position: relative;
@@ -527,7 +575,7 @@ That [Em]saved a [D]wretch like [G]me
             }
             chordProLine += line.lyrics.substring(lastPos);
 
-            let html = `<div class="chord-line lyrics mb-1 editable-line cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded p-2 transition-colors" data-chordpro="${chordProLine.replace(/"/g, '&quot;')}" data-line-index="${lineIndex}">`;
+            let html = `<div class="chord-line lyrics mb-1 editable-line rounded p-2 transition-colors" data-chordpro="${chordProLine.replace(/"/g, '&quot;')}" data-line-index="${lineIndex}">`;
             html += '<div class="chord-line-content">';
 
             if (line.chords.length > 0) {
@@ -682,11 +730,13 @@ That [Em]saved a [D]wretch like [G]me
                 isEditMode = true;
                 editBtn.textContent = 'Done';
                 editBtn.classList.add('edit-mode-active');
+                document.body.classList.add('in-edit-mode');
             } else {
                 // Exit edit mode
                 isEditMode = false;
                 editBtn.textContent = 'Edit';
                 editBtn.classList.remove('edit-mode-active');
+                document.body.classList.remove('in-edit-mode');
             }
         }
 
@@ -727,16 +777,42 @@ That [Em]saved a [D]wretch like [G]me
             }
         });
 
+        // Track active click-outside handler
+        let activeClickHandler = null;
+
         // Make lines editable on click (only when in edit mode)
         document.addEventListener('click', (e) => {
-            // Don't do anything if clicking on an existing input field
-            if (e.target.tagName === 'INPUT') {
+            // Don't do anything if clicking inside the modal or an input field
+            if (e.target.closest('#lineEditModal') || e.target.tagName === 'INPUT') {
                 return;
             }
 
-            const editableLine = e.target.closest('.editable-line');
+            let editableLine = e.target.closest('.editable-line');
             if (editableLine && isEditMode) {
-                // Check if this line already has an input field (already being edited)
+                // Store the line index before any DOM changes
+                const clickedLineIndex = editableLine.getAttribute('data-line-index');
+
+                // Close any existing open line first by re-rendering
+                const existingModal = document.getElementById('lineEditModal');
+                if (existingModal) {
+                    // Remove any existing click handler
+                    if (activeClickHandler) {
+                        document.removeEventListener('click', activeClickHandler);
+                        activeClickHandler = null;
+                    }
+                    // Re-render to close the previous line
+                    updateOutput();
+
+                    // Get fresh reference to the line after re-render
+                    const allLines = document.querySelectorAll('.editable-line');
+                    editableLine = Array.from(allLines).find(line =>
+                        line.getAttribute('data-line-index') === clickedLineIndex
+                    );
+
+                    if (!editableLine) return;
+                }
+
+                // Check if this line already has an input field
                 if (editableLine.querySelector('input')) {
                     return;
                 }
@@ -744,19 +820,88 @@ That [Em]saved a [D]wretch like [G]me
                 const chordProText = editableLine.getAttribute('data-chordpro');
                 const lineIndex = editableLine.getAttribute('data-line-index');
 
-                // Create inline input
+                // Extract all unique chords from the song
+                const allChords = new Set();
+                const chordRegex = /\[([^\]]+)\]/g;
+                let match;
+                while ((match = chordRegex.exec(currentChordProContent)) !== null) {
+                    allChords.add(match[1]);
+                }
+                const uniqueChords = Array.from(allChords).sort();
+
+                // Create modal for suggestions
+                const modal = document.createElement('div');
+                modal.id = 'lineEditModal';
+                modal.className = 'line-edit-modal bg-white dark:bg-gray-800 border-2 border-primary rounded-lg shadow-2xl p-4';
+
+                // Modal content - show existing chords
+                let modalContent = '';
+                if (uniqueChords.length > 0) {
+                    modalContent = `
+                        <div class="text-gray-900 dark:text-gray-100">
+                            <div class="text-xs font-semibold mb-2 text-gray-500 dark:text-gray-400">Chords in this song:</div>
+                            <div class="flex flex-wrap gap-2">
+                                ${uniqueChords.map(chord => `
+                                    <button class="chord-button px-3 py-1 bg-primary text-white rounded hover:bg-primary/80 transition-colors text-sm font-mono" data-chord="${chord}">
+                                        ${chord}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    modalContent = `
+                        <div class="text-gray-900 dark:text-gray-100 text-center text-sm text-gray-400">
+                            No chords found in this song
+                        </div>
+                    `;
+                }
+                modal.innerHTML = modalContent;
+
+                // Create input field in the line itself
                 const inputField = document.createElement('input');
                 inputField.type = 'text';
                 inputField.value = chordProText;
                 inputField.className = 'w-full p-2 border-2 border-primary rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-mono text-base text-center';
 
-                // Replace the line with input
+                // Clear the line content but keep structure
                 editableLine.innerHTML = '';
+
+                // Add modal first, then input
+                editableLine.appendChild(modal);
                 editableLine.appendChild(inputField);
                 editableLine.classList.remove('cursor-pointer', 'hover:bg-gray-100', 'dark:hover:bg-gray-800');
+
+                // Trigger animation after a delay
+                setTimeout(() => {
+                    editableLine.classList.add('editing');
+                    modal.classList.add('show');
+                }, 50);
+
                 inputField.focus();
 
-                // Save on Enter or blur
+                // Handle chord button clicks
+                const chordButtons = modal.querySelectorAll('.chord-button');
+                chordButtons.forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const chord = button.getAttribute('data-chord');
+                        const cursorPos = inputField.selectionStart;
+                        const textBefore = inputField.value.substring(0, cursorPos);
+                        const textAfter = inputField.value.substring(cursorPos);
+
+                        // Insert chord in ChordPro format at cursor position
+                        inputField.value = textBefore + `[${chord}]` + textAfter;
+
+                        // Move cursor after the inserted chord
+                        const newCursorPos = cursorPos + chord.length + 2;
+                        inputField.setSelectionRange(newCursorPos, newCursorPos);
+                        inputField.focus();
+                    });
+                });
+
+                // Save function
                 const saveLine = () => {
                     const newValue = inputField.value;
                     // Update the ChordPro content
@@ -775,21 +920,53 @@ That [Em]saved a [D]wretch like [G]me
                         }
                     }
 
-                    // Update content and re-render
+                    // Update content
                     currentChordProContent = lines.join('\n');
                     input.value = currentChordProContent;
-                    updateOutput();
+
+                    // Trigger closing animation
+                    editableLine.classList.remove('editing');
+                    editableLine.classList.add('closing');
+                    modal.classList.remove('show');
+
+                    // Re-render after animation completes
+                    setTimeout(() => {
+                        updateOutput();
+                    }, 200);
                 };
 
+                // Save on Enter, cancel on Escape
                 inputField.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') {
                         saveLine();
                     } else if (e.key === 'Escape') {
                         updateOutput(); // Cancel edit
+                        if (modal && modal.parentNode) {
+                            modal.remove();
+                        }
                     }
                 });
 
-                inputField.addEventListener('blur', saveLine);
+                // Handle clicks outside to close
+                const handleClickOutside = (event) => {
+                    // Don't close if clicking inside the modal or input field
+                    if (modal.contains(event.target) || inputField.contains(event.target)) {
+                        return;
+                    }
+
+                    // Close if clicking outside
+                    saveLine();
+                    document.removeEventListener('click', handleClickOutside);
+                    activeClickHandler = null;
+                };
+
+                // Store the handler so we can remove it later
+                activeClickHandler = handleClickOutside;
+
+                // Add listener after a short delay to prevent immediate closure
+                setTimeout(() => {
+                    document.addEventListener('click', handleClickOutside);
+                }, 100);
             }
         });
 
