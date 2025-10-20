@@ -729,8 +729,18 @@ That [Em]saved a [D]wretch like [G]me
 
         // Make lines editable on click (only when in edit mode)
         document.addEventListener('click', (e) => {
+            // Don't do anything if clicking on an existing input field
+            if (e.target.tagName === 'INPUT') {
+                return;
+            }
+
             const editableLine = e.target.closest('.editable-line');
             if (editableLine && isEditMode) {
+                // Check if this line already has an input field (already being edited)
+                if (editableLine.querySelector('input')) {
+                    return;
+                }
+
                 const chordProText = editableLine.getAttribute('data-chordpro');
                 const lineIndex = editableLine.getAttribute('data-line-index');
 
@@ -745,7 +755,6 @@ That [Em]saved a [D]wretch like [G]me
                 editableLine.appendChild(inputField);
                 editableLine.classList.remove('cursor-pointer', 'hover:bg-gray-100', 'dark:hover:bg-gray-800');
                 inputField.focus();
-                inputField.select();
 
                 // Save on Enter or blur
                 const saveLine = () => {
