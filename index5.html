@@ -529,19 +529,24 @@ That [Em]saved a [D]wretch like [G]me
                 html += '<div class="mt-8 mb-6 text-center border-b border-gray-300 dark:border-gray-600 pb-4">';
 
                 if (parsed.metadata.title || parsed.metadata.t) {
-                    html += `<h1 class="song-title font-bold mb-2">${parsed.metadata.title || parsed.metadata.t}</h1>`;
+                    const titleValue = parsed.metadata.title || parsed.metadata.t;
+                    html += `<h1 class="song-title font-bold mb-2 editable-line rounded p-2 transition-colors" data-chordpro="{title: ${titleValue}}" data-metadata="title">${titleValue}</h1>`;
                 }
                 if (parsed.metadata.artist) {
-                    html += `<p class="song-artist text-gray-600 dark:text-gray-400 mb-2">${parsed.metadata.artist}</p>`;
+                    html += `<p class="song-artist text-gray-600 dark:text-gray-400 mb-2 editable-line rounded p-2 transition-colors" data-chordpro="{artist: ${parsed.metadata.artist}}" data-metadata="artist">${parsed.metadata.artist}</p>`;
                 }
 
                 const details = [];
-                if (parsed.metadata.key) details.push(`Key: ${parsed.metadata.key}`);
-                if (parsed.metadata.capo && parsed.metadata.capo !== '0') details.push(`Capo: ${parsed.metadata.capo}`);
-                if (parsed.metadata.tempo) details.push(`Tempo: ${parsed.metadata.tempo}`);
-
-                if (details.length > 0) {
-                    html += `<p class="song-details text-gray-500 dark:text-gray-500">${details.join(' • ')}</p>`;
+                if (parsed.metadata.key) {
+                    html += `<p class="song-details text-gray-500 dark:text-gray-500 editable-line rounded p-2 transition-colors inline-block" data-chordpro="{key: ${parsed.metadata.key}}" data-metadata="key">Key: ${parsed.metadata.key}</p>`;
+                }
+                if (parsed.metadata.capo && parsed.metadata.capo !== '0') {
+                    if (details.length > 0) html += '<span class="song-details text-gray-500 dark:text-gray-500"> • </span>';
+                    html += `<p class="song-details text-gray-500 dark:text-gray-500 inline-block">Capo: ${parsed.metadata.capo}</p>`;
+                }
+                if (parsed.metadata.tempo) {
+                    if (details.length > 0 || parsed.metadata.capo) html += '<span class="song-details text-gray-500 dark:text-gray-500"> • </span>';
+                    html += `<p class="song-details text-gray-500 dark:text-gray-500 inline-block">Tempo: ${parsed.metadata.tempo}</p>`;
                 }
 
                 html += '</div>';
@@ -988,44 +993,48 @@ That [Em]saved a [D]wretch like [G]me
 
                 const chordProText = editableLine.getAttribute('data-chordpro');
                 const lineIndex = editableLine.getAttribute('data-line-index');
+                const metadataType = editableLine.getAttribute('data-metadata');
 
-                // Extract all unique chords from the song
-                const allChords = new Set();
-                const chordRegex = /\[([^\]]+)\]/g;
-                let match;
-                while ((match = chordRegex.exec(currentChordProContent)) !== null) {
-                    allChords.add(match[1]);
-                }
-                const uniqueChords = Array.from(allChords).sort();
+                // Create modal for chord suggestions (only for chord lines, not metadata)
+                let modal = null;
+                if (!metadataType) {
+                    // Extract all unique chords from the song
+                    const allChords = new Set();
+                    const chordRegex = /\[([^\]]+)\]/g;
+                    let match;
+                    while ((match = chordRegex.exec(currentChordProContent)) !== null) {
+                        allChords.add(match[1]);
+                    }
+                    const uniqueChords = Array.from(allChords).sort();
 
-                // Create modal for suggestions
-                const modal = document.createElement('div');
-                modal.id = 'lineEditModal';
-                modal.className = 'line-edit-modal bg-white dark:bg-gray-800 border-2 border-primary rounded-lg shadow-2xl p-4';
+                    modal = document.createElement('div');
+                    modal.id = 'lineEditModal';
+                    modal.className = 'line-edit-modal bg-white dark:bg-gray-800 border-2 border-primary rounded-lg shadow-2xl p-4';
 
-                // Modal content - show existing chords
-                let modalContent = '';
-                if (uniqueChords.length > 0) {
-                    modalContent = `
-                        <div class="text-gray-900 dark:text-gray-100">
-                            <div class="text-xs font-semibold mb-2 text-gray-500 dark:text-gray-400">Chords in this song:</div>
-                            <div class="flex flex-wrap gap-2">
-                                ${uniqueChords.map(chord => `
-                                    <button class="chord-button px-3 py-1 bg-primary text-white rounded hover:bg-primary/80 transition-colors text-sm font-mono" data-chord="${chord}">
-                                        ${chord}
-                                    </button>
-                                `).join('')}
+                    // Modal content - show existing chords
+                    let modalContent = '';
+                    if (uniqueChords.length > 0) {
+                        modalContent = `
+                            <div class="text-gray-900 dark:text-gray-100">
+                                <div class="text-xs font-semibold mb-2 text-gray-500 dark:text-gray-400">Chords in this song:</div>
+                                <div class="flex flex-wrap gap-2">
+                                    ${uniqueChords.map(chord => `
+                                        <button class="chord-button px-3 py-1 bg-primary text-white rounded hover:bg-primary/80 transition-colors text-sm font-mono" data-chord="${chord}">
+                                            ${chord}
+                                        </button>
+                                    `).join('')}
+                                </div>
                             </div>
-                        </div>
-                    `;
-                } else {
-                    modalContent = `
-                        <div class="text-gray-900 dark:text-gray-100 text-center text-sm text-gray-400">
-                            No chords found in this song
-                        </div>
-                    `;
+                        `;
+                    } else {
+                        modalContent = `
+                            <div class="text-gray-900 dark:text-gray-100 text-center text-sm text-gray-400">
+                                No chords found in this song
+                            </div>
+                        `;
+                    }
+                    modal.innerHTML = modalContent;
                 }
-                modal.innerHTML = modalContent;
 
                 // Create input field in the line itself
                 const inputField = document.createElement('input');
@@ -1036,15 +1045,19 @@ That [Em]saved a [D]wretch like [G]me
                 // Clear the line content but keep structure
                 editableLine.innerHTML = '';
 
-                // Add modal first, then input
-                editableLine.appendChild(modal);
+                // Add modal first (if exists), then input
+                if (modal) {
+                    editableLine.appendChild(modal);
+                }
                 editableLine.appendChild(inputField);
                 editableLine.classList.remove('cursor-pointer', 'hover:bg-gray-100', 'dark:hover:bg-gray-800');
 
                 // Trigger animation after a delay
                 setTimeout(() => {
                     editableLine.classList.add('editing');
-                    modal.classList.add('show');
+                    if (modal) {
+                        modal.classList.add('show');
+                    }
                     isLineOpen = true; // Mark that a line is now open
                 }, 50);
 
@@ -1061,43 +1074,58 @@ That [Em]saved a [D]wretch like [G]me
 
                 inputField.focus();
 
-                // Handle chord button clicks
-                const chordButtons = modal.querySelectorAll('.chord-button');
-                chordButtons.forEach(button => {
-                    button.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const chord = button.getAttribute('data-chord');
-                        const cursorPos = inputField.selectionStart;
-                        const textBefore = inputField.value.substring(0, cursorPos);
-                        const textAfter = inputField.value.substring(cursorPos);
+                // Handle chord button clicks (only if modal exists)
+                if (modal) {
+                    const chordButtons = modal.querySelectorAll('.chord-button');
+                    chordButtons.forEach(button => {
+                        button.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const chord = button.getAttribute('data-chord');
+                            const cursorPos = inputField.selectionStart;
+                            const textBefore = inputField.value.substring(0, cursorPos);
+                            const textAfter = inputField.value.substring(cursorPos);
 
-                        // Insert chord in ChordPro format at cursor position
-                        inputField.value = textBefore + `[${chord}]` + textAfter;
+                            // Insert chord in ChordPro format at cursor position
+                            inputField.value = textBefore + `[${chord}]` + textAfter;
 
-                        // Move cursor after the inserted chord
-                        const newCursorPos = cursorPos + chord.length + 2;
-                        inputField.setSelectionRange(newCursorPos, newCursorPos);
-                        inputField.focus();
+                            // Move cursor after the inserted chord
+                            const newCursorPos = cursorPos + chord.length + 2;
+                            inputField.setSelectionRange(newCursorPos, newCursorPos);
+                            inputField.focus();
+                        });
                     });
-                });
+                }
 
                 // Save function
                 const saveLine = () => {
                     const newValue = inputField.value;
                     // Update the ChordPro content
                     const lines = currentChordProContent.split('\n');
-                    let currentLineIndex = 0;
 
-                    for (let i = 0; i < lines.length; i++) {
-                        const line = lines[i].trim();
-                        // Check if this is a lyric line (contains chords)
-                        if (line.includes('[') && line.includes(']') && !line.startsWith('{')) {
-                            if (currentLineIndex == lineIndex) {
+                    // Handle metadata editing
+                    if (metadataType) {
+                        // Find and replace the metadata line
+                        for (let i = 0; i < lines.length; i++) {
+                            const line = lines[i].trim();
+                            if (line.startsWith(`{${metadataType}:`)) {
                                 lines[i] = newValue;
                                 break;
                             }
-                            currentLineIndex++;
+                        }
+                    } else {
+                        // Handle regular chord/lyric lines
+                        let currentLineIndex = 0;
+                        for (let i = 0; i < lines.length; i++) {
+                            const line = lines[i].trim();
+                            // Check if this is a lyric line (contains chords)
+                            if (line.includes('[') && line.includes(']') && !line.startsWith('{')) {
+                                if (currentLineIndex == lineIndex) {
+                                    lines[i] = newValue;
+                                    break;
+                                }
+                                currentLineIndex++;
+                            }
                         }
                     }
 
@@ -1108,7 +1136,9 @@ That [Em]saved a [D]wretch like [G]me
                     // Trigger closing animation
                     editableLine.classList.remove('editing');
                     editableLine.classList.add('closing');
-                    modal.classList.remove('show');
+                    if (modal) {
+                        modal.classList.remove('show');
+                    }
 
                     // Re-render after animation completes (skip auto-scale to avoid glitch)
                     setTimeout(() => {
@@ -1132,7 +1162,7 @@ That [Em]saved a [D]wretch like [G]me
                 // Handle clicks outside to close
                 const handleClickOutside = (event) => {
                     // Don't close if clicking inside the modal or input field
-                    if (modal.contains(event.target) || inputField.contains(event.target)) {
+                    if ((modal && modal.contains(event.target)) || inputField.contains(event.target)) {
                         return;
                     }
 
