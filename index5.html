@@ -878,6 +878,17 @@ That [Em]saved a [D]wretch like [G]me
                     modal.classList.add('show');
                 }, 50);
 
+                // Hide fixed UI elements when input is focused (for virtual keyboard)
+                inputField.addEventListener('focus', () => {
+                    document.querySelector('#menuToggle').parentElement.classList.add('opacity-0', 'pointer-events-none');
+                    document.querySelectorAll('.no-print.fixed.top-4.right-4')[0].classList.add('opacity-0', 'pointer-events-none');
+                });
+
+                inputField.addEventListener('blur', () => {
+                    document.querySelector('#menuToggle').parentElement.classList.remove('opacity-0', 'pointer-events-none');
+                    document.querySelectorAll('.no-print.fixed.top-4.right-4')[0].classList.remove('opacity-0', 'pointer-events-none');
+                });
+
                 inputField.focus();
 
                 // Handle chord button clicks
