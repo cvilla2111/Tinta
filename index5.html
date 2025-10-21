@@ -35,13 +35,13 @@
             left: 0;
             right: 0;
             min-height: 80px;
-            opacity: 0;
-            transform: translateY(10px);
-            transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
-        }
-        .line-edit-modal.show {
             opacity: 1;
             transform: translateY(0);
+        }
+        .line-edit-modal.hide {
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.4s ease-in-out, transform 0.4s ease-in-out;
         }
         /* Keyframe animation for margin push */
         @keyframes pushDown {
@@ -62,10 +62,10 @@
         }
         /* Add top margin to line when editing to push content up */
         .editable-line.editing {
-            animation: pushDown 0.2s ease-in-out forwards;
+            animation: pushDown 0.4s ease-in-out forwards;
         }
         .editable-line.closing {
-            animation: pushUp 0.2s ease-in-out forwards;
+            animation: pushUp 0.4s ease-in-out forwards;
         }
         /* Only show hover and cursor pointer when in edit mode */
         body.in-edit-mode .editable-line {
@@ -292,7 +292,7 @@ That [G]saved a [Em]wretch like [D]me
     <div id="menuOverlay" class="no-print fixed inset-0 bg-black bg-opacity-50 z-30 opacity-0 pointer-events-none transition-opacity duration-300"></div>
 
     <!-- Main Content Area - Full Screen -->
-    <div class="min-h-screen bg-white dark:bg-gray-900 p-6">
+    <div class="min-h-screen bg-white dark:bg-gray-900 p-0 sm:p-6">
         <div id="output" class="max-w-none">
             <div class="text-gray-500 dark:text-gray-400 text-center py-20">
                 Click the menu button (☰) in the top-left to enter ChordPro content
@@ -527,7 +527,7 @@ That [Em]saved a [D]wretch like [G]me
 
             // Render metadata (perfectly centered)
             if (Object.keys(parsed.metadata).length > 0) {
-                html += '<div class="mt-8 mb-6 text-center border-b border-gray-300 dark:border-gray-600 pb-4">';
+                html += '<div class="mt-16 mb-6 text-center border-b border-gray-300 dark:border-gray-600 pb-4">';
 
                 if (parsed.metadata.title || parsed.metadata.t) {
                     const titleValue = parsed.metadata.title || parsed.metadata.t;
@@ -653,29 +653,40 @@ That [Em]saved a [D]wretch like [G]me
 
         // Auto-scale content to fit viewport
         function autoScaleToViewport() {
-            // Start at 50% to ensure no wrapping during measurement
-            currentFontSize = 50;
-            output.style.fontSize = '50%';
+            // Start at a very small size to ensure no wrapping
+            currentFontSize = 30;
+            output.style.fontSize = '30%';
 
             // Wait for DOM to render before measuring
             setTimeout(() => {
-                // Get viewport width - use 90% of viewport as target (leave some margin)
+                // Get viewport width - use almost all on mobile, less on desktop
                 const viewportWidth = window.innerWidth;
-                const targetWidth = viewportWidth * 0.90;
+                const isMobile = viewportWidth <= 768;
+                // On mobile use essentially full width, on desktop leave margins
+                const targetWidth = isMobile ? viewportWidth - 8 : viewportWidth * 0.90;
 
                 // Find the widest actual content line
                 let maxContentWidth = 0;
 
                 // Measure all chord line containers (which center the content)
                 const chordLines = output.querySelectorAll('.chord-line');
+
+                // Temporarily prevent wrapping during measurement
                 chordLines.forEach(line => {
                     const content = line.querySelector('.chord-line-content');
                     if (content) {
+                        // Force no wrapping on the entire content to get true width
+                        const originalWhiteSpace = content.style.whiteSpace;
+                        content.style.whiteSpace = 'nowrap';
+
                         // Get the actual rendered width of the content
                         const lineWidth = content.getBoundingClientRect().width;
                         if (lineWidth > maxContentWidth) {
                             maxContentWidth = lineWidth;
                         }
+
+                        // Restore original style
+                        content.style.whiteSpace = originalWhiteSpace;
                     }
                 });
 
@@ -683,7 +694,12 @@ That [Em]saved a [D]wretch like [G]me
                 if (maxContentWidth > 0) {
                     // Calculate what percentage would make the content fit the target width
                     const scaleRatio = targetWidth / maxContentWidth;
-                    currentFontSize = Math.floor(50 * scaleRatio);
+                    currentFontSize = Math.floor(30 * scaleRatio);
+
+                    // On mobile, be more aggressive - add 12% buffer to account for measurement inaccuracies
+                    // On desktop, use smaller 5% buffer
+                    const bufferMultiplier = isMobile ? 1.12 : 1.05;
+                    currentFontSize = Math.floor(currentFontSize * bufferMultiplier);
 
                     // Cap at reasonable maximum and minimum
                     if (currentFontSize > 200) {
@@ -979,14 +995,14 @@ That [Em]saved a [D]wretch like [G]me
                         openLine.classList.add('closing');
                         const openModal = document.getElementById('lineEditModal');
                         if (openModal) {
-                            openModal.classList.remove('show');
+                            openModal.classList.add('hide');
                         }
 
                         // Re-render after animation completes (skip auto-scale to avoid glitch)
                         setTimeout(() => {
                             updateOutput(true); // true = skip auto-scale
                             isLineOpen = false;
-                        }, 200);
+                        }, 400);
                     }
                     return; // Don't open the clicked line
                 }
@@ -1014,7 +1030,9 @@ That [Em]saved a [D]wretch like [G]me
 
                     modal = document.createElement('div');
                     modal.id = 'lineEditModal';
-                    modal.className = 'line-edit-modal bg-white dark:bg-gray-800 border-2 border-primary rounded-lg shadow-2xl p-4';
+                    modal.className = 'line-edit-modal bg-white dark:bg-gray-800 border-2 border-primary rounded-lg shadow-2xl p-2 sm:p-4';
+                    // Set explicit font-size to prevent overflow on aggressively scaled content
+                    modal.style.fontSize = '14px';
 
                     // Modal content - show existing chords
                     let modalContent = '';
@@ -1045,10 +1063,22 @@ That [Em]saved a [D]wretch like [G]me
                 const inputField = document.createElement('input');
                 inputField.type = 'text';
                 inputField.value = chordProText;
-                inputField.className = 'w-full p-2 border-2 border-primary rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-mono text-base text-center';
+                inputField.className = 'w-full p-1 sm:p-2 border-2 border-primary rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-mono text-center';
+                // Set explicit font-size to prevent overflow on aggressively scaled content
+                // Use smaller font on mobile to prevent overflow
+                const isMobileView = window.innerWidth <= 768;
+                inputField.style.fontSize = isMobileView ? '14px' : '16px';
+                inputField.style.maxWidth = '100%';
+                inputField.style.boxSizing = 'border-box';
+                inputField.style.width = '100%';
 
                 // Clear the line content but keep structure
                 editableLine.innerHTML = '';
+
+                // Set a fixed small font size on the editable line to prevent overflow
+                // This overrides the parent's aggressive scaling
+                editableLine.style.fontSize = isMobileView ? '14px' : '16px';
+                editableLine.style.maxWidth = '100%';
 
                 // Add modal first (if exists), then input
                 if (modal) {
@@ -1060,9 +1090,7 @@ That [Em]saved a [D]wretch like [G]me
                 // Trigger animation after a delay
                 setTimeout(() => {
                     editableLine.classList.add('editing');
-                    if (modal) {
-                        modal.classList.add('show');
-                    }
+                    // Modal appears instantly (no opening animation)
                     isLineOpen = true; // Mark that a line is now open
                 }, 50);
 
@@ -1146,14 +1174,14 @@ That [Em]saved a [D]wretch like [G]me
                     editableLine.classList.remove('editing');
                     editableLine.classList.add('closing');
                     if (modal) {
-                        modal.classList.remove('show');
+                        modal.classList.add('hide');
                     }
 
                     // Re-render after animation completes (skip auto-scale to avoid glitch)
                     setTimeout(() => {
                         updateOutput(true); // true = skip auto-scale
                         isLineOpen = false; // Mark that no line is open
-                    }, 200);
+                    }, 400);
                 };
 
                 // Save on Enter, cancel on Escape
