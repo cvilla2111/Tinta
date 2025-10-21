@@ -200,7 +200,7 @@
             <!-- Header -->
             <div class="mb-8">
                 <div class="flex items-center justify-between mb-4">
-                    <h1 class="text-2xl font-bold">ChordPro Viewer2</h1>
+                    <h1 class="text-2xl font-bold">ChordPro Viewer</h1>
                     <button id="closeMenu" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -700,7 +700,39 @@ That [Em]saved a [D]wretch like [G]me
         }
 
         // Event listeners
-        input.addEventListener('input', updateOutput);
+        input.addEventListener('input', () => {
+            // Add blank metadata if missing
+            addBlankMetadataIfMissing();
+            updateOutput();
+        });
+
+        // Add blank title, artist, and key if they don't exist
+        function addBlankMetadataIfMissing() {
+            let content = input.value;
+
+            // Check if metadata exists
+            const hasTitle = /\{title:/i.test(content) || /\{t:/i.test(content);
+            const hasArtist = /\{artist:/i.test(content);
+            const hasKey = /\{key:/i.test(content);
+
+            // If any metadata is missing and there's content, add blank ones at the top
+            if (content.trim() && (!hasTitle || !hasArtist || !hasKey)) {
+                const metadataLines = [];
+
+                if (!hasTitle) {
+                    metadataLines.push('{title: }');
+                }
+                if (!hasArtist) {
+                    metadataLines.push('{artist: }');
+                }
+                if (!hasKey) {
+                    metadataLines.push('{key: }');
+                }
+
+                // Add blank metadata at the beginning
+                input.value = metadataLines.join('\n') + '\n\n' + content;
+            }
+        }
 
         loadSampleBtn.addEventListener('click', () => {
             input.value = sampleContent;
