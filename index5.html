@@ -622,7 +622,7 @@ That [Em]saved a [D]wretch like [G]me
         }
 
         // Update output when input changes
-        function updateOutput() {
+        function updateOutput(skipAutoScale = false) {
             const content = input.value.trim();
             currentChordProContent = content;
 
@@ -636,8 +636,10 @@ That [Em]saved a [D]wretch like [G]me
                 const rendered = renderChordPro(parsed);
                 output.innerHTML = rendered;
 
-                // Auto-scale to viewport
-                autoScaleToViewport();
+                // Auto-scale to viewport (skip if just closing edit)
+                if (!skipAutoScale) {
+                    autoScaleToViewport();
+                }
             } catch (error) {
                 output.innerHTML = `<div class="text-red-500 text-center py-8">Error parsing ChordPro content: ${error.message}</div>`;
             }
@@ -938,9 +940,9 @@ That [Em]saved a [D]wretch like [G]me
                             openModal.classList.remove('show');
                         }
 
-                        // Re-render after animation completes
+                        // Re-render after animation completes (skip auto-scale to avoid glitch)
                         setTimeout(() => {
-                            updateOutput();
+                            updateOutput(true); // true = skip auto-scale
                             isLineOpen = false;
                         }, 200);
                     }
@@ -1076,9 +1078,9 @@ That [Em]saved a [D]wretch like [G]me
                     editableLine.classList.add('closing');
                     modal.classList.remove('show');
 
-                    // Re-render after animation completes
+                    // Re-render after animation completes (skip auto-scale to avoid glitch)
                     setTimeout(() => {
-                        updateOutput();
+                        updateOutput(true); // true = skip auto-scale
                         isLineOpen = false; // Mark that no line is open
                     }, 200);
                 };
