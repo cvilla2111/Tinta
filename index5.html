@@ -97,17 +97,17 @@
             font-family: monospace;
             font-size: 1em;
         }
-        /* Make title 20px (1.25em of the 16px base) */
+        /* Make title smaller and add top spacing */
         #output .song-title {
-            font-size: 1.25em;
+            font-size: 1.125em; /* 18px */
         }
-        /* Make artist name scalable - 16px (1em of the 16px base) */
+        /* Make artist name smaller */
         #output .song-artist {
-            font-size: 1em;
+            font-size: 0.875em; /* 14px */
         }
-        /* Make song details (key, capo, tempo) scalable - 12px (0.75em of the 16px base) */
+        /* Make song details (key, capo, tempo) smaller */
         #output .song-details {
-            font-size: 0.75em;
+            font-size: 0.6875em; /* 11px */
         }
         /* Hide scrollbar but keep scrolling functionality */
         * {
@@ -508,7 +508,7 @@ That [Em]saved a [D]wretch like [G]me
 
             // Render metadata (perfectly centered)
             if (Object.keys(parsed.metadata).length > 0) {
-                html += '<div class="mb-6 text-center border-b border-gray-300 dark:border-gray-600 pb-4">';
+                html += '<div class="mt-8 mb-6 text-center border-b border-gray-300 dark:border-gray-600 pb-4">';
 
                 if (parsed.metadata.title || parsed.metadata.t) {
                     html += `<h1 class="song-title font-bold mb-2">${parsed.metadata.title || parsed.metadata.t}</h1>`;
