@@ -327,6 +327,7 @@ That [G]saved a [Em]wretch like [D]me
         // Edit mode management
         let isEditMode = false;
         let currentChordProContent = '';
+        let isProcessingInput = false; // Flag to prevent recursive input processing
 
         // Auto-scroll management
         let isScrolling = false;
@@ -706,9 +707,18 @@ That [Em]saved a [D]wretch like [G]me
 
         // Event listeners
         input.addEventListener('input', () => {
+            // Prevent recursive processing
+            if (isProcessingInput) {
+                return;
+            }
+
+            isProcessingInput = true;
+
             // Add blank metadata if missing
             addBlankMetadataIfMissing();
             updateOutput();
+
+            isProcessingInput = false;
         });
 
         // Add blank title, artist, and key if they don't exist
