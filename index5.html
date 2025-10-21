@@ -182,6 +182,21 @@
                 Edit
             </button>
         </div>
+
+        <!-- Auto-scroll Controls -->
+        <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-2 shadow-lg border border-gray-200 dark:border-gray-700">
+            <div class="flex flex-col items-center gap-1">
+                <button id="increaseSpeed" class="w-full px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm">
+                    +
+                </button>
+                <button id="playButton" class="w-full px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm">
+                    <span style="font-family: Arial, sans-serif;">▶</span>
+                </button>
+                <button id="decreaseSpeed" class="w-full px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm">
+                    -
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Slide-out Menu -->
@@ -317,6 +332,13 @@ That [G]saved a [Em]wretch like [D]me
         // Edit mode management
         let isEditMode = false;
         let currentChordProContent = '';
+
+        // Auto-scroll management
+        let isScrolling = false;
+        let scrollSpeed = 1; // Speed multiplier
+        let scrollInterval = null;
+        const baseScrollSpeed = 1; // Base pixels per interval
+        const scrollIntervalTime = 30; // Milliseconds between scroll steps
 
         // Sample ChordPro content
         const sampleContent = `{title: Amazing Grace}
@@ -744,6 +766,68 @@ That [Em]saved a [D]wretch like [G]me
         editButton.addEventListener('click', toggleEditMode);
         closeMenu.addEventListener('click', closeMenuFunc);
         menuOverlay.addEventListener('click', closeMenuFunc);
+
+        // Auto-scroll functions
+        function startScroll() {
+            if (!isScrolling) {
+                isScrolling = true;
+                document.getElementById('playButton').innerHTML = '<span style="font-family: Arial, sans-serif;">⏸</span>';
+                scrollInterval = setInterval(() => {
+                    window.scrollBy(0, baseScrollSpeed * scrollSpeed);
+
+                    // Stop if reached bottom
+                    if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight) {
+                        stopScroll();
+                    }
+                }, scrollIntervalTime);
+            } else {
+                stopScroll();
+            }
+        }
+
+        function stopScroll() {
+            isScrolling = false;
+            document.getElementById('playButton').innerHTML = '<span style="font-family: Arial, sans-serif;">▶</span>';
+            if (scrollInterval) {
+                clearInterval(scrollInterval);
+                scrollInterval = null;
+            }
+        }
+
+        function updateScrollSpeed() {
+            // Restart scroll with new speed if currently scrolling
+            if (isScrolling) {
+                stopScroll();
+                startScroll();
+            }
+        }
+
+        // Auto-scroll event listeners
+        const playButton = document.getElementById('playButton');
+        const increaseSpeed = document.getElementById('increaseSpeed');
+        const decreaseSpeed = document.getElementById('decreaseSpeed');
+
+        if (playButton) {
+            playButton.addEventListener('click', startScroll);
+        }
+
+        if (increaseSpeed) {
+            increaseSpeed.addEventListener('click', () => {
+                if (scrollSpeed < 5) {
+                    scrollSpeed += 0.5;
+                    updateScrollSpeed();
+                }
+            });
+        }
+
+        if (decreaseSpeed) {
+            decreaseSpeed.addEventListener('click', () => {
+                if (scrollSpeed > 0.5) {
+                    scrollSpeed -= 0.5;
+                    updateScrollSpeed();
+                }
+            });
+        }
 
         // Close menu on escape key
         document.addEventListener('keydown', (e) => {
