@@ -653,15 +653,15 @@ That [Em]saved a [D]wretch like [G]me
 
         // Auto-scale content to fit viewport
         function autoScaleToViewport() {
-            // Start at 150% to get better initial size, then measure
-            currentFontSize = 150;
-            output.style.fontSize = '150%';
+            // Start at 50% to ensure no wrapping during measurement
+            currentFontSize = 50;
+            output.style.fontSize = '50%';
 
             // Wait for DOM to render before measuring
             setTimeout(() => {
-                // Get viewport width - use 85% of viewport as target (leave margins)
+                // Get viewport width - use 90% of viewport as target (leave some margin)
                 const viewportWidth = window.innerWidth;
-                const targetWidth = viewportWidth * 0.85;
+                const targetWidth = viewportWidth * 0.90;
 
                 // Find the widest actual content line
                 let maxContentWidth = 0;
@@ -680,26 +680,21 @@ That [Em]saved a [D]wretch like [G]me
                 });
 
                 // Scale based on the widest content
-                if (maxContentWidth > 0 && maxContentWidth < targetWidth) {
-                    // Content is narrower than target, scale up
+                if (maxContentWidth > 0) {
+                    // Calculate what percentage would make the content fit the target width
                     const scaleRatio = targetWidth / maxContentWidth;
-                    currentFontSize = Math.floor(150 * scaleRatio);
+                    currentFontSize = Math.floor(50 * scaleRatio);
 
-                    // Cap at reasonable maximum
+                    // Cap at reasonable maximum and minimum
                     if (currentFontSize > 200) {
                         currentFontSize = 200;
-                    }
-                } else if (maxContentWidth > targetWidth) {
-                    // Content is wider than target, scale down from 150%
-                    const scaleRatio = targetWidth / maxContentWidth;
-                    currentFontSize = Math.floor(150 * scaleRatio);
-
-                    // Ensure minimum readability
-                    if (currentFontSize < 60) {
+                    } else if (currentFontSize < 60) {
                         currentFontSize = 60;
                     }
+                } else {
+                    // No content found, use default
+                    currentFontSize = 100;
                 }
-                // If maxContentWidth is 0 or exactly matches, keep 150%
 
                 updateFontSize();
             }, 100);
@@ -1141,7 +1136,11 @@ That [Em]saved a [D]wretch like [G]me
 
                     // Update content
                     currentChordProContent = lines.join('\n');
+
+                    // Prevent input event handler from running during programmatic update
+                    isProcessingInput = true;
                     input.value = currentChordProContent;
+                    isProcessingInput = false;
 
                     // Trigger closing animation
                     editableLine.classList.remove('editing');
