@@ -645,50 +645,56 @@ That [Em]saved a [D]wretch like [G]me
 
         // Auto-scale content to fit viewport
         function autoScaleToViewport() {
-            // Start at 100% to measure actual content size
-            currentFontSize = 100;
-            output.style.fontSize = '100%';
+            // Start at 150% to get better initial size, then measure
+            currentFontSize = 150;
+            output.style.fontSize = '150%';
 
             // Wait for DOM to render before measuring
             setTimeout(() => {
-                // Get viewport width with some padding (leave margins)
+                // Get viewport width - use 85% of viewport as target (leave margins)
                 const viewportWidth = window.innerWidth;
-                const availableWidth = viewportWidth - 48; // 24px padding on each side
+                const targetWidth = viewportWidth * 0.85;
 
-                // Find the widest element in the output
-                let maxWidth = 0;
-                const allElements = output.querySelectorAll('*');
+                // Find the widest actual content line
+                let maxContentWidth = 0;
 
-                allElements.forEach(element => {
-                    // Only measure visible content elements, skip containers
-                    if (element.offsetWidth > 0) {
-                        const elementWidth = element.scrollWidth;
-                        if (elementWidth > maxWidth) {
-                            maxWidth = elementWidth;
+                // Measure all chord line containers (which center the content)
+                const chordLines = output.querySelectorAll('.chord-line');
+                chordLines.forEach(line => {
+                    const content = line.querySelector('.chord-line-content');
+                    if (content) {
+                        // Get the actual rendered width of the content
+                        const lineWidth = content.getBoundingClientRect().width;
+                        if (lineWidth > maxContentWidth) {
+                            maxContentWidth = lineWidth;
                         }
                     }
                 });
 
-                // If content is wider than available space, scale down
-                if (maxWidth > availableWidth) {
-                    const scaleRatio = availableWidth / maxWidth;
-                    currentFontSize = Math.floor(100 * scaleRatio);
+                // Scale based on the widest content
+                if (maxContentWidth > 0 && maxContentWidth < targetWidth) {
+                    // Content is narrower than target, scale up
+                    const scaleRatio = targetWidth / maxContentWidth;
+                    currentFontSize = Math.floor(150 * scaleRatio);
 
-                    // Ensure minimum readability (don't go below 50%)
-                    if (currentFontSize < 50) {
-                        currentFontSize = 50;
+                    // Cap at reasonable maximum
+                    if (currentFontSize > 200) {
+                        currentFontSize = 200;
                     }
-                } else {
-                    // Content fits, keep at 100% or scale up slightly for large screens
-                    if (viewportWidth > 1200) {
-                        currentFontSize = 110;
-                    } else {
-                        currentFontSize = 100;
+                } else if (maxContentWidth > targetWidth) {
+                    // Content is wider than target, scale down from 150%
+                    const scaleRatio = targetWidth / maxContentWidth;
+                    currentFontSize = Math.floor(150 * scaleRatio);
+
+                    // Ensure minimum readability
+                    if (currentFontSize < 60) {
+                        currentFontSize = 60;
                     }
                 }
+                // If maxContentWidth is 0 or exactly matches, keep 150%
 
                 updateFontSize();
-            }, 50);
+            }, 100);
         }
 
         // Event listeners
