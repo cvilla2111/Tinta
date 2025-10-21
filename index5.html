@@ -715,21 +715,21 @@ That [Em]saved a [D]wretch like [G]me
             const hasArtist = /\{artist:/i.test(content);
             const hasKey = /\{key:/i.test(content);
 
-            // If any metadata is missing and there's content, add blank ones at the top
+            // If any metadata is missing and there's content, add placeholders at the top
             if (content.trim() && (!hasTitle || !hasArtist || !hasKey)) {
                 const metadataLines = [];
 
                 if (!hasTitle) {
-                    metadataLines.push('{title: }');
+                    metadataLines.push('{title: Title goes here}');
                 }
                 if (!hasArtist) {
-                    metadataLines.push('{artist: }');
+                    metadataLines.push('{artist: Artist goes here}');
                 }
                 if (!hasKey) {
-                    metadataLines.push('{key: }');
+                    metadataLines.push('{key: Key goes here}');
                 }
 
-                // Add blank metadata at the beginning
+                // Add metadata with placeholders at the beginning
                 input.value = metadataLines.join('\n') + '\n\n' + content;
             }
         }
