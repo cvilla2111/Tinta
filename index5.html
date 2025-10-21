@@ -777,8 +777,9 @@ That [Em]saved a [D]wretch like [G]me
             }
         });
 
-        // Track active click-outside handler
+        // Track active click-outside handler and if a line is currently open
         let activeClickHandler = null;
+        let isLineOpen = false;
 
         // Make lines editable on click (only when in edit mode)
         document.addEventListener('click', (e) => {
@@ -789,27 +790,31 @@ That [Em]saved a [D]wretch like [G]me
 
             let editableLine = e.target.closest('.editable-line');
             if (editableLine && isEditMode) {
-                // Store the line index before any DOM changes
-                const clickedLineIndex = editableLine.getAttribute('data-line-index');
-
-                // Close any existing open line first by re-rendering
-                const existingModal = document.getElementById('lineEditModal');
-                if (existingModal) {
+                // If a line is already open, just close it without opening the new one
+                if (isLineOpen) {
                     // Remove any existing click handler
                     if (activeClickHandler) {
                         document.removeEventListener('click', activeClickHandler);
                         activeClickHandler = null;
                     }
-                    // Re-render to close the previous line
-                    updateOutput();
 
-                    // Get fresh reference to the line after re-render
-                    const allLines = document.querySelectorAll('.editable-line');
-                    editableLine = Array.from(allLines).find(line =>
-                        line.getAttribute('data-line-index') === clickedLineIndex
-                    );
+                    // Find the line with editing class and trigger close animation
+                    const openLine = document.querySelector('.editable-line.editing');
+                    if (openLine) {
+                        openLine.classList.remove('editing');
+                        openLine.classList.add('closing');
+                        const openModal = document.getElementById('lineEditModal');
+                        if (openModal) {
+                            openModal.classList.remove('show');
+                        }
 
-                    if (!editableLine) return;
+                        // Re-render after animation completes
+                        setTimeout(() => {
+                            updateOutput();
+                            isLineOpen = false;
+                        }, 200);
+                    }
+                    return; // Don't open the clicked line
                 }
 
                 // Check if this line already has an input field
@@ -876,6 +881,7 @@ That [Em]saved a [D]wretch like [G]me
                 setTimeout(() => {
                     editableLine.classList.add('editing');
                     modal.classList.add('show');
+                    isLineOpen = true; // Mark that a line is now open
                 }, 50);
 
                 // Hide fixed UI elements when input is focused (for virtual keyboard)
@@ -943,6 +949,7 @@ That [Em]saved a [D]wretch like [G]me
                     // Re-render after animation completes
                     setTimeout(() => {
                         updateOutput();
+                        isLineOpen = false; // Mark that no line is open
                     }, 200);
                 };
 
