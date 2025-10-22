@@ -696,9 +696,9 @@ That [Em]saved a [D]wretch like [G]me
                     const scaleRatio = targetWidth / maxContentWidth;
                     currentFontSize = Math.floor(30 * scaleRatio);
 
-                    // On mobile, be more aggressive - add 12% buffer to account for measurement inaccuracies
-                    // On desktop, use smaller 5% buffer
-                    const bufferMultiplier = isMobile ? 1.12 : 1.05;
+                    // On mobile, use smaller buffer to prevent overflow in edit mode
+                    // On desktop, use 5% buffer
+                    const bufferMultiplier = isMobile ? 1.08 : 1.05;
                     currentFontSize = Math.floor(currentFontSize * bufferMultiplier);
 
                     // Cap at reasonable maximum and minimum
@@ -1067,18 +1067,20 @@ That [Em]saved a [D]wretch like [G]me
                 // Set explicit font-size to prevent overflow on aggressively scaled content
                 // Use smaller font on mobile to prevent overflow
                 const isMobileView = window.innerWidth <= 768;
-                inputField.style.fontSize = isMobileView ? '14px' : '16px';
+                inputField.style.fontSize = isMobileView ? '12px' : '16px';
                 inputField.style.maxWidth = '100%';
                 inputField.style.boxSizing = 'border-box';
                 inputField.style.width = '100%';
+                inputField.style.overflowX = 'auto';
 
                 // Clear the line content but keep structure
                 editableLine.innerHTML = '';
 
                 // Set a fixed small font size on the editable line to prevent overflow
                 // This overrides the parent's aggressive scaling
-                editableLine.style.fontSize = isMobileView ? '14px' : '16px';
+                editableLine.style.fontSize = isMobileView ? '12px' : '16px';
                 editableLine.style.maxWidth = '100%';
+                editableLine.style.overflowX = 'auto';
 
                 // Add modal first (if exists), then input
                 if (modal) {
