@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
+            darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
@@ -30,43 +31,22 @@
             font-size: 1em;
         }
         .line-edit-modal {
-            position: absolute;
-            bottom: 100%;
+            position: fixed;
+            top: 0;
             left: 0;
             right: 0;
+            width: 100%;
             min-height: 80px;
             opacity: 1;
+            z-index: 60;
             transform: translateY(0);
         }
         .line-edit-modal.hide {
             opacity: 0;
-            transform: translateY(10px);
+            transform: translateY(-20px);
             transition: opacity 0.4s ease-in-out, transform 0.4s ease-in-out;
         }
-        /* Keyframe animation for margin push */
-        @keyframes pushDown {
-            from {
-                margin-top: 0px;
-            }
-            to {
-                margin-top: 90px;
-            }
-        }
-        @keyframes pushUp {
-            from {
-                margin-top: 90px;
-            }
-            to {
-                margin-top: 0px;
-            }
-        }
-        /* Add top margin to line when editing to push content up */
-        .editable-line.editing {
-            animation: pushDown 0.4s ease-in-out forwards;
-        }
-        .editable-line.closing {
-            animation: pushUp 0.4s ease-in-out forwards;
-        }
+        /* No animation needed for line - modal is fixed at top */
         /* Only show hover and cursor pointer when in edit mode */
         body.in-edit-mode .editable-line {
             cursor: pointer;
@@ -89,6 +69,16 @@
             font-size: 0.85em;
             top: -1.2em;
             white-space: nowrap;
+        }
+        /* Make chords clickable when line is being edited */
+        .editable-line.line-editing .chord {
+            cursor: pointer;
+            padding: 2px 4px;
+            margin: -2px -4px;
+            border-radius: 3px;
+        }
+        .editable-line.line-editing .chord:hover {
+            background-color: rgba(93, 92, 222, 0.2);
         }
         .dark .chord {
             color: #8B7CF6;
@@ -207,6 +197,14 @@
                         </svg>
                     </button>
                 </div>
+
+                <!-- Dark/Light Mode Toggle -->
+                <div class="flex items-center justify-between p-3 bg-gray-100 dark:bg-gray-800 rounded-lg mb-4">
+                    <span class="text-sm font-medium">Dark Mode</span>
+                    <button id="darkModeToggle" class="relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none bg-gray-300 dark:bg-primary">
+                        <span id="darkModeToggleCircle" class="inline-block w-4 h-4 transform transition-transform bg-white rounded-full translate-x-1 dark:translate-x-6"></span>
+                    </button>
+                </div>
             </div>
 
 
@@ -301,15 +299,22 @@ That [G]saved a [Em]wretch like [D]me
     </div>
 
     <script>
-        // Dark mode detection
+        // Dark mode management (using variable since localStorage not available in iframe)
+        let darkModePreference = null; // null = system preference, 'dark' or 'light' = user choice
+
+        // Initialize dark mode based on system preference
         if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
             document.documentElement.classList.add('dark');
         }
+
+        // Listen to system preference changes only if user hasn't set a manual preference
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
-            if (event.matches) {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
+            if (darkModePreference === null) {
+                if (event.matches) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
             }
         });
 
@@ -504,9 +509,24 @@ That [Em]saved a [D]wretch like [G]me
                 }
 
                 // Extract chord
-                const chord = line.substring(chordStart + 1, chordEnd);
+                const chordRaw = line.substring(chordStart + 1, chordEnd);
+
+                // Parse custom rule: extract number in parentheses [A(4)]
+                let displayChord = chordRaw;
+                const parenMatch = chordRaw.match(/^(.+)\(([1-4])\)$/);
+                if (parenMatch) {
+                    const chordName = parenMatch[1];
+                    const number = parenMatch[2];
+                    // If number is 4, hide it; otherwise show it
+                    if (number === '4') {
+                        displayChord = chordName;
+                    } else {
+                        displayChord = `${chordName}(${number})`;
+                    }
+                }
+
                 chords.push({
-                    chord: chord,
+                    chord: displayChord,
                     position: lyricPosition
                 });
 
@@ -698,7 +718,7 @@ That [Em]saved a [D]wretch like [G]me
 
                     // On mobile, use smaller buffer to prevent overflow in edit mode
                     // On desktop, use 5% buffer
-                    const bufferMultiplier = isMobile ? 1.08 : 1.05;
+                    const bufferMultiplier = isMobile ? 1.05 : 1.05;
                     currentFontSize = Math.floor(currentFontSize * bufferMultiplier);
 
                     // Cap at reasonable maximum and minimum
@@ -865,6 +885,21 @@ That [Em]saved a [D]wretch like [G]me
         closeMenu.addEventListener('click', closeMenuFunc);
         menuOverlay.addEventListener('click', closeMenuFunc);
 
+        // Dark mode toggle
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        if (darkModeToggle) {
+            darkModeToggle.addEventListener('click', () => {
+                const isDark = document.documentElement.classList.contains('dark');
+                if (isDark) {
+                    document.documentElement.classList.remove('dark');
+                    darkModePreference = 'light';
+                } else {
+                    document.documentElement.classList.add('dark');
+                    darkModePreference = 'dark';
+                }
+            });
+        }
+
         // Auto-scroll functions
         function startScroll() {
             if (!isScrolling) {
@@ -980,30 +1015,75 @@ That [Em]saved a [D]wretch like [G]me
 
             let editableLine = e.target.closest('.editable-line');
             if (editableLine && isEditMode) {
-                // If a line is already open, just close it without opening the new one
+                // If a line is already open, save it before closing
                 if (isLineOpen) {
+                    // Find the open input field
+                    const openInput = document.querySelector('.editable-line input');
+                    if (openInput) {
+                        const newValue = openInput.value;
+
+                        // Get the metadata type or line index from the parent
+                        const openLine = openInput.closest('.editable-line');
+                        const openMetadataType = openLine ? openLine.getAttribute('data-metadata') : null;
+                        const openLineIndex = openLine ? openLine.getAttribute('data-line-index') : null;
+
+                        // Update the ChordPro content
+                        const lines = currentChordProContent.split('\n');
+
+                        // Handle metadata editing
+                        if (openMetadataType) {
+                            for (let i = 0; i < lines.length; i++) {
+                                const line = lines[i].trim();
+                                if (line.startsWith(`{${openMetadataType}:`)) {
+                                    lines[i] = newValue;
+                                    break;
+                                }
+                            }
+                        } else if (openLineIndex !== null) {
+                            // Handle regular chord/lyric lines
+                            let currentLineIndex = 0;
+                            for (let i = 0; i < lines.length; i++) {
+                                const line = lines[i].trim();
+                                if (line.includes('[') && line.includes(']') && !line.startsWith('{')) {
+                                    if (currentLineIndex == openLineIndex) {
+                                        lines[i] = newValue;
+                                        break;
+                                    }
+                                    currentLineIndex++;
+                                }
+                            }
+                        }
+
+                        // Update content
+                        currentChordProContent = lines.join('\n');
+                        isProcessingInput = true;
+                        input.value = currentChordProContent;
+                        isProcessingInput = false;
+                    }
+
                     // Remove any existing click handler
                     if (activeClickHandler) {
                         document.removeEventListener('click', activeClickHandler);
                         activeClickHandler = null;
                     }
 
-                    // Find the line with editing class and trigger close animation
-                    const openLine = document.querySelector('.editable-line.editing');
-                    if (openLine) {
-                        openLine.classList.remove('editing');
-                        openLine.classList.add('closing');
-                        const openModal = document.getElementById('lineEditModal');
-                        if (openModal) {
-                            openModal.classList.add('hide');
-                        }
-
-                        // Re-render after animation completes (skip auto-scale to avoid glitch)
+                    // Close the modal if open
+                    const openModal = document.getElementById('lineEditModal');
+                    if (openModal) {
+                        openModal.classList.add('hide');
+                        // Remove modal from body after animation
                         setTimeout(() => {
-                            updateOutput(true); // true = skip auto-scale
-                            isLineOpen = false;
+                            if (openModal && openModal.parentNode) {
+                                openModal.parentNode.removeChild(openModal);
+                            }
                         }, 400);
                     }
+
+                    // Re-render after modal animation completes (skip auto-scale to avoid glitch)
+                    setTimeout(() => {
+                        updateOutput(true); // true = skip auto-scale
+                        isLineOpen = false;
+                    }, 400);
                     return; // Don't open the clicked line
                 }
 
@@ -1030,9 +1110,10 @@ That [Em]saved a [D]wretch like [G]me
 
                     modal = document.createElement('div');
                     modal.id = 'lineEditModal';
-                    modal.className = 'line-edit-modal bg-white dark:bg-gray-800 border-2 border-primary rounded-lg shadow-2xl p-2 sm:p-4';
-                    // Set explicit font-size to prevent overflow on aggressively scaled content
+                    modal.className = 'line-edit-modal bg-white dark:bg-gray-800 shadow-2xl p-3 sm:p-4';
+                    // Set explicit font-size
                     modal.style.fontSize = '14px';
+                    modal.style.borderBottom = '2px solid #5D5CDE';
 
                     // Modal content - show existing chords
                     let modalContent = '';
@@ -1056,6 +1137,81 @@ That [Em]saved a [D]wretch like [G]me
                             </div>
                         `;
                     }
+
+                    // Add help button and chord notation examples in the right
+                    modalContent += `
+                        <div class="mt-3 flex items-center justify-end gap-2">
+                            <button class="example-chord-btn px-3 py-1 bg-primary text-white rounded hover:bg-primary/80 transition-colors text-sm font-mono" data-example="[?]">
+                                [?]
+                            </button>
+                            <button class="example-chord-btn px-3 py-1 bg-primary text-white rounded hover:bg-primary/80 transition-colors text-sm font-mono" data-example="[?(?)]">
+                                [?(?)]
+                            </button>
+                            <button id="modalHelpButton" class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white hover:bg-primary/80 transition-colors text-sm font-bold">
+                                ?
+                            </button>
+                        </div>
+                        <div id="syntaxGuide" class="hidden mt-3 pt-3 border-t border-gray-300 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-300 max-h-80 overflow-y-auto">
+                            <div class="font-bold mb-3 text-primary dark:text-purple-400">ChordPro Syntax Reference</div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                <!-- Column 1: Chords + Comments -->
+                                <div>
+                                    <div class="mb-3">
+                                        <div class="font-semibold mb-1 text-xs uppercase">Chords:</div>
+                                        <ul class="space-y-1 text-xs ml-2">
+                                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">[Am]word</code></li>
+                                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">[G]</code></li>
+                                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">word[C]</code></li>
+                                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">[A(4)]</code> → A (hidden)</li>
+                                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">[G(2)]</code> → G(2) (shown)</li>
+                                        </ul>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <div class="font-semibold mb-1 text-xs uppercase">Comments:</div>
+                                        <ul class="space-y-1 text-xs ml-2">
+                                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{comment:}</code> <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{c:}</code></li>
+                                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">#</code></li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <!-- Column 2: Metadata -->
+                                <div>
+                                    <div class="mb-3">
+                                        <div class="font-semibold mb-1 text-xs uppercase">Metadata:</div>
+                                        <ul class="space-y-1 text-xs ml-2">
+                                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{title:}</code> <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{t:}</code></li>
+                                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{subtitle:}</code> <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{st:}</code></li>
+                                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{artist:}</code></li>
+                                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{composer:}</code></li>
+                                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{key:}</code></li>
+                                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{capo:}</code></li>
+                                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{tempo:}</code></li>
+                                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{time:}</code></li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <!-- Column 3: Sections -->
+                                <div>
+                                    <div class="mb-3">
+                                        <div class="font-semibold mb-1 text-xs uppercase">Sections:</div>
+                                        <ul class="space-y-1 text-xs ml-2">
+                                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{start_of_verse}</code> <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{sov}</code></li>
+                                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{end_of_verse}</code> <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{eov}</code></li>
+                                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{start_of_chorus}</code> <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{soc}</code></li>
+                                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{end_of_chorus}</code> <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{eoc}</code></li>
+                                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{start_of_bridge}</code> <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{sob}</code></li>
+                                            <li><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{end_of_bridge}</code> <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{eob}</code></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
                     modal.innerHTML = modalContent;
                 }
 
@@ -1063,38 +1219,175 @@ That [Em]saved a [D]wretch like [G]me
                 const inputField = document.createElement('input');
                 inputField.type = 'text';
                 inputField.value = chordProText;
-                inputField.className = 'w-full p-1 sm:p-2 border-2 border-primary rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-mono text-center';
-                // Set explicit font-size to prevent overflow on aggressively scaled content
-                // Use smaller font on mobile to prevent overflow
+                inputField.className = 'p-1 sm:p-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-mono text-center';
+
+                // Calculate actual scaled font size (base 16px * currentFontSize%)
+                const scaledFontSize = Math.floor(16 * currentFontSize / 100);
                 const isMobileView = window.innerWidth <= 768;
-                inputField.style.fontSize = isMobileView ? '12px' : '16px';
-                inputField.style.maxWidth = '100%';
+
+                // On mobile, check if scaled size would cause overflow
+                // Use scaled size but cap it to prevent overflow
+                let inputFontSize = scaledFontSize;
+                if (isMobileView && scaledFontSize > 18) {
+                    // If too large, scale it down but keep it proportional
+                    inputFontSize = Math.max(14, Math.floor(scaledFontSize * 0.75));
+                }
+
+                inputField.style.fontSize = inputFontSize + 'px';
                 inputField.style.boxSizing = 'border-box';
-                inputField.style.width = '100%';
+                inputField.style.width = '100vw';
+                inputField.style.marginLeft = 'calc(-50vw + 50%)';
                 inputField.style.overflowX = 'auto';
+                // Option 6: Double Shadow (Top & Bottom Inset) - Full width
+                const isDarkMode = document.documentElement.classList.contains('dark');
+                inputField.style.boxShadow = isDarkMode
+                    ? 'inset 0 2px 6px rgba(0, 0, 0, 0.5), inset 0 -2px 4px rgba(93, 92, 222, 0.2)'
+                    : 'inset 0 2px 4px rgba(93, 92, 222, 0.4), inset 0 -2px 4px rgba(93, 92, 222, 0.2)';
+                inputField.style.border = 'none';
+                inputField.style.outline = 'none';
 
                 // Clear the line content but keep structure
                 editableLine.innerHTML = '';
 
-                // Set a fixed small font size on the editable line to prevent overflow
-                // This overrides the parent's aggressive scaling
-                editableLine.style.fontSize = isMobileView ? '12px' : '16px';
-                editableLine.style.maxWidth = '100%';
+                // Set the editable line to use the same font size as input
+                editableLine.style.fontSize = inputFontSize + 'px';
                 editableLine.style.overflowX = 'auto';
 
-                // Add modal first (if exists), then input
-                if (modal) {
-                    editableLine.appendChild(modal);
-                }
+                // Add input to the line
                 editableLine.appendChild(inputField);
-                editableLine.classList.remove('cursor-pointer', 'hover:bg-gray-100', 'dark:hover:bg-gray-800');
 
-                // Trigger animation after a delay
-                setTimeout(() => {
-                    editableLine.classList.add('editing');
-                    // Modal appears instantly (no opening animation)
-                    isLineOpen = true; // Mark that a line is now open
-                }, 50);
+                // Add modal to body (if exists) so it's fixed at top of screen
+                if (modal) {
+                    document.body.appendChild(modal);
+
+                    // Add event listener for help button
+                    const helpButton = document.getElementById('modalHelpButton');
+                    const syntaxGuide = document.getElementById('syntaxGuide');
+                    if (helpButton && syntaxGuide) {
+                        helpButton.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            syntaxGuide.classList.toggle('hidden');
+                        });
+                    }
+
+                    // Add event listeners for example chord buttons
+                    const exampleButtons = modal.querySelectorAll('.example-chord-btn');
+                    exampleButtons.forEach(button => {
+                        button.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const example = button.getAttribute('data-example');
+                            const cursorPos = inputField.selectionStart;
+                            const textBefore = inputField.value.substring(0, cursorPos);
+                            const textAfter = inputField.value.substring(cursorPos);
+
+                            // Insert example at cursor position
+                            inputField.value = textBefore + example + textAfter;
+
+                            // Select the first ? placeholder for easy replacement
+                            // For [?], the ? is at position 1 (after [)
+                            // For [?(?)], the ? is at position 1 (after [)
+                            const questionMarkPos = cursorPos + 1; // Position of first ?
+                            inputField.setSelectionRange(questionMarkPos, questionMarkPos + 1);
+                            inputField.focus();
+
+                            // For [?(?)] pattern, auto-select second ? after first is replaced
+                            if (example === '[?(?)]') {
+                                const autoSelectSecondPlaceholder = (event) => {
+                                    // Wait a tiny bit for the input to update
+                                    setTimeout(() => {
+                                        const currentValue = inputField.value;
+                                        const insertPos = cursorPos;
+
+                                        // Find the second ? in the pattern [X(?)]
+                                        // It should be at position: insertPos + chord_length + 2
+                                        // Example: if we inserted at position 0: [G(?)]
+                                        // Second ? is at position: 0 + 1 (for '[') + 1 (for 'G') + 1 (for '(') = 3
+                                        const searchStart = insertPos + 1; // Start after the opening [
+                                        const remainingText = currentValue.substring(searchStart);
+                                        const secondQuestionPos = remainingText.indexOf('?');
+
+                                        if (secondQuestionPos !== -1) {
+                                            const actualPos = searchStart + secondQuestionPos;
+                                            inputField.setSelectionRange(actualPos, actualPos + 1);
+                                        }
+
+                                        // Remove this listener after first use
+                                        inputField.removeEventListener('input', autoSelectSecondPlaceholder);
+                                    }, 10);
+                                };
+
+                                inputField.addEventListener('input', autoSelectSecondPlaceholder);
+                            }
+                        });
+                    });
+                }
+
+                editableLine.classList.remove('cursor-pointer', 'hover:bg-gray-100', 'dark:hover:bg-gray-800');
+                editableLine.classList.add('line-editing');
+
+                // Mark that a line is now open (no animation needed since modal is fixed at top)
+                isLineOpen = true;
+
+                // When clicking in the input field, check if click is inside or on a chord bracket
+                // and auto-select the chord content
+                inputField.addEventListener('click', (e) => {
+                    const clickPos = inputField.selectionStart;
+                    const value = inputField.value;
+
+                    // Find if cursor is inside or on a chord pattern [...]
+                    let bracketStart = -1;
+                    let bracketEnd = -1;
+                    let checkPos = clickPos;
+
+                    // If clicked on ']', move back one position to find the opening bracket
+                    if (value[clickPos] === ']' || (clickPos > 0 && value[clickPos - 1] === ']')) {
+                        checkPos = value[clickPos] === ']' ? clickPos : clickPos - 1;
+                        // Search backwards from the closing bracket
+                        for (let i = checkPos - 1; i >= 0; i--) {
+                            if (value[i] === '[') {
+                                bracketStart = i;
+                                bracketEnd = checkPos;
+                                break;
+                            } else if (value[i] === ']') {
+                                // Found another closing bracket, not valid
+                                break;
+                            }
+                        }
+                    } else {
+                        // Search backwards for opening bracket (including if we're on '[')
+                        for (let i = checkPos; i >= 0; i--) {
+                            if (value[i] === '[') {
+                                bracketStart = i;
+                                break;
+                            } else if (value[i] === ']' && i < checkPos) {
+                                // Found a closing bracket before opening, not inside a chord
+                                break;
+                            }
+                        }
+
+                        // Search forwards for closing bracket
+                        if (bracketStart !== -1) {
+                            for (let i = Math.max(checkPos, bracketStart + 1); i < value.length; i++) {
+                                if (value[i] === ']') {
+                                    bracketEnd = i;
+                                    break;
+                                } else if (value[i] === '[') {
+                                    // Found another opening bracket, invalid
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    // If we found a valid chord pattern, select the content
+                    if (bracketStart !== -1 && bracketEnd !== -1 && bracketEnd > bracketStart + 1) {
+                        const contentStart = bracketStart + 1;
+                        const contentEnd = bracketEnd;
+                        inputField.setSelectionRange(contentStart, contentEnd);
+                    }
+                });
 
                 // Hide fixed UI elements when input is focused (for virtual keyboard)
                 inputField.addEventListener('focus', () => {
@@ -1172,14 +1465,18 @@ That [Em]saved a [D]wretch like [G]me
                     input.value = currentChordProContent;
                     isProcessingInput = false;
 
-                    // Trigger closing animation
-                    editableLine.classList.remove('editing');
-                    editableLine.classList.add('closing');
+                    // Trigger modal closing animation
                     if (modal) {
                         modal.classList.add('hide');
+                        // Remove modal from body after animation
+                        setTimeout(() => {
+                            if (modal && modal.parentNode) {
+                                modal.parentNode.removeChild(modal);
+                            }
+                        }, 400);
                     }
 
-                    // Re-render after animation completes (skip auto-scale to avoid glitch)
+                    // Re-render after modal animation completes (skip auto-scale to avoid glitch)
                     setTimeout(() => {
                         updateOutput(true); // true = skip auto-scale
                         isLineOpen = false; // Mark that no line is open
