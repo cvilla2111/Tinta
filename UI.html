@@ -763,6 +763,150 @@
         const undoStack = [];
         const redoStack = [];
 
+        // Quadtree for spatial indexing
+        class Quadtree {
+            constructor(bounds, capacity = 4, maxDepth = 8, depth = 0) {
+                this.bounds = bounds; // {x, y, width, height}
+                this.capacity = capacity;
+                this.maxDepth = maxDepth;
+                this.depth = depth;
+                this.strokes = [];
+                this.divided = false;
+                this.northeast = null;
+                this.northwest = null;
+                this.southeast = null;
+                this.southwest = null;
+            }
+
+            subdivide() {
+                const x = this.bounds.x;
+                const y = this.bounds.y;
+                const w = this.bounds.width / 2;
+                const h = this.bounds.height / 2;
+                const nextDepth = this.depth + 1;
+
+                this.northeast = new Quadtree({x: x + w, y: y, width: w, height: h}, this.capacity, this.maxDepth, nextDepth);
+                this.northwest = new Quadtree({x: x, y: y, width: w, height: h}, this.capacity, this.maxDepth, nextDepth);
+                this.southeast = new Quadtree({x: x + w, y: y + h, width: w, height: h}, this.capacity, this.maxDepth, nextDepth);
+                this.southwest = new Quadtree({x: x, y: y + h, width: w, height: h}, this.capacity, this.maxDepth, nextDepth);
+                this.divided = true;
+            }
+
+            insert(stroke) {
+                if (!this.intersects(stroke.bounds)) {
+                    return false;
+                }
+
+                // If we haven't hit capacity or max depth, store here
+                if (this.strokes.length < this.capacity && !this.divided) {
+                    this.strokes.push(stroke);
+                    return true;
+                }
+
+                // If we're at max depth, just store it here even if over capacity
+                if (this.depth >= this.maxDepth) {
+                    this.strokes.push(stroke);
+                    return true;
+                }
+
+                // Subdivide if not already divided
+                if (!this.divided) {
+                    this.subdivide();
+                    // Move existing strokes to subdivisions
+                    const existingStrokes = [...this.strokes];
+                    this.strokes = [];
+                    existingStrokes.forEach(s => {
+                        // Only insert if the stroke intersects this quadrant
+                        if (this.northeast.intersects(s.bounds)) this.northeast.insert(s);
+                        if (this.northwest.intersects(s.bounds)) this.northwest.insert(s);
+                        if (this.southeast.intersects(s.bounds)) this.southeast.insert(s);
+                        if (this.southwest.intersects(s.bounds)) this.southwest.insert(s);
+                    });
+                }
+
+                // Insert into intersecting quadrants only
+                let inserted = false;
+                if (this.northeast.intersects(stroke.bounds)) inserted = this.northeast.insert(stroke) || inserted;
+                if (this.northwest.intersects(stroke.bounds)) inserted = this.northwest.insert(stroke) || inserted;
+                if (this.southeast.intersects(stroke.bounds)) inserted = this.southeast.insert(stroke) || inserted;
+                if (this.southwest.intersects(stroke.bounds)) inserted = this.southwest.insert(stroke) || inserted;
+
+                return inserted;
+            }
+
+            query(range, found = []) {
+                if (!this.intersectsRange(range)) {
+                    return found;
+                }
+
+                // Use Set to avoid duplicates (strokes can be in multiple quadrants)
+                const foundSet = found instanceof Set ? found : new Set(found);
+
+                for (const stroke of this.strokes) {
+                    if (this.intersectsRange(range, stroke.bounds)) {
+                        foundSet.add(stroke);
+                    }
+                }
+
+                if (this.divided) {
+                    this.northeast.query(range, foundSet);
+                    this.northwest.query(range, foundSet);
+                    this.southeast.query(range, foundSet);
+                    this.southwest.query(range, foundSet);
+                }
+
+                return foundSet instanceof Set ? Array.from(foundSet) : found;
+            }
+
+            intersects(bounds) {
+                return !(bounds.x > this.bounds.x + this.bounds.width ||
+                        bounds.x + bounds.width < this.bounds.x ||
+                        bounds.y > this.bounds.y + this.bounds.height ||
+                        bounds.y + bounds.height < this.bounds.y);
+            }
+
+            intersectsRange(range, strokeBounds = null) {
+                const bounds = strokeBounds || this.bounds;
+                return !(range.x > bounds.x + bounds.width ||
+                        range.x + range.width < bounds.x ||
+                        range.y > bounds.y + bounds.height ||
+                        range.y + bounds.height < bounds.y);
+            }
+
+            clear() {
+                this.strokes = [];
+                this.divided = false;
+                this.northeast = null;
+                this.northwest = null;
+                this.southeast = null;
+                this.southwest = null;
+            }
+        }
+
+        // Initialize quadtree
+        let quadtree = new Quadtree({
+            x: 0,
+            y: 0,
+            width: window.innerWidth,
+            height: window.innerHeight
+        });
+
+        // Rebuild quadtree on resize
+        window.addEventListener('resize', () => {
+            const newQuadtree = new Quadtree({
+                x: 0,
+                y: 0,
+                width: window.innerWidth,
+                height: window.innerHeight
+            });
+            strokes.forEach(stroke => {
+                if (stroke.bounds) {
+                    newQuadtree.insert(stroke);
+                }
+            });
+            quadtree = newQuadtree;
+        });
+
         // Set SVG viewBox
         function resizeSVG() {
             svg.setAttribute('viewBox', `0 0 ${window.innerWidth} ${window.innerHeight}`);
@@ -859,46 +1003,170 @@
             currentPath.setAttribute('d', pathData);
         }
 
-        // Check if a point is near a path (for erasing)
-        function isPointNearPath(point, pathElement, threshold) {
+        // Quick AABB check before expensive path sampling
+        function isPointNearBounds(point, bounds, threshold) {
+            return point.x >= bounds.x - threshold &&
+                   point.x <= bounds.x + bounds.width + threshold &&
+                   point.y >= bounds.y - threshold &&
+                   point.y <= bounds.y + bounds.height + threshold;
+        }
+
+        // Performance counters
+        let perfStats = {
+            bboxChecks: 0,
+            bboxRejections: 0,
+            pathSamples: 0,
+            pathHits: 0
+        };
+
+        // Check if a point is near a path (FAST version using stored points)
+        function isPointNearPath(point, stroke, threshold) {
             try {
-                const pathLength = pathElement.getTotalLength();
-                const samples = Math.max(20, Math.floor(pathLength / 5));
+                perfStats.bboxChecks++;
 
-                for (let i = 0; i <= samples; i++) {
-                    const pathPoint = pathElement.getPointAtLength((i / samples) * pathLength);
-                    const dx = pathPoint.x - point.x;
-                    const dy = pathPoint.y - point.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
+                // Quick bounding box check first (very fast)
+                if (!isPointNearBounds(point, stroke.bounds, threshold)) {
+                    perfStats.bboxRejections++;
+                    return false;
+                }
 
-                    if (distance < threshold) {
+                perfStats.pathSamples++;
+
+                // Check against stored points array (MUCH faster than SVG path methods)
+                if (!stroke.points || stroke.points.length === 0) {
+                    return false;
+                }
+
+                const thresholdSquared = threshold * threshold;
+
+                // Sample every few points to keep it fast
+                const step = Math.max(1, Math.floor(stroke.points.length / 20));
+
+                for (let i = 0; i < stroke.points.length; i += step) {
+                    const p = stroke.points[i];
+                    const dx = p.x - point.x;
+                    const dy = p.y - point.y;
+                    const distSquared = dx * dx + dy * dy;
+
+                    if (distSquared < thresholdSquared) {
+                        perfStats.pathHits++;
                         return true;
                     }
                 }
+
                 return false;
             } catch (e) {
                 return false;
             }
         }
 
-        // Erase strokes that intersect with eraser path
+        // Calculate bounding box for a path element
+        function calculatePathBounds(pathElement) {
+            try {
+                const bbox = pathElement.getBBox();
+                return {
+                    x: bbox.x,
+                    y: bbox.y,
+                    width: bbox.width,
+                    height: bbox.height
+                };
+            } catch (e) {
+                return {x: 0, y: 0, width: 0, height: 0};
+            }
+        }
+
+        // Erase strokes that intersect with eraser path (optimized with quadtree)
         function eraseIntersectingStrokes(eraserPoints, eraserRadius) {
-            const strokesToRemove = [];
+            const t0 = performance.now();
+            const strokesToRemove = new Set();
+
+            // Reset perf stats
+            perfStats = {
+                bboxChecks: 0,
+                bboxRejections: 0,
+                pathSamples: 0,
+                pathHits: 0
+            };
+
+            const t1 = performance.now();
+            let queryTime = 0;
+            let collisionTime = 0;
 
             eraserPoints.forEach(eraserPoint => {
-                strokes.forEach((stroke, index) => {
-                    if (strokesToRemove.includes(index)) return;
+                // Query quadtree for nearby strokes
+                const qt0 = performance.now();
+                const range = {
+                    x: eraserPoint.x - eraserRadius,
+                    y: eraserPoint.y - eraserRadius,
+                    width: eraserRadius * 2,
+                    height: eraserRadius * 2
+                };
 
-                    if (isPointNearPath(eraserPoint, stroke.element, eraserRadius)) {
-                        strokesToRemove.push(index);
+                const nearbyStrokes = quadtree.query(range);
+                queryTime += performance.now() - qt0;
+
+                const ct0 = performance.now();
+                nearbyStrokes.forEach(stroke => {
+                    // Skip if already marked for removal
+                    if (strokesToRemove.has(stroke)) {
+                        return;
+                    }
+
+                    if (isPointNearPath(eraserPoint, stroke, eraserRadius)) {
+                        strokesToRemove.add(stroke);
                     }
                 });
+                collisionTime += performance.now() - ct0;
             });
 
-            strokesToRemove.sort((a, b) => b - a).forEach(index => {
-                strokes[index].element.remove();
-                strokes.splice(index, 1);
-            });
+            const t2 = performance.now();
+
+            // Remove strokes and rebuild quadtree only if needed
+            let domRemovalTime = 0;
+            let rebuildTime = 0;
+
+            if (strokesToRemove.size > 0) {
+                const dr0 = performance.now();
+                // Remove from DOM and strokes array
+                strokesToRemove.forEach(stroke => {
+                    stroke.element.remove();
+                    const index = strokes.indexOf(stroke);
+                    if (index > -1) {
+                        strokes.splice(index, 1);
+                    }
+                });
+                domRemovalTime = performance.now() - dr0;
+
+                // Rebuild quadtree only when many strokes removed (threshold: 10% of total or >5 strokes)
+                const removalThreshold = Math.max(5, Math.floor(strokes.length * 0.1));
+                if (strokesToRemove.size >= removalThreshold || strokes.length < 50) {
+                    const rb0 = performance.now();
+                    quadtree.clear();
+                    strokes.forEach(stroke => {
+                        if (stroke.bounds) {
+                            quadtree.insert(stroke);
+                        }
+                    });
+                    rebuildTime = performance.now() - rb0;
+                }
+            }
+
+            const totalTime = performance.now() - t0;
+
+            // Log detailed performance stats every 30 erase calls
+            if (Math.random() < 0.03) {
+                const avgPointsPerStroke = strokes.length > 0 ?
+                    Math.round(strokes.reduce((sum, s) => sum + (s.points?.length || 0), 0) / strokes.length) : 0;
+
+                console.log(`PERF BREAKDOWN:
+  Total: ${totalTime.toFixed(2)}ms
+  - Query: ${queryTime.toFixed(2)}ms
+  - Collision: ${collisionTime.toFixed(2)}ms
+  - DOM removal: ${domRemovalTime.toFixed(2)}ms
+  - Rebuild: ${rebuildTime.toFixed(2)}ms
+  Stats: ${strokes.length} strokes | ${eraserPoints.length} eraser pts | Avg ${avgPointsPerStroke} pts/stroke
+  Checks: ${perfStats.bboxChecks} bbox | ${perfStats.bboxRejections} rejected | ${perfStats.pathSamples} sampled | ${perfStats.pathHits} hits`);
+            }
         }
 
         // Detect if using pen eraser
@@ -919,6 +1187,19 @@
             }
         }
 
+        // Throttle erase operations using requestAnimationFrame
+        let pendingErasePoints = [];
+        let eraseScheduled = false;
+        let eraseRadius = currentSize * 3;
+
+        function processEraseQueue() {
+            if (pendingErasePoints.length > 0) {
+                eraseIntersectingStrokes(pendingErasePoints, eraseRadius);
+                pendingErasePoints = [];
+            }
+            eraseScheduled = false;
+        }
+
         // Pointer events
         svg.addEventListener('pointerdown', (e) => {
             // Ignore touch input (finger), only allow pen and mouse
@@ -934,6 +1215,8 @@
                 currentPath = null;
                 updateEraserCursorSize();
                 updateEraserCursorPosition(points[0], true);
+                eraseRadius = currentSize * 3;
+                pendingErasePoints = [];
             } else {
                 currentPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 currentPath.setAttribute('fill', 'none');
@@ -967,7 +1250,14 @@
             points.push(point);
 
             if (effectiveTool === 'eraser') {
-                eraseIntersectingStrokes([point], currentSize * 3);
+                // Batch erase points instead of processing immediately
+                pendingErasePoints.push(point);
+
+                // Schedule processing if not already scheduled
+                if (!eraseScheduled) {
+                    eraseScheduled = true;
+                    requestAnimationFrame(processEraseQueue);
+                }
             } else {
                 updateCurrentPath();
             }
@@ -978,13 +1268,28 @@
             if (e.pointerType === 'touch') return;
 
             if (isDrawing) {
+                // Process any remaining erase points immediately
+                if (pendingErasePoints.length > 0) {
+                    eraseIntersectingStrokes(pendingErasePoints, eraseRadius);
+                    pendingErasePoints = [];
+                    eraseScheduled = false;
+                }
+
                 if (currentPath) {
                     updateCurrentPath();
-                    strokes.push({
+
+                    // Calculate bounding box and add to quadtree
+                    const bounds = calculatePathBounds(currentPath);
+                    const strokeData = {
                         element: currentPath,
                         color: currentColor,
-                        size: currentSize
-                    });
+                        size: currentSize,
+                        bounds: bounds,
+                        points: [...points] // Store points for fast collision detection
+                    };
+
+                    strokes.push(strokeData);
+                    quadtree.insert(strokeData);
                     undoStack.push({ type: 'add', stroke: currentPath });
                     redoStack.length = 0;
                 }
@@ -998,13 +1303,28 @@
             eraserCursor.style.display = 'none';
 
             if (isDrawing) {
+                // Process any remaining erase points immediately
+                if (pendingErasePoints.length > 0) {
+                    eraseIntersectingStrokes(pendingErasePoints, eraseRadius);
+                    pendingErasePoints = [];
+                    eraseScheduled = false;
+                }
+
                 if (currentPath) {
                     updateCurrentPath();
-                    strokes.push({
+
+                    // Calculate bounding box and add to quadtree
+                    const bounds = calculatePathBounds(currentPath);
+                    const strokeData = {
                         element: currentPath,
                         color: currentColor,
-                        size: currentSize
-                    });
+                        size: currentSize,
+                        bounds: bounds,
+                        points: [...points] // Store points for fast collision detection
+                    };
+
+                    strokes.push(strokeData);
+                    quadtree.insert(strokeData);
                 }
                 isDrawing = false;
                 points = [];
@@ -1251,6 +1571,7 @@
             strokes.length = 0;
             undoStack.length = 0;
             redoStack.length = 0;
+            quadtree.clear();
         });
 
         // Undo/Redo
@@ -1263,7 +1584,16 @@
                 if (action.type === 'add') {
                     action.stroke.remove();
                     const index = strokes.findIndex(s => s.element === action.stroke);
-                    if (index > -1) strokes.splice(index, 1);
+                    if (index > -1) {
+                        strokes.splice(index, 1);
+                        // Rebuild quadtree
+                        quadtree.clear();
+                        strokes.forEach(stroke => {
+                            if (stroke.bounds) {
+                                quadtree.insert(stroke);
+                            }
+                        });
+                    }
                     redoStack.push(action);
                 }
             }
@@ -1274,11 +1604,15 @@
                 const action = redoStack.pop();
                 if (action.type === 'add') {
                     drawingLayer.appendChild(action.stroke);
-                    strokes.push({
+                    const bounds = calculatePathBounds(action.stroke);
+                    const strokeData = {
                         element: action.stroke,
                         color: action.stroke.getAttribute('stroke'),
-                        size: parseInt(action.stroke.getAttribute('stroke-width'))
-                    });
+                        size: parseInt(action.stroke.getAttribute('stroke-width')),
+                        bounds: bounds
+                    };
+                    strokes.push(strokeData);
+                    quadtree.insert(strokeData);
                     undoStack.push(action);
                 }
             }
