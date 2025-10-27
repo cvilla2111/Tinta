@@ -298,10 +298,25 @@
             z-index: 1000;
             display: none;
             padding: 8px;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: opacity 0.2s ease, transform 0.2s ease;
         }
 
         .menu-modal.show {
             display: block;
+            animation: fadeSlideIn 0.2s ease forwards;
+        }
+
+        @keyframes fadeSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .menu-item {
@@ -325,10 +340,81 @@
             height: 100%;
             z-index: 999;
             display: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
         }
 
         .menu-overlay.show {
             display: block;
+            animation: fadeIn 0.2s ease forwards;
+        }
+
+        .settings-modal {
+            position: fixed;
+            left: 340px;
+            top: 160px;
+            width: 550px;
+            height: 370px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e4e4e4;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            z-index: 1001;
+            display: none;
+            padding: 20px;
+            opacity: 0;
+            transform: scale(0.95);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .settings-modal.show {
+            display: block;
+            animation: fadeScaleIn 0.2s ease forwards;
+        }
+
+        @keyframes fadeScaleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .settings-modal-header {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .settings-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .settings-overlay.show {
+            display: block;
+            animation: fadeIn 0.2s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
         }
 
         .grid-controls {
@@ -512,10 +598,19 @@
 
     <!-- Menu Modal -->
     <div class="menu-modal" id="menuModal">
-        <div class="menu-item">Settings</div>
+        <div class="menu-item" id="settingsMenuItem">Settings</div>
         <div class="menu-item">Export</div>
         <div class="menu-item">Import</div>
         <div class="menu-item">Clear Canvas</div>
+    </div>
+
+    <!-- Settings Overlay -->
+    <div class="settings-overlay" id="settingsOverlay"></div>
+
+    <!-- Settings Modal -->
+    <div class="settings-modal" id="settingsModal">
+        <div class="settings-modal-header">Settings</div>
+        <div>Settings content goes here...</div>
     </div>
 
     <!-- Snap Cursor -->
@@ -692,15 +787,36 @@
             menuOverlay.classList.remove('show');
         });
 
-        // Close menu when clicking on a menu item
+        // Settings modal functionality
+        const settingsMenuItem = document.getElementById('settingsMenuItem');
+        const settingsModal = document.getElementById('settingsModal');
+        const settingsOverlay = document.getElementById('settingsOverlay');
+
+        settingsMenuItem.addEventListener('click', () => {
+            // Close menu
+            menuModal.classList.remove('show');
+            menuOverlay.classList.remove('show');
+            // Open settings
+            settingsModal.classList.add('show');
+            settingsOverlay.classList.add('show');
+        });
+
+        settingsOverlay.addEventListener('click', () => {
+            settingsModal.classList.remove('show');
+            settingsOverlay.classList.remove('show');
+        });
+
+        // Close menu when clicking on other menu items
         const menuItems = document.querySelectorAll('.menu-item');
         menuItems.forEach(item => {
-            item.addEventListener('click', () => {
-                menuModal.classList.remove('show');
-                menuOverlay.classList.remove('show');
-                // Handle menu item action here
-                console.log('Menu item clicked:', item.textContent);
-            });
+            if (item.id !== 'settingsMenuItem') {
+                item.addEventListener('click', () => {
+                    menuModal.classList.remove('show');
+                    menuOverlay.classList.remove('show');
+                    // Handle menu item action here
+                    console.log('Menu item clicked:', item.textContent);
+                });
+            }
         });
 
         // Drawing tool selection functionality
