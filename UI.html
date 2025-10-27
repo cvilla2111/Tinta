@@ -358,7 +358,6 @@
             background: white;
             border-radius: 8px;
             border: 1px solid #e4e4e4;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
             z-index: 1001;
             display: none;
             padding: 20px;
@@ -415,6 +414,116 @@
             to {
                 opacity: 1;
             }
+        }
+
+        .color-palette {
+            position: fixed;
+            left: 770px;
+            top: 63px;
+            width: 220px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            border: 1px solid #e4e4e4;
+            z-index: 1002;
+            display: none;
+            padding: 12px;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .color-palette.show {
+            display: block;
+            animation: fadeSlideIn 0.2s ease forwards;
+        }
+
+        .color-palette-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .color-swatch {
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.1s, border-color 0.1s;
+        }
+
+        .color-swatch:hover {
+            transform: scale(1.1);
+            border-color: #9cc6d9;
+        }
+
+        .color-input-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #e4e4e4;
+        }
+
+        .color-input-label {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .color-input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .color-input {
+            width: 40px;
+            height: 28px;
+            border: 1px solid #e4e4e4;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .color-hex-input {
+            flex: 1;
+            padding: 6px 8px;
+            border: 1px solid #e4e4e4;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: monospace;
+        }
+
+        .color-indicator {
+            position: fixed;
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 6px solid #333;
+            z-index: 51;
+            display: none;
+            transform: translateX(-50%);
+        }
+
+        .color-indicator.show {
+            display: block;
+        }
+
+        .black-circle-indicator {
+            left: 770px;
+            top: 44px;
+        }
+
+        .blue-circle-indicator {
+            left: 800px;
+            top: 44px;
+        }
+
+        .red-circle-indicator {
+            left: 830px;
+            top: 44px;
         }
 
         .grid-controls {
@@ -586,6 +695,11 @@
         <circle cx="12" cy="12" r="12" fill="#db090c"/>
     </svg>
 
+    <!-- Color Indicators -->
+    <div class="color-indicator black-circle-indicator show" id="blackIndicator"></div>
+    <div class="color-indicator blue-circle-indicator" id="blueIndicator"></div>
+    <div class="color-indicator red-circle-indicator" id="redIndicator"></div>
+
     <!-- Ellipsis Icon -->
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ellipsis-icon lucide-ellipsis ellipsis-icon" id="menuIcon">
         <circle cx="12" cy="12" r="1"/>
@@ -611,6 +725,17 @@
     <div class="settings-modal" id="settingsModal">
         <div class="settings-modal-header">Settings</div>
         <div>Settings content goes here...</div>
+    </div>
+
+    <!-- Color Palette -->
+    <div class="color-palette" id="colorPalette">
+        <div class="color-palette-grid" id="colorPaletteGrid"></div>
+        <div class="color-input-container">
+            <div class="color-input-wrapper">
+                <input type="color" class="color-input" id="colorPicker">
+                <input type="text" class="color-hex-input" id="colorHexInput" placeholder="#000000" maxlength="7">
+            </div>
+        </div>
     </div>
 
     <!-- Snap Cursor -->
@@ -833,10 +958,153 @@
             activeTool.classList.add('active');
         }
 
+        // Set pen tool as active by default
+        setActiveTool(penIcon);
+
         // Add click event listeners to drawing tools
         penIcon.addEventListener('click', () => setActiveTool(penIcon));
         wandIcon.addEventListener('click', () => setActiveTool(wandIcon));
         eraserIcon.addEventListener('click', () => setActiveTool(eraserIcon));
+
+        // Color palette functionality
+        const colorPalette = document.getElementById('colorPalette');
+        const colorPaletteGrid = document.getElementById('colorPaletteGrid');
+        const colorPicker = document.getElementById('colorPicker');
+        const colorHexInput = document.getElementById('colorHexInput');
+        const blackCircle = document.querySelector('.black-circle');
+        const blueCircle = document.querySelector('.blue-circle');
+        const redCircle = document.querySelector('.red-circle');
+        const blackIndicator = document.getElementById('blackIndicator');
+        const blueIndicator = document.getElementById('blueIndicator');
+        const redIndicator = document.getElementById('redIndicator');
+
+        let currentColorCircle = null;
+        let selectedColorCircle = blackCircle; // Black is selected by default
+
+        // Predefined color swatches
+        const colorSwatches = [
+            '#000000', '#333333', '#666666', '#999999', '#CCCCCC', '#FFFFFF',
+            '#FF0000', '#FF6B00', '#FFD700', '#00FF00', '#00FFFF', '#0000FF',
+            '#8B00FF', '#FF00FF', '#FF1493', '#8B4513', '#006400', '#191970',
+            '#db090c', '#003fff', '#9cc6d9', '#5D5CDE', '#f3f3f3', '#ebebeb'
+        ];
+
+        // Create color swatches
+        colorSwatches.forEach(color => {
+            const swatch = document.createElement('div');
+            swatch.className = 'color-swatch';
+            swatch.style.backgroundColor = color;
+            swatch.addEventListener('click', () => {
+                setCircleColor(color);
+            });
+            colorPaletteGrid.appendChild(swatch);
+        });
+
+        // Function to set circle color
+        function setCircleColor(color) {
+            if (currentColorCircle) {
+                const circle = currentColorCircle.querySelector('circle');
+                if (circle) {
+                    circle.setAttribute('fill', color);
+                }
+                colorPalette.classList.remove('show');
+                currentColorCircle = null;
+            }
+        }
+
+        // Function to update color indicator
+        function updateColorIndicator(circleElement) {
+            blackIndicator.classList.remove('show');
+            blueIndicator.classList.remove('show');
+            redIndicator.classList.remove('show');
+
+            if (circleElement === blackCircle) {
+                blackIndicator.classList.add('show');
+            } else if (circleElement === blueCircle) {
+                blueIndicator.classList.add('show');
+            } else if (circleElement === redCircle) {
+                redIndicator.classList.add('show');
+            }
+        }
+
+        // Function to select color (single click)
+        function selectColor(circleElement) {
+            selectedColorCircle = circleElement;
+            updateColorIndicator(circleElement);
+        }
+
+        // Open color palette when double clicking color circles
+        function openColorPalette(circleElement, currentColor) {
+            currentColorCircle = circleElement;
+            colorPicker.value = currentColor;
+            colorHexInput.value = currentColor;
+            colorPalette.classList.add('show');
+        }
+
+        // Handle color circle clicks (single = select, double = open palette)
+        let clickTimeout = null;
+        let clickCount = 0;
+
+        function handleCircleClick(circleElement, e) {
+            e.stopPropagation();
+
+            // If palette is open and we click the same circle, close it
+            if (colorPalette.classList.contains('show') && currentColorCircle === circleElement) {
+                colorPalette.classList.remove('show');
+                currentColorCircle = null;
+                return;
+            }
+
+            clickCount++;
+
+            if (clickCount === 1) {
+                clickTimeout = setTimeout(() => {
+                    // Single click - select color
+                    selectColor(circleElement);
+                    clickCount = 0;
+                }, 250);
+            } else if (clickCount === 2) {
+                // Double click - open palette
+                clearTimeout(clickTimeout);
+                const currentColor = circleElement.querySelector('circle').getAttribute('fill');
+                selectColor(circleElement);
+                openColorPalette(circleElement, currentColor);
+                clickCount = 0;
+            }
+        }
+
+        blackCircle.addEventListener('click', (e) => handleCircleClick(blackCircle, e));
+        blueCircle.addEventListener('click', (e) => handleCircleClick(blueCircle, e));
+        redCircle.addEventListener('click', (e) => handleCircleClick(redCircle, e));
+
+        // Color picker input
+        colorPicker.addEventListener('input', (e) => {
+            const color = e.target.value;
+            colorHexInput.value = color;
+            setCircleColor(color);
+        });
+
+        // Hex input
+        colorHexInput.addEventListener('input', (e) => {
+            let value = e.target.value;
+            if (!value.startsWith('#')) {
+                value = '#' + value;
+            }
+            if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+                colorPicker.value = value;
+                setCircleColor(value);
+            }
+        });
+
+        // Close color palette when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!colorPalette.contains(e.target) &&
+                !blackCircle.contains(e.target) &&
+                !blueCircle.contains(e.target) &&
+                !redCircle.contains(e.target)) {
+                colorPalette.classList.remove('show');
+            }
+        });
     </script>
 </body>
 </html>
