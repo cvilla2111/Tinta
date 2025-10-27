@@ -3,47 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UI Grid Layout - 3:2</title>
+    <title>UI Grid Designer</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body, html {
+        :root {
+            --grid-size: 10px;
+            --grid-color: rgba(180, 180, 180, 0.6);
+            --grid-color-major: rgba(120, 120, 120, 0.8);
+        }
+
+        body {
             margin: 0;
             padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
+            min-height: 100vh;
         }
 
-        .canvas-container {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: #ffffff;
-        }
-
-        .canvas-16-9 {
+        .grid-container {
             position: relative;
             width: 100%;
-            max-width: 100vh * 3 / 2;
-            aspect-ratio: 3 / 2;
-            background: #ffffff;
-            box-shadow: 0 0 30px rgba(0, 0, 0, 0.1);
-        }
-
-        @media (max-aspect-ratio: 3/2) {
-            .canvas-16-9 {
-                width: 100%;
-                height: auto;
-            }
-        }
-
-        @media (min-aspect-ratio: 3/2) {
-            .canvas-16-9 {
-                width: auto;
-                height: 100vh;
-            }
+            min-height: 100vh;
+            background-color: white;
         }
 
         .grid-overlay {
@@ -53,299 +32,554 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.2s ease;
-            background-size: 5% 5%;
-            background-image:
-                linear-gradient(to right, rgba(93, 92, 222, 0.3) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(93, 92, 222, 0.3) 1px, transparent 1px);
+            z-index: 9998;
         }
 
-        /* Slider control */
-        .slider-container {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            min-width: 200px;
-            cursor: move;
-        }
-
-        .slider-container.dragging {
-            cursor: grabbing;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-        }
-
-        .slider-header {
-            padding: 12px 20px 8px 20px;
-            border-bottom: 1px solid #e0e0e0;
-            cursor: grab;
-            user-select: none;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #5D5CDE;
-            font-weight: 600;
-            font-size: 12px;
-            font-family: monospace;
-        }
-
-        .slider-header:active {
-            cursor: grabbing;
-        }
-
-        .drag-icon {
-            width: 16px;
-            height: 16px;
-            opacity: 0.6;
-        }
-
-        .slider-content {
-            padding: 16px 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .slider-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .slider-label {
-            font-family: monospace;
-            font-size: 12px;
-            color: #5D5CDE;
-            font-weight: 600;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .opacity-value {
-            background: #f0f0ff;
-            padding: 2px 8px;
-            border-radius: 4px;
-        }
-
-        .slider {
+        .grid-pattern {
             width: 100%;
-            height: 6px;
-            border-radius: 3px;
-            background: #e0e0e0;
-            outline: none;
-            -webkit-appearance: none;
-            appearance: none;
+            height: 100%;
+            background-size: var(--grid-size) var(--grid-size);
+            background-image:
+                linear-gradient(to right, var(--grid-color) 1px, transparent 1px),
+                linear-gradient(to bottom, var(--grid-color) 1px, transparent 1px);
         }
 
-        .slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: #5D5CDE;
-            cursor: pointer;
-            transition: all 0.2s ease;
+        .grid-pattern-major {
+            width: 100%;
+            height: 100%;
+            background-size: calc(var(--grid-size) * 4) calc(var(--grid-size) * 4);
+            background-image:
+                linear-gradient(to right, var(--grid-color-major) 2px, transparent 2px),
+                linear-gradient(to bottom, var(--grid-color-major) 2px, transparent 2px);
         }
 
-        .slider::-webkit-slider-thumb:hover {
-            background: #4a49c5;
-            transform: scale(1.1);
+        .content-layer {
+            position: relative;
+            z-index: 1;
+            padding: 20px;
         }
 
-        .slider::-moz-range-thumb {
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: #5D5CDE;
-            cursor: pointer;
-            border: none;
-            transition: all 0.2s ease;
-        }
-
-        .slider::-moz-range-thumb:hover {
-            background: #4a49c5;
-            transform: scale(1.1);
-        }
-
-        /* Grid info label */
-        .grid-info {
+        .header {
             position: fixed;
-            top: 20px;
-            left: 20px;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 12px;
-            color: #5D5CDE;
-            font-family: monospace;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            z-index: 999;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            background-color: #f3f3f3;
+            z-index: 50;
         }
 
-        /* Coordinate labels */
-        .grid-coordinates {
-            position: absolute;
+        .separator-line {
+            position: fixed;
+            left: 390px;
+            top: 20px;
+            width: 1px;
+            height: 20px;
+            background-color: #d0d0d0;
+            z-index: 51;
+        }
+
+        .separator-line-2 {
+            position: fixed;
+            left: 730px;
+            top: 20px;
+            width: 1px;
+            height: 20px;
+            background-color: #d0d0d0;
+            z-index: 51;
+        }
+
+        .separator-line-3 {
+            position: fixed;
+            left: 870px;
+            top: 20px;
+            width: 1px;
+            height: 20px;
+            background-color: #d0d0d0;
+            z-index: 51;
+        }
+
+        .library-icon {
+            position: fixed;
+            left: 20px;
+            top: 20px;
+            z-index: 51;
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+            padding: 6px;
+            box-sizing: content-box;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .library-icon:hover {
+            background-color: #ebebeb;
+        }
+
+        .undo-icon {
+            position: fixed;
+            left: 320px;
+            top: 30px;
+            z-index: 51;
+            color: #333;
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+            padding: 7px;
+            box-sizing: content-box;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .undo-icon:hover {
+            background-color: #ebebeb;
+        }
+
+        .redo-icon {
+            position: fixed;
+            left: 360px;
+            top: 30px;
+            z-index: 51;
+            color: #333;
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+            padding: 7px;
+            box-sizing: content-box;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .redo-icon:hover {
+            background-color: #ebebeb;
+        }
+
+        .pen-icon {
+            position: fixed;
+            left: 440px;
+            top: 30px;
+            z-index: 51;
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+            padding: 8px;
+            box-sizing: content-box;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .pen-icon:hover {
+            background-color: #ebebeb;
+        }
+
+        .pen-icon.active {
+            background-color: #9cc6d9;
+        }
+
+        .pen-icon.active:hover {
+            background-color: #9cc6d9;
+        }
+
+        .wand-icon {
+            position: fixed;
+            left: 490px;
+            top: 30px;
+            z-index: 51;
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+            padding: 8px;
+            box-sizing: content-box;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .wand-icon:hover {
+            background-color: #ebebeb;
+        }
+
+        .wand-icon.active {
+            background-color: #9cc6d9;
+        }
+
+        .wand-icon.active:hover {
+            background-color: #9cc6d9;
+        }
+
+        .eraser-icon {
+            position: fixed;
+            left: 540px;
+            top: 30px;
+            z-index: 51;
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+            padding: 8px;
+            box-sizing: content-box;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .eraser-icon:hover {
+            background-color: #ebebeb;
+        }
+
+        .eraser-icon.active {
+            background-color: #9cc6d9;
+        }
+
+        .eraser-icon.active:hover {
+            background-color: #9cc6d9;
+        }
+
+        .black-circle {
+            position: fixed;
+            left: 770px;
+            top: 30px;
+            z-index: 51;
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+            transition: transform 0.2s;
+        }
+
+        .black-circle:hover {
+            transform: translate(-50%, -50%) scale(1.15);
+        }
+
+        .blue-circle {
+            position: fixed;
+            left: 800px;
+            top: 30px;
+            z-index: 51;
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+            transition: transform 0.2s;
+        }
+
+        .blue-circle:hover {
+            transform: translate(-50%, -50%) scale(1.15);
+        }
+
+        .red-circle {
+            position: fixed;
+            left: 830px;
+            top: 30px;
+            z-index: 51;
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+            transition: transform 0.2s;
+        }
+
+        .red-circle:hover {
+            transform: translate(-50%, -50%) scale(1.15);
+        }
+
+        .ellipsis-icon {
+            position: fixed;
+            left: 960px;
+            top: 30px;
+            z-index: 51;
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+            padding: 8px;
+            box-sizing: content-box;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .ellipsis-icon:hover {
+            background-color: #ebebeb;
+        }
+
+        .menu-modal {
+            position: fixed;
+            left: 950px;
+            top: 63px;
+            width: 160px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            border: 1px solid #e4e4e4;
+            z-index: 1000;
+            display: none;
+            padding: 8px;
+        }
+
+        .menu-modal.show {
+            display: block;
+        }
+
+        .menu-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #333;
+            transition: background-color 0.2s;
+        }
+
+        .menu-item:hover {
+            background-color: #f3f3f3;
+        }
+
+        .menu-overlay {
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.2s ease;
+            z-index: 999;
+            display: none;
         }
 
-        .coord-label {
-            position: absolute;
+        .menu-overlay.show {
+            display: block;
+        }
+
+        .grid-controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 10px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            cursor: move;
+            user-select: none;
+        }
+
+        .grid-controls:active {
+            cursor: grabbing;
+        }
+
+        .grid-info {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 6px 10px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             font-family: monospace;
             font-size: 10px;
-            color: #5D5CDE;
-            font-weight: 600;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 2px 4px;
-            border-radius: 3px;
+            color: #333;
         }
 
-        /* Horizontal labels (columns) */
-        .coord-label.h {
-            top: 2px;
-            transform: translateX(-50%);
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
         }
 
-        /* Vertical labels (rows) */
-        .coord-label.v {
-            left: 2px;
-            transform: translateY(-50%);
+        .slider-label {
+            font-size: 11px;
+            font-weight: 500;
+            color: #333;
         }
 
-        /* Cursor coordinate display */
-        .cursor-info {
+        input[type="range"] {
+            width: 120px;
+            height: 4px;
+        }
+
+        .snap-cursor {
             position: fixed;
-            top: 60px;
-            left: 20px;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 12px;
-            color: #5D5CDE;
-            font-family: monospace;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            z-index: 999;
-            opacity: 0;
-            transition: opacity 0.2s ease;
-            pointer-events: none;
-        }
-
-        .cursor-info.active {
-            opacity: 1;
-        }
-
-        /* Snap indicator */
-        .snap-indicator {
-            position: absolute;
-            width: 12px;
-            height: 12px;
-            border: 2px solid #5D5CDE;
-            border-radius: 50%;
+            width: 8px;
+            height: 8px;
+            border: 1px solid #5D5CDE;
             background: rgba(93, 92, 222, 0.3);
+            border-radius: 50%;
             pointer-events: none;
+            z-index: 9999;
             transform: translate(-50%, -50%);
-            opacity: 0;
-            transition: opacity 0.15s ease;
-            z-index: 100;
+            transition: all 0.05s ease-out;
         }
 
-        .snap-indicator.active {
-            opacity: 1;
-        }
-
-        .snap-indicator::after {
-            content: '';
+        .snap-crosshair {
             position: absolute;
             top: 50%;
             left: 50%;
+            transform: translate(-50%, -50%);
             width: 4px;
             height: 4px;
+        }
+
+        .snap-crosshair::before,
+        .snap-crosshair::after {
+            content: '';
+            position: absolute;
             background: #5D5CDE;
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
+        }
+
+        .snap-crosshair::before {
+            width: 1px;
+            height: 4px;
+            left: 1.5px;
+            top: 0;
+        }
+
+        .snap-crosshair::after {
+            width: 4px;
+            height: 1px;
+            left: 0;
+            top: 1.5px;
         }
 
     </style>
 </head>
 <body>
-    <div class="canvas-container">
-        <div class="canvas-16-9" id="canvas">
-            <div class="grid-overlay" id="gridOverlay"></div>
-            <div class="grid-coordinates" id="gridCoordinates"></div>
-            <div class="snap-indicator" id="snapIndicator"></div>
-        </div>
+    <!-- Header -->
+    <div class="header"></div>
+
+    <!-- Separator Line -->
+    <div class="separator-line"></div>
+    <div class="separator-line-2"></div>
+    <div class="separator-line-3"></div>
+
+    <!-- Library Icon -->
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-library-big-icon lucide-library-big library-icon">
+        <rect width="8" height="18" x="3" y="3" rx="1"/>
+        <path d="M7 3v18"/>
+        <path d="M20.4 18.9c.2.5-.1 1.1-.6 1.3l-1.9.7c-.5.2-1.1-.1-1.3-.6L11.1 5.1c-.2-.5.1-1.1.6-1.3l1.9-.7c.5-.2 1.1.1 1.3.6Z"/>
+    </svg>
+
+    <!-- Undo Icon -->
+    <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-undo2-icon lucide-undo-2 undo-icon">
+        <g transform="rotate(-45 12 12)">
+            <path d="M9 14 4 9l5-5"/>
+            <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/>
+        </g>
+    </svg>
+
+    <!-- Redo Icon -->
+    <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-redo2-icon lucide-redo-2 redo-icon">
+        <g transform="rotate(45 12 12)">
+            <path d="m15 14 5-5-5-5"/>
+            <path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13"/>
+        </g>
+    </svg>
+
+    <!-- Pen Icon -->
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pen-tool-icon lucide-pen-tool pen-icon">
+        <g transform="rotate(-135 12 12)">
+            <path d="M15.707 21.293a1 1 0 0 1-1.414 0l-1.586-1.586a1 1 0 0 1 0-1.414l5.586-5.586a1 1 0 0 1 1.414 0l1.586 1.586a1 1 0 0 1 0 1.414z"/>
+            <path d="m18 13-1.375-6.874a1 1 0 0 0-.746-.776L3.235 2.028a1 1 0 0 0-1.207 1.207L5.35 15.879a1 1 0 0 0 .776.746L13 18"/>
+            <path d="m2.3 2.3 7.286 7.286"/>
+            <circle cx="11" cy="11" r="2"/>
+        </g>
+    </svg>
+
+    <!-- Highlighter Icon -->
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-highlighter-icon lucide-highlighter wand-icon">
+        <g transform="rotate(-45 12 12)">
+            <path d="m9 11-6 6v3h9l3-3"/>
+            <path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/>
+        </g>
+    </svg>
+
+    <!-- Eraser Icon -->
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eraser-icon lucide-eraser eraser-icon">
+        <path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"/>
+        <path d="m5.082 11.09 8.828 8.828"/>
+    </svg>
+
+    <!-- Black Circle -->
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" class="black-circle">
+        <circle cx="12" cy="12" r="12" fill="#000000"/>
+    </svg>
+
+    <!-- Blue Circle -->
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" class="blue-circle">
+        <circle cx="12" cy="12" r="12" fill="#003fff"/>
+    </svg>
+
+    <!-- Red Circle -->
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" class="red-circle">
+        <circle cx="12" cy="12" r="12" fill="#db090c"/>
+    </svg>
+
+    <!-- Ellipsis Icon -->
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ellipsis-icon lucide-ellipsis ellipsis-icon" id="menuIcon">
+        <circle cx="12" cy="12" r="1"/>
+        <circle cx="19" cy="12" r="1"/>
+        <circle cx="5" cy="12" r="1"/>
+    </svg>
+
+    <!-- Menu Overlay -->
+    <div class="menu-overlay" id="menuOverlay"></div>
+
+    <!-- Menu Modal -->
+    <div class="menu-modal" id="menuModal">
+        <div class="menu-item">Settings</div>
+        <div class="menu-item">Export</div>
+        <div class="menu-item">Import</div>
+        <div class="menu-item">Clear Canvas</div>
     </div>
 
-    <div class="grid-info" id="gridInfo">
-        Grid: 3:2 • Cell: 5% • Major: 10%
+    <!-- Snap Cursor -->
+    <div class="snap-cursor" id="snapCursor">
+        <div class="snap-crosshair"></div>
     </div>
 
-    <div class="cursor-info" id="cursorInfo">
-        X: 0, Y: 0
-    </div>
-
-    <div class="slider-container" id="sliderContainer">
-        <div class="slider-header" id="sliderHeader">
-            <svg class="drag-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="9" cy="5" r="1" fill="currentColor"></circle>
-                <circle cx="9" cy="12" r="1" fill="currentColor"></circle>
-                <circle cx="9" cy="19" r="1" fill="currentColor"></circle>
-                <circle cx="15" cy="5" r="1" fill="currentColor"></circle>
-                <circle cx="15" cy="12" r="1" fill="currentColor"></circle>
-                <circle cx="15" cy="19" r="1" fill="currentColor"></circle>
-            </svg>
-            <span>GRID CONTROLS</span>
-        </div>
-        <div class="slider-content">
-            <div class="slider-group">
-                <div class="slider-label">
-                    <span>Grid Opacity</span>
-                    <span class="opacity-value" id="opacityValue">0%</span>
-                </div>
-                <input type="range" min="0" max="100" value="0" class="slider" id="gridSlider">
+    <div class="grid-container">
+        <!-- Grid Overlay -->
+        <div class="grid-overlay" id="gridOverlay">
+            <div class="grid-pattern-major">
+                <div class="grid-pattern"></div>
             </div>
+        </div>
 
-            <div class="slider-group">
-                <div class="slider-label">
-                    <span>Grid Density</span>
-                    <span class="opacity-value" id="densityValue">20×20</span>
-                </div>
-                <input type="range" min="4" max="40" value="20" class="slider" id="densitySlider">
+        <!-- Controls -->
+        <div class="grid-controls">
+            <div class="slider-container">
+                <label class="slider-label">Grid Size: <span id="gridSizeValue">10</span>px</label>
+                <input type="range" id="gridSize" min="10" max="100" value="10" step="5">
             </div>
+            <div class="slider-container">
+                <label class="slider-label">Grid Opacity: <span id="gridOpacityValue">100</span>%</label>
+                <input type="range" id="gridOpacity" min="0" max="100" value="100" step="5">
+            </div>
+        </div>
+
+        <!-- Grid Info -->
+        <div class="grid-info" id="gridInfo">
+            Position: (0, 0)
+        </div>
+
+        <!-- Content Layer - Add your UI elements here -->
+        <div class="content-layer" id="contentLayer">
+            <!-- Your UI components will go here -->
         </div>
     </div>
 
     <script>
-        const gridSlider = document.getElementById('gridSlider');
-        const densitySlider = document.getElementById('densitySlider');
+        // Grid controls
+        const gridSize = document.getElementById('gridSize');
+        const gridSizeValue = document.getElementById('gridSizeValue');
+        const gridOpacity = document.getElementById('gridOpacity');
+        const gridOpacityValue = document.getElementById('gridOpacityValue');
         const gridOverlay = document.getElementById('gridOverlay');
-        const gridCoordinates = document.getElementById('gridCoordinates');
-        const opacityValue = document.getElementById('opacityValue');
-        const densityValue = document.getElementById('densityValue');
         const gridInfo = document.getElementById('gridInfo');
-        const canvas = document.getElementById('canvas');
-        const snapIndicator = document.getElementById('snapIndicator');
-        const cursorInfo = document.getElementById('cursorInfo');
-        const sliderContainer = document.getElementById('sliderContainer');
-        const sliderHeader = document.getElementById('sliderHeader');
+        const contentLayer = document.getElementById('contentLayer');
+        const snapCursor = document.getElementById('snapCursor');
+        const gridControls = document.querySelector('.grid-controls');
 
-        let currentDensity = 20;
-        let snapEnabled = true;
+        // Update grid size
+        gridSize.addEventListener('input', (e) => {
+            const size = e.target.value;
+            gridSizeValue.textContent = size;
+            document.documentElement.style.setProperty('--grid-size', `${size}px`);
+        });
 
-        // Draggable slider container
+        // Update grid opacity
+        gridOpacity.addEventListener('input', (e) => {
+            const opacity = e.target.value;
+            gridOpacityValue.textContent = opacity;
+            gridOverlay.style.opacity = opacity / 100;
+        });
+
+        // Make grid controls draggable
         let isDragging = false;
         let currentX;
         let currentY;
@@ -354,17 +588,21 @@
         let xOffset = 0;
         let yOffset = 0;
 
-        sliderHeader.addEventListener('mousedown', dragStart);
+        gridControls.addEventListener('mousedown', dragStart);
         document.addEventListener('mousemove', drag);
         document.addEventListener('mouseup', dragEnd);
 
         function dragStart(e) {
+            // Don't drag if clicking on a slider
+            if (e.target.type === 'range') {
+                return;
+            }
+
             initialX = e.clientX - xOffset;
             initialY = e.clientY - yOffset;
 
-            if (e.target === sliderHeader || sliderHeader.contains(e.target)) {
+            if (e.target === gridControls || gridControls.contains(e.target)) {
                 isDragging = true;
-                sliderContainer.classList.add('dragging');
             }
         }
 
@@ -378,190 +616,110 @@
                 xOffset = currentX;
                 yOffset = currentY;
 
-                setTranslate(currentX, currentY, sliderContainer);
+                setTranslate(currentX, currentY, gridControls);
             }
         }
 
         function dragEnd(e) {
-            if (isDragging) {
-                initialX = currentX;
-                initialY = currentY;
-                isDragging = false;
-                sliderContainer.classList.remove('dragging');
-            }
+            initialX = currentX;
+            initialY = currentY;
+
+            isDragging = false;
         }
 
         function setTranslate(xPos, yPos, el) {
             el.style.transform = `translate(${xPos}px, ${yPos}px)`;
         }
 
-        // Generate coordinate labels based on density
-        function generateCoordinates(density) {
-            gridCoordinates.innerHTML = '';
-
-            // Calculate major grid step (always show 10 divisions)
-            const step = Math.ceil(density / 10);
-
-            // Horizontal labels (columns)
-            for (let i = 0; i <= density; i += step) {
-                const label = document.createElement('div');
-                label.className = 'coord-label h';
-                label.textContent = i;
-                label.style.left = (i / density * 100) + '%';
-                gridCoordinates.appendChild(label);
-            }
-
-            // Vertical labels (rows)
-            for (let i = 0; i <= density; i += step) {
-                const label = document.createElement('div');
-                label.className = 'coord-label v';
-                label.textContent = i;
-                label.style.top = (i / density * 100) + '%';
-                gridCoordinates.appendChild(label);
-            }
-        }
-
-        // Update grid density
-        function updateGridDensity(density) {
-            currentDensity = density;
-            const cellSize = 100 / density;
-            const majorSize = 100 / 10; // Always 10 major divisions
-
-            // Update fine grid
-            gridOverlay.style.backgroundSize = `${cellSize}% ${cellSize}%`;
-
-            // Update major grid (via ::before pseudo-element)
-            // We need to update via CSS variable or inline style
-            const majorGrid = cellSize * Math.ceil(density / 10);
-            gridOverlay.style.setProperty('--major-size', `${majorGrid}%`);
-
-            // Update coordinates
-            generateCoordinates(density);
-
-            // Update display
-            densityValue.textContent = `${density}×${density}`;
-
-            // Update info
-            const majorStep = Math.ceil(density / 10);
-            gridInfo.innerHTML = `Grid: 3:2 • Cell: ${density}×${density} • Major: every ${majorStep}`;
-        }
-
-        // Update grid opacity based on slider
-        function updateGridOpacity(value) {
-            const opacity = value / 100;
-            gridOverlay.style.opacity = opacity;
-            gridCoordinates.style.opacity = opacity;
-            opacityValue.textContent = value + '%';
-        }
-
-        gridSlider.addEventListener('input', (e) => {
-            updateGridOpacity(e.target.value);
-        });
-
-        densitySlider.addEventListener('input', (e) => {
-            updateGridDensity(parseInt(e.target.value));
-        });
-
-        // Keyboard shortcuts
+        // Keyboard shortcuts for grid size
         document.addEventListener('keydown', (e) => {
-            // Plus/Equals key to increase opacity
-            if (e.key === '+' || e.key === '=') {
-                const newValue = Math.min(100, parseInt(gridSlider.value) + 10);
-                gridSlider.value = newValue;
-                updateGridOpacity(newValue);
-            }
-            // Minus key to decrease opacity
-            if (e.key === '-' || e.key === '_') {
-                const newValue = Math.max(0, parseInt(gridSlider.value) - 10);
-                gridSlider.value = newValue;
-                updateGridOpacity(newValue);
-            }
-            // G key to toggle between 0% and 100%
-            if (e.key === 'g' || e.key === 'G') {
-                const newValue = gridSlider.value == 0 ? 100 : 0;
-                gridSlider.value = newValue;
-                updateGridOpacity(newValue);
-            }
-            // Bracket keys for density
-            if (e.key === '[') {
-                const newValue = Math.max(4, parseInt(densitySlider.value) - 2);
-                densitySlider.value = newValue;
-                updateGridDensity(newValue);
-            }
-            if (e.key === ']') {
-                const newValue = Math.min(40, parseInt(densitySlider.value) + 2);
-                densitySlider.value = newValue;
-                updateGridDensity(newValue);
+            const currentSize = parseInt(gridSize.value);
+
+            if (e.key === 'f' || e.key === 'F') {
+                // Decrease grid size
+                const newSize = Math.max(10, currentSize - 5);
+                gridSize.value = newSize;
+                gridSizeValue.textContent = newSize;
+                document.documentElement.style.setProperty('--grid-size', `${newSize}px`);
+            } else if (e.key === 'g' || e.key === 'G') {
+                // Increase grid size
+                const newSize = Math.min(100, currentSize + 5);
+                gridSize.value = newSize;
+                gridSizeValue.textContent = newSize;
+                document.documentElement.style.setProperty('--grid-size', `${newSize}px`);
             }
         });
 
-        // Snap to grid functionality
-        canvas.addEventListener('mousemove', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+        // Track mouse position and snap cursor to grid
+        document.addEventListener('mousemove', (e) => {
+            const currentGridSize = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--grid-size'));
+            const snapX = Math.round(e.clientX / currentGridSize) * currentGridSize;
+            const snapY = Math.round(e.clientY / currentGridSize) * currentGridSize;
+            const gridX = Math.round(e.clientX / currentGridSize);
+            const gridY = Math.round(e.clientY / currentGridSize);
 
-            // Calculate relative position (0-1)
-            const relX = x / rect.width;
-            const relY = y / rect.height;
+            // Update snap cursor position
+            snapCursor.style.left = snapX + 'px';
+            snapCursor.style.top = snapY + 'px';
 
-            // Calculate grid position
-            const gridX = relX * currentDensity;
-            const gridY = relY * currentDensity;
-
-            // Snap to nearest grid intersection
-            const snappedX = Math.round(gridX);
-            const snappedY = Math.round(gridY);
-
-            // Convert back to percentage
-            const snapPercentX = (snappedX / currentDensity) * 100;
-            const snapPercentY = (snappedY / currentDensity) * 100;
-
-            // Update snap indicator position
-            if (snapEnabled) {
-                snapIndicator.style.left = snapPercentX + '%';
-                snapIndicator.style.top = snapPercentY + '%';
-                snapIndicator.classList.add('active');
-            }
-
-            // Update cursor info
-            cursorInfo.innerHTML = `X: ${snappedX}, Y: ${snappedY}`;
-            cursorInfo.classList.add('active');
+            // Update info display
+            gridInfo.textContent = `Mouse: (${e.clientX}, ${e.clientY}) | Grid: (${gridX}, ${gridY}) | Snap: (${snapX}, ${snapY})`;
         });
 
-        canvas.addEventListener('mouseleave', () => {
-            snapIndicator.classList.remove('active');
-            cursorInfo.classList.remove('active');
+        // Hide snap cursor when mouse leaves the window
+        document.addEventListener('mouseleave', () => {
+            snapCursor.style.display = 'none';
         });
 
-        // Click to copy coordinates
-        canvas.addEventListener('click', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+        document.addEventListener('mouseenter', () => {
+            snapCursor.style.display = 'block';
+        });
 
-            const relX = x / rect.width;
-            const relY = y / rect.height;
+        // Menu modal functionality
+        const menuIcon = document.getElementById('menuIcon');
+        const menuModal = document.getElementById('menuModal');
+        const menuOverlay = document.getElementById('menuOverlay');
 
-            const snappedX = Math.round(relX * currentDensity);
-            const snappedY = Math.round(relY * currentDensity);
+        menuIcon.addEventListener('click', (e) => {
+            e.stopPropagation();
+            menuModal.classList.toggle('show');
+            menuOverlay.classList.toggle('show');
+        });
 
-            const coordText = `X:${snappedX}, Y:${snappedY}`;
+        menuOverlay.addEventListener('click', () => {
+            menuModal.classList.remove('show');
+            menuOverlay.classList.remove('show');
+        });
 
-            // Copy to clipboard
-            navigator.clipboard.writeText(coordText).then(() => {
-                // Show feedback
-                const originalText = cursorInfo.innerHTML;
-                cursorInfo.innerHTML = `📋 Copied: ${coordText}`;
-                setTimeout(() => {
-                    cursorInfo.innerHTML = originalText;
-                }, 1000);
+        // Close menu when clicking on a menu item
+        const menuItems = document.querySelectorAll('.menu-item');
+        menuItems.forEach(item => {
+            item.addEventListener('click', () => {
+                menuModal.classList.remove('show');
+                menuOverlay.classList.remove('show');
+                // Handle menu item action here
+                console.log('Menu item clicked:', item.textContent);
             });
         });
 
-        // Initialize
-        updateGridOpacity(0);
-        updateGridDensity(20);
+        // Drawing tool selection functionality
+        const penIcon = document.querySelector('.pen-icon');
+        const wandIcon = document.querySelector('.wand-icon');
+        const eraserIcon = document.querySelector('.eraser-icon');
+        const drawingTools = [penIcon, wandIcon, eraserIcon];
+
+        // Function to set active drawing tool
+        function setActiveTool(activeTool) {
+            drawingTools.forEach(tool => {
+                tool.classList.remove('active');
+            });
+            activeTool.classList.add('active');
+        }
+
+        // Add click event listeners to drawing tools
+        penIcon.addEventListener('click', () => setActiveTool(penIcon));
+        wandIcon.addEventListener('click', () => setActiveTool(wandIcon));
+        eraserIcon.addEventListener('click', () => setActiveTool(eraserIcon));
     </script>
 </body>
 </html>
