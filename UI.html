@@ -47,7 +47,8 @@
             width: 100vw;
             height: calc(100vh - 60px);
             background-color: white;
-            display: none;
+            opacity: 0;
+            pointer-events: none;
             background-image:
                 repeating-linear-gradient(
                     transparent,
@@ -58,8 +59,21 @@
             background-position: 0 20px;
         }
 
+        .page-container.transitions-enabled {
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
         .page-container.active {
-            display: block;
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .page-container.slide-left {
+            transform: translate(-150%, -50%);
+        }
+
+        .page-container.slide-right {
+            transform: translate(50%, -50%);
         }
 
         .page-title {
@@ -74,78 +88,16 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
-        .page-nav {
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 10001;
-            display: flex;
-            gap: 10px;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 10px 20px;
-            border-radius: 25px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .page-nav-button {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #d0d0d0;
-            border: none;
-            cursor: pointer;
-            transition: background 0.2s, transform 0.2s;
-        }
-
-        .page-nav-button:hover {
-            background: #a0a0a0;
-            transform: scale(1.2);
-        }
-
-        .page-nav-button.active {
-            background: #5D5CDE;
-            width: 30px;
-            border-radius: 5px;
-        }
-
-        .page-arrow {
-            position: fixed;
-            top: 50%;
-            transform: translateY(-50%);
-            z-index: 10001;
-            background: rgba(255, 255, 255, 0.9);
-            border: none;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            transition: background 0.2s, transform 0.2s;
-        }
-
-        .page-arrow:hover {
-            background: rgba(255, 255, 255, 1);
-            transform: translateY(-50%) scale(1.1);
-        }
-
-        .page-arrow.left {
-            left: 20px;
-        }
-
-        .page-arrow.right {
-            right: 20px;
-        }
-
-        .page-arrow:disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
-        }
 
         .grid-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .drawing-canvas {
             position: absolute;
             top: 0;
             left: 0;
@@ -213,36 +165,6 @@
             height: 60px;
             background-color: #f3f3f3;
             z-index: 10000;
-        }
-
-        .separator-line {
-            position: fixed;
-            left: 390px;
-            top: 20px;
-            width: 1px;
-            height: 20px;
-            background-color: #d0d0d0;
-            z-index: 10001;
-        }
-
-        .separator-line-2 {
-            position: fixed;
-            left: 730px;
-            top: 20px;
-            width: 1px;
-            height: 20px;
-            background-color: #d0d0d0;
-            z-index: 10001;
-        }
-
-        .separator-line-3 {
-            position: fixed;
-            left: 870px;
-            top: 20px;
-            width: 1px;
-            height: 20px;
-            background-color: #d0d0d0;
-            z-index: 10001;
         }
 
         .library-icon {
@@ -880,16 +802,460 @@
             left: 0;
             top: 1.5px;
         }
+
+        /* Responsive Header Styles */
+        @media (max-width: 1024px) {
+            .library-icon { left: 20px; }
+
+            .undo-icon { left: 270px; }
+            .redo-icon { left: 305px; }
+
+            .pen-icon { left: 370px; }
+            .wand-icon { left: 415px; }
+            .eraser-icon { left: 460px; }
+            .lasso-icon { left: 505px; }
+
+            .black-circle { left: 655px; }
+            .blue-circle { left: 685px; }
+            .red-circle { left: 715px; }
+
+            #blackIndicator { left: 655px; }
+            #blueIndicator { left: 685px; }
+            #redIndicator { left: 715px; }
+
+            #penIndicator { left: 370px; }
+            #wandIndicator { left: 415px; }
+            #eraserIndicator { left: 460px; }
+
+            .ellipsis-icon { left: 780px; }
+            .menu-modal { left: 770px; }
+
+            .color-palette { left: 655px; }
+            .tool-modal { left: 270px; }
+
+            .black-circle-indicator { left: 655px; }
+            .blue-circle-indicator { left: 685px; }
+            .red-circle-indicator { left: 715px; }
+        }
+
+        @media (max-width: 840px) {
+            .ellipsis-icon { left: 740px; }
+            .menu-modal { left: 730px; }
+        }
+
+        @media (max-width: 790px) {
+            .library-icon { left: 20px; }
+
+            .undo-icon { left: 245px; }
+            .redo-icon { left: 278px; }
+
+            .pen-icon { left: 340px; }
+            .wand-icon { left: 380px; }
+            .eraser-icon { left: 420px; }
+            .lasso-icon { left: 460px; }
+
+            .black-circle { left: 575px; }
+            .blue-circle { left: 605px; }
+            .red-circle { left: 635px; }
+
+            #blackIndicator { left: 575px; }
+            #blueIndicator { left: 605px; }
+            #redIndicator { left: 635px; }
+
+            #penIndicator { left: 340px; }
+            #wandIndicator { left: 380px; }
+            #eraserIndicator { left: 420px; }
+
+            .ellipsis-icon { left: 700px; }
+            .menu-modal { left: 690px; }
+
+            .color-palette { left: 575px; }
+            .tool-modal { left: 240px; }
+
+            .black-circle-indicator { left: 575px; }
+            .blue-circle-indicator { left: 605px; }
+            .red-circle-indicator { left: 635px; }
+        }
+
+        @media (max-width: 768px) {
+            .library-icon { left: 20px; }
+
+            .undo-icon { left: 230px; }
+            .redo-icon { left: 260px; }
+
+            .pen-icon { left: 320px; }
+            .wand-icon { left: 360px; }
+            .eraser-icon { left: 400px; }
+            .lasso-icon { left: 440px; }
+
+            .black-circle { left: 555px; }
+            .blue-circle { left: 585px; }
+            .red-circle { left: 615px; }
+
+            #blackIndicator { left: 555px; }
+            #blueIndicator { left: 585px; }
+            #redIndicator { left: 615px; }
+
+            #penIndicator { left: 320px; }
+            #wandIndicator { left: 360px; }
+            #eraserIndicator { left: 400px; }
+
+            .ellipsis-icon { left: 680px; }
+            .menu-modal { left: 670px; }
+
+            .color-palette { left: 555px; }
+            .tool-modal { left: 220px; }
+
+            .black-circle-indicator { left: 555px; }
+            .blue-circle-indicator { left: 585px; }
+            .red-circle-indicator { left: 615px; }
+        }
+
+        @media (max-width: 740px) {
+            .ellipsis-icon { left: 650px; }
+            .menu-modal { left: 640px; }
+        }
+
+        @media (max-width: 710px) {
+            .black-circle { left: 500px; }
+            .blue-circle { left: 528px; }
+            .red-circle { left: 556px; }
+
+            #blackIndicator { left: 500px; }
+            #blueIndicator { left: 528px; }
+            #redIndicator { left: 556px; }
+
+            .ellipsis-icon { left: 590px; }
+            .menu-modal { left: 580px; }
+
+            .color-palette { left: 500px; }
+
+            .black-circle-indicator { left: 500px; }
+            .blue-circle-indicator { left: 528px; }
+            .red-circle-indicator { left: 556px; }
+        }
+
+        @media (max-width: 680px) {
+            .library-icon { left: 20px; }
+
+            .undo-icon { left: 180px; }
+            .redo-icon { left: 208px; }
+
+            .pen-icon { left: 260px; }
+            .wand-icon { left: 295px; }
+            .eraser-icon { left: 330px; }
+            .lasso-icon { left: 365px; }
+
+            .black-circle { left: 455px; }
+            .blue-circle { left: 483px; }
+            .red-circle { left: 511px; }
+
+            #blackIndicator { left: 455px; }
+            #blueIndicator { left: 483px; }
+            #redIndicator { left: 511px; }
+
+            #penIndicator { left: 260px; }
+            #wandIndicator { left: 295px; }
+            #eraserIndicator { left: 330px; }
+
+            .ellipsis-icon { left: 560px; }
+            .menu-modal { left: 550px; }
+
+            .color-palette { left: 455px; }
+            .tool-modal { left: 160px; }
+
+            .black-circle-indicator { left: 455px; }
+            .blue-circle-indicator { left: 483px; }
+            .red-circle-indicator { left: 511px; }
+        }
+
+        @media (max-width: 615px) {
+            .ellipsis-icon { left: 490px; }
+            .menu-modal { left: 480px; }
+        }
+
+        @media (max-width: 570px) {
+            .library-icon { left: 18px; }
+
+            .undo-icon { left: 125px; }
+            .redo-icon { left: 150px; }
+
+            .pen-icon { left: 195px; }
+            .wand-icon { left: 225px; }
+            .eraser-icon { left: 255px; }
+            .lasso-icon { left: 285px; }
+
+            .black-circle { left: 365px; }
+            .blue-circle { left: 390px; }
+            .red-circle { left: 415px; }
+
+            #blackIndicator { left: 365px; }
+            #blueIndicator { left: 390px; }
+            #redIndicator { left: 415px; }
+
+            #penIndicator { left: 195px; }
+            #wandIndicator { left: 225px; }
+            #eraserIndicator { left: 255px; }
+
+            .ellipsis-icon { left: 470px; }
+            .menu-modal { left: 460px; }
+
+            .color-palette { left: 365px; }
+            .tool-modal { left: 95px; }
+
+            .black-circle-indicator { left: 365px; }
+            .blue-circle-indicator { left: 390px; }
+            .red-circle-indicator { left: 415px; }
+
+            /* Reduce circle size slightly */
+            .black-circle, .blue-circle, .red-circle {
+                width: 20px;
+                height: 20px;
+            }
+        }
+
+        @media (max-width: 530px) {
+            .ellipsis-icon { left: 380px; }
+            .menu-modal { left: 370px; }
+
+            .black-circle { left: 335px; }
+            .blue-circle { left: 360px; }
+            .red-circle { left: 385px; }
+
+            #blackIndicator { left: 335px; }
+            #blueIndicator { left: 360px; }
+            #redIndicator { left: 385px; }
+
+            .color-palette { left: 335px; }
+
+            .black-circle-indicator { left: 335px; }
+            .blue-circle-indicator { left: 360px; }
+            .red-circle-indicator { left: 385px; }
+        }
+
+        @media (max-width: 480px) {
+            .header { height: 50px; }
+            .canvas-wrapper { top: 50px; }
+            .page-container { height: calc(100vh - 50px); }
+
+            .library-icon {
+                left: 15px;
+                top: 15px;
+                padding: 4px;
+            }
+
+            .fullscreen-icon {
+                right: 15px;
+                top: 15px;
+                padding: 4px;
+            }
+
+            /* Undo/Redo - moved closer to library icon */
+            .undo-icon { left: 60px; top: 25px; padding: 5px; }
+            .redo-icon { left: 90px; top: 25px; padding: 5px; }
+
+            /* Drawing tools - compacted */
+            .pen-icon { left: 130px; top: 25px; padding: 5px; }
+            .wand-icon { left: 160px; top: 25px; padding: 5px; }
+            .eraser-icon { left: 190px; top: 25px; padding: 5px; }
+            .lasso-icon { left: 220px; top: 25px; padding: 5px; }
+
+            /* Color circles - moved to visible area */
+            .black-circle { left: 260px; top: 25px; width: 18px; height: 18px; }
+            .blue-circle { left: 283px; top: 25px; width: 18px; height: 18px; }
+            .red-circle { left: 306px; top: 25px; width: 18px; height: 18px; }
+
+            #blackIndicator { left: 260px; top: 40px; }
+            #blueIndicator { left: 283px; top: 40px; }
+            #redIndicator { left: 306px; top: 40px; }
+
+            #penIndicator { left: 130px; top: 40px; }
+            #wandIndicator { left: 160px; top: 40px; }
+            #eraserIndicator { left: 190px; top: 40px; }
+
+            .ellipsis-icon {
+                right: 50px;
+                left: auto;
+                top: 25px;
+            }
+
+            .menu-modal {
+                right: 20px;
+                left: auto !important;
+                top: 55px !important;
+                width: calc(100vw - 40px);
+                max-width: 200px;
+            }
+
+            .color-palette {
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+                width: 90%;
+                max-width: 300px;
+            }
+
+            .tool-modal {
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+                width: 280px;
+                top: 55px;
+            }
+
+            .size-slider-modal {
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+                width: 280px;
+                top: 55px;
+            }
+
+            .settings-modal {
+                left: 50% !important;
+                top: 50% !important;
+                transform: translate(-50%, -50%) scale(1) !important;
+                width: 90%;
+                max-width: 400px;
+                height: auto;
+                max-height: 80vh;
+                overflow-y: auto;
+            }
+
+            .settings-modal.show {
+                transform: translate(-50%, -50%) scale(1) !important;
+            }
+
+            .menu-modal {
+                left: 20px !important;
+                top: 55px !important;
+                width: calc(100vw - 40px);
+                max-width: 300px;
+            }
+
+            .black-circle-indicator { left: 260px; top: 40px; }
+            .blue-circle-indicator { left: 283px; top: 40px; }
+            .red-circle-indicator { left: 306px; top: 40px; }
+
+            /* Make icons slightly smaller */
+            .library-icon svg,
+            .fullscreen-icon svg { width: 18px; height: 18px; }
+
+            .undo-icon svg,
+            .redo-icon svg,
+            .pen-icon svg,
+            .wand-icon svg,
+            .eraser-icon svg,
+            .lasso-icon svg { width: 16px; height: 16px; }
+
+            .ellipsis-icon svg { width: 18px; height: 18px; }
+        }
+
+        /* Homepage Styles */
+        .homepage {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background: #e4e4e4;
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            padding: 40px;
+            z-index: 20000;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .homepage.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .notebook-preview {
+            width: 240px;
+            height: 315px;
+            background: white;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .notebook-preview:hover {
+            transform: translateY(-8px);
+        }
+
+        .notebook-cover {
+            width: 100%;
+            height: 100%;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            background-image:
+                repeating-linear-gradient(
+                    transparent,
+                    transparent 39px,
+                    #e8e8e8 39px,
+                    #e8e8e8 40px
+                );
+            background-position: 0 30px;
+        }
+
+        .notebook-title {
+            font-size: 32px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .notebook-subtitle {
+            font-size: 16px;
+            color: #999;
+            margin-bottom: 24px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .notebook-preview-text {
+            font-size: 14px;
+            color: #666;
+            line-height: 40px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .app-container {
+            transition: opacity 0.3s ease;
+        }
+
+        .app-container.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
+    <!-- Homepage -->
+    <div class="homepage" id="homepage">
+        <div class="notebook-preview" id="notebookPreview">
+            <div class="notebook-cover">
+                <div class="notebook-title">My Notes</div>
+                <div class="notebook-subtitle">5 Pages</div>
+                <div class="notebook-preview-text">
+                    Page 1 - Notes<br>
+                    Page 2 - Sketches<br>
+                    Page 3 - Ideas<br>
+                    Page 4 - Diagrams<br>
+                    Page 5 - Summary
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Container -->
+    <div class="app-container hidden" id="appContainer">
     <!-- Header -->
     <div class="header"></div>
-
-    <!-- Separator Lines -->
-    <div class="separator-line"></div>
-    <div class="separator-line-2"></div>
-    <div class="separator-line-3"></div>
 
     <!-- Library Icon -->
     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-library-big-icon lucide-library-big library-icon">
@@ -1066,27 +1432,6 @@
         <div class="snap-crosshair"></div>
     </div>
 
-    <!-- Page Navigation Arrows -->
-    <button class="page-arrow left" id="prevPageBtn">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2">
-            <polyline points="15 18 9 12 15 6"></polyline>
-        </svg>
-    </button>
-    <button class="page-arrow right" id="nextPageBtn">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2">
-            <polyline points="9 18 15 12 9 6"></polyline>
-        </svg>
-    </button>
-
-    <!-- Page Navigation Dots -->
-    <div class="page-nav" id="pageNav">
-        <button class="page-nav-button active" data-page="1"></button>
-        <button class="page-nav-button" data-page="2"></button>
-        <button class="page-nav-button" data-page="3"></button>
-        <button class="page-nav-button" data-page="4"></button>
-        <button class="page-nav-button" data-page="5"></button>
-    </div>
-
     <div class="canvas-wrapper" id="canvasWrapper">
         <!-- Page 1 -->
         <div class="page-container active" data-page="1">
@@ -1196,6 +1541,8 @@
         Position: (0, 0)
     </div>
 
+    </div> <!-- End App Container -->
+
     <script>
         // Initialize multi-page canvas system
         const canvases = document.querySelectorAll('.drawing-canvas');
@@ -1214,39 +1561,72 @@
         let currentPage = 1;
         const totalPages = 5;
         const pageContainers = document.querySelectorAll('.page-container');
-        const pageNavButtons = document.querySelectorAll('.page-nav-button');
-        const prevPageBtn = document.getElementById('prevPageBtn');
-        const nextPageBtn = document.getElementById('nextPageBtn');
 
         // Page navigation functions
         function goToPage(pageNum) {
             if (pageNum < 1 || pageNum > totalPages) return;
 
-            currentPage = pageNum;
+            // If we're already on this page, just ensure it's active (for initial load)
+            if (pageNum === currentPage) {
+                const activePage = document.querySelector(`.page-container[data-page="${currentPage}"]`);
+                if (activePage) {
+                    activePage.classList.add('active');
+                }
+                updateActiveCanvas();
+                return;
+            }
 
-            // Update page visibility
+            const oldPage = currentPage;
+            const direction = pageNum > oldPage ? 'next' : 'prev';
+
+            // Update page visibility with animation
             pageContainers.forEach(container => {
                 const page = parseInt(container.dataset.page);
-                if (page === currentPage) {
-                    container.classList.add('active');
+
+                if (page === oldPage) {
+                    // Current page slides out
+                    if (direction === 'next') {
+                        container.classList.add('slide-left');
+                    } else {
+                        container.classList.add('slide-right');
+                    }
+                    container.classList.remove('active');
+                } else if (page === pageNum) {
+                    // New page slides in
+                    // Step 1: Disable transitions temporarily
+                    container.classList.remove('transitions-enabled');
+                    container.classList.remove('active');
+
+                    // Step 2: Position it off-screen instantly (no transition)
+                    if (direction === 'next') {
+                        container.classList.remove('slide-left');
+                        container.classList.add('slide-right');
+                    } else {
+                        container.classList.remove('slide-right');
+                        container.classList.add('slide-left');
+                    }
+
+                    // Step 3: Force a reflow to ensure positioning is applied
+                    void container.offsetHeight;
+
+                    // Step 4: Re-enable transitions
+                    container.classList.add('transitions-enabled');
+
+                    // Force another reflow to ensure transitions are re-enabled
+                    void container.offsetHeight;
+
+                    // Step 5: Animate to center
+                    requestAnimationFrame(() => {
+                        container.classList.add('active');
+                        container.classList.remove('slide-left', 'slide-right');
+                    });
                 } else {
+                    // Ensure other pages are hidden and positioned correctly
                     container.classList.remove('active');
                 }
             });
 
-            // Update navigation dots
-            pageNavButtons.forEach(btn => {
-                const page = parseInt(btn.dataset.page);
-                if (page === currentPage) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
-            });
-
-            // Update arrow button states
-            prevPageBtn.disabled = currentPage === 1;
-            nextPageBtn.disabled = currentPage === totalPages;
+            currentPage = pageNum;
 
             // Update which canvas is active for drawing
             updateActiveCanvas();
@@ -1259,27 +1639,6 @@
             drawingLayer = activePageContainer.querySelector('.drawing-layer');
         }
 
-        // Navigation button event listeners
-        prevPageBtn.addEventListener('click', () => {
-            if (currentPage > 1) {
-                goToPage(currentPage - 1);
-            }
-        });
-
-        nextPageBtn.addEventListener('click', () => {
-            if (currentPage < totalPages) {
-                goToPage(currentPage + 1);
-            }
-        });
-
-        // Navigation dot event listeners
-        pageNavButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const page = parseInt(btn.dataset.page);
-                goToPage(page);
-            });
-        });
-
         // Keyboard navigation
         document.addEventListener('keydown', (e) => {
             if (e.key === 'ArrowLeft') {
@@ -1288,6 +1647,61 @@
                 if (currentPage < totalPages) goToPage(currentPage + 1);
             }
         });
+
+        // Two-finger swipe navigation
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let isTwoFingerSwipe = false;
+
+        document.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2) {
+                isTwoFingerSwipe = true;
+                touchStartX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                touchStartY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+            }
+        }, { passive: true });
+
+        document.addEventListener('touchmove', (e) => {
+            if (isTwoFingerSwipe && e.touches.length === 2) {
+                // Prevent default scrolling behavior
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        document.addEventListener('touchend', (e) => {
+            if (isTwoFingerSwipe) {
+                // Calculate the average position of remaining touches or use last known position
+                let touchEndX = touchStartX;
+                let touchEndY = touchStartY;
+
+                if (e.changedTouches.length > 0) {
+                    // Use the last touch position
+                    if (e.touches.length > 0) {
+                        touchEndX = (e.touches[0].clientX + (e.touches[1]?.clientX || e.touches[0].clientX)) / 2;
+                        touchEndY = (e.touches[0].clientY + (e.touches[1]?.clientY || e.touches[0].clientY)) / 2;
+                    } else {
+                        touchEndX = e.changedTouches[0].clientX;
+                        touchEndY = e.changedTouches[0].clientY;
+                    }
+                }
+
+                const deltaX = touchEndX - touchStartX;
+                const deltaY = touchEndY - touchStartY;
+
+                // Only trigger if horizontal swipe is more significant than vertical
+                if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
+                    if (deltaX > 0) {
+                        // Swipe right - go to previous page
+                        if (currentPage > 1) goToPage(currentPage - 1);
+                    } else {
+                        // Swipe left - go to next page
+                        if (currentPage < totalPages) goToPage(currentPage + 1);
+                    }
+                }
+
+                isTwoFingerSwipe = false;
+            }
+        }, { passive: true });
 
         // Track all strokes for efficient erasing
         const strokes = [];
@@ -1311,8 +1725,15 @@
             });
         }
 
-        // Initialize first page
+        // Initialize first page (without transitions)
         goToPage(1);
+
+        // Enable transitions after initial load
+        requestAnimationFrame(() => {
+            pageContainers.forEach(container => {
+                container.classList.add('transitions-enabled');
+            });
+        });
 
         // Initialize viewBoxes after layout is complete
         requestAnimationFrame(() => {
@@ -2649,14 +3070,37 @@
         }
 
         function openToolModal(toolName) {
-            // Position modal centered with tool icon
-            // Modal width is 200px, so subtract 100px to center it
+            const modalWidth = 200;
+            let iconElement;
+
+            // Get the actual icon element
             if (toolName === 'pen') {
-                toolModal.style.left = '340px'; // 440 - 100
+                iconElement = penIcon;
             } else if (toolName === 'highlighter') {
-                toolModal.style.left = '390px'; // 490 - 100
+                iconElement = wandIcon;
             } else if (toolName === 'eraser') {
-                toolModal.style.left = '440px'; // 540 - 100
+                iconElement = eraserIcon;
+            }
+
+            // Get the actual position of the icon in the viewport
+            const iconRect = iconElement.getBoundingClientRect();
+            const iconCenter = iconRect.left + (iconRect.width / 2);
+
+            // Calculate centered position below icon
+            let modalLeft = iconCenter - (modalWidth / 2);
+
+            // Check if modal would go outside viewport
+            const viewportWidth = window.innerWidth;
+            const modalRight = modalLeft + modalWidth;
+
+            // If modal would overflow viewport, center on screen instead
+            if (modalLeft < 10 || modalRight > viewportWidth - 10) {
+                toolModal.style.left = '50%';
+                toolModal.style.transform = 'translateX(-50%)';
+            } else {
+                // Position centered with icon
+                toolModal.style.left = modalLeft + 'px';
+                toolModal.style.transform = '';
             }
 
             // Update all preview dots to their saved preset sizes for this tool
@@ -2674,13 +3118,37 @@
         }
 
         function openSizeSliderModal(toolName, dotNumber) {
-            // Position slider modal centered with tool icon
+            const modalWidth = 200;
+            let iconElement;
+
+            // Get the actual icon element
             if (toolName === 'pen') {
-                sizeSliderModal.style.left = '340px'; // 440 - 100
+                iconElement = penIcon;
             } else if (toolName === 'highlighter') {
-                sizeSliderModal.style.left = '390px'; // 490 - 100
+                iconElement = wandIcon;
             } else if (toolName === 'eraser') {
-                sizeSliderModal.style.left = '440px'; // 540 - 100
+                iconElement = eraserIcon;
+            }
+
+            // Get the actual position of the icon in the viewport
+            const iconRect = iconElement.getBoundingClientRect();
+            const iconCenter = iconRect.left + (iconRect.width / 2);
+
+            // Calculate centered position below icon
+            let modalLeft = iconCenter - (modalWidth / 2);
+
+            // Check if modal would go outside viewport
+            const viewportWidth = window.innerWidth;
+            const modalRight = modalLeft + modalWidth;
+
+            // If modal would overflow viewport, center on screen instead
+            if (modalLeft < 10 || modalRight > viewportWidth - 10) {
+                sizeSliderModal.style.left = '50%';
+                sizeSliderModal.style.transform = 'translateX(-50%)';
+            } else {
+                // Position centered with icon
+                sizeSliderModal.style.left = modalLeft + 'px';
+                sizeSliderModal.style.transform = '';
             }
 
             // Track which dot is being edited
@@ -2900,6 +3368,31 @@
             currentColorCircle = circleElement;
             colorPicker.value = color;
             colorHexInput.value = color;
+
+            // Smart positioning for color palette
+            const paletteWidth = 220;
+
+            // Get the actual position of the circle in the viewport
+            const circleRect = circleElement.getBoundingClientRect();
+            const circleCenter = circleRect.left + (circleRect.width / 2);
+
+            // Calculate centered position below circle
+            let paletteLeft = circleCenter - (paletteWidth / 2);
+
+            // Check if palette would go outside viewport
+            const viewportWidth = window.innerWidth;
+            const paletteRight = paletteLeft + paletteWidth;
+
+            // If palette would overflow viewport, center on screen instead
+            if (paletteLeft < 10 || paletteRight > viewportWidth - 10) {
+                colorPalette.style.left = '50%';
+                colorPalette.style.transform = 'translateX(-50%)';
+            } else {
+                // Position centered with circle
+                colorPalette.style.left = paletteLeft + 'px';
+                colorPalette.style.transform = '';
+            }
+
             colorPalette.classList.add('show');
         }
 
@@ -3252,6 +3745,29 @@
 
         // Listen for fullscreen changes (including F11 or browser controls)
         document.addEventListener('fullscreenchange', updateFullscreenIcons);
+
+        // Homepage navigation
+        const homepage = document.getElementById('homepage');
+        const appContainer = document.getElementById('appContainer');
+        const notebookPreview = document.getElementById('notebookPreview');
+        const libraryIcon = document.querySelector('.library-icon');
+
+        // Open app when clicking notebook
+        notebookPreview.addEventListener('click', () => {
+            homepage.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+
+            // Reinitialize canvas viewBoxes after app becomes visible
+            requestAnimationFrame(() => {
+                updateAllCanvasViewBoxes();
+            });
+        });
+
+        // Return to homepage when clicking library icon
+        libraryIcon.addEventListener('click', () => {
+            homepage.classList.remove('hidden');
+            appContainer.classList.add('hidden');
+        });
     </script>
 </body>
 </html>
