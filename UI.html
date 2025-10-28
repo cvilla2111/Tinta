@@ -17,6 +17,12 @@
             margin: 0;
             padding: 0;
             min-height: 100vh;
+            /* Disable touch callout, selection, and context menu */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
         }
 
         .grid-container {
@@ -129,7 +135,7 @@
 
         .fullscreen-icon {
             position: fixed;
-            right: 20px;
+            right: 30px;
             top: 20px;
             z-index: 10001;
             cursor: pointer;
@@ -298,6 +304,38 @@
             transform: translate(-50%, -50%) scale(1.15);
         }
 
+        .color-indicator-chevron {
+            position: fixed;
+            z-index: 10001;
+            transform: translateX(-50%);
+            display: none;
+            pointer-events: none;
+        }
+
+        .color-indicator-chevron.show {
+            display: block;
+        }
+
+        #blackIndicator { left: 770px; top: 48px; }
+        #blueIndicator { left: 800px; top: 48px; }
+        #redIndicator { left: 830px; top: 48px; }
+
+        .tool-indicator-chevron {
+            position: fixed;
+            z-index: 10001;
+            transform: translateX(-50%);
+            display: none;
+            pointer-events: none;
+        }
+
+        .tool-indicator-chevron.show {
+            display: block;
+        }
+
+        #penIndicator { left: 440px; top: 48px; }
+        #wandIndicator { left: 490px; top: 48px; }
+        #eraserIndicator { left: 540px; top: 48px; }
+
         .ellipsis-icon {
             position: fixed;
             left: 960px;
@@ -442,6 +480,85 @@
             to {
                 opacity: 1;
             }
+        }
+
+        .tool-modal {
+            position: fixed;
+            left: 440px;
+            top: 63px;
+            width: 200px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            border: 1px solid #e4e4e4;
+            z-index: 10003;
+            display: none;
+            padding: 12px;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .tool-modal.show {
+            display: block;
+            animation: fadeSlideIn 0.2s ease forwards;
+        }
+
+        .size-slider-modal {
+            position: fixed;
+            left: 340px;
+            top: 180px;
+            width: 200px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            border: 1px solid #e4e4e4;
+            z-index: 10004;
+            display: none;
+            padding: 12px;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .size-slider-modal.show {
+            display: block;
+            animation: fadeSlideIn 0.2s ease forwards;
+        }
+
+        .size-preview-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin-bottom: 16px;
+            padding: 12px;
+        }
+
+        .size-preview-circle {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 2px solid #e4e4e4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.2s, background-color 0.2s;
+        }
+
+        .size-preview-circle:hover {
+            border-color: #5D5CDE;
+            background-color: #f9f9f9;
+        }
+
+        .size-preview-circle.selected {
+            border-color: #5D5CDE;
+            border-width: 3px;
+        }
+
+        .size-preview-dot {
+            background: #000000;
+            border-radius: 50%;
+            transition: width 0.1s ease, height 0.1s ease;
         }
 
         .color-palette {
@@ -728,10 +845,27 @@
         <circle cx="12" cy="12" r="12" fill="#db090c"/>
     </svg>
 
-    <!-- Color Indicators -->
-    <div class="color-indicator black-circle-indicator show" id="blackIndicator"></div>
-    <div class="color-indicator blue-circle-indicator" id="blueIndicator"></div>
-    <div class="color-indicator red-circle-indicator" id="redIndicator"></div>
+    <!-- Tool Indicator Chevrons -->
+    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#333333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tool-indicator-chevron show" id="penIndicator">
+        <polyline points="6 9 12 15 18 9"/>
+    </svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#333333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tool-indicator-chevron" id="wandIndicator">
+        <polyline points="6 9 12 15 18 9"/>
+    </svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#333333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tool-indicator-chevron" id="eraserIndicator">
+        <polyline points="6 9 12 15 18 9"/>
+    </svg>
+
+    <!-- Color Indicator Chevrons -->
+    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#333333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="color-indicator-chevron show" id="blackIndicator">
+        <polyline points="6 9 12 15 18 9"/>
+    </svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#333333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="color-indicator-chevron" id="blueIndicator">
+        <polyline points="6 9 12 15 18 9"/>
+    </svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#333333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="color-indicator-chevron" id="redIndicator">
+        <polyline points="6 9 12 15 18 9"/>
+    </svg>
 
     <!-- Ellipsis Icon -->
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ellipsis-icon lucide-ellipsis ellipsis-icon" id="menuIcon">
@@ -768,6 +902,29 @@
         </div>
     </div>
 
+    <!-- Tool Modal -->
+    <div class="tool-modal" id="toolModal">
+        <div class="size-preview-container">
+            <div class="size-preview-circle" id="previewCircle1">
+                <div class="size-preview-dot" id="previewDot1" style="width: 2px; height: 2px;"></div>
+            </div>
+            <div class="size-preview-circle" id="previewCircle2">
+                <div class="size-preview-dot" id="previewDot2" style="width: 3px; height: 3px;"></div>
+            </div>
+            <div class="size-preview-circle" id="previewCircle3">
+                <div class="size-preview-dot" id="previewDot3" style="width: 9px; height: 9px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Size Slider Modal -->
+    <div class="size-slider-modal" id="sizeSliderModal">
+        <div class="slider-container" style="margin-bottom: 0;">
+            <label class="slider-label">Size: <span id="toolSizeValue">2</span>px</label>
+            <input type="range" id="toolSize" min="1" max="20" value="2" step="1" style="width: 100%;">
+        </div>
+    </div>
+
     <!-- Color Palette -->
     <div class="color-palette" id="colorPalette">
         <div class="color-palette-grid" id="colorPaletteGrid"></div>
@@ -789,7 +946,7 @@
         <svg id="drawingCanvas" xmlns="http://www.w3.org/2000/svg">
             <rect width="100%" height="100%" fill="#FFFFFF"/>
             <g id="drawingLayer"></g>
-            <circle id="eraserCursor" r="10" fill="none" stroke="#5D5CDE" stroke-width="2" opacity="0.6" pointer-events="none" style="display: none;"/>
+            <circle id="eraserCursor" r="10" fill="none" stroke="#000000" stroke-width="1" stroke-dasharray="3,3" opacity="0.5" pointer-events="none" style="display: none;"/>
         </svg>
 
         <!-- Grid Overlay -->
@@ -1503,14 +1660,15 @@
                             if (isStrokeInLasso(stroke, lassoPoints)) {
                                 selectedStrokes.add(stroke);
                                 stroke.element.setAttribute('opacity', '0.6');
-                                // Create selection box for this stroke
-                                const selectionBox = createSelectionBox(stroke);
-                                selectionBoxes.push(selectionBox);
                             }
                         });
 
-                        // Create scale handles after all selection boxes are created
-                        createScaleHandles();
+                        // Create unified selection box for all selected strokes
+                        if (selectedStrokes.size > 0) {
+                            selectionBox = createUnifiedSelectionBox();
+                            // Create scale handles after selection box is created
+                            createScaleHandles();
+                        }
                     }
 
                     // Remove lasso path
@@ -1594,30 +1752,46 @@
         let isScalingSelection = false;
         let dragStartPoint = null;
         let selectionOffset = { x: 0, y: 0 };
-        let selectionBoxes = []; // SVG rectangles showing selection bounds
+        let selectionBox = null; // Single unified selection box for all selected strokes
         let scaleHandles = []; // Scale handles for corners
         let activeScaleHandle = null;
         let initialScale = 1;
         let scaleOrigin = { x: 0, y: 0 };
 
-        // Create selection box for a stroke
-        function createSelectionBox(stroke) {
-            const transform = getStrokeTransform(stroke);
-            const bounds = stroke.originalBounds || stroke.bounds;
+        // Create unified selection box for all selected strokes
+        function createUnifiedSelectionBox() {
+            if (selectedStrokes.size === 0) return null;
+
+            // Calculate overall bounding box of all selected strokes
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+            selectedStrokes.forEach(stroke => {
+                const transform = getStrokeTransform(stroke);
+                const bounds = stroke.originalBounds || stroke.bounds;
+
+                // Apply scale to bounds
+                const scaledWidth = bounds.width * transform.scale;
+                const scaledHeight = bounds.height * transform.scale;
+                const scaledX = bounds.x * transform.scale;
+                const scaledY = bounds.y * transform.scale;
+
+                const x1 = scaledX + transform.x;
+                const y1 = scaledY + transform.y;
+                const x2 = x1 + scaledWidth;
+                const y2 = y1 + scaledHeight;
+
+                minX = Math.min(minX, x1);
+                minY = Math.min(minY, y1);
+                maxX = Math.max(maxX, x2);
+                maxY = Math.max(maxY, y2);
+            });
 
             const padding = 5;
-
-            // Apply scale to the bounds dimensions
-            const scaledWidth = bounds.width * transform.scale;
-            const scaledHeight = bounds.height * transform.scale;
-            const scaledX = bounds.x * transform.scale;
-            const scaledY = bounds.y * transform.scale;
-
             const box = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-            box.setAttribute('x', scaledX - padding + transform.x);
-            box.setAttribute('y', scaledY - padding + transform.y);
-            box.setAttribute('width', scaledWidth + padding * 2);
-            box.setAttribute('height', scaledHeight + padding * 2);
+            box.setAttribute('x', minX - padding);
+            box.setAttribute('y', minY - padding);
+            box.setAttribute('width', maxX - minX + padding * 2);
+            box.setAttribute('height', maxY - minY + padding * 2);
             box.setAttribute('fill', 'rgba(93, 92, 222, 0.05)'); // Very light transparent fill makes it clickable
             box.setAttribute('stroke', '#5D5CDE');
             box.setAttribute('stroke-width', '2');
@@ -1729,29 +1903,47 @@
             scaleHandles = [];
         }
 
-        // Update selection box position for a stroke
-        function updateSelectionBox(box, stroke) {
-            const transform = getStrokeTransform(stroke);
-            const bounds = stroke.originalBounds || stroke.bounds;
+        // Update unified selection box to encompass all selected strokes
+        function updateUnifiedSelectionBox() {
+            if (!selectionBox || selectedStrokes.size === 0) return;
+
+            // Calculate overall bounding box of all selected strokes
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+            selectedStrokes.forEach(stroke => {
+                const transform = getStrokeTransform(stroke);
+                const bounds = stroke.originalBounds || stroke.bounds;
+
+                // Apply scale to bounds
+                const scaledWidth = bounds.width * transform.scale;
+                const scaledHeight = bounds.height * transform.scale;
+                const scaledX = bounds.x * transform.scale;
+                const scaledY = bounds.y * transform.scale;
+
+                const x1 = scaledX + transform.x;
+                const y1 = scaledY + transform.y;
+                const x2 = x1 + scaledWidth;
+                const y2 = y1 + scaledHeight;
+
+                minX = Math.min(minX, x1);
+                minY = Math.min(minY, y1);
+                maxX = Math.max(maxX, x2);
+                maxY = Math.max(maxY, y2);
+            });
 
             const padding = 5;
-
-            // Apply scale to the bounds dimensions
-            const scaledWidth = bounds.width * transform.scale;
-            const scaledHeight = bounds.height * transform.scale;
-            const scaledX = bounds.x * transform.scale;
-            const scaledY = bounds.y * transform.scale;
-
-            box.setAttribute('x', scaledX - padding + transform.x);
-            box.setAttribute('y', scaledY - padding + transform.y);
-            box.setAttribute('width', scaledWidth + padding * 2);
-            box.setAttribute('height', scaledHeight + padding * 2);
+            selectionBox.setAttribute('x', minX - padding);
+            selectionBox.setAttribute('y', minY - padding);
+            selectionBox.setAttribute('width', maxX - minX + padding * 2);
+            selectionBox.setAttribute('height', maxY - minY + padding * 2);
         }
 
-        // Clear all selection boxes
-        function clearSelectionBoxes() {
-            selectionBoxes.forEach(box => box.remove());
-            selectionBoxes = [];
+        // Clear selection box
+        function clearSelectionBox() {
+            if (selectionBox) {
+                selectionBox.remove();
+                selectionBox = null;
+            }
         }
 
         // Check if point is near a scale handle
@@ -1771,20 +1963,17 @@
             return null;
         }
 
-        // Check if point is inside any selection box
+        // Check if point is inside the selection box
         function isPointInSelectionBox(point) {
-            for (const box of selectionBoxes) {
-                const x = parseFloat(box.getAttribute('x'));
-                const y = parseFloat(box.getAttribute('y'));
-                const width = parseFloat(box.getAttribute('width'));
-                const height = parseFloat(box.getAttribute('height'));
+            if (!selectionBox) return false;
 
-                if (point.x >= x && point.x <= x + width &&
-                    point.y >= y && point.y <= y + height) {
-                    return true;
-                }
-            }
-            return false;
+            const x = parseFloat(selectionBox.getAttribute('x'));
+            const y = parseFloat(selectionBox.getAttribute('y'));
+            const width = parseFloat(selectionBox.getAttribute('width'));
+            const height = parseFloat(selectionBox.getAttribute('height'));
+
+            return point.x >= x && point.x <= x + width &&
+                   point.y >= y && point.y <= y + height;
         }
 
         // Point-in-polygon test (ray casting algorithm)
@@ -1888,12 +2077,11 @@
                     height: stroke.originalBounds.height * newScale
                 };
 
-                // Update selection box
-                if (selectionBoxes[strokeIndex]) {
-                    updateSelectionBox(selectionBoxes[strokeIndex], stroke);
-                }
                 strokeIndex++;
             });
+
+            // Update unified selection box
+            updateUnifiedSelectionBox();
 
             // Update scale handles
             updateScaleHandles();
@@ -1950,12 +2138,11 @@
                     height: stroke.originalBounds.height * currentScale
                 };
 
-                // Update the corresponding selection box
-                if (selectionBoxes[strokeIndex]) {
-                    updateSelectionBox(selectionBoxes[strokeIndex], stroke);
-                }
                 strokeIndex++;
             });
+
+            // Update unified selection box
+            updateUnifiedSelectionBox();
 
             // Update scale handles when dragging
             updateScaleHandles();
@@ -1974,12 +2161,76 @@
         const wandIcon = document.querySelector('.wand-icon');
         const eraserIcon = document.querySelector('.eraser-icon');
         const lassoIcon = document.querySelector('.lasso-icon');
+        const penIndicator = document.getElementById('penIndicator');
+        const wandIndicator = document.getElementById('wandIndicator');
+        const eraserIndicator = document.getElementById('eraserIndicator');
         const drawingTools = [penIcon, wandIcon, eraserIcon, lassoIcon];
+        const toolModal = document.getElementById('toolModal');
+        const sizeSliderModal = document.getElementById('sizeSliderModal');
+        const toolSize = document.getElementById('toolSize');
+        const toolSizeValue = document.getElementById('toolSizeValue');
+        const previewCircle1 = document.getElementById('previewCircle1');
+        const previewCircle2 = document.getElementById('previewCircle2');
+        const previewCircle3 = document.getElementById('previewCircle3');
+        const previewDot1 = document.getElementById('previewDot1');
+        const previewDot2 = document.getElementById('previewDot2');
+        const previewDot3 = document.getElementById('previewDot3');
+
+        // Store individual preset sizes for each tool
+        let toolPresets = {
+            pen: { dot1: 2, dot2: 3, dot3: 9 },
+            highlighter: { dot1: 5, dot2: 15, dot3: 25 },
+            eraser: { dot1: 2, dot2: 4, dot3: 7 }
+        };
+
+        // Track selected preset for each tool
+        let toolSelectedPreset = {
+            pen: 1,
+            highlighter: 1,
+            eraser: 1
+        };
+
+        // Store current size for each tool
+        let toolCurrentSize = {
+            pen: 2,
+            highlighter: 5,
+            eraser: 2
+        };
+
+        let currentEditingDot = null;
+
+        function updateToolIndicator(toolName) {
+            penIndicator.classList.remove('show');
+            wandIndicator.classList.remove('show');
+            eraserIndicator.classList.remove('show');
+
+            if (toolName === 'pen') {
+                penIndicator.classList.add('show');
+            } else if (toolName === 'highlighter') {
+                wandIndicator.classList.add('show');
+            } else if (toolName === 'eraser') {
+                eraserIndicator.classList.add('show');
+            }
+        }
 
         function setActiveTool(activeTool, toolName) {
             drawingTools.forEach(tool => tool.classList.remove('active'));
             activeTool.classList.add('active');
             currentTool = toolName;
+
+            // Update chevron indicator
+            updateToolIndicator(toolName);
+
+            // Restore this tool's current size
+            if (toolName !== 'lasso') {
+                currentSize = toolCurrentSize[toolName];
+                penSize.value = currentSize;
+                penSizeValue.textContent = currentSize;
+
+                if (toolName === 'eraser') {
+                    updateEraserCursorSize();
+                }
+            }
 
             // Clear selection when switching away from lasso
             if (toolName !== 'lasso') {
@@ -1992,7 +2243,7 @@
                 stroke.element.setAttribute('opacity', '1');
             });
             selectedStrokes.clear();
-            clearSelectionBoxes();
+            clearSelectionBox();
             clearScaleHandles();
             if (lassoPath) {
                 lassoPath.remove();
@@ -2000,14 +2251,194 @@
             }
         }
 
+        function openToolModal(toolName) {
+            // Position modal centered with tool icon
+            // Modal width is 200px, so subtract 100px to center it
+            if (toolName === 'pen') {
+                toolModal.style.left = '340px'; // 440 - 100
+            } else if (toolName === 'highlighter') {
+                toolModal.style.left = '390px'; // 490 - 100
+            } else if (toolName === 'eraser') {
+                toolModal.style.left = '440px'; // 540 - 100
+            }
+
+            // Update all preview dots to their saved preset sizes for this tool
+            updateAllPreviewDots();
+
+            // Update visual selection to show current preset for this tool
+            updatePresetSelection(toolSelectedPreset[toolName]);
+
+            toolModal.classList.add('show');
+        }
+
+        function closeToolModal() {
+            toolModal.classList.remove('show');
+            closeSizeSliderModal(); // Also close slider modal when tool modal closes
+        }
+
+        function openSizeSliderModal(toolName, dotNumber) {
+            // Position slider modal centered with tool icon
+            if (toolName === 'pen') {
+                sizeSliderModal.style.left = '340px'; // 440 - 100
+            } else if (toolName === 'highlighter') {
+                sizeSliderModal.style.left = '390px'; // 490 - 100
+            } else if (toolName === 'eraser') {
+                sizeSliderModal.style.left = '440px'; // 540 - 100
+            }
+
+            // Track which dot is being edited
+            currentEditingDot = dotNumber;
+
+            // Update slider with the specific dot's size for current tool
+            const dotSize = toolPresets[toolName][`dot${dotNumber}`];
+            toolSize.value = dotSize;
+            toolSizeValue.textContent = dotSize;
+
+            sizeSliderModal.classList.add('show');
+        }
+
+        function closeSizeSliderModal() {
+            sizeSliderModal.classList.remove('show');
+            currentEditingDot = null;
+        }
+
+        function updatePreviewDot(dotNumber, size) {
+            // For eraser, show the visual diameter (radius is size * 3, so diameter is size * 6)
+            const displaySize = currentTool === 'eraser' ? size * 6 : size;
+            const sizeStr = displaySize + 'px';
+            if (dotNumber === 1) {
+                previewDot1.style.width = sizeStr;
+                previewDot1.style.height = sizeStr;
+            } else if (dotNumber === 2) {
+                previewDot2.style.width = sizeStr;
+                previewDot2.style.height = sizeStr;
+            } else if (dotNumber === 3) {
+                previewDot3.style.width = sizeStr;
+                previewDot3.style.height = sizeStr;
+            }
+        }
+
+        function updateAllPreviewDots() {
+            const presets = toolPresets[currentTool];
+            updatePreviewDot(1, presets.dot1);
+            updatePreviewDot(2, presets.dot2);
+            updatePreviewDot(3, presets.dot3);
+        }
+
+        function updatePresetSelection(dotNumber) {
+            previewCircle1.classList.remove('selected');
+            previewCircle2.classList.remove('selected');
+            previewCircle3.classList.remove('selected');
+
+            if (dotNumber === 1) {
+                previewCircle1.classList.add('selected');
+            } else if (dotNumber === 2) {
+                previewCircle2.classList.add('selected');
+            } else if (dotNumber === 3) {
+                previewCircle3.classList.add('selected');
+            }
+
+            toolSelectedPreset[currentTool] = dotNumber;
+        }
+
+        function selectPresetSize(dotNumber) {
+            // Apply the preset size to current tool
+            const size = toolPresets[currentTool][`dot${dotNumber}`];
+            currentSize = size;
+
+            // Save this size as the current size for this tool
+            toolCurrentSize[currentTool] = size;
+
+            // Update the main pen size slider
+            penSize.value = size;
+            penSizeValue.textContent = size;
+
+            // Update visual selection
+            updatePresetSelection(dotNumber);
+
+            if (currentTool === 'eraser') {
+                updateEraserCursorSize();
+            }
+        }
+
+        // Preview circle click handlers
+        previewCircle1.addEventListener('click', (e) => {
+            e.stopPropagation();
+
+            // If clicking on already selected dot, open slider
+            if (toolSelectedPreset[currentTool] === 1) {
+                openSizeSliderModal(currentTool, 1);
+            } else {
+                // Otherwise select this preset
+                selectPresetSize(1);
+            }
+        });
+
+        previewCircle2.addEventListener('click', (e) => {
+            e.stopPropagation();
+
+            if (toolSelectedPreset[currentTool] === 2) {
+                openSizeSliderModal(currentTool, 2);
+            } else {
+                selectPresetSize(2);
+            }
+        });
+
+        previewCircle3.addEventListener('click', (e) => {
+            e.stopPropagation();
+
+            if (toolSelectedPreset[currentTool] === 3) {
+                openSizeSliderModal(currentTool, 3);
+            } else {
+                selectPresetSize(3);
+            }
+        });
+
+        toolSize.addEventListener('input', (e) => {
+            const size = parseInt(e.target.value);
+            toolSizeValue.textContent = size;
+
+            // Update only the currently editing dot for the current tool
+            if (currentEditingDot !== null) {
+                toolPresets[currentTool][`dot${currentEditingDot}`] = size;
+                updatePreviewDot(currentEditingDot, size);
+
+                // Also update current tool size
+                currentSize = size;
+                toolCurrentSize[currentTool] = size;
+
+                // Update the main pen size slider
+                penSize.value = size;
+                penSizeValue.textContent = size;
+
+                if (currentTool === 'eraser') {
+                    updateEraserCursorSize();
+                }
+            }
+        });
+
+        function handleToolClick(toolIcon, toolName) {
+            // If clicking on already active tool, toggle modal
+            if (currentTool === toolName) {
+                if (toolModal.classList.contains('show')) {
+                    closeToolModal();
+                } else {
+                    openToolModal(toolName);
+                }
+            } else {
+                // Switch to new tool
+                setActiveTool(toolIcon, toolName);
+                if (toolName === 'eraser') {
+                    updateEraserCursorSize();
+                }
+            }
+        }
+
         setActiveTool(penIcon, 'pen');
 
-        penIcon.addEventListener('click', () => setActiveTool(penIcon, 'pen'));
-        wandIcon.addEventListener('click', () => setActiveTool(wandIcon, 'highlighter'));
-        eraserIcon.addEventListener('click', () => {
-            setActiveTool(eraserIcon, 'eraser');
-            updateEraserCursorSize();
-        });
+        penIcon.addEventListener('click', () => handleToolClick(penIcon, 'pen'));
+        wandIcon.addEventListener('click', () => handleToolClick(wandIcon, 'highlighter'));
+        eraserIcon.addEventListener('click', () => handleToolClick(eraserIcon, 'eraser'));
         lassoIcon.addEventListener('click', () => setActiveTool(lassoIcon, 'lasso'));
 
         // Color selection
@@ -2051,8 +2482,7 @@
                         currentColor = color;
                     }
                 }
-                colorPalette.classList.remove('show');
-                currentColorCircle = null;
+                closeColorPalette();
             }
         }
 
@@ -2084,31 +2514,25 @@
             colorPalette.classList.add('show');
         }
 
-        let clickTimeout = null;
-        let clickCount = 0;
+        function closeColorPalette() {
+            colorPalette.classList.remove('show');
+            currentColorCircle = null;
+        }
 
         function handleCircleClick(circleElement, e) {
             e.stopPropagation();
 
-            if (colorPalette.classList.contains('show') && currentColorCircle === circleElement) {
-                colorPalette.classList.remove('show');
-                currentColorCircle = null;
-                return;
-            }
-
-            clickCount++;
-
-            if (clickCount === 1) {
-                clickTimeout = setTimeout(() => {
-                    selectColor(circleElement);
-                    clickCount = 0;
-                }, 250);
-            } else if (clickCount === 2) {
-                clearTimeout(clickTimeout);
-                const currentColor = circleElement.querySelector('circle').getAttribute('fill');
+            // If clicking on already selected circle, toggle palette
+            if (selectedColorCircle === circleElement) {
+                if (colorPalette.classList.contains('show') && currentColorCircle === circleElement) {
+                    closeColorPalette();
+                } else {
+                    const color = circleElement.querySelector('circle').getAttribute('fill');
+                    openColorPalette(circleElement, color);
+                }
+            } else {
+                // Otherwise just select the color
                 selectColor(circleElement);
-                openColorPalette(circleElement, currentColor);
-                clickCount = 0;
             }
         }
 
@@ -2138,7 +2562,20 @@
                 !blackCircle.contains(e.target) &&
                 !blueCircle.contains(e.target) &&
                 !redCircle.contains(e.target)) {
-                colorPalette.classList.remove('show');
+                closeColorPalette();
+            }
+
+            if (!toolModal.contains(e.target) &&
+                !sizeSliderModal.contains(e.target) &&
+                !penIcon.contains(e.target) &&
+                !wandIcon.contains(e.target) &&
+                !eraserIcon.contains(e.target)) {
+                closeToolModal();
+            }
+
+            if (!sizeSliderModal.contains(e.target) &&
+                !toolModal.contains(e.target)) {
+                closeSizeSliderModal();
             }
         });
 
@@ -2355,6 +2792,42 @@
 
         // Prevent scrolling on touch
         document.body.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+
+        // Disable context menu (touch and hold)
+        document.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            return false;
+        }, { passive: false });
+
+        // Disable double-tap zoom and two-finger gestures
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', (e) => {
+            const now = Date.now();
+            if (now - lastTouchEnd <= 300) {
+                e.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, { passive: false });
+
+        // Prevent multi-touch gestures
+        document.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 1) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        // Prevent gesture events (pinch, rotate, etc.)
+        document.addEventListener('gesturestart', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+
+        document.addEventListener('gesturechange', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+
+        document.addEventListener('gestureend', (e) => {
             e.preventDefault();
         }, { passive: false });
 
