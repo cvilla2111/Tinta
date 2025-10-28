@@ -44,8 +44,11 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
+            /* Fixed 16:9 aspect ratio to match PDF (1920x1080) */
             width: 100vw;
-            height: calc(100vh - 60px);
+            height: calc(100vw * 9 / 16);
+            max-height: calc(100vh - 60px);
+            max-width: calc((100vh - 60px) * 16 / 9);
             background-color: white;
             opacity: 0;
             pointer-events: none;
@@ -77,19 +80,6 @@
         .page-container.slide-right {
             transform: translate(50%, -50%);
         }
-
-        .page-title {
-            position: absolute;
-            top: 40px;
-            left: 60px;
-            right: 60px;
-            font-size: 28px;
-            font-weight: 300;
-            color: #999;
-            pointer-events: none;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
-
 
         .grid-container {
             position: absolute;
@@ -1388,11 +1378,22 @@
     <!-- Settings Modal -->
     <div class="settings-modal" id="settingsModal">
         <div class="settings-modal-header">Settings</div>
-        <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; flex-direction: column; gap: 16px;">
             <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                 <input type="checkbox" id="showGridCheckbox" style="width: 16px; height: 16px; cursor: pointer;">
                 <span style="font-size: 14px; color: #333;">Show Grid & Snap</span>
             </label>
+
+            <div style="border-top: 1px solid #e0e0e0; padding-top: 12px;">
+                <div style="margin-bottom: 8px;">
+                    <span style="font-size: 14px; color: #333; font-weight: 500;">PDF Zoom: <span id="pdfZoomValue">100</span>%</span>
+                </div>
+                <input type="range" id="pdfZoomSlider" min="50" max="200" value="100" step="10" style="width: 100%; height: 4px; cursor: pointer;">
+                <div style="display: flex; justify-content: space-between; margin-top: 4px;">
+                    <span style="font-size: 11px; color: #999;">50%</span>
+                    <span style="font-size: 11px; color: #999;">200%</span>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1439,7 +1440,7 @@
         <!-- Page 1 -->
         <div class="page-container active" data-page="1">
             <svg class="pdf-background" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-                <rect width="1920" height="1080" fill="#ffffff"/>
+                <rect width="1920" height="1080" fill="#fffbf0"/>
                 <text x="960" y="300" font-family="Arial, sans-serif" font-size="72" font-weight="bold" fill="#2c3e50" text-anchor="middle">Project Meeting Notes</text>
                 <text x="960" y="380" font-family="Arial, sans-serif" font-size="36" fill="#7f8c8d" text-anchor="middle">Q1 2024 Planning Session</text>
                 <line x1="400" y1="450" x2="1520" y2="450" stroke="#bdc3c7" stroke-width="2"/>
@@ -1452,7 +1453,6 @@
                 <text x="400" y="935" font-family="Arial, sans-serif" font-size="24" fill="#34495e">• Technical Architecture Updates</text>
                 <text x="400" y="980" font-family="Arial, sans-serif" font-size="24" fill="#34495e">• Timeline and Milestones</text>
             </svg>
-            <div class="page-title">Page 1 - Notes</div>
             <div class="grid-container">
                 <svg class="drawing-canvas" xmlns="http://www.w3.org/2000/svg" data-page="1">
                     <rect width="100%" height="100%" fill="transparent"/>
@@ -1470,7 +1470,7 @@
         <!-- Page 2 -->
         <div class="page-container" data-page="2">
             <svg class="pdf-background" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-                <rect width="1920" height="1080" fill="#ffffff"/>
+                <rect width="1920" height="1080" fill="#fffbf0"/>
                 <text x="200" y="120" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#2c3e50">Feature Development Plan</text>
                 <line x1="200" y1="150" x2="1720" y2="150" stroke="#3498db" stroke-width="3"/>
                 <!-- Lined paper effect -->
@@ -1493,7 +1493,6 @@
                 <text x="220" y="390" font-family="Arial, sans-serif" font-size="24" fill="#34495e">Phase 4: Testing and QA</text>
                 <text x="220" y="450" font-family="Arial, sans-serif" font-size="24" fill="#34495e">Phase 5: Deployment and Launch</text>
             </svg>
-            <div class="page-title">Page 2 - Sketches</div>
             <div class="grid-container">
                 <svg class="drawing-canvas" xmlns="http://www.w3.org/2000/svg" data-page="2">
                     <rect width="100%" height="100%" fill="transparent"/>
@@ -1511,7 +1510,7 @@
         <!-- Page 3 -->
         <div class="page-container" data-page="3">
             <svg class="pdf-background" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-                <rect width="1920" height="1080" fill="#ffffff"/>
+                <rect width="1920" height="1080" fill="#fffbf0"/>
                 <text x="200" y="120" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#2c3e50">System Architecture Diagram</text>
                 <line x1="200" y1="150" x2="1720" y2="150" stroke="#e74c3c" stroke-width="3"/>
                 <!-- Diagram boxes -->
@@ -1556,7 +1555,6 @@
                     </marker>
                 </defs>
             </svg>
-            <div class="page-title">Page 3 - Ideas</div>
             <div class="grid-container">
                 <svg class="drawing-canvas" xmlns="http://www.w3.org/2000/svg" data-page="3">
                     <rect width="100%" height="100%" fill="transparent"/>
@@ -1574,7 +1572,7 @@
         <!-- Page 4 -->
         <div class="page-container" data-page="4">
             <svg class="pdf-background" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-                <rect width="1920" height="1080" fill="#ffffff"/>
+                <rect width="1920" height="1080" fill="#fffbf0"/>
                 <text x="200" y="120" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#2c3e50">Project Timeline</text>
                 <line x1="200" y1="150" x2="1720" y2="150" stroke="#16a085" stroke-width="3"/>
                 <!-- Table header -->
@@ -1627,7 +1625,6 @@
 
                 <text x="200" y="920" font-family="Arial, sans-serif" font-size="20" fill="#7f8c8d" font-style="italic">* Expected completion: March 2024</text>
             </svg>
-            <div class="page-title">Page 4 - Diagrams</div>
             <div class="grid-container">
                 <svg class="drawing-canvas" xmlns="http://www.w3.org/2000/svg" data-page="4">
                     <rect width="100%" height="100%" fill="transparent"/>
@@ -1645,7 +1642,7 @@
         <!-- Page 5 -->
         <div class="page-container" data-page="5">
             <svg class="pdf-background" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-                <rect width="1920" height="1080" fill="#ffffff"/>
+                <rect width="1920" height="1080" fill="#fffbf0"/>
                 <text x="960" y="150" font-family="Arial, sans-serif" font-size="56" font-weight="bold" fill="#2c3e50" text-anchor="middle">Executive Summary</text>
                 <line x1="400" y1="190" x2="1520" y2="190" stroke="#9b59b6" stroke-width="4"/>
 
@@ -1674,7 +1671,6 @@
 
                 <text x="960" y="1000" font-family="Arial, sans-serif" font-size="22" fill="#7f8c8d" text-anchor="middle" font-style="italic">Report generated: January 2024 | Confidential</text>
             </svg>
-            <div class="page-title">Page 5 - Summary</div>
             <div class="grid-container">
                 <svg class="drawing-canvas" xmlns="http://www.w3.org/2000/svg" data-page="5">
                     <rect width="100%" height="100%" fill="transparent"/>
@@ -1910,17 +1906,17 @@
         let drawingLayer = null;
 
         // Function to set proper viewBox for all SVG canvases
-        function updateAllCanvasViewBoxes() {
+        // Set fixed viewBox for all canvases to match PDF coordinates (1920x1080)
+        function initializeCanvasViewBoxes() {
             canvases.forEach(canvas => {
-                const rect = canvas.getBoundingClientRect();
-                // Only set viewBox if canvas has dimensions
-                if (rect.width > 0 && rect.height > 0) {
-                    canvas.setAttribute('viewBox', `0 0 ${rect.width} ${rect.height}`);
-                    canvas.setAttribute('width', rect.width);
-                    canvas.setAttribute('height', rect.height);
-                }
+                // Fixed viewBox matching PDF background (16:9 ratio, 1920x1080)
+                canvas.setAttribute('viewBox', '0 0 1920 1080');
+                canvas.setAttribute('preserveAspectRatio', 'none'); // Stretch to fit container
             });
         }
+
+        // Initialize canvases with fixed coordinates
+        initializeCanvasViewBoxes();
 
         // Initialize first page (without transitions)
         goToPage(1);
@@ -1932,17 +1928,7 @@
             });
         });
 
-        // Initialize viewBoxes after layout is complete
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                updateAllCanvasViewBoxes();
-            });
-        });
-
-        // Update viewBoxes on window resize
-        window.addEventListener('resize', () => {
-            updateAllCanvasViewBoxes();
-        });
+        // No need to update viewBoxes on resize - they're now fixed!
 
         // Quadtree for spatial indexing
         class Quadtree {
@@ -2087,17 +2073,6 @@
             });
             quadtree = newQuadtree;
         });
-
-        // Set SVG viewBox for all canvases
-        function resizeSVG() {
-            canvases.forEach(canvas => {
-                const rect = canvas.getBoundingClientRect();
-                canvas.setAttribute('viewBox', `0 0 ${rect.width} ${rect.height}`);
-            });
-        }
-
-        resizeSVG();
-        window.addEventListener('resize', resizeSVG);
 
         // Drawing state
         let isDrawing = false;
@@ -3745,6 +3720,27 @@
             }
         });
 
+        // PDF Zoom functionality
+        const pdfZoomSlider = document.getElementById('pdfZoomSlider');
+        const pdfZoomValue = document.getElementById('pdfZoomValue');
+
+        pdfZoomSlider.addEventListener('input', (e) => {
+            const zoomPercent = e.target.value;
+            pdfZoomValue.textContent = zoomPercent;
+            const zoomScale = zoomPercent / 100;
+
+            // Apply zoom to all page containers (this zooms both PDF and drawings together)
+            pageContainers.forEach(container => {
+                // Preserve the existing transform (translate for positioning and slide animations)
+                const currentTransform = container.style.transform || '';
+                const translateMatch = currentTransform.match(/translate\([^)]+\)/);
+                const translatePart = translateMatch ? translateMatch[0] : 'translate(-50%, -50%)';
+
+                // Apply scale while preserving translate
+                container.style.transform = `${translatePart} scale(${zoomScale})`;
+            });
+        });
+
         exportMenuItem.addEventListener('click', () => {
             menuModal.classList.remove('show');
             menuOverlay.classList.remove('show');
@@ -3861,6 +3857,36 @@
                 gridSize.value = newSize;
                 gridSizeValue.textContent = newSize;
                 document.documentElement.style.setProperty('--grid-size', `${newSize}px`);
+            } else if (e.key === 'a' || e.key === 'A') {
+                // Zoom out PDF (decrease by 10%)
+                const currentZoom = parseInt(pdfZoomSlider.value);
+                const newZoom = Math.max(50, currentZoom - 10);
+                pdfZoomSlider.value = newZoom;
+                pdfZoomValue.textContent = newZoom;
+                const zoomScale = newZoom / 100;
+
+                // Apply zoom to all page containers
+                pageContainers.forEach(container => {
+                    const currentTransform = container.style.transform || '';
+                    const translateMatch = currentTransform.match(/translate\([^)]+\)/);
+                    const translatePart = translateMatch ? translateMatch[0] : 'translate(-50%, -50%)';
+                    container.style.transform = `${translatePart} scale(${zoomScale})`;
+                });
+            } else if (e.key === 'z' || e.key === 'Z') {
+                // Zoom in PDF (increase by 10%)
+                const currentZoom = parseInt(pdfZoomSlider.value);
+                const newZoom = Math.min(200, currentZoom + 10);
+                pdfZoomSlider.value = newZoom;
+                pdfZoomValue.textContent = newZoom;
+                const zoomScale = newZoom / 100;
+
+                // Apply zoom to all page containers
+                pageContainers.forEach(container => {
+                    const currentTransform = container.style.transform || '';
+                    const translateMatch = currentTransform.match(/translate\([^)]+\)/);
+                    const translatePart = translateMatch ? translateMatch[0] : 'translate(-50%, -50%)';
+                    container.style.transform = `${translatePart} scale(${zoomScale})`;
+                });
             }
         });
 
@@ -3974,11 +4000,7 @@
         notebookPreview.addEventListener('click', () => {
             homepage.classList.add('hidden');
             appContainer.classList.remove('hidden');
-
-            // Reinitialize canvas viewBoxes after app becomes visible
-            requestAnimationFrame(() => {
-                updateAllCanvasViewBoxes();
-            });
+            // Canvases are now fixed to 1920x1080, no need to reinitialize
         });
 
         // Return to homepage when clicking library icon
