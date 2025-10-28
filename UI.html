@@ -890,10 +890,6 @@
     <!-- Settings Modal -->
     <div class="settings-modal" id="settingsModal">
         <div class="settings-modal-header">Settings</div>
-        <div class="slider-container" style="margin-bottom: 20px;">
-            <label class="slider-label">Pen Size: <span id="penSizeValue">2</span>px</label>
-            <input type="range" id="penSize" min="1" max="20" value="2" step="1" style="width: 100%;">
-        </div>
         <div style="display: flex; flex-direction: column; gap: 12px;">
             <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                 <input type="checkbox" id="showGridCheckbox" style="width: 16px; height: 16px; cursor: pointer;">
@@ -1169,16 +1165,6 @@
             gridOverlay.style.opacity = opacity / 100;
         });
 
-        // Pen size control
-        const penSize = document.getElementById('penSize');
-        const penSizeValue = document.getElementById('penSizeValue');
-        penSize.addEventListener('input', (e) => {
-            currentSize = parseInt(e.target.value);
-            penSizeValue.textContent = currentSize;
-            if (currentTool === 'eraser') {
-                updateEraserCursorSize();
-            }
-        });
 
         // Update eraser cursor size
         function updateEraserCursorSize() {
@@ -2224,8 +2210,6 @@
             // Restore this tool's current size
             if (toolName !== 'lasso') {
                 currentSize = toolCurrentSize[toolName];
-                penSize.value = currentSize;
-                penSizeValue.textContent = currentSize;
 
                 if (toolName === 'eraser') {
                     updateEraserCursorSize();
@@ -2349,10 +2333,6 @@
             // Save this size as the current size for this tool
             toolCurrentSize[currentTool] = size;
 
-            // Update the main pen size slider
-            penSize.value = size;
-            penSizeValue.textContent = size;
-
             // Update visual selection
             updatePresetSelection(dotNumber);
 
@@ -2406,10 +2386,6 @@
                 // Also update current tool size
                 currentSize = size;
                 toolCurrentSize[currentTool] = size;
-
-                // Update the main pen size slider
-                penSize.value = size;
-                penSizeValue.textContent = size;
 
                 if (currentTool === 'eraser') {
                     updateEraserCursorSize();
