@@ -49,14 +49,16 @@
             background-color: white;
             opacity: 0;
             pointer-events: none;
-            background-image:
-                repeating-linear-gradient(
-                    transparent,
-                    transparent 39px,
-                    #e8e8e8 39px,
-                    #e8e8e8 40px
-                );
-            background-position: 0 20px;
+        }
+
+        .pdf-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
         }
 
         .page-container.transitions-enabled {
@@ -95,6 +97,7 @@
             left: 0;
             width: 100%;
             height: 100%;
+            z-index: 2;
         }
 
         .drawing-canvas {
@@ -1435,6 +1438,20 @@
     <div class="canvas-wrapper" id="canvasWrapper">
         <!-- Page 1 -->
         <div class="page-container active" data-page="1">
+            <svg class="pdf-background" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+                <rect width="1920" height="1080" fill="#ffffff"/>
+                <text x="960" y="300" font-family="Arial, sans-serif" font-size="72" font-weight="bold" fill="#2c3e50" text-anchor="middle">Project Meeting Notes</text>
+                <text x="960" y="380" font-family="Arial, sans-serif" font-size="36" fill="#7f8c8d" text-anchor="middle">Q1 2024 Planning Session</text>
+                <line x1="400" y1="450" x2="1520" y2="450" stroke="#bdc3c7" stroke-width="2"/>
+                <text x="400" y="550" font-family="Arial, sans-serif" font-size="28" fill="#34495e">Date: January 15, 2024</text>
+                <text x="400" y="620" font-family="Arial, sans-serif" font-size="28" fill="#34495e">Attendees: Product Team, Engineering, Design</text>
+                <text x="400" y="690" font-family="Arial, sans-serif" font-size="28" fill="#34495e">Location: Conference Room A</text>
+                <rect x="350" y="780" width="1220" height="220" fill="#ecf0f1" stroke="#95a5a6" stroke-width="2" rx="10"/>
+                <text x="400" y="840" font-family="Arial, sans-serif" font-size="24" fill="#7f8c8d" font-style="italic">Key Topics:</text>
+                <text x="400" y="890" font-family="Arial, sans-serif" font-size="24" fill="#34495e">• Product Roadmap Review</text>
+                <text x="400" y="935" font-family="Arial, sans-serif" font-size="24" fill="#34495e">• Technical Architecture Updates</text>
+                <text x="400" y="980" font-family="Arial, sans-serif" font-size="24" fill="#34495e">• Timeline and Milestones</text>
+            </svg>
             <div class="page-title">Page 1 - Notes</div>
             <div class="grid-container">
                 <svg class="drawing-canvas" xmlns="http://www.w3.org/2000/svg" data-page="1">
@@ -1452,6 +1469,30 @@
 
         <!-- Page 2 -->
         <div class="page-container" data-page="2">
+            <svg class="pdf-background" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+                <rect width="1920" height="1080" fill="#ffffff"/>
+                <text x="200" y="120" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#2c3e50">Feature Development Plan</text>
+                <line x1="200" y1="150" x2="1720" y2="150" stroke="#3498db" stroke-width="3"/>
+                <!-- Lined paper effect -->
+                <line x1="200" y1="230" x2="1720" y2="230" stroke="#e0e0e0" stroke-width="1"/>
+                <line x1="200" y1="290" x2="1720" y2="290" stroke="#e0e0e0" stroke-width="1"/>
+                <line x1="200" y1="350" x2="1720" y2="350" stroke="#e0e0e0" stroke-width="1"/>
+                <line x1="200" y1="410" x2="1720" y2="410" stroke="#e0e0e0" stroke-width="1"/>
+                <line x1="200" y1="470" x2="1720" y2="470" stroke="#e0e0e0" stroke-width="1"/>
+                <line x1="200" y1="530" x2="1720" y2="530" stroke="#e0e0e0" stroke-width="1"/>
+                <line x1="200" y1="590" x2="1720" y2="590" stroke="#e0e0e0" stroke-width="1"/>
+                <line x1="200" y1="650" x2="1720" y2="650" stroke="#e0e0e0" stroke-width="1"/>
+                <line x1="200" y1="710" x2="1720" y2="710" stroke="#e0e0e0" stroke-width="1"/>
+                <line x1="200" y1="770" x2="1720" y2="770" stroke="#e0e0e0" stroke-width="1"/>
+                <line x1="200" y1="830" x2="1720" y2="830" stroke="#e0e0e0" stroke-width="1"/>
+                <line x1="200" y1="890" x2="1720" y2="890" stroke="#e0e0e0" stroke-width="1"/>
+                <line x1="200" y1="950" x2="1720" y2="950" stroke="#e0e0e0" stroke-width="1"/>
+                <text x="220" y="210" font-family="Arial, sans-serif" font-size="24" fill="#34495e">Phase 1: Research and Discovery</text>
+                <text x="220" y="270" font-family="Arial, sans-serif" font-size="24" fill="#34495e">Phase 2: Design and Prototyping</text>
+                <text x="220" y="330" font-family="Arial, sans-serif" font-size="24" fill="#34495e">Phase 3: Development Sprint</text>
+                <text x="220" y="390" font-family="Arial, sans-serif" font-size="24" fill="#34495e">Phase 4: Testing and QA</text>
+                <text x="220" y="450" font-family="Arial, sans-serif" font-size="24" fill="#34495e">Phase 5: Deployment and Launch</text>
+            </svg>
             <div class="page-title">Page 2 - Sketches</div>
             <div class="grid-container">
                 <svg class="drawing-canvas" xmlns="http://www.w3.org/2000/svg" data-page="2">
@@ -1469,6 +1510,52 @@
 
         <!-- Page 3 -->
         <div class="page-container" data-page="3">
+            <svg class="pdf-background" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+                <rect width="1920" height="1080" fill="#ffffff"/>
+                <text x="200" y="120" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#2c3e50">System Architecture Diagram</text>
+                <line x1="200" y1="150" x2="1720" y2="150" stroke="#e74c3c" stroke-width="3"/>
+                <!-- Diagram boxes -->
+                <rect x="300" y="250" width="300" height="150" fill="#3498db" stroke="#2c3e50" stroke-width="3" rx="10"/>
+                <text x="450" y="310" font-family="Arial, sans-serif" font-size="28" fill="#ffffff" text-anchor="middle" font-weight="bold">Frontend</text>
+                <text x="450" y="350" font-family="Arial, sans-serif" font-size="20" fill="#ecf0f1" text-anchor="middle">React Application</text>
+
+                <rect x="810" y="250" width="300" height="150" fill="#2ecc71" stroke="#2c3e50" stroke-width="3" rx="10"/>
+                <text x="960" y="310" font-family="Arial, sans-serif" font-size="28" fill="#ffffff" text-anchor="middle" font-weight="bold">API Layer</text>
+                <text x="960" y="350" font-family="Arial, sans-serif" font-size="20" fill="#ecf0f1" text-anchor="middle">REST API</text>
+
+                <rect x="1320" y="250" width="300" height="150" fill="#9b59b6" stroke="#2c3e50" stroke-width="3" rx="10"/>
+                <text x="1470" y="310" font-family="Arial, sans-serif" font-size="28" fill="#ffffff" text-anchor="middle" font-weight="bold">Database</text>
+                <text x="1470" y="350" font-family="Arial, sans-serif" font-size="20" fill="#ecf0f1" text-anchor="middle">PostgreSQL</text>
+
+                <!-- Arrows -->
+                <path d="M 600 325 L 810 325" stroke="#34495e" stroke-width="4" fill="none" marker-end="url(#arrowhead)"/>
+                <path d="M 1110 325 L 1320 325" stroke="#34495e" stroke-width="4" fill="none" marker-end="url(#arrowhead)"/>
+
+                <!-- Services layer -->
+                <rect x="555" y="550" width="810" height="380" fill="#ecf0f1" stroke="#95a5a6" stroke-width="2" rx="10"/>
+                <text x="960" y="600" font-family="Arial, sans-serif" font-size="32" fill="#2c3e50" text-anchor="middle" font-weight="bold">Microservices</text>
+
+                <rect x="600" y="650" width="220" height="100" fill="#f39c12" stroke="#2c3e50" stroke-width="2" rx="5"/>
+                <text x="710" y="710" font-family="Arial, sans-serif" font-size="20" fill="#ffffff" text-anchor="middle">Auth Service</text>
+
+                <rect x="850" y="650" width="220" height="100" fill="#f39c12" stroke="#2c3e50" stroke-width="2" rx="5"/>
+                <text x="960" y="710" font-family="Arial, sans-serif" font-size="20" fill="#ffffff" text-anchor="middle">User Service</text>
+
+                <rect x="1100" y="650" width="220" height="100" fill="#f39c12" stroke="#2c3e50" stroke-width="2" rx="5"/>
+                <text x="1210" y="710" font-family="Arial, sans-serif" font-size="20" fill="#ffffff" text-anchor="middle">Data Service</text>
+
+                <rect x="725" y="790" width="220" height="100" fill="#1abc9c" stroke="#2c3e50" stroke-width="2" rx="5"/>
+                <text x="835" y="850" font-family="Arial, sans-serif" font-size="20" fill="#ffffff" text-anchor="middle">Cache Layer</text>
+
+                <rect x="975" y="790" width="220" height="100" fill="#1abc9c" stroke="#2c3e50" stroke-width="2" rx="5"/>
+                <text x="1085" y="850" font-family="Arial, sans-serif" font-size="20" fill="#ffffff" text-anchor="middle">Queue Service</text>
+
+                <defs>
+                    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                        <polygon points="0 0, 10 3, 0 6" fill="#34495e"/>
+                    </marker>
+                </defs>
+            </svg>
             <div class="page-title">Page 3 - Ideas</div>
             <div class="grid-container">
                 <svg class="drawing-canvas" xmlns="http://www.w3.org/2000/svg" data-page="3">
@@ -1486,6 +1573,60 @@
 
         <!-- Page 4 -->
         <div class="page-container" data-page="4">
+            <svg class="pdf-background" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+                <rect width="1920" height="1080" fill="#ffffff"/>
+                <text x="200" y="120" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#2c3e50">Project Timeline</text>
+                <line x1="200" y1="150" x2="1720" y2="150" stroke="#16a085" stroke-width="3"/>
+                <!-- Table header -->
+                <rect x="200" y="220" width="1520" height="60" fill="#34495e" stroke="#2c3e50" stroke-width="2"/>
+                <text x="280" y="260" font-family="Arial, sans-serif" font-size="24" fill="#ffffff" font-weight="bold">Phase</text>
+                <text x="650" y="260" font-family="Arial, sans-serif" font-size="24" fill="#ffffff" font-weight="bold">Duration</text>
+                <text x="1000" y="260" font-family="Arial, sans-serif" font-size="24" fill="#ffffff" font-weight="bold">Team Size</text>
+                <text x="1400" y="260" font-family="Arial, sans-serif" font-size="24" fill="#ffffff" font-weight="bold">Status</text>
+                <!-- Table rows -->
+                <rect x="200" y="280" width="1520" height="80" fill="#ecf0f1" stroke="#bdc3c7" stroke-width="1"/>
+                <text x="280" y="330" font-family="Arial, sans-serif" font-size="22" fill="#2c3e50">Research</text>
+                <text x="650" y="330" font-family="Arial, sans-serif" font-size="22" fill="#2c3e50">2 weeks</text>
+                <text x="1000" y="330" font-family="Arial, sans-serif" font-size="22" fill="#2c3e50">3 people</text>
+                <rect x="1350" y="300" width="120" height="40" fill="#27ae60" stroke="#2c3e50" stroke-width="1" rx="5"/>
+                <text x="1410" y="328" font-family="Arial, sans-serif" font-size="18" fill="#ffffff" text-anchor="middle">Done</text>
+
+                <rect x="200" y="360" width="1520" height="80" fill="#ffffff" stroke="#bdc3c7" stroke-width="1"/>
+                <text x="280" y="410" font-family="Arial, sans-serif" font-size="22" fill="#2c3e50">Design</text>
+                <text x="650" y="410" font-family="Arial, sans-serif" font-size="22" fill="#2c3e50">3 weeks</text>
+                <text x="1000" y="410" font-family="Arial, sans-serif" font-size="22" fill="#2c3e50">4 people</text>
+                <rect x="1350" y="380" width="120" height="40" fill="#27ae60" stroke="#2c3e50" stroke-width="1" rx="5"/>
+                <text x="1410" y="408" font-family="Arial, sans-serif" font-size="18" fill="#ffffff" text-anchor="middle">Done</text>
+
+                <rect x="200" y="440" width="1520" height="80" fill="#ecf0f1" stroke="#bdc3c7" stroke-width="1"/>
+                <text x="280" y="490" font-family="Arial, sans-serif" font-size="22" fill="#2c3e50">Development</text>
+                <text x="650" y="490" font-family="Arial, sans-serif" font-size="22" fill="#2c3e50">8 weeks</text>
+                <text x="1000" y="490" font-family="Arial, sans-serif" font-size="22" fill="#2c3e50">8 people</text>
+                <rect x="1350" y="460" width="120" height="40" fill="#f39c12" stroke="#2c3e50" stroke-width="1" rx="5"/>
+                <text x="1410" y="488" font-family="Arial, sans-serif" font-size="18" fill="#ffffff" text-anchor="middle">Active</text>
+
+                <rect x="200" y="520" width="1520" height="80" fill="#ffffff" stroke="#bdc3c7" stroke-width="1"/>
+                <text x="280" y="570" font-family="Arial, sans-serif" font-size="22" fill="#2c3e50">Testing</text>
+                <text x="650" y="570" font-family="Arial, sans-serif" font-size="22" fill="#2c3e50">2 weeks</text>
+                <text x="1000" y="570" font-family="Arial, sans-serif" font-size="22" fill="#2c3e50">5 people</text>
+                <rect x="1350" y="540" width="120" height="40" fill="#95a5a6" stroke="#2c3e50" stroke-width="1" rx="5"/>
+                <text x="1410" y="568" font-family="Arial, sans-serif" font-size="18" fill="#ffffff" text-anchor="middle">Pending</text>
+
+                <rect x="200" y="600" width="1520" height="80" fill="#ecf0f1" stroke="#bdc3c7" stroke-width="1"/>
+                <text x="280" y="650" font-family="Arial, sans-serif" font-size="22" fill="#2c3e50">Deployment</text>
+                <text x="650" y="650" font-family="Arial, sans-serif" font-size="22" fill="#2c3e50">1 week</text>
+                <text x="1000" y="650" font-family="Arial, sans-serif" font-size="22" fill="#2c3e50">6 people</text>
+                <rect x="1350" y="620" width="120" height="40" fill="#95a5a6" stroke="#2c3e50" stroke-width="1" rx="5"/>
+                <text x="1410" y="648" font-family="Arial, sans-serif" font-size="18" fill="#ffffff" text-anchor="middle">Pending</text>
+
+                <!-- Progress bar -->
+                <text x="200" y="760" font-family="Arial, sans-serif" font-size="28" fill="#2c3e50" font-weight="bold">Overall Progress</text>
+                <rect x="200" y="790" width="1520" height="50" fill="#ecf0f1" stroke="#bdc3c7" stroke-width="2" rx="10"/>
+                <rect x="200" y="790" width="912" height="50" fill="#3498db" stroke="#2c3e50" stroke-width="2" rx="10"/>
+                <text x="960" y="825" font-family="Arial, sans-serif" font-size="28" fill="#2c3e50" text-anchor="middle" font-weight="bold">60%</text>
+
+                <text x="200" y="920" font-family="Arial, sans-serif" font-size="20" fill="#7f8c8d" font-style="italic">* Expected completion: March 2024</text>
+            </svg>
             <div class="page-title">Page 4 - Diagrams</div>
             <div class="grid-container">
                 <svg class="drawing-canvas" xmlns="http://www.w3.org/2000/svg" data-page="4">
@@ -1503,6 +1644,36 @@
 
         <!-- Page 5 -->
         <div class="page-container" data-page="5">
+            <svg class="pdf-background" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+                <rect width="1920" height="1080" fill="#ffffff"/>
+                <text x="960" y="150" font-family="Arial, sans-serif" font-size="56" font-weight="bold" fill="#2c3e50" text-anchor="middle">Executive Summary</text>
+                <line x1="400" y1="190" x2="1520" y2="190" stroke="#9b59b6" stroke-width="4"/>
+
+                <rect x="300" y="260" width="1320" height="180" fill="#e8f5e9" stroke="#27ae60" stroke-width="3" rx="15"/>
+                <text x="960" y="310" font-family="Arial, sans-serif" font-size="32" fill="#27ae60" text-anchor="middle" font-weight="bold">Key Achievements</text>
+                <text x="350" y="360" font-family="Arial, sans-serif" font-size="24" fill="#2c3e50">✓ Successfully completed research and design phases ahead of schedule</text>
+                <text x="350" y="400" font-family="Arial, sans-serif" font-size="24" fill="#2c3e50">✓ Development progressing smoothly with 60% completion</text>
+
+                <rect x="300" y="480" width="1320" height="200" fill="#fff3e0" stroke="#f39c12" stroke-width="3" rx="15"/>
+                <text x="960" y="530" font-family="Arial, sans-serif" font-size="32" fill="#f39c12" text-anchor="middle" font-weight="bold">Next Steps</text>
+                <text x="350" y="580" font-family="Arial, sans-serif" font-size="24" fill="#2c3e50">→ Complete remaining development tasks (4 weeks)</text>
+                <text x="350" y="620" font-family="Arial, sans-serif" font-size="24" fill="#2c3e50">→ Begin comprehensive testing phase</text>
+                <text x="350" y="660" font-family="Arial, sans-serif" font-size="24" fill="#2c3e50">→ Prepare deployment infrastructure</text>
+
+                <rect x="300" y="720" width="640" height="200" fill="#e3f2fd" stroke="#2196f3" stroke-width="3" rx="15"/>
+                <text x="620" y="770" font-family="Arial, sans-serif" font-size="28" fill="#2196f3" text-anchor="middle" font-weight="bold">Budget Status</text>
+                <text x="400" y="820" font-family="Arial, sans-serif" font-size="24" fill="#2c3e50">Allocated: $500,000</text>
+                <text x="400" y="860" font-family="Arial, sans-serif" font-size="24" fill="#2c3e50">Spent: $320,000</text>
+                <text x="400" y="900" font-family="Arial, sans-serif" font-size="24" fill="#27ae60" font-weight="bold">Remaining: $180,000</text>
+
+                <rect x="980" y="720" width="640" height="200" fill="#fce4ec" stroke="#e91e63" stroke-width="3" rx="15"/>
+                <text x="1300" y="770" font-family="Arial, sans-serif" font-size="28" fill="#e91e63" text-anchor="middle" font-weight="bold">Risk Assessment</text>
+                <text x="1080" y="820" font-family="Arial, sans-serif" font-size="24" fill="#27ae60">Low Risk: 85%</text>
+                <text x="1080" y="860" font-family="Arial, sans-serif" font-size="24" fill="#f39c12">Medium Risk: 12%</text>
+                <text x="1080" y="900" font-family="Arial, sans-serif" font-size="24" fill="#e74c3c">High Risk: 3%</text>
+
+                <text x="960" y="1000" font-family="Arial, sans-serif" font-size="22" fill="#7f8c8d" text-anchor="middle" font-style="italic">Report generated: January 2024 | Confidential</text>
+            </svg>
             <div class="page-title">Page 5 - Summary</div>
             <div class="grid-container">
                 <svg class="drawing-canvas" xmlns="http://www.w3.org/2000/svg" data-page="5">
