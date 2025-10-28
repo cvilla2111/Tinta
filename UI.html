@@ -1289,13 +1289,42 @@
             }
         });
 
-        // Initialize first page
-        goToPage(1);
-
         // Track all strokes for efficient erasing
         const strokes = [];
         const undoStack = [];
         const redoStack = [];
+
+        // Initialize canvas variables (will be set by updateActiveCanvas)
+        let svg = null;
+        let drawingLayer = null;
+
+        // Function to set proper viewBox for all SVG canvases
+        function updateAllCanvasViewBoxes() {
+            canvases.forEach(canvas => {
+                const rect = canvas.getBoundingClientRect();
+                // Only set viewBox if canvas has dimensions
+                if (rect.width > 0 && rect.height > 0) {
+                    canvas.setAttribute('viewBox', `0 0 ${rect.width} ${rect.height}`);
+                    canvas.setAttribute('width', rect.width);
+                    canvas.setAttribute('height', rect.height);
+                }
+            });
+        }
+
+        // Initialize first page
+        goToPage(1);
+
+        // Initialize viewBoxes after layout is complete
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                updateAllCanvasViewBoxes();
+            });
+        });
+
+        // Update viewBoxes on window resize
+        window.addEventListener('resize', () => {
+            updateAllCanvasViewBoxes();
+        });
 
         // Quadtree for spatial indexing
         class Quadtree {
@@ -1465,10 +1494,20 @@
         const gridSizeValue = document.getElementById('gridSizeValue');
         const gridOpacity = document.getElementById('gridOpacity');
         const gridOpacityValue = document.getElementById('gridOpacityValue');
-        const gridOverlay = document.getElementById('gridOverlay');
         const gridInfo = document.getElementById('gridInfo');
         const snapCursor = document.getElementById('snapCursor');
         const gridControls = document.querySelector('.grid-controls');
+
+        // Helper function to get active page's grid overlay
+        function getActiveGridOverlay() {
+            const activePageContainer = document.querySelector('.page-container.active');
+            return activePageContainer ? activePageContainer.querySelector('.grid-overlay') : null;
+        }
+
+        // Helper function to get all grid overlays
+        function getAllGridOverlays() {
+            return document.querySelectorAll('.grid-overlay');
+        }
 
         // Update grid size
         gridSize.addEventListener('input', (e) => {
@@ -1481,7 +1520,11 @@
         gridOpacity.addEventListener('input', (e) => {
             const opacity = e.target.value;
             gridOpacityValue.textContent = opacity;
-            gridOverlay.style.opacity = opacity / 100;
+            // Update all grid overlays
+            const gridOverlays = getAllGridOverlays();
+            gridOverlays.forEach(overlay => {
+                overlay.style.opacity = opacity / 100;
+            });
         });
 
 
@@ -1492,11 +1535,19 @@
 
         // Get point coordinates relative to a specific canvas
         function getPoint(e, canvas) {
-            const rect = canvas.getBoundingClientRect();
             const touch = e.touches ? e.touches[0] : e;
+
+            // Create an SVG point for proper coordinate transformation
+            const pt = canvas.createSVGPoint();
+            pt.x = touch.clientX;
+            pt.y = touch.clientY;
+
+            // Transform to SVG coordinate space
+            const svgP = pt.matrixTransform(canvas.getScreenCTM().inverse());
+
             return {
-                x: touch.clientX - rect.left,
-                y: touch.clientY - rect.top,
+                x: svgP.x,
+                y: svgP.y,
                 pressure: e.pressure || 0.5
             };
         }
@@ -1723,11 +1774,13 @@
             return false;
         }
 
-        // Update eraser cursor position
-        function updateEraserCursorPosition(point, show) {
+        // Update eraser cursor position (uses screen coordinates, not SVG coordinates)
+        function updateEraserCursorPosition(e, show) {
             if (show) {
-                eraserCursor.setAttribute('cx', point.x);
-                eraserCursor.setAttribute('cy', point.y);
+                // Use clientX/clientY for screen-positioned cursor
+                const touch = e.touches ? e.touches[0] : e;
+                eraserCursor.setAttribute('cx', touch.clientX);
+                eraserCursor.setAttribute('cy', touch.clientY);
                 eraserCursor.style.display = 'block';
             } else {
                 eraserCursor.style.display = 'none';
@@ -1747,12 +1800,15 @@
             eraseScheduled = false;
         }
 
-        // Use first canvas as main drawing surface (will be updated on page change)
-        let svg = canvases[0];
-        let drawingLayer = drawingLayers[0];
-
         // Pointer events
-        svg.addEventListener('pointerdown', (e) => {
+        document.addEventListener('pointerdown', (e) => {
+            // Check if clicking on a canvas
+            const canvas = e.target.closest('.drawing-canvas');
+            if (!canvas) return;
+
+            // Only process if this is the active page
+            if (!canvas.closest('.page-container').classList.contains('active')) return;
+
             // Ignore touch input (finger), only allow pen and mouse
             if (e.pointerType === 'touch') return;
 
@@ -1862,7 +1918,7 @@
                 if (effectiveTool === 'eraser') {
                     currentPath = null;
                     updateEraserCursorSize();
-                    updateEraserCursorPosition(points[0], true);
+                    updateEraserCursorPosition(e, true);
                     eraseRadius = currentSize * 3;
                     pendingErasePoints = [];
                 } else {
@@ -1873,13 +1929,14 @@
                     currentPath.setAttribute('stroke', currentColor);
                     currentPath.setAttribute('stroke-width', currentSize);
                     drawingLayer.appendChild(currentPath);
-                    updateEraserCursorPosition(points[0], false);
+                    updateEraserCursorPosition(e, false);
                 }
             }
         });
 
-        svg.addEventListener('pointermove', (e) => {
+        document.addEventListener('pointermove', (e) => {
             // Ignore touch input for drawing, but allow for UI feedback
+            if (!svg) return;
             const point = getPoint(e, svg);
 
             const usingHardwareEraser = isUsingEraser(e);
@@ -1887,9 +1944,9 @@
 
             if (e.pointerType !== 'touch') {
                 if (effectiveTool === 'eraser') {
-                    updateEraserCursorPosition(point, true);
+                    updateEraserCursorPosition(e, true);
                 } else {
-                    updateEraserCursorPosition(point, false);
+                    updateEraserCursorPosition(e, false);
                 }
             }
 
@@ -1947,9 +2004,10 @@
             }
         });
 
-        svg.addEventListener('pointerup', (e) => {
+        document.addEventListener('pointerup', (e) => {
             // Ignore touch input
             if (e.pointerType === 'touch') return;
+            if (!svg) return;
 
             const usingHardwareEraser = isUsingEraser(e);
             const effectiveTool = usingHardwareEraser ? 'eraser' : currentTool;
@@ -2042,7 +2100,17 @@
             }
         });
 
-        svg.addEventListener('pointerleave', () => {
+        document.addEventListener('pointerleave', (e) => {
+            // Check if target is an element before using closest
+            if (!e.target || !e.target.closest) return;
+
+            // Check if leaving a canvas
+            const canvas = e.target.closest('.drawing-canvas');
+            if (!canvas) return;
+
+            // Only process if this is the active page
+            if (!canvas.closest('.page-container').classList.contains('active')) return;
+
             eraserCursor.style.display = 'none';
 
             if (isDrawing) {
@@ -2938,31 +3006,31 @@
         let snapCursorEnabled = false; // Disabled by default
 
         // Initialize grid as hidden by default
-        gridOverlay.style.display = 'none';
-        snapCursor.style.display = 'none';
-        gridControls.style.display = 'none';
+        const allGridOverlays = getAllGridOverlays();
+        allGridOverlays.forEach(overlay => {
+            overlay.style.display = 'none';
+        });
+        if (snapCursor) snapCursor.style.display = 'none';
+        if (gridControls) gridControls.style.display = 'none';
 
         showGridCheckbox.addEventListener('change', (e) => {
             const isEnabled = e.target.checked;
             snapCursorEnabled = isEnabled;
 
-            // Toggle grid overlay
-            if (isEnabled) {
-                gridOverlay.style.display = 'block';
-            } else {
-                gridOverlay.style.display = 'none';
-            }
+            // Toggle all grid overlays
+            const gridOverlays = getAllGridOverlays();
+            gridOverlays.forEach(overlay => {
+                overlay.style.display = isEnabled ? 'block' : 'none';
+            });
 
             // Toggle snap cursor
-            if (!isEnabled) {
-                snapCursor.style.display = 'none';
+            if (snapCursor) {
+                snapCursor.style.display = isEnabled ? 'block' : 'none';
             }
 
             // Toggle grid controls
-            if (isEnabled) {
-                gridControls.style.display = 'flex';
-            } else {
-                gridControls.style.display = 'none';
+            if (gridControls) {
+                gridControls.style.display = isEnabled ? 'flex' : 'none';
             }
         });
 
