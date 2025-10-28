@@ -1648,41 +1648,57 @@
             }
         });
 
-        // Two-finger swipe navigation
+        // Two-finger swipe navigation (using pointer events to exclude stylus)
         let touchStartX = 0;
         let touchStartY = 0;
         let isTwoFingerSwipe = false;
+        let activeFingerPointers = new Map(); // Track only finger pointers (not pen/stylus)
 
-        document.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 2) {
-                isTwoFingerSwipe = true;
-                touchStartX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-                touchStartY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        document.addEventListener('pointerdown', (e) => {
+            // Only track touch pointers (fingers), not pen/stylus
+            if (e.pointerType === 'touch') {
+                activeFingerPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+                // Check if we have exactly 2 fingers touching
+                if (activeFingerPointers.size === 2) {
+                    isTwoFingerSwipe = true;
+                    const pointers = Array.from(activeFingerPointers.values());
+                    touchStartX = (pointers[0].x + pointers[1].x) / 2;
+                    touchStartY = (pointers[0].y + pointers[1].y) / 2;
+                }
             }
         }, { passive: true });
 
-        document.addEventListener('touchmove', (e) => {
-            if (isTwoFingerSwipe && e.touches.length === 2) {
-                // Prevent default scrolling behavior
-                e.preventDefault();
+        document.addEventListener('pointermove', (e) => {
+            // Update position for tracked finger pointers
+            if (e.pointerType === 'touch' && activeFingerPointers.has(e.pointerId)) {
+                activeFingerPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
             }
-        }, { passive: false });
+        }, { passive: true });
 
-        document.addEventListener('touchend', (e) => {
-            if (isTwoFingerSwipe) {
-                // Calculate the average position of remaining touches or use last known position
+        document.addEventListener('pointerup', (e) => {
+            // Remove the pointer from tracking
+            if (e.pointerType === 'touch' && activeFingerPointers.has(e.pointerId)) {
+                activeFingerPointers.delete(e.pointerId);
+            }
+
+            // Check if this was the end of a two-finger swipe
+            if (isTwoFingerSwipe && activeFingerPointers.size === 0) {
+                const pointers = Array.from(activeFingerPointers.values());
                 let touchEndX = touchStartX;
                 let touchEndY = touchStartY;
 
-                if (e.changedTouches.length > 0) {
-                    // Use the last touch position
-                    if (e.touches.length > 0) {
-                        touchEndX = (e.touches[0].clientX + (e.touches[1]?.clientX || e.touches[0].clientX)) / 2;
-                        touchEndY = (e.touches[0].clientY + (e.touches[1]?.clientY || e.touches[0].clientY)) / 2;
-                    } else {
-                        touchEndX = e.changedTouches[0].clientX;
-                        touchEndY = e.changedTouches[0].clientY;
-                    }
+                // If there are still fingers down, use their average position
+                if (pointers.length === 2) {
+                    touchEndX = (pointers[0].x + pointers[1].x) / 2;
+                    touchEndY = (pointers[0].y + pointers[1].y) / 2;
+                } else if (pointers.length === 1) {
+                    touchEndX = pointers[0].x;
+                    touchEndY = pointers[0].y;
+                } else {
+                    // Use the released pointer position
+                    touchEndX = e.clientX;
+                    touchEndY = e.clientY;
                 }
 
                 const deltaX = touchEndX - touchStartX;
@@ -1699,6 +1715,16 @@
                     }
                 }
 
+                isTwoFingerSwipe = false;
+            }
+        }, { passive: true });
+
+        document.addEventListener('pointercancel', (e) => {
+            // Clean up if pointer is cancelled
+            if (e.pointerType === 'touch' && activeFingerPointers.has(e.pointerId)) {
+                activeFingerPointers.delete(e.pointerId);
+            }
+            if (activeFingerPointers.size === 0) {
                 isTwoFingerSwipe = false;
             }
         }, { passive: true });
@@ -2561,6 +2587,21 @@
                 isDrawing = false;
                 points = [];
                 currentPath = null;
+            }
+        });
+
+        // Hide eraser cursor when stylus stops hovering (lifts away from screen without touching)
+        document.addEventListener('pointerout', (e) => {
+            // Hide eraser cursor when pen/stylus leaves (relatedTarget is null means left the document)
+            if (e.pointerType === 'pen' && !e.relatedTarget) {
+                eraserCursor.style.display = 'none';
+            }
+        });
+
+        // Also hide on pointercancel (when pointer is interrupted)
+        document.addEventListener('pointercancel', (e) => {
+            if (e.pointerType === 'pen') {
+                eraserCursor.style.display = 'none';
             }
         });
 
