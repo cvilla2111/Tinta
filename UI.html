@@ -3505,6 +3505,7 @@
         });
         if (snapCursor) snapCursor.style.display = 'none';
         if (gridControls) gridControls.style.display = 'none';
+        if (gridInfo) gridInfo.style.display = 'none';
 
         showGridCheckbox.addEventListener('change', (e) => {
             const isEnabled = e.target.checked;
@@ -3524,6 +3525,11 @@
             // Toggle grid controls
             if (gridControls) {
                 gridControls.style.display = isEnabled ? 'flex' : 'none';
+            }
+
+            // Toggle grid info label
+            if (gridInfo) {
+                gridInfo.style.display = isEnabled ? 'block' : 'none';
             }
         });
 
