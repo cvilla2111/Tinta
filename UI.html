@@ -17,6 +17,7 @@
             margin: 0;
             padding: 0;
             min-height: 100vh;
+            background-color: #e0e0e0;
             /* Disable touch callout, selection, and context menu */
             -webkit-touch-callout: none;
             -webkit-user-select: none;
@@ -25,11 +26,131 @@
             user-select: none;
         }
 
-        .grid-container {
-            position: relative;
-            width: 100%;
-            min-height: 100vh;
+        .canvas-wrapper {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .page-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100vw;
+            height: calc(100vh - 60px);
             background-color: white;
+            display: none;
+            background-image:
+                repeating-linear-gradient(
+                    transparent,
+                    transparent 39px,
+                    #e8e8e8 39px,
+                    #e8e8e8 40px
+                );
+            background-position: 0 20px;
+        }
+
+        .page-container.active {
+            display: block;
+        }
+
+        .page-title {
+            position: absolute;
+            top: 40px;
+            left: 60px;
+            right: 60px;
+            font-size: 28px;
+            font-weight: 300;
+            color: #999;
+            pointer-events: none;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .page-nav {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10001;
+            display: flex;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 10px 20px;
+            border-radius: 25px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .page-nav-button {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #d0d0d0;
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+        }
+
+        .page-nav-button:hover {
+            background: #a0a0a0;
+            transform: scale(1.2);
+        }
+
+        .page-nav-button.active {
+            background: #5D5CDE;
+            width: 30px;
+            border-radius: 5px;
+        }
+
+        .page-arrow {
+            position: fixed;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 10001;
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: background 0.2s, transform 0.2s;
+        }
+
+        .page-arrow:hover {
+            background: rgba(255, 255, 255, 1);
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .page-arrow.left {
+            left: 20px;
+        }
+
+        .page-arrow.right {
+            right: 20px;
+        }
+
+        .page-arrow:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .grid-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
         }
 
         .grid-overlay {
@@ -66,14 +187,22 @@
         }
 
         #drawingCanvas {
-            position: fixed;
+            position: absolute;
             top: 0;
             left: 0;
-            width: 100vw;
-            height: 100vh;
+            width: 100%;
+            height: 100%;
             cursor: crosshair;
             touch-action: none;
-            z-index: 9997;
+        }
+
+        .page-number {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            font-size: 12px;
+            color: #999;
+            pointer-events: none;
         }
 
         .header {
@@ -937,44 +1066,231 @@
         <div class="snap-crosshair"></div>
     </div>
 
-    <div class="grid-container">
-        <!-- Drawing Canvas -->
-        <svg id="drawingCanvas" xmlns="http://www.w3.org/2000/svg">
-            <rect width="100%" height="100%" fill="#FFFFFF"/>
-            <g id="drawingLayer"></g>
-            <circle id="eraserCursor" r="10" fill="none" stroke="#000000" stroke-width="1" stroke-dasharray="3,3" opacity="0.5" pointer-events="none" style="display: none;"/>
+    <!-- Page Navigation Arrows -->
+    <button class="page-arrow left" id="prevPageBtn">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2">
+            <polyline points="15 18 9 12 15 6"></polyline>
         </svg>
+    </button>
+    <button class="page-arrow right" id="nextPageBtn">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2">
+            <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+    </button>
 
-        <!-- Grid Overlay -->
-        <div class="grid-overlay" id="gridOverlay">
-            <div class="grid-pattern-major">
-                <div class="grid-pattern"></div>
+    <!-- Page Navigation Dots -->
+    <div class="page-nav" id="pageNav">
+        <button class="page-nav-button active" data-page="1"></button>
+        <button class="page-nav-button" data-page="2"></button>
+        <button class="page-nav-button" data-page="3"></button>
+        <button class="page-nav-button" data-page="4"></button>
+        <button class="page-nav-button" data-page="5"></button>
+    </div>
+
+    <div class="canvas-wrapper" id="canvasWrapper">
+        <!-- Page 1 -->
+        <div class="page-container active" data-page="1">
+            <div class="page-title">Page 1 - Notes</div>
+            <div class="grid-container">
+                <svg class="drawing-canvas" xmlns="http://www.w3.org/2000/svg" data-page="1">
+                    <rect width="100%" height="100%" fill="transparent"/>
+                    <g class="drawing-layer"></g>
+                </svg>
+                <div class="grid-overlay" style="display: none;">
+                    <div class="grid-pattern-major">
+                        <div class="grid-pattern"></div>
+                    </div>
+                </div>
             </div>
+            <div class="page-number">Page 1 of 5</div>
         </div>
 
-        <!-- Controls -->
-        <div class="grid-controls">
-            <div class="slider-container">
-                <label class="slider-label">Grid Size: <span id="gridSizeValue">10</span>px</label>
-                <input type="range" id="gridSize" min="10" max="100" value="10" step="5">
+        <!-- Page 2 -->
+        <div class="page-container" data-page="2">
+            <div class="page-title">Page 2 - Sketches</div>
+            <div class="grid-container">
+                <svg class="drawing-canvas" xmlns="http://www.w3.org/2000/svg" data-page="2">
+                    <rect width="100%" height="100%" fill="transparent"/>
+                    <g class="drawing-layer"></g>
+                </svg>
+                <div class="grid-overlay" style="display: none;">
+                    <div class="grid-pattern-major">
+                        <div class="grid-pattern"></div>
+                    </div>
+                </div>
             </div>
-            <div class="slider-container">
-                <label class="slider-label">Grid Opacity: <span id="gridOpacityValue">100</span>%</label>
-                <input type="range" id="gridOpacity" min="0" max="100" value="100" step="5">
-            </div>
+            <div class="page-number">Page 2 of 5</div>
         </div>
 
-        <!-- Grid Info -->
-        <div class="grid-info" id="gridInfo">
-            Position: (0, 0)
+        <!-- Page 3 -->
+        <div class="page-container" data-page="3">
+            <div class="page-title">Page 3 - Ideas</div>
+            <div class="grid-container">
+                <svg class="drawing-canvas" xmlns="http://www.w3.org/2000/svg" data-page="3">
+                    <rect width="100%" height="100%" fill="transparent"/>
+                    <g class="drawing-layer"></g>
+                </svg>
+                <div class="grid-overlay" style="display: none;">
+                    <div class="grid-pattern-major">
+                        <div class="grid-pattern"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="page-number">Page 3 of 5</div>
+        </div>
+
+        <!-- Page 4 -->
+        <div class="page-container" data-page="4">
+            <div class="page-title">Page 4 - Diagrams</div>
+            <div class="grid-container">
+                <svg class="drawing-canvas" xmlns="http://www.w3.org/2000/svg" data-page="4">
+                    <rect width="100%" height="100%" fill="transparent"/>
+                    <g class="drawing-layer"></g>
+                </svg>
+                <div class="grid-overlay" style="display: none;">
+                    <div class="grid-pattern-major">
+                        <div class="grid-pattern"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="page-number">Page 4 of 5</div>
+        </div>
+
+        <!-- Page 5 -->
+        <div class="page-container" data-page="5">
+            <div class="page-title">Page 5 - Summary</div>
+            <div class="grid-container">
+                <svg class="drawing-canvas" xmlns="http://www.w3.org/2000/svg" data-page="5">
+                    <rect width="100%" height="100%" fill="transparent"/>
+                    <g class="drawing-layer"></g>
+                </svg>
+                <div class="grid-overlay" style="display: none;">
+                    <div class="grid-pattern-major">
+                        <div class="grid-pattern"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="page-number">Page 5 of 5</div>
         </div>
     </div>
 
+    <!-- Eraser Cursor (shared across pages) -->
+    <svg id="eraserCursorSvg" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10005;">
+        <circle id="eraserCursor" r="10" fill="none" stroke="#000000" stroke-width="1" stroke-dasharray="3,3" opacity="0.5" style="display: none;"></circle>
+    </svg>
+
+    <!-- Controls -->
+    <div class="grid-controls">
+        <div class="slider-container">
+            <label class="slider-label">Grid Size: <span id="gridSizeValue">10</span>px</label>
+            <input type="range" id="gridSize" min="10" max="100" value="10" step="5">
+        </div>
+        <div class="slider-container">
+            <label class="slider-label">Grid Opacity: <span id="gridOpacityValue">100</span>%</label>
+            <input type="range" id="gridOpacity" min="0" max="100" value="100" step="5">
+        </div>
+    </div>
+
+    <!-- Grid Info -->
+    <div class="grid-info" id="gridInfo">
+        Position: (0, 0)
+    </div>
+
     <script>
-        // Initialize SVG canvas
-        const svg = document.getElementById('drawingCanvas');
-        const drawingLayer = document.getElementById('drawingLayer');
+        // Initialize multi-page canvas system
+        const canvases = document.querySelectorAll('.drawing-canvas');
+        const drawingLayers = document.querySelectorAll('.drawing-layer');
         const eraserCursor = document.getElementById('eraserCursor');
+
+        // Store strokes per page
+        const pageStrokes = {
+            1: [],
+            2: [],
+            3: [],
+            4: [],
+            5: []
+        };
+
+        let currentPage = 1;
+        const totalPages = 5;
+        const pageContainers = document.querySelectorAll('.page-container');
+        const pageNavButtons = document.querySelectorAll('.page-nav-button');
+        const prevPageBtn = document.getElementById('prevPageBtn');
+        const nextPageBtn = document.getElementById('nextPageBtn');
+
+        // Page navigation functions
+        function goToPage(pageNum) {
+            if (pageNum < 1 || pageNum > totalPages) return;
+
+            currentPage = pageNum;
+
+            // Update page visibility
+            pageContainers.forEach(container => {
+                const page = parseInt(container.dataset.page);
+                if (page === currentPage) {
+                    container.classList.add('active');
+                } else {
+                    container.classList.remove('active');
+                }
+            });
+
+            // Update navigation dots
+            pageNavButtons.forEach(btn => {
+                const page = parseInt(btn.dataset.page);
+                if (page === currentPage) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            // Update arrow button states
+            prevPageBtn.disabled = currentPage === 1;
+            nextPageBtn.disabled = currentPage === totalPages;
+
+            // Update which canvas is active for drawing
+            updateActiveCanvas();
+        }
+
+        function updateActiveCanvas() {
+            // Get the active page's canvas and drawing layer
+            const activePageContainer = document.querySelector(`.page-container[data-page="${currentPage}"]`);
+            svg = activePageContainer.querySelector('.drawing-canvas');
+            drawingLayer = activePageContainer.querySelector('.drawing-layer');
+        }
+
+        // Navigation button event listeners
+        prevPageBtn.addEventListener('click', () => {
+            if (currentPage > 1) {
+                goToPage(currentPage - 1);
+            }
+        });
+
+        nextPageBtn.addEventListener('click', () => {
+            if (currentPage < totalPages) {
+                goToPage(currentPage + 1);
+            }
+        });
+
+        // Navigation dot event listeners
+        pageNavButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const page = parseInt(btn.dataset.page);
+                goToPage(page);
+            });
+        });
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') {
+                if (currentPage > 1) goToPage(currentPage - 1);
+            } else if (e.key === 'ArrowRight') {
+                if (currentPage < totalPages) goToPage(currentPage + 1);
+            }
+        });
+
+        // Initialize first page
+        goToPage(1);
 
         // Track all strokes for efficient erasing
         const strokes = [];
@@ -1125,9 +1441,12 @@
             quadtree = newQuadtree;
         });
 
-        // Set SVG viewBox
+        // Set SVG viewBox for all canvases
         function resizeSVG() {
-            svg.setAttribute('viewBox', `0 0 ${window.innerWidth} ${window.innerHeight}`);
+            canvases.forEach(canvas => {
+                const rect = canvas.getBoundingClientRect();
+                canvas.setAttribute('viewBox', `0 0 ${rect.width} ${rect.height}`);
+            });
         }
 
         resizeSVG();
@@ -1171,15 +1490,26 @@
             eraserCursor.setAttribute('r', currentSize * 3);
         }
 
-        // Get point coordinates
-        function getPoint(e) {
-            const rect = svg.getBoundingClientRect();
+        // Get point coordinates relative to a specific canvas
+        function getPoint(e, canvas) {
+            const rect = canvas.getBoundingClientRect();
             const touch = e.touches ? e.touches[0] : e;
             return {
                 x: touch.clientX - rect.left,
                 y: touch.clientY - rect.top,
                 pressure: e.pressure || 0.5
             };
+        }
+
+        // Get which canvas is being interacted with
+        function getCanvasFromEvent(e) {
+            const target = e.target.closest('.drawing-canvas');
+            return target;
+        }
+
+        // Get drawing layer for a canvas
+        function getDrawingLayer(canvas) {
+            return canvas.querySelector('.drawing-layer');
         }
 
         // Create SVG path from points using smooth quadratic curves
@@ -1417,14 +1747,23 @@
             eraseScheduled = false;
         }
 
+        // Use first canvas as main drawing surface (will be updated on page change)
+        let svg = canvases[0];
+        let drawingLayer = drawingLayers[0];
+
         // Pointer events
         svg.addEventListener('pointerdown', (e) => {
             // Ignore touch input (finger), only allow pen and mouse
             if (e.pointerType === 'touch') return;
 
-            const point = getPoint(e);
+            const point = getPoint(e, svg);
             const usingHardwareEraser = isUsingEraser(e);
             const effectiveTool = usingHardwareEraser ? 'eraser' : currentTool;
+
+            // If using hardware eraser, temporarily use eraser's current size
+            if (usingHardwareEraser) {
+                currentSize = toolCurrentSize['eraser'];
+            }
 
             if (effectiveTool === 'lasso') {
                 // Check if clicking on a scale handle first
@@ -1541,7 +1880,7 @@
 
         svg.addEventListener('pointermove', (e) => {
             // Ignore touch input for drawing, but allow for UI feedback
-            const point = getPoint(e);
+            const point = getPoint(e, svg);
 
             const usingHardwareEraser = isUsingEraser(e);
             const effectiveTool = usingHardwareEraser ? 'eraser' : currentTool;
@@ -1612,7 +1951,13 @@
             // Ignore touch input
             if (e.pointerType === 'touch') return;
 
-            const effectiveTool = isUsingEraser(e) ? 'eraser' : currentTool;
+            const usingHardwareEraser = isUsingEraser(e);
+            const effectiveTool = usingHardwareEraser ? 'eraser' : currentTool;
+
+            // Restore original tool size after hardware eraser use
+            if (usingHardwareEraser && currentTool !== 'eraser') {
+                currentSize = toolCurrentSize[currentTool];
+            }
 
             // Handle lasso selection scaling end
             if (effectiveTool === 'lasso' && isScalingSelection) {
