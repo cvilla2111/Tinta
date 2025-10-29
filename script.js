@@ -123,3 +123,10 @@ downloadBtn.addEventListener('click', () => {
     link.href = canvas.toDataURL();
     link.click();
 });
+
+// Keyboard shortcut - Delete key clears canvas
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Delete') {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+});
