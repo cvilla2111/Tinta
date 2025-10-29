@@ -9,9 +9,16 @@ body {
     background: #ffffff;
 }
 
+#header {
+    width: 100vw;
+    height: 20px;
+    background: #f3f3f3;
+    display: block;
+}
+
 #drawingCanvas {
     width: 100vw;
-    height: 100vh;
+    height: calc(100vh - 20px);
     background: #ffffff;
     cursor: crosshair;
     touch-action: none;
