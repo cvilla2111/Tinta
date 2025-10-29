@@ -16,9 +16,12 @@ let points = [];
 // ============================================
 
 function resizeSVG() {
-    svg.setAttribute('viewBox', `0 0 ${window.innerWidth} ${window.innerHeight}`);
-    svg.setAttribute('width', window.innerWidth);
-    svg.setAttribute('height', window.innerHeight);
+    // Set viewBox to 16:9 ratio (1600x900)
+    svg.setAttribute('viewBox', '0 0 1600 900');
+
+    const rect = svg.getBoundingClientRect();
+    svg.setAttribute('width', rect.width);
+    svg.setAttribute('height', rect.height);
 }
 
 resizeSVG();
