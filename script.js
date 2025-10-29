@@ -2,13 +2,6 @@
 const canvas = document.getElementById('drawingCanvas');
 const ctx = canvas.getContext('2d');
 
-// UI elements
-const strokeWidthInput = document.getElementById('strokeWidth');
-const widthValueDisplay = document.getElementById('widthValue');
-const strokeColorInput = document.getElementById('strokeColor');
-const clearBtn = document.getElementById('clearBtn');
-const downloadBtn = document.getElementById('downloadBtn');
-
 // Drawing state
 let isDrawing = false;
 let lastX = 0;
@@ -36,11 +29,6 @@ function resizeCanvas() {
 // Initial setup
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
-
-// Update stroke width display
-strokeWidthInput.addEventListener('input', (e) => {
-    widthValueDisplay.textContent = e.target.value;
-});
 
 // Get coordinates relative to canvas
 function getCoordinates(e) {
@@ -75,8 +63,8 @@ function draw(e) {
 
     const coords = getCoordinates(e);
 
-    ctx.strokeStyle = strokeColorInput.value;
-    ctx.lineWidth = strokeWidthInput.value;
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
 
     ctx.beginPath();
     ctx.moveTo(lastX, lastY);
@@ -110,19 +98,6 @@ canvas.addEventListener('touchstart', startDrawing);
 canvas.addEventListener('touchmove', draw);
 canvas.addEventListener('touchend', stopDrawing);
 canvas.addEventListener('touchcancel', stopDrawing);
-
-// Clear canvas
-clearBtn.addEventListener('click', () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-});
-
-// Download canvas as image
-downloadBtn.addEventListener('click', () => {
-    const link = document.createElement('a');
-    link.download = 'drawing.png';
-    link.href = canvas.toDataURL();
-    link.click();
-});
 
 // Keyboard shortcut - Delete key clears canvas
 document.addEventListener('keydown', (e) => {
