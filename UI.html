@@ -96,6 +96,9 @@
             left: 0;
             width: 100%;
             height: 100%;
+            /* GPU acceleration for better performance with many strokes */
+            will-change: transform;
+            transform: translateZ(0);
         }
 
         .grid-overlay {
@@ -735,6 +738,35 @@
             font-size: 10px;
             color: #333;
         }
+
+        .perf-stats {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 10000;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            padding: 10px 12px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            font-family: monospace;
+            font-size: 11px;
+            color: #00ff00;
+            line-height: 1.6;
+            min-width: 180px;
+        }
+
+        .perf-stats-title {
+            font-weight: bold;
+            color: #ffff00;
+            margin-bottom: 4px;
+            border-bottom: 1px solid #00ff00;
+            padding-bottom: 2px;
+        }
+
+        .perf-good { color: #00ff00; }
+        .perf-warning { color: #ffaa00; }
+        .perf-bad { color: #ff0000; }
 
         .slider-container {
             display: flex;
@@ -1708,6 +1740,15 @@
         Position: (0, 0)
     </div>
 
+    <!-- Performance Stats -->
+    <div class="perf-stats" id="perfStats">
+        <div class="perf-stats-title">⚡ PERFORMANCE</div>
+        <div>FPS: <span id="fpsValue">--</span></div>
+        <div>Strokes: <span id="strokeCount">0</span></div>
+        <div>Page: <span id="currentPageValue">1</span>/5</div>
+        <div>Zoom: <span id="currentZoomValue">100</span>%</div>
+    </div>
+
     </div> <!-- End App Container -->
 
     <script>
@@ -1731,6 +1772,8 @@
 
         // Page navigation functions
         function goToPage(pageNum) {
+            const t0 = performance.now();
+
             if (pageNum < 1 || pageNum > totalPages) return;
 
             // If we're already on this page, just ensure it's active (for initial load)
@@ -1797,6 +1840,14 @@
 
             // Update which canvas is active for drawing
             updateActiveCanvas();
+
+            const transitionTime = performance.now() - t0;
+            console.log('📄 PAGE TRANSITION:', JSON.stringify({
+                from: oldPage,
+                to: pageNum,
+                direction: direction,
+                transitionTime: transitionTime.toFixed(2) + 'ms'
+            }));
         }
 
         function updateActiveCanvas() {
@@ -1897,7 +1948,7 @@
         }, { passive: true });
 
         // Track all strokes for efficient erasing
-        const strokes = [];
+        let strokes = [];
         const undoStack = [];
         const redoStack = [];
 
@@ -2126,6 +2177,12 @@
             eraserCursor.setAttribute('r', currentSize * 3);
         }
 
+        // Get effective eraser radius in SVG coordinate space (1920x1080)
+        function getEffectiveEraserRadius() {
+            // In the fixed 1920x1080 coordinate system, make eraser more responsive
+            return currentSize * 16;
+        }
+
         // Get point coordinates relative to a specific canvas
         function getPoint(e, canvas) {
             const touch = e.touches ? e.touches[0] : e;
@@ -2181,8 +2238,19 @@
         function updateCurrentPath() {
             if (!currentPath || points.length < 2) return;
 
+            const t0 = performance.now();
             const pathData = createSmoothPath(points);
             currentPath.setAttribute('d', pathData);
+            const updateTime = performance.now() - t0;
+
+            // Log if path update is slow (only for very large strokes)
+            if (updateTime > 10 || points.length > 500) {
+                console.log('✏️ DRAW PERFORMANCE:', JSON.stringify({
+                    updateTime: updateTime.toFixed(2) + 'ms',
+                    points: points.length,
+                    pathLength: pathData.length
+                }));
+            }
         }
 
         // Quick AABB check before expensive path sampling
@@ -2237,10 +2305,19 @@
                 const transform = getStrokeTransform(stroke);
 
                 const thresholdSquared = threshold * threshold;
+                const scaledThresholdSquared = thresholdSquared * transform.scale * transform.scale;
 
-                // Sample every few points to keep it fast, but cap step size for large strokes
-                // Min step: 1, Max step: 3 (ensures adequate coverage even for very long strokes)
-                const step = Math.max(1, Math.min(3, Math.floor(stroke.points.length / 15)));
+                // PERFORMANCE: For small strokes check all points, for large strokes cap at 50 checks max
+                // This balances accuracy with performance for very large strokes
+                let step;
+                const maxChecks = 50;
+                if (stroke.points.length <= 20) {
+                    step = 1; // Check every point for small strokes
+                } else if (stroke.points.length <= maxChecks) {
+                    step = 1; // Still check all for medium strokes
+                } else {
+                    step = Math.ceil(stroke.points.length / maxChecks); // Cap at ~50 checks for large strokes
+                }
 
                 for (let i = 0; i < stroke.points.length; i += step) {
                     const p = stroke.points[i];
@@ -2253,12 +2330,27 @@
                     const dy = transformedY - point.y;
                     const distSquared = dx * dx + dy * dy;
 
-                    // Scale the threshold too
-                    const scaledThresholdSquared = thresholdSquared * transform.scale * transform.scale;
-
                     if (distSquared < scaledThresholdSquared) {
                         perfStats.pathHits++;
                         return true;
+                    }
+                }
+
+                // Always check the last point to ensure we don't miss stroke endpoints
+                if (step > 1 && stroke.points.length > 0) {
+                    const lastIdx = stroke.points.length - 1;
+                    if (lastIdx % step !== 0) { // Only if we didn't already check it
+                        const p = stroke.points[lastIdx];
+                        const transformedX = p.x * transform.scale + transform.x;
+                        const transformedY = p.y * transform.scale + transform.y;
+                        const dx = transformedX - point.x;
+                        const dy = transformedY - point.y;
+                        const distSquared = dx * dx + dy * dy;
+
+                        if (distSquared < scaledThresholdSquared) {
+                            perfStats.pathHits++;
+                            return true;
+                        }
                     }
                 }
 
@@ -2300,32 +2392,39 @@
             let queryTime = 0;
             let collisionTime = 0;
 
-            eraserPoints.forEach(eraserPoint => {
-                // Query quadtree for nearby strokes
-                const qt0 = performance.now();
-                const range = {
-                    x: eraserPoint.x - eraserRadius,
-                    y: eraserPoint.y - eraserRadius,
-                    width: eraserRadius * 2,
-                    height: eraserRadius * 2
-                };
-
-                const nearbyStrokes = quadtree.query(range);
-                queryTime += performance.now() - qt0;
-
-                const ct0 = performance.now();
-                nearbyStrokes.forEach(stroke => {
-                    // Skip if already marked for removal
-                    if (strokesToRemove.has(stroke)) {
-                        return;
-                    }
-
-                    if (isPointNearPath(eraserPoint, stroke, eraserRadius)) {
-                        strokesToRemove.add(stroke);
-                    }
-                });
-                collisionTime += performance.now() - ct0;
+            // OPTIMIZATION: Build a single bounding box for all eraser points
+            // to query the quadtree just once instead of for each eraser point
+            const qt0 = performance.now();
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            eraserPoints.forEach(p => {
+                minX = Math.min(minX, p.x - eraserRadius);
+                minY = Math.min(minY, p.y - eraserRadius);
+                maxX = Math.max(maxX, p.x + eraserRadius);
+                maxY = Math.max(maxY, p.y + eraserRadius);
             });
+
+            const range = {
+                x: minX,
+                y: minY,
+                width: maxX - minX,
+                height: maxY - minY
+            };
+
+            const candidateStrokes = quadtree.query(range);
+            queryTime = performance.now() - qt0;
+
+            const ct0 = performance.now();
+            // Check each candidate stroke against all eraser points
+            candidateStrokes.forEach(stroke => {
+                // Check if any eraser point hits this stroke
+                for (let i = 0; i < eraserPoints.length; i++) {
+                    if (isPointNearPath(eraserPoints[i], stroke, eraserRadius)) {
+                        strokesToRemove.add(stroke);
+                        break; // Found a hit, no need to check more eraser points for this stroke
+                    }
+                }
+            });
+            collisionTime = performance.now() - ct0;
 
             const t2 = performance.now();
 
@@ -2335,14 +2434,14 @@
 
             if (strokesToRemove.size > 0) {
                 const dr0 = performance.now();
-                // Remove from DOM and strokes array
+                // Remove from DOM (batch removal is fast)
                 strokesToRemove.forEach(stroke => {
                     stroke.element.remove();
-                    const index = strokes.indexOf(stroke);
-                    if (index > -1) {
-                        strokes.splice(index, 1);
-                    }
                 });
+
+                // PERFORMANCE: Filter array instead of indexOf+splice for better performance
+                // This is O(n) instead of O(n*m) where m is number of removed strokes
+                strokes = strokes.filter(stroke => !strokesToRemove.has(stroke));
                 domRemovalTime = performance.now() - dr0;
 
                 // Rebuild quadtree only when many strokes removed (threshold: 10% of total or >5 strokes)
@@ -2357,6 +2456,26 @@
                     });
                     rebuildTime = performance.now() - rb0;
                 }
+            }
+
+            // Performance logging (only log if slow or removed strokes)
+            const totalTime = performance.now() - t0;
+            if (strokesToRemove.size > 0 || totalTime > 10) {
+                console.log('🗑️ ERASER PERFORMANCE:', JSON.stringify({
+                    totalTime: totalTime.toFixed(2) + 'ms',
+                    eraserPoints: eraserPoints.length,
+                    strokesRemoved: strokesToRemove.size,
+                    totalStrokes: strokes.length,
+                    queryTime: queryTime.toFixed(2) + 'ms',
+                    collisionTime: collisionTime.toFixed(2) + 'ms',
+                    domRemovalTime: domRemovalTime.toFixed(2) + 'ms',
+                    rebuildTime: rebuildTime.toFixed(2) + 'ms',
+                    bboxChecks: perfStats.bboxChecks,
+                    bboxRejections: perfStats.bboxRejections,
+                    pathSamples: perfStats.pathSamples,
+                    pathHits: perfStats.pathHits,
+                    eraserRadius: eraserRadius
+                }));
             }
         }
 
@@ -2383,7 +2502,8 @@
         // Throttle erase operations using requestAnimationFrame
         let pendingErasePoints = [];
         let eraseScheduled = false;
-        let eraseRadius = currentSize * 3;
+        let eraseRadius = getEffectiveEraserRadius();
+        let lastErasePoint = null;
 
         function processEraseQueue() {
             if (pendingErasePoints.length > 0) {
@@ -2512,7 +2632,7 @@
                     currentPath = null;
                     updateEraserCursorSize();
                     updateEraserCursorPosition(e, true);
-                    eraseRadius = currentSize * 3;
+                    eraseRadius = getEffectiveEraserRadius();
                     pendingErasePoints = [];
                 } else {
                     currentPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -2521,6 +2641,7 @@
                     currentPath.setAttribute('stroke-linejoin', 'round');
                     currentPath.setAttribute('stroke', currentColor);
                     currentPath.setAttribute('stroke-width', currentSize);
+                    currentPath.setAttribute('shape-rendering', 'geometricPrecision');
                     drawingLayer.appendChild(currentPath);
                     updateEraserCursorPosition(e, false);
                 }
@@ -2583,8 +2704,30 @@
                 points.push(point);
 
                 if (effectiveTool === 'eraser') {
+                    // Interpolate points if moving fast to avoid missing strokes
+                    if (lastErasePoint) {
+                        const dx = point.x - lastErasePoint.x;
+                        const dy = point.y - lastErasePoint.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+
+                        // If the eraser moved more than half its radius, add intermediate points
+                        const eraserRadius = getEffectiveEraserRadius();
+                        if (distance > eraserRadius * 0.5) {
+                            // Cap at max 5 intermediate points to prevent performance issues
+                            const numSteps = Math.min(5, Math.ceil(distance / (eraserRadius * 0.5)));
+                            for (let i = 1; i < numSteps; i++) {
+                                const t = i / numSteps;
+                                pendingErasePoints.push({
+                                    x: lastErasePoint.x + dx * t,
+                                    y: lastErasePoint.y + dy * t
+                                });
+                            }
+                        }
+                    }
+
                     // Batch erase points instead of processing immediately
                     pendingErasePoints.push(point);
+                    lastErasePoint = point;
 
                     // Schedule processing if not already scheduled
                     if (!eraseScheduled) {
@@ -2666,6 +2809,9 @@
                         pendingErasePoints = [];
                         eraseScheduled = false;
                     }
+
+                    // Reset last erase point for next stroke
+                    lastErasePoint = null;
 
                     if (currentPath) {
                         updateCurrentPath();
@@ -3889,6 +4035,47 @@
                 });
             }
         });
+
+        // FPS Counter
+        const fpsValue = document.getElementById('fpsValue');
+        const strokeCountElement = document.getElementById('strokeCount');
+        const currentPageValue = document.getElementById('currentPageValue');
+        const currentZoomValue = document.getElementById('currentZoomValue');
+
+        let frameCount = 0;
+        let lastTime = performance.now();
+        let fps = 0;
+
+        function updatePerformanceStats() {
+            frameCount++;
+            const currentTime = performance.now();
+            const deltaTime = currentTime - lastTime;
+
+            if (deltaTime >= 1000) { // Update every second
+                fps = Math.round((frameCount * 1000) / deltaTime);
+                frameCount = 0;
+                lastTime = currentTime;
+
+                // Update FPS display with color coding
+                fpsValue.textContent = fps;
+                fpsValue.className = fps >= 50 ? 'perf-good' : fps >= 30 ? 'perf-warning' : 'perf-bad';
+
+                // Update stroke count
+                strokeCountElement.textContent = strokes.length;
+                strokeCountElement.className = strokes.length < 100 ? 'perf-good' : strokes.length < 500 ? 'perf-warning' : 'perf-bad';
+
+                // Update current page
+                currentPageValue.textContent = currentPage;
+
+                // Update current zoom
+                currentZoomValue.textContent = pdfZoomSlider.value;
+            }
+
+            requestAnimationFrame(updatePerformanceStats);
+        }
+
+        // Start FPS counter
+        requestAnimationFrame(updatePerformanceStats);
 
         // Track mouse position
         document.addEventListener('mousemove', (e) => {
