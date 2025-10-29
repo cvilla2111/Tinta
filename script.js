@@ -117,9 +117,9 @@ svg.addEventListener('pointerup', stopDrawing);
 svg.addEventListener('pointerout', stopDrawing);
 svg.addEventListener('pointercancel', stopDrawing);
 
-// Touch events
-svg.addEventListener('touchstart', startDrawing);
-svg.addEventListener('touchmove', draw);
+// Touch events (non-passive because we call preventDefault to block scrolling)
+svg.addEventListener('touchstart', startDrawing, { passive: false });
+svg.addEventListener('touchmove', draw, { passive: false });
 svg.addEventListener('touchend', stopDrawing);
 svg.addEventListener('touchcancel', stopDrawing);
 
