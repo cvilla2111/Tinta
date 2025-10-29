@@ -1,40 +1,35 @@
-// Canvas setup
-const canvas = document.getElementById('drawingCanvas');
-const ctx = canvas.getContext('2d');
+// ============================================
+// SVG Drawing Application
+// Vector-based drawing with Surface Pen support
+// ============================================
+
+// SVG element reference
+const svg = document.getElementById('drawingCanvas');
 
 // Drawing state
 let isDrawing = false;
-let lastX = 0;
-let lastY = 0;
+let currentPath = null;
+let points = [];
 
-// Resize canvas to fill the available space
-function resizeCanvas() {
-    const rect = canvas.getBoundingClientRect();
+// ============================================
+// INITIALIZATION
+// ============================================
 
-    // Store the current canvas content
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-    // Resize canvas
-    canvas.width = rect.width;
-    canvas.height = rect.height;
-
-    // Restore the canvas content
-    ctx.putImageData(imageData, 0, 0);
-
-    // Set drawing properties
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+function resizeSVG() {
+    svg.setAttribute('viewBox', `0 0 ${window.innerWidth} ${window.innerHeight}`);
+    svg.setAttribute('width', window.innerWidth);
+    svg.setAttribute('height', window.innerHeight);
 }
 
-// Initial setup
-resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
+resizeSVG();
+window.addEventListener('resize', resizeSVG);
 
-// Get coordinates relative to canvas
+// ============================================
+// UTILITY FUNCTIONS
+// ============================================
+
 function getCoordinates(e) {
-    const rect = canvas.getBoundingClientRect();
-
-    // Handle both mouse and pointer events
+    const rect = svg.getBoundingClientRect();
     const clientX = e.clientX || (e.touches && e.touches[0].clientX);
     const clientY = e.clientY || (e.touches && e.touches[0].clientY);
 
@@ -44,64 +39,93 @@ function getCoordinates(e) {
     };
 }
 
-// Start drawing
+function pointsToPath(pts) {
+    if (pts.length === 0) return '';
+
+    let pathData = `M ${pts[0].x} ${pts[0].y}`;
+
+    for (let i = 1; i < pts.length; i++) {
+        pathData += ` L ${pts[i].x} ${pts[i].y}`;
+    }
+
+    return pathData;
+}
+
+// ============================================
+// DRAWING FUNCTIONS
+// ============================================
+
 function startDrawing(e) {
     isDrawing = true;
-    const coords = getCoordinates(e);
-    lastX = coords.x;
-    lastY = coords.y;
+    points = [];
 
-    // Prevent scrolling on touch devices
+    const coords = getCoordinates(e);
+    points.push(coords);
+
+    currentPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    currentPath.setAttribute('fill', 'none');
+    currentPath.setAttribute('stroke', '#000000');
+    currentPath.setAttribute('stroke-width', '2');
+    currentPath.setAttribute('stroke-linecap', 'round');
+    currentPath.setAttribute('stroke-linejoin', 'round');
+
+    svg.appendChild(currentPath);
+
     e.preventDefault();
 }
 
-// Draw
 function draw(e) {
     if (!isDrawing) return;
 
     e.preventDefault();
 
     const coords = getCoordinates(e);
+    points.push(coords);
 
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 2;
-
-    ctx.beginPath();
-    ctx.moveTo(lastX, lastY);
-    ctx.lineTo(coords.x, coords.y);
-    ctx.stroke();
-
-    lastX = coords.x;
-    lastY = coords.y;
+    const pathData = pointsToPath(points);
+    currentPath.setAttribute('d', pathData);
 }
 
-// Stop drawing
 function stopDrawing() {
-    isDrawing = false;
+    if (isDrawing) {
+        isDrawing = false;
+        currentPath = null;
+        points = [];
+    }
 }
+
+function clearCanvas() {
+    while (svg.firstChild) {
+        svg.removeChild(svg.firstChild);
+    }
+}
+
+// ============================================
+// EVENT LISTENERS
+// ============================================
 
 // Mouse events
-canvas.addEventListener('mousedown', startDrawing);
-canvas.addEventListener('mousemove', draw);
-canvas.addEventListener('mouseup', stopDrawing);
-canvas.addEventListener('mouseout', stopDrawing);
+svg.addEventListener('mousedown', startDrawing);
+svg.addEventListener('mousemove', draw);
+svg.addEventListener('mouseup', stopDrawing);
+svg.addEventListener('mouseout', stopDrawing);
 
-// Pointer events (for Surface Pen support)
-canvas.addEventListener('pointerdown', startDrawing);
-canvas.addEventListener('pointermove', draw);
-canvas.addEventListener('pointerup', stopDrawing);
-canvas.addEventListener('pointerout', stopDrawing);
-canvas.addEventListener('pointercancel', stopDrawing);
+// Pointer events (Surface Pen support)
+svg.addEventListener('pointerdown', startDrawing);
+svg.addEventListener('pointermove', draw);
+svg.addEventListener('pointerup', stopDrawing);
+svg.addEventListener('pointerout', stopDrawing);
+svg.addEventListener('pointercancel', stopDrawing);
 
 // Touch events
-canvas.addEventListener('touchstart', startDrawing);
-canvas.addEventListener('touchmove', draw);
-canvas.addEventListener('touchend', stopDrawing);
-canvas.addEventListener('touchcancel', stopDrawing);
+svg.addEventListener('touchstart', startDrawing);
+svg.addEventListener('touchmove', draw);
+svg.addEventListener('touchend', stopDrawing);
+svg.addEventListener('touchcancel', stopDrawing);
 
-// Keyboard shortcut - Delete key clears canvas
+// Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Delete') {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        clearCanvas();
     }
 });
