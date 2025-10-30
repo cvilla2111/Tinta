@@ -5,10 +5,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Drawing Canvas</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
-    <header id="header"></header>
-    <svg id="drawingCanvas" xmlns="http://www.w3.org/2000/svg"></svg>
+    <!-- Home Screen -->
+    <div id="homeScreen">
+        <div id="pdfUploadContainer">
+            <input type="file" id="pdfInput" accept="application/pdf" style="display: none;">
+            <label for="pdfInput" id="uploadBox">
+                <span id="plusIcon">+</span>
+            </label>
+        </div>
+    </div>
+
+    <!-- Drawing Screen -->
+    <div id="drawingScreen" style="display: none;">
+        <header id="header">
+            <div id="headerLeft">
+                <img src="icons/library.svg" id="homeIcon" alt="Return to Home">
+            </div>
+            <div id="headerCenter">
+                <img src="icons/pen-tool.svg" class="tool-icon" id="penToolIcon" alt="Pen Tool">
+                <img src="icons/laser.svg" class="tool-icon" id="laserIcon" alt="Laser">
+                <img src="icons/eraser.svg" class="tool-icon" id="eraserIcon" alt="Eraser">
+                <img src="icons/lasso.svg" class="tool-icon" id="lassoIcon" alt="Lasso">
+            </div>
+            <div id="headerRight">
+                <img src="icons/maximize-2.svg" id="maximizeIcon" alt="Maximize">
+            </div>
+        </header>
+        <div id="canvasContainer">
+            <canvas id="pdfCanvas"></canvas>
+            <svg id="drawingCanvas" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>
