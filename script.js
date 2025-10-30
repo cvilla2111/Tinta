@@ -16,6 +16,8 @@ let isErasing = false;
 let currentPath = null;
 let points = [];
 let eraseAnimationFrame = null;
+let currentColor = '#000000';
+let isLasering = false;
 
 // Eraser indicator
 let eraserIndicator = null;
@@ -197,19 +199,59 @@ function initializeDrawingCanvas() {
     });
 
     // Tool icons
+    const penToolContainer = document.getElementById('penToolContainer');
     const penToolIcon = document.getElementById('penToolIcon');
     const laserIcon = document.getElementById('laserIcon');
     const eraserIcon = document.getElementById('eraserIcon');
+    const penModal = document.getElementById('penModal');
 
-    if (penToolIcon) {
-        penToolIcon.addEventListener('click', () => setActiveTool('pen'));
+    if (penToolContainer) {
+        penToolContainer.addEventListener('click', (e) => {
+            // If pen is already active, toggle modal
+            if (activeTool === 'pen') {
+                const isModalOpen = penModal.style.display === 'block';
+                penModal.style.display = isModalOpen ? 'none' : 'block';
+
+                if (!isModalOpen) {
+                    // Position modal below pen icon
+                    const rect = penToolContainer.getBoundingClientRect();
+                    penModal.style.left = `${rect.left + rect.width / 2}px`;
+                }
+            } else {
+                // Activate pen tool
+                setActiveTool('pen');
+            }
+        });
     }
+
     if (laserIcon) {
         laserIcon.addEventListener('click', () => setActiveTool('laser'));
     }
     if (eraserIcon) {
         eraserIcon.addEventListener('click', () => setActiveTool('eraser'));
     }
+
+    // Close modal when clicking outside
+    document.addEventListener('click', (e) => {
+        if (penModal && penModal.style.display === 'block') {
+            if (!penModal.contains(e.target) && !penToolContainer.contains(e.target)) {
+                penModal.style.display = 'none';
+            }
+        }
+    });
+
+    // Color picker
+    const colorCircles = document.querySelectorAll('.color-circle');
+    colorCircles.forEach(circle => {
+        circle.addEventListener('click', () => {
+            // Remove active class from all circles
+            colorCircles.forEach(c => c.classList.remove('active'));
+            // Add active class to clicked circle
+            circle.classList.add('active');
+            // Set current color
+            currentColor = circle.getAttribute('data-color');
+        });
+    });
 
     // Home icon - return to homepage
     const homeIcon = document.getElementById('homeIcon');
@@ -240,6 +282,28 @@ function initializeDrawingCanvas() {
     eraserIndicator.setAttribute('pointer-events', 'none');
     eraserIndicator.style.display = 'none';
     svg.appendChild(eraserIndicator);
+
+    // Create laser glow filter
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    const filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+    filter.setAttribute('id', 'laserGlow');
+
+    const feGaussianBlur = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
+    feGaussianBlur.setAttribute('stdDeviation', '2');
+    feGaussianBlur.setAttribute('result', 'coloredBlur');
+
+    const feMerge = document.createElementNS('http://www.w3.org/2000/svg', 'feMerge');
+    const feMergeNode1 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+    feMergeNode1.setAttribute('in', 'coloredBlur');
+    const feMergeNode2 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+    feMergeNode2.setAttribute('in', 'SourceGraphic');
+
+    feMerge.appendChild(feMergeNode1);
+    feMerge.appendChild(feMergeNode2);
+    filter.appendChild(feGaussianBlur);
+    filter.appendChild(feMerge);
+    defs.appendChild(filter);
+    svg.appendChild(defs);
 
     // Create laser pointer indicator (initially hidden)
     laserPointer = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
@@ -320,18 +384,22 @@ function setActiveTool(tool) {
     activeTool = tool;
 
     // Update icon styles to show active tool
-    const penToolIcon = document.getElementById('penToolIcon');
+    const penToolContainer = document.getElementById('penToolContainer');
     const laserIcon = document.getElementById('laserIcon');
     const eraserIcon = document.getElementById('eraserIcon');
+    const penModal = document.getElementById('penModal');
 
     // Remove active class from all icons
-    if (penToolIcon) penToolIcon.classList.remove('active');
+    if (penToolContainer) penToolContainer.classList.remove('active');
     if (laserIcon) laserIcon.classList.remove('active');
     if (eraserIcon) eraserIcon.classList.remove('active');
 
+    // Close modal when switching tools
+    if (penModal) penModal.style.display = 'none';
+
     // Add active class to selected tool
-    if (tool === 'pen' && penToolIcon) {
-        penToolIcon.classList.add('active');
+    if (tool === 'pen' && penToolContainer) {
+        penToolContainer.classList.add('active');
     } else if (tool === 'laser' && laserIcon) {
         laserIcon.classList.add('active');
     } else if (tool === 'eraser' && eraserIcon) {
@@ -459,11 +527,25 @@ function startDrawing(e) {
 
     // Handle tool modes
     if (activeTool === 'laser') {
-        // Show laser pointer
+        // Laser mode - draw a stroke that will fade
+        isLasering = true;
+        points = [];
+
         const coords = getCoordinates(e);
-        laserPointer.setAttribute('cx', coords.x);
-        laserPointer.setAttribute('cy', coords.y);
-        laserPointer.style.display = 'block';
+        points.push(coords);
+
+        currentPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        currentPath.setAttribute('fill', 'none');
+        currentPath.setAttribute('stroke', '#ff0000');
+        currentPath.setAttribute('stroke-width', '3');
+        currentPath.setAttribute('stroke-linecap', 'round');
+        currentPath.setAttribute('stroke-linejoin', 'round');
+        currentPath.setAttribute('opacity', '1');
+        currentPath.setAttribute('filter', 'url(#laserGlow)');
+        currentPath.classList.add('laser-stroke');
+
+        svg.appendChild(currentPath);
+
         e.preventDefault();
         return;
     } else if (activeTool === 'eraser') {
@@ -484,7 +566,7 @@ function startDrawing(e) {
 
     currentPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     currentPath.setAttribute('fill', 'none');
-    currentPath.setAttribute('stroke', '#000000');
+    currentPath.setAttribute('stroke', currentColor);
     currentPath.setAttribute('stroke-width', '2');
     currentPath.setAttribute('stroke-linecap', 'round');
     currentPath.setAttribute('stroke-linejoin', 'round');
@@ -505,17 +587,19 @@ function draw(e) {
 
     e.preventDefault();
 
-    // Update laser pointer position
-    if (activeTool === 'laser' && laserPointer.style.display === 'block') {
-        const coords = getCoordinates(e);
-        laserPointer.setAttribute('cx', coords.x);
-        laserPointer.setAttribute('cy', coords.y);
-        return;
-    }
-
     // Handle erasing
     if (isErasing) {
         erase(e);
+        return;
+    }
+
+    // Handle laser drawing
+    if (isLasering) {
+        const coords = getCoordinates(e);
+        points.push(coords);
+
+        const pathData = pointsToPath(points);
+        currentPath.setAttribute('d', pathData);
         return;
     }
 
@@ -548,9 +632,28 @@ function stopDrawing() {
             eraseAnimationFrame = null;
         }
     }
-    // Hide laser pointer when released
-    if (laserPointer && laserPointer.style.display === 'block') {
-        laserPointer.style.display = 'none';
+    if (isLasering) {
+        isLasering = false;
+        const laserPath = currentPath;
+
+        // Fade out and remove after 3 seconds
+        if (laserPath) {
+            setTimeout(() => {
+                // Start fade animation
+                laserPath.style.transition = 'opacity 0.5s ease';
+                laserPath.setAttribute('opacity', '0');
+
+                // Remove after fade completes
+                setTimeout(() => {
+                    if (laserPath.parentNode) {
+                        laserPath.remove();
+                    }
+                }, 500);
+            }, 2500); // Wait 2.5 seconds, then fade for 0.5 seconds = 3 seconds total
+        }
+
+        currentPath = null;
+        points = [];
     }
 }
 

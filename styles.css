@@ -97,12 +97,60 @@ body {
     display: flex;
     align-items: center;
     gap: 30px;
+    border-left: 1px solid #d0d0d0;
+    border-right: 1px solid #d0d0d0;
+    padding: 0 20px;
+}
+
+#colorPicker {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: 20px;
+    border-right: 1px solid #d0d0d0;
+    padding-right: 20px;
+    height: 40px;
+}
+
+.color-circle {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.2s ease;
+}
+
+.color-circle:hover {
+    border-color: rgba(0, 0, 0, 0.2);
+}
+
+.color-circle.active {
+    border-color: #000000;
+    border-width: 3px;
 }
 
 #headerRight {
     flex: 1;
     display: flex;
     justify-content: flex-end;
+}
+
+.tool-icon-container {
+    position: relative;
+    display: inline-block;
+    padding: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.tool-icon-container:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.tool-icon-container.active {
+    background-color: #d0d0d0;
 }
 
 .tool-icon {
@@ -122,6 +170,27 @@ body {
 
 .tool-icon.active {
     background-color: #d0d0d0;
+}
+
+.tool-icon-container .tool-icon {
+    padding: 0;
+    display: block;
+}
+
+.tool-modal {
+    position: absolute;
+    top: 63px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #f9f9f9;
+    border: 1px solid #d0d0d0;
+    border-radius: 8px;
+    z-index: 1000;
+    min-width: 200px;
+}
+
+.modal-content {
+    padding: 16px;
 }
 
 #maximizeIcon {
@@ -168,4 +237,8 @@ body {
     z-index: 2;
     pointer-events: all;
     transition: opacity 0.1s ease;
+}
+
+.laser-stroke {
+    pointer-events: none;
 }

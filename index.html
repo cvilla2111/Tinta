@@ -26,10 +26,24 @@
                 <img src="icons/library.svg" id="homeIcon" alt="Return to Home">
             </div>
             <div id="headerCenter">
-                <img src="icons/pen-tool.svg" class="tool-icon" id="penToolIcon" alt="Pen Tool">
+                <div class="tool-icon-container" id="penToolContainer">
+                    <img src="icons/pen-tool.svg" class="tool-icon" id="penToolIcon" alt="Pen Tool">
+                </div>
                 <img src="icons/laser.svg" class="tool-icon" id="laserIcon" alt="Laser">
                 <img src="icons/eraser.svg" class="tool-icon" id="eraserIcon" alt="Eraser">
                 <img src="icons/lasso.svg" class="tool-icon" id="lassoIcon" alt="Lasso">
+            </div>
+
+            <!-- Pen Tool Modal -->
+            <div id="penModal" class="tool-modal" style="display: none;">
+                <div class="modal-content">
+                    <p>Pen options coming soon...</p>
+                </div>
+            </div>
+            <div id="colorPicker">
+                <div class="color-circle active" data-color="#000000" style="background-color: #000000;"></div>
+                <div class="color-circle" data-color="#003fff" style="background-color: #003fff;"></div>
+                <div class="color-circle" data-color="#db090c" style="background-color: #db090c;"></div>
             </div>
             <div id="headerRight">
                 <img src="icons/maximize-2.svg" id="maximizeIcon" alt="Maximize">
