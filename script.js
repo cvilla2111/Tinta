@@ -418,6 +418,21 @@ function initializeDrawingCanvas() {
 
     // Set initial active tool
     setActiveTool('pen');
+
+    // Page navigation
+    const prevPageIcon = document.getElementById('prevPageIcon');
+    const nextPageIcon = document.getElementById('nextPageIcon');
+    const pageNumberDisplay = document.getElementById('pageNumber');
+
+    if (prevPageIcon) {
+        prevPageIcon.addEventListener('click', () => navigatePage('prev'));
+    }
+    if (nextPageIcon) {
+        nextPageIcon.addEventListener('click', () => navigatePage('next'));
+    }
+
+    // Update page number display
+    updatePageNavigation();
 }
 
 function toggleFullscreen() {
@@ -555,6 +570,73 @@ function returnToHome() {
 
     // Reset file input to allow selecting the same file again
     pdfInput.value = '';
+}
+
+async function navigatePage(direction) {
+    if (!pdfDoc || isPageChanging) return;
+
+    const newPage = direction === 'next' ? currentPage + 1 : currentPage - 1;
+
+    // Check bounds
+    if (newPage < 1 || newPage > pdfDoc.numPages) return;
+
+    isPageChanging = true;
+
+    // Fade out
+    pdfCanvas.style.opacity = '0';
+    svg.style.opacity = '0';
+
+    // Wait for fade out animation
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    // Save current page drawings
+    saveCurrentPageDrawings();
+
+    // Change page
+    currentPage = newPage;
+    await renderPDFPage(currentPage);
+
+    // Restore new page drawings
+    restorePageDrawings(currentPage);
+
+    // Update page navigation UI
+    updatePageNavigation();
+
+    // Fade in
+    pdfCanvas.style.opacity = '1';
+    svg.style.opacity = '1';
+
+    isPageChanging = false;
+}
+
+function updatePageNavigation() {
+    const pageNumberDisplay = document.getElementById('pageNumber');
+    const prevPageIcon = document.getElementById('prevPageIcon');
+    const nextPageIcon = document.getElementById('nextPageIcon');
+
+    if (!pdfDoc) return;
+
+    // Update page number display
+    if (pageNumberDisplay) {
+        pageNumberDisplay.textContent = currentPage;
+    }
+
+    // Enable/disable navigation arrows
+    if (prevPageIcon) {
+        if (currentPage <= 1) {
+            prevPageIcon.classList.add('disabled');
+        } else {
+            prevPageIcon.classList.remove('disabled');
+        }
+    }
+
+    if (nextPageIcon) {
+        if (currentPage >= pdfDoc.numPages) {
+            nextPageIcon.classList.add('disabled');
+        } else {
+            nextPageIcon.classList.remove('disabled');
+        }
+    }
 }
 
 // ============================================
@@ -993,6 +1075,9 @@ document.addEventListener('keydown', async (e) => {
                 // Restore new page drawings
                 restorePageDrawings(currentPage);
 
+                // Update page navigation UI
+                updatePageNavigation();
+
                 // Fade in
                 pdfCanvas.style.opacity = '1';
                 svg.style.opacity = '1';
@@ -1020,6 +1105,9 @@ document.addEventListener('keydown', async (e) => {
 
                 // Restore new page drawings
                 restorePageDrawings(currentPage);
+
+                // Update page navigation UI
+                updatePageNavigation();
 
                 // Fade in
                 pdfCanvas.style.opacity = '1';
