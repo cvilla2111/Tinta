@@ -18,6 +18,7 @@ let points = [];
 let eraseAnimationFrame = null;
 let currentColor = '#000000';
 let isLasering = false;
+let currentStrokeWidth = 2;
 
 // Eraser indicator
 let eraserIndicator = null;
@@ -231,15 +232,6 @@ function initializeDrawingCanvas() {
         eraserIcon.addEventListener('click', () => setActiveTool('eraser'));
     }
 
-    // Close modal when clicking outside
-    document.addEventListener('click', (e) => {
-        if (penModal && penModal.style.display === 'block') {
-            if (!penModal.contains(e.target) && !penToolContainer.contains(e.target)) {
-                penModal.style.display = 'none';
-            }
-        }
-    });
-
     // Color picker
     const colorCircles = document.querySelectorAll('.color-circle');
     colorCircles.forEach(circle => {
@@ -252,6 +244,116 @@ function initializeDrawingCanvas() {
             currentColor = circle.getAttribute('data-color');
         });
     });
+
+    // Stroke width presets
+    const strokePresets = document.querySelectorAll('.stroke-preset');
+    const sliderModal = document.getElementById('sliderModal');
+    const strokeSlider = document.getElementById('strokeSlider');
+    let currentEditingPreset = null;
+
+    strokePresets.forEach(preset => {
+        preset.addEventListener('click', (e) => {
+            e.stopPropagation();
+
+            // If preset is already active, open slider to edit it
+            if (preset.classList.contains('active')) {
+                currentEditingPreset = preset;
+                const currentWidth = parseFloat(preset.getAttribute('data-width'));
+
+                // Set slider value to match the preset's current stroke width
+                if (strokeSlider) {
+                    strokeSlider.value = currentWidth;
+                    // Force browser to update slider position
+                    strokeSlider.setAttribute('value', currentWidth);
+                }
+
+                // Position slider modal at the same position as the second preset circle (middle one)
+                const secondPreset = strokePresets[1]; // Get the second preset (index 1)
+                const rect = secondPreset.getBoundingClientRect();
+                const modalWidth = 200; // min-width from CSS (same as pen modal)
+                sliderModal.style.left = `${rect.left + (rect.width / 2) - (modalWidth / 2)}px`;
+                sliderModal.style.top = `${rect.bottom + 5}px`;
+                sliderModal.style.display = 'block';
+            } else {
+                // Close slider modal if it's open
+                if (sliderModal && sliderModal.style.display === 'block') {
+                    sliderModal.style.display = 'none';
+                    currentEditingPreset = null;
+                }
+
+                // Activate the new preset
+                strokePresets.forEach(p => p.classList.remove('active'));
+                preset.classList.add('active');
+                currentStrokeWidth = parseFloat(preset.getAttribute('data-width'));
+            }
+        });
+    });
+
+    // Slider change handler
+    if (strokeSlider) {
+        strokeSlider.addEventListener('input', (e) => {
+            const newWidth = parseFloat(e.target.value);
+
+            if (currentEditingPreset) {
+                // Update preset's data-width attribute
+                currentEditingPreset.setAttribute('data-width', newWidth);
+
+                // Update the dot size (visual representation)
+                const dot = currentEditingPreset.querySelector('.stroke-dot');
+                if (dot) {
+                    const dotSize = newWidth * 2; // Dot is 2x the stroke width
+                    dot.style.width = dotSize + 'px';
+                    dot.style.height = dotSize + 'px';
+                }
+
+                // Update current stroke width if this is the active preset
+                currentStrokeWidth = newWidth;
+            }
+        });
+    };
+
+    // Close modals when clicking/touching outside
+    const handleOutsideClick = (e) => {
+        const clickedInSliderModal = sliderModal && sliderModal.contains(e.target);
+        const clickedInPenModal = penModal && penModal.contains(e.target);
+        const clickedOnPenTool = penToolContainer && penToolContainer.contains(e.target);
+
+        // Close pen modal (preset circles modal) if clicking outside
+        if (penModal && penModal.style.display === 'block') {
+            if (!clickedInPenModal && !clickedOnPenTool && !clickedInSliderModal) {
+                penModal.style.display = 'none';
+                // Also close slider modal if it's open
+                if (sliderModal && sliderModal.style.display === 'block') {
+                    sliderModal.style.display = 'none';
+                    currentEditingPreset = null;
+                }
+            }
+        }
+
+        // Close slider modal only if clicking outside of it (but not inside pen modal or on presets)
+        // The slider modal should NOT close when clicking inside the slider itself
+        if (sliderModal && sliderModal.style.display === 'block') {
+            // Don't close if clicking inside the slider modal itself
+            if (clickedInSliderModal) {
+                return;
+            }
+
+            // Don't close if clicking on a preset circle (handled by preset click handler)
+            const clickedOnPreset = Array.from(strokePresets).some(preset => preset.contains(e.target));
+            if (clickedOnPreset) {
+                return;
+            }
+
+            // Close if clicking outside both modals
+            if (!clickedInPenModal) {
+                sliderModal.style.display = 'none';
+                currentEditingPreset = null;
+            }
+        }
+    };
+
+    document.addEventListener('click', handleOutsideClick);
+    document.addEventListener('touchstart', handleOutsideClick);
 
     // Home icon - return to homepage
     const homeIcon = document.getElementById('homeIcon');
@@ -567,7 +669,7 @@ function startDrawing(e) {
     currentPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     currentPath.setAttribute('fill', 'none');
     currentPath.setAttribute('stroke', currentColor);
-    currentPath.setAttribute('stroke-width', '2');
+    currentPath.setAttribute('stroke-width', currentStrokeWidth);
     currentPath.setAttribute('stroke-linecap', 'round');
     currentPath.setAttribute('stroke-linejoin', 'round');
 

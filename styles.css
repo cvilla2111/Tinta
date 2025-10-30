@@ -115,14 +115,25 @@ body {
 .color-circle {
     width: 24px;
     height: 24px;
-    border-radius: 50%;
+    border-radius: 50% !important;
     cursor: pointer;
     border: 2px solid transparent;
     transition: border-color 0.2s ease;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+    outline: none;
 }
 
 .color-circle:hover {
     border-color: rgba(0, 0, 0, 0.2);
+}
+
+.color-circle:active {
+    opacity: 0.8;
+}
+
+.color-circle:focus {
+    outline: none;
 }
 
 .color-circle.active {
@@ -177,6 +188,10 @@ body {
     display: block;
 }
 
+.tool-icon-container .tool-icon:hover {
+    background-color: transparent;
+}
+
 .tool-modal {
     position: absolute;
     top: 63px;
@@ -191,6 +206,90 @@ body {
 
 .modal-content {
     padding: 16px;
+}
+
+.stroke-preset-container {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+}
+
+.stroke-preset {
+    width: 40px;
+    height: 40px;
+    border: 1.5px solid #000000;
+    border-radius: 50% !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+    outline: none;
+}
+
+.stroke-preset:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.stroke-preset:active {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.stroke-preset:focus {
+    outline: none;
+}
+
+.stroke-preset.active {
+    background-color: #d0d0d0;
+}
+
+.stroke-dot {
+    background-color: #000000;
+    border-radius: 50%;
+}
+
+.slider-modal {
+    position: absolute;
+    background: #f9f9f9;
+    border: 1px solid #d0d0d0;
+    border-radius: 8px;
+    z-index: 1001;
+    min-width: 200px;
+}
+
+.slider-modal .modal-content {
+    padding: 12px;
+}
+
+#strokeSlider {
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: #d0d0d0;
+    outline: none;
+    -webkit-appearance: none;
+}
+
+#strokeSlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #000000;
+    cursor: pointer;
+}
+
+#strokeSlider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #000000;
+    cursor: pointer;
+    border: none;
 }
 
 #maximizeIcon {
