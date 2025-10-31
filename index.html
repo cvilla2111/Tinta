@@ -38,14 +38,14 @@
             <div id="penModal" class="tool-modal" style="display: none;">
                 <div class="modal-content">
                     <div class="stroke-preset-container">
-                        <div class="stroke-preset" data-width="2" data-preset-index="0">
-                            <div class="stroke-dot" style="width: 4px; height: 4px;"></div>
-                        </div>
-                        <div class="stroke-preset active" data-width="3" data-preset-index="1">
+                        <div class="stroke-preset" data-width="3" data-preset-index="0">
                             <div class="stroke-dot" style="width: 6px; height: 6px;"></div>
                         </div>
-                        <div class="stroke-preset" data-width="5" data-preset-index="2">
+                        <div class="stroke-preset active" data-width="5" data-preset-index="1">
                             <div class="stroke-dot" style="width: 10px; height: 10px;"></div>
+                        </div>
+                        <div class="stroke-preset" data-width="10" data-preset-index="2">
+                            <div class="stroke-dot" style="width: 20px; height: 20px;"></div>
                         </div>
                     </div>
                 </div>
@@ -57,6 +57,14 @@
                     <input type="range" id="strokeSlider" min="1" max="10" value="2" step="0.5">
                 </div>
             </div>
+
+            <!-- Eraser Modal -->
+            <div id="eraserModal" class="tool-modal" style="display: none;">
+                <div class="modal-content">
+                    <div id="clearCanvasBtn" class="clear-canvas-text">Clear Canvas</div>
+                </div>
+            </div>
+
             <div id="colorPicker">
                 <div class="color-circle active" data-color="#000000" style="background-color: #000000;"></div>
                 <div class="color-circle" data-color="#003fff" style="background-color: #003fff;"></div>
@@ -68,6 +76,7 @@
                 <img src="icons/arrow-right-from-line.svg" id="nextPageIcon" alt="Next Page">
             </div>
             <div id="headerRight">
+                <img src="icons/presentation.svg" id="presentationIcon" alt="Presentation">
                 <img src="icons/maximize-2.svg" id="maximizeIcon" alt="Maximize">
             </div>
         </header>

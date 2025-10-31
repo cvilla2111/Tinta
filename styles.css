@@ -12,6 +12,7 @@ body {
     touch-action: none;
     -webkit-user-select: none;
     user-select: none;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 /* Home Screen */
@@ -96,7 +97,7 @@ body {
 #headerCenter {
     display: flex;
     align-items: center;
-    gap: 30px;
+    gap: 20px;
     border-left: 1px solid #d0d0d0;
     border-right: 1px solid #d0d0d0;
     padding: 0 20px;
@@ -115,7 +116,7 @@ body {
 #pageNavigation {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 4px;
     margin-left: 20px;
     border-right: 1px solid #d0d0d0;
     padding-right: 20px;
@@ -145,6 +146,18 @@ body {
     color: #000000;
     min-width: 20px;
     text-align: center;
+}
+
+#presentationIcon {
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+}
+
+#presentationIcon:hover {
+    opacity: 1;
 }
 
 .color-circle {
@@ -180,6 +193,8 @@ body {
     flex: 1;
     display: flex;
     justify-content: flex-end;
+    align-items: center;
+    gap: 24px;
 }
 
 .tool-icon-container {
@@ -325,6 +340,18 @@ body {
     background: #000000;
     cursor: pointer;
     border: none;
+}
+
+.clear-canvas-text {
+    font-size: 14px;
+    font-weight: 400;
+    color: #000000;
+    cursor: pointer;
+    text-align: center;
+}
+
+.clear-canvas-text:hover {
+    opacity: 0.7;
 }
 
 #maximizeIcon {

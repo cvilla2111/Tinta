@@ -18,16 +18,29 @@ let points = [];
 let eraseAnimationFrame = null;
 let currentColor = '#000000';
 let isLasering = false;
-let currentStrokeWidth = 2;
+let currentStrokeWidth = 5;
 
 // Eraser indicator
 let eraserIndicator = null;
 
 // Laser pointer
 let laserPointer = null;
+let laserStrokes = [];
+let laserFadeTimeout = null;
 
 // Active tool state
-let activeTool = 'pen'; // 'pen', 'eraser', 'laser'
+let activeTool = 'pen'; // 'pen', 'eraser', 'laser', 'lasso'
+let isLassoing = false;
+
+// Selection state
+let selectedStrokes = [];
+let selectionRect = null;
+let selectionHandles = [];
+let isDraggingSelection = false;
+let isScalingSelection = false;
+let dragStartPoint = null;
+let scaleHandle = null;
+let originalBounds = null;
 
 // PDF state
 let pdfDoc = null;
@@ -204,7 +217,9 @@ function initializeDrawingCanvas() {
     const penToolIcon = document.getElementById('penToolIcon');
     const laserIcon = document.getElementById('laserIcon');
     const eraserIcon = document.getElementById('eraserIcon');
+    const lassoIcon = document.getElementById('lassoIcon');
     const penModal = document.getElementById('penModal');
+    const eraserModal = document.getElementById('eraserModal');
 
     if (penToolContainer) {
         penToolContainer.addEventListener('click', (e) => {
@@ -229,7 +244,45 @@ function initializeDrawingCanvas() {
         laserIcon.addEventListener('click', () => setActiveTool('laser'));
     }
     if (eraserIcon) {
-        eraserIcon.addEventListener('click', () => setActiveTool('eraser'));
+        eraserIcon.addEventListener('click', () => {
+            // If eraser is already active, toggle modal
+            if (activeTool === 'eraser') {
+                const isModalOpen = eraserModal.style.display === 'block';
+                eraserModal.style.display = isModalOpen ? 'none' : 'block';
+
+                if (!isModalOpen) {
+                    // Position modal below eraser icon
+                    const rect = eraserIcon.getBoundingClientRect();
+                    eraserModal.style.left = `${rect.left + rect.width / 2}px`;
+                }
+            } else {
+                // Activate eraser tool
+                setActiveTool('eraser');
+            }
+        });
+    }
+
+    if (lassoIcon) {
+        lassoIcon.addEventListener('click', () => setActiveTool('lasso'));
+    }
+
+    // Clear canvas button
+    const clearCanvasBtn = document.getElementById('clearCanvasBtn');
+    if (clearCanvasBtn) {
+        clearCanvasBtn.addEventListener('click', () => {
+            clearCanvas();
+            // Clear saved drawings for current page
+            delete pageDrawings[currentPage];
+            // Re-add eraser indicator and laser pointer
+            if (eraserIndicator) {
+                svg.appendChild(eraserIndicator);
+            }
+            if (laserPointer) {
+                svg.appendChild(laserPointer);
+            }
+            // Close the modal
+            eraserModal.style.display = 'none';
+        });
     }
 
     // Color picker
@@ -317,6 +370,8 @@ function initializeDrawingCanvas() {
         const clickedInSliderModal = sliderModal && sliderModal.contains(e.target);
         const clickedInPenModal = penModal && penModal.contains(e.target);
         const clickedOnPenTool = penToolContainer && penToolContainer.contains(e.target);
+        const clickedInEraserModal = eraserModal && eraserModal.contains(e.target);
+        const clickedOnEraserTool = eraserIcon && eraserIcon.contains(e.target);
 
         // Close pen modal (preset circles modal) if clicking outside
         if (penModal && penModal.style.display === 'block') {
@@ -327,6 +382,13 @@ function initializeDrawingCanvas() {
                     sliderModal.style.display = 'none';
                     currentEditingPreset = null;
                 }
+            }
+        }
+
+        // Close eraser modal if clicking outside
+        if (eraserModal && eraserModal.style.display === 'block') {
+            if (!clickedInEraserModal && !clickedOnEraserTool) {
+                eraserModal.style.display = 'none';
             }
         }
 
@@ -504,15 +566,19 @@ function setActiveTool(tool) {
     const penToolContainer = document.getElementById('penToolContainer');
     const laserIcon = document.getElementById('laserIcon');
     const eraserIcon = document.getElementById('eraserIcon');
+    const lassoIcon = document.getElementById('lassoIcon');
     const penModal = document.getElementById('penModal');
+    const eraserModal = document.getElementById('eraserModal');
 
     // Remove active class from all icons
     if (penToolContainer) penToolContainer.classList.remove('active');
     if (laserIcon) laserIcon.classList.remove('active');
     if (eraserIcon) eraserIcon.classList.remove('active');
+    if (lassoIcon) lassoIcon.classList.remove('active');
 
-    // Close modal when switching tools
+    // Close modals when switching tools
     if (penModal) penModal.style.display = 'none';
+    if (eraserModal) eraserModal.style.display = 'none';
 
     // Add active class to selected tool
     if (tool === 'pen' && penToolContainer) {
@@ -521,11 +587,15 @@ function setActiveTool(tool) {
         laserIcon.classList.add('active');
     } else if (tool === 'eraser' && eraserIcon) {
         eraserIcon.classList.add('active');
+    } else if (tool === 'lasso' && lassoIcon) {
+        lassoIcon.classList.add('active');
     }
 
     // Update cursor
     if (tool === 'laser') {
         svg.style.cursor = 'none';
+    } else if (tool === 'lasso') {
+        svg.style.cursor = 'crosshair';
     } else {
         svg.style.cursor = 'crosshair';
     }
@@ -700,6 +770,15 @@ function startDrawing(e) {
         return;
     }
 
+    // If clicking outside selection when lasso is active, clear selection
+    if (activeTool === 'lasso' && selectionRect) {
+        const target = e.target;
+        if (target !== selectionRect && !target.classList.contains('selection-rect')) {
+            clearSelection();
+            return;
+        }
+    }
+
     // Check if eraser button (top of pen) is being used
     if (e.button === 5 || e.buttons === 32) {
         isErasing = true;
@@ -721,7 +800,7 @@ function startDrawing(e) {
         currentPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         currentPath.setAttribute('fill', 'none');
         currentPath.setAttribute('stroke', '#ff0000');
-        currentPath.setAttribute('stroke-width', '3');
+        currentPath.setAttribute('stroke-width', '5');
         currentPath.setAttribute('stroke-linecap', 'round');
         currentPath.setAttribute('stroke-linejoin', 'round');
         currentPath.setAttribute('opacity', '1');
@@ -730,6 +809,12 @@ function startDrawing(e) {
 
         svg.appendChild(currentPath);
 
+        // Clear any existing fade timeout
+        if (laserFadeTimeout) {
+            clearTimeout(laserFadeTimeout);
+            laserFadeTimeout = null;
+        }
+
         e.preventDefault();
         return;
     } else if (activeTool === 'eraser') {
@@ -737,6 +822,26 @@ function startDrawing(e) {
         isErasing = true;
         eraserIndicator.style.display = 'block';
         erase(e);
+        e.preventDefault();
+        return;
+    } else if (activeTool === 'lasso') {
+        // Lasso mode - draw a dashed selection line
+        isLassoing = true;
+        points = [];
+
+        const coords = getCoordinates(e);
+        points.push(coords);
+
+        currentPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        currentPath.setAttribute('fill', 'none');
+        currentPath.setAttribute('stroke', '#0066ff');
+        currentPath.setAttribute('stroke-width', '2');
+        currentPath.setAttribute('stroke-dasharray', '5,5');
+        currentPath.setAttribute('stroke-linecap', 'round');
+        currentPath.setAttribute('stroke-linejoin', 'round');
+
+        svg.appendChild(currentPath);
+
         e.preventDefault();
         return;
     }
@@ -787,6 +892,16 @@ function draw(e) {
         return;
     }
 
+    // Handle lasso drawing
+    if (isLassoing) {
+        const coords = getCoordinates(e);
+        points.push(coords);
+
+        const pathData = pointsToPath(points);
+        currentPath.setAttribute('d', pathData);
+        return;
+    }
+
     if (!isDrawing) return;
 
     const coords = getCoordinates(e);
@@ -820,25 +935,549 @@ function stopDrawing() {
         isLasering = false;
         const laserPath = currentPath;
 
-        // Fade out and remove after 3 seconds
+        // Add to active laser strokes array
         if (laserPath) {
-            setTimeout(() => {
-                // Start fade animation
-                laserPath.style.transition = 'opacity 0.5s ease';
-                laserPath.setAttribute('opacity', '0');
+            laserStrokes.push(laserPath);
+        }
+
+        // Clear existing timeout
+        if (laserFadeTimeout) {
+            clearTimeout(laserFadeTimeout);
+        }
+
+        // Set new timeout to fade all laser strokes after 2 seconds of inactivity
+        laserFadeTimeout = setTimeout(() => {
+            // Fade out all laser strokes
+            laserStrokes.forEach(stroke => {
+                stroke.style.transition = 'opacity 0.5s ease';
+                stroke.setAttribute('opacity', '0');
 
                 // Remove after fade completes
                 setTimeout(() => {
-                    if (laserPath.parentNode) {
-                        laserPath.remove();
+                    if (stroke.parentNode) {
+                        stroke.remove();
                     }
                 }, 500);
-            }, 2500); // Wait 2.5 seconds, then fade for 0.5 seconds = 3 seconds total
+            });
+
+            // Clear the array
+            laserStrokes = [];
+            laserFadeTimeout = null;
+        }, 2000); // Wait 2 seconds, then fade
+
+        currentPath = null;
+        points = [];
+    }
+    if (isLassoing) {
+        isLassoing = false;
+
+        // Close the lasso path by connecting to the first point
+        if (points.length > 2) {
+            points.push(points[0]);
+            const pathData = pointsToPath(points);
+            currentPath.setAttribute('d', pathData);
+
+            // Find strokes within the lasso
+            selectStrokesInLasso(points);
+        }
+
+        // Remove the lasso path
+        const lassoPath = currentPath;
+        if (lassoPath && lassoPath.parentNode) {
+            lassoPath.remove();
         }
 
         currentPath = null;
         points = [];
     }
+}
+
+// Point-in-polygon algorithm (ray casting)
+function isPointInPolygon(point, polygon) {
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const xi = polygon[i].x, yi = polygon[i].y;
+        const xj = polygon[j].x, yj = polygon[j].y;
+
+        const intersect = ((yi > point.y) !== (yj > point.y))
+            && (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+    }
+    return inside;
+}
+
+function selectStrokesInLasso(lassoPoints) {
+    // Clear previous selection
+    clearSelection();
+
+    // Get all paths (exclude laser strokes and utility elements)
+    const paths = svg.querySelectorAll('path:not(.laser-stroke)');
+
+    paths.forEach(path => {
+        // Skip if no stroke points
+        if (!path._strokePoints || path._strokePoints.length === 0) {
+            return;
+        }
+
+        // Check if any point of the stroke is inside the lasso
+        let isInside = false;
+        for (let point of path._strokePoints) {
+            if (isPointInPolygon(point, lassoPoints)) {
+                isInside = true;
+                break;
+            }
+        }
+
+        if (isInside) {
+            selectedStrokes.push(path);
+        }
+    });
+
+    // Create selection rectangle if strokes were selected
+    if (selectedStrokes.length > 0) {
+        createSelectionRect();
+    }
+}
+
+function createSelectionRect() {
+    // Calculate bounding box of all selected strokes
+    let minX = Infinity, minY = Infinity;
+    let maxX = -Infinity, maxY = -Infinity;
+
+    selectedStrokes.forEach(stroke => {
+        const bbox = stroke.getBBox();
+        minX = Math.min(minX, bbox.x);
+        minY = Math.min(minY, bbox.y);
+        maxX = Math.max(maxX, bbox.x + bbox.width);
+        maxY = Math.max(maxY, bbox.y + bbox.height);
+    });
+
+    // Add padding
+    const padding = 10;
+    minX -= padding;
+    minY -= padding;
+    maxX += padding;
+    maxY += padding;
+
+    // Create selection rectangle
+    selectionRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    selectionRect.setAttribute('x', minX);
+    selectionRect.setAttribute('y', minY);
+    selectionRect.setAttribute('width', maxX - minX);
+    selectionRect.setAttribute('height', maxY - minY);
+    selectionRect.setAttribute('fill', 'rgba(0, 102, 255, 0.1)');
+    selectionRect.setAttribute('stroke', '#0066ff');
+    selectionRect.setAttribute('stroke-width', '2');
+    selectionRect.setAttribute('stroke-dasharray', '5,5');
+    selectionRect.setAttribute('rx', '4');
+    selectionRect.setAttribute('ry', '4');
+    selectionRect.style.cursor = 'move';
+    selectionRect.classList.add('selection-rect');
+
+    // Store original position for dragging
+    selectionRect._bounds = { minX, minY, maxX, maxY };
+
+    svg.appendChild(selectionRect);
+
+    // Create corner handles for scaling
+    createScaleHandles(minX, minY, maxX, maxY);
+
+    // Add drag listeners to selection rect
+    selectionRect.addEventListener('pointerdown', startDraggingSelection);
+}
+
+function createScaleHandles(minX, minY, maxX, maxY) {
+    // Clear existing handles
+    selectionHandles.forEach(handle => {
+        if (handle.parentNode) handle.remove();
+    });
+    selectionHandles = [];
+
+    const handleSize = 8;
+    const positions = [
+        { x: minX, y: minY, cursor: 'nwse-resize', corner: 'top-left' },
+        { x: maxX, y: minY, cursor: 'nesw-resize', corner: 'top-right' },
+        { x: minX, y: maxY, cursor: 'nesw-resize', corner: 'bottom-left' },
+        { x: maxX, y: maxY, cursor: 'nwse-resize', corner: 'bottom-right' }
+    ];
+
+    positions.forEach(pos => {
+        const handle = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        handle.setAttribute('x', pos.x - handleSize / 2);
+        handle.setAttribute('y', pos.y - handleSize / 2);
+        handle.setAttribute('width', handleSize);
+        handle.setAttribute('height', handleSize);
+        handle.setAttribute('fill', '#ffffff');
+        handle.setAttribute('stroke', '#0066ff');
+        handle.setAttribute('stroke-width', '2');
+        handle.setAttribute('rx', '2');
+        handle.setAttribute('ry', '2');
+        handle.style.cursor = pos.cursor;
+        handle.classList.add('scale-handle');
+        handle._corner = pos.corner;
+
+        svg.appendChild(handle);
+        selectionHandles.push(handle);
+
+        // Add scaling listeners
+        handle.addEventListener('pointerdown', startScalingSelection);
+    });
+}
+
+function updateScaleHandles() {
+    if (!selectionRect || selectionHandles.length === 0) return;
+
+    const minX = parseFloat(selectionRect.getAttribute('x'));
+    const minY = parseFloat(selectionRect.getAttribute('y'));
+    const width = parseFloat(selectionRect.getAttribute('width'));
+    const height = parseFloat(selectionRect.getAttribute('height'));
+    const maxX = minX + width;
+    const maxY = minY + height;
+
+    const handleSize = 8;
+    const positions = [
+        { x: minX, y: minY },
+        { x: maxX, y: minY },
+        { x: minX, y: maxY },
+        { x: maxX, y: maxY }
+    ];
+
+    selectionHandles.forEach((handle, index) => {
+        const pos = positions[index];
+        handle.setAttribute('x', pos.x - handleSize / 2);
+        handle.setAttribute('y', pos.y - handleSize / 2);
+    });
+}
+
+function startScalingSelection(e) {
+    if (e.pointerType === 'touch') return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    isScalingSelection = true;
+    scaleHandle = e.target;
+    dragStartPoint = getCoordinates(e);
+
+    // Store original bounds and stroke data
+    const bounds = selectionRect._bounds;
+    originalBounds = {
+        minX: bounds.minX,
+        minY: bounds.minY,
+        maxX: bounds.maxX,
+        maxY: bounds.maxY,
+        width: bounds.maxX - bounds.minX,
+        height: bounds.maxY - bounds.minY,
+        centerX: (bounds.minX + bounds.maxX) / 2,
+        centerY: (bounds.minY + bounds.maxY) / 2
+    };
+
+    // Store original stroke data
+    selectedStrokes.forEach(stroke => {
+        const d = stroke.getAttribute('d');
+        stroke._originalD = d;
+        stroke._originalPoints = stroke._strokePoints ? [...stroke._strokePoints] : [];
+    });
+
+    document.addEventListener('pointermove', scaleSelection);
+    document.addEventListener('pointerup', stopScalingSelection);
+}
+
+function scaleSelection(e) {
+    if (!isScalingSelection || !scaleHandle || !originalBounds) return;
+
+    const currentPoint = getCoordinates(e);
+    const corner = scaleHandle._corner;
+
+    // Calculate scale factor based on corner being dragged
+    let scaleX, scaleY;
+
+    if (corner === 'bottom-right') {
+        const dx = currentPoint.x - dragStartPoint.x;
+        const dy = currentPoint.y - dragStartPoint.y;
+
+        // Use the larger dimension change to maintain aspect ratio
+        const scaleFactorX = (originalBounds.width + dx) / originalBounds.width;
+        const scaleFactorY = (originalBounds.height + dy) / originalBounds.height;
+        const scaleFactor = Math.max(scaleFactorX, scaleFactorY);
+
+        scaleX = scaleY = Math.max(0.1, scaleFactor); // Minimum 10% scale
+    } else if (corner === 'top-left') {
+        const dx = dragStartPoint.x - currentPoint.x;
+        const dy = dragStartPoint.y - currentPoint.y;
+
+        const scaleFactorX = (originalBounds.width + dx) / originalBounds.width;
+        const scaleFactorY = (originalBounds.height + dy) / originalBounds.height;
+        const scaleFactor = Math.max(scaleFactorX, scaleFactorY);
+
+        scaleX = scaleY = Math.max(0.1, scaleFactor);
+    } else if (corner === 'top-right') {
+        const dx = currentPoint.x - dragStartPoint.x;
+        const dy = dragStartPoint.y - currentPoint.y;
+
+        const scaleFactorX = (originalBounds.width + dx) / originalBounds.width;
+        const scaleFactorY = (originalBounds.height + dy) / originalBounds.height;
+        const scaleFactor = Math.max(scaleFactorX, scaleFactorY);
+
+        scaleX = scaleY = Math.max(0.1, scaleFactor);
+    } else if (corner === 'bottom-left') {
+        const dx = dragStartPoint.x - currentPoint.x;
+        const dy = currentPoint.y - dragStartPoint.y;
+
+        const scaleFactorX = (originalBounds.width + dx) / originalBounds.width;
+        const scaleFactorY = (originalBounds.height + dy) / originalBounds.height;
+        const scaleFactor = Math.max(scaleFactorX, scaleFactorY);
+
+        scaleX = scaleY = Math.max(0.1, scaleFactor);
+    }
+
+    // Apply scaling to strokes
+    selectedStrokes.forEach(stroke => {
+        const transform = `translate(${originalBounds.centerX}, ${originalBounds.centerY}) scale(${scaleX}, ${scaleY}) translate(${-originalBounds.centerX}, ${-originalBounds.centerY})`;
+        stroke.setAttribute('transform', transform);
+    });
+
+    // Update selection rectangle
+    const newWidth = originalBounds.width * scaleX;
+    const newHeight = originalBounds.height * scaleY;
+    const newMinX = originalBounds.centerX - newWidth / 2;
+    const newMinY = originalBounds.centerY - newHeight / 2;
+
+    selectionRect.setAttribute('x', newMinX);
+    selectionRect.setAttribute('y', newMinY);
+    selectionRect.setAttribute('width', newWidth);
+    selectionRect.setAttribute('height', newHeight);
+
+    // Update handles
+    updateScaleHandles();
+}
+
+function stopScalingSelection(e) {
+    if (!isScalingSelection) return;
+
+    const currentPoint = getCoordinates(e);
+    const corner = scaleHandle._corner;
+
+    // Calculate final scale factor
+    let scaleFactor;
+
+    if (corner === 'bottom-right') {
+        const dx = currentPoint.x - dragStartPoint.x;
+        const dy = currentPoint.y - dragStartPoint.y;
+        const scaleFactorX = (originalBounds.width + dx) / originalBounds.width;
+        const scaleFactorY = (originalBounds.height + dy) / originalBounds.height;
+        scaleFactor = Math.max(scaleFactorX, scaleFactorY);
+    } else if (corner === 'top-left') {
+        const dx = dragStartPoint.x - currentPoint.x;
+        const dy = dragStartPoint.y - currentPoint.y;
+        const scaleFactorX = (originalBounds.width + dx) / originalBounds.width;
+        const scaleFactorY = (originalBounds.height + dy) / originalBounds.height;
+        scaleFactor = Math.max(scaleFactorX, scaleFactorY);
+    } else if (corner === 'top-right') {
+        const dx = currentPoint.x - dragStartPoint.x;
+        const dy = dragStartPoint.y - currentPoint.y;
+        const scaleFactorX = (originalBounds.width + dx) / originalBounds.width;
+        const scaleFactorY = (originalBounds.height + dy) / originalBounds.height;
+        scaleFactor = Math.max(scaleFactorX, scaleFactorY);
+    } else if (corner === 'bottom-left') {
+        const dx = dragStartPoint.x - currentPoint.x;
+        const dy = currentPoint.y - dragStartPoint.y;
+        const scaleFactorX = (originalBounds.width + dx) / originalBounds.width;
+        const scaleFactorY = (originalBounds.height + dy) / originalBounds.height;
+        scaleFactor = Math.max(scaleFactorX, scaleFactorY);
+    }
+
+    scaleFactor = Math.max(0.1, scaleFactor);
+
+    // Apply scaling permanently to strokes
+    selectedStrokes.forEach(stroke => {
+        stroke.removeAttribute('transform');
+
+        // Scale the path data
+        const originalD = stroke._originalD;
+        const scaledD = scalePathDataAroundPoint(originalD, originalBounds.centerX, originalBounds.centerY, scaleFactor, scaleFactor);
+        stroke.setAttribute('d', scaledD);
+
+        // Scale and update stroke points
+        if (stroke._originalPoints && stroke._originalPoints.length > 0) {
+            stroke._strokePoints = stroke._originalPoints.map(pt => {
+                const dx = pt.x - originalBounds.centerX;
+                const dy = pt.y - originalBounds.centerY;
+                return {
+                    x: originalBounds.centerX + dx * scaleFactor,
+                    y: originalBounds.centerY + dy * scaleFactor
+                };
+            });
+        }
+
+        // Clean up temporary data
+        delete stroke._originalD;
+        delete stroke._originalPoints;
+    });
+
+    // Update selection bounds
+    const newWidth = originalBounds.width * scaleFactor;
+    const newHeight = originalBounds.height * scaleFactor;
+    const newMinX = originalBounds.centerX - newWidth / 2;
+    const newMinY = originalBounds.centerY - newHeight / 2;
+    const newMaxX = newMinX + newWidth;
+    const newMaxY = newMinY + newHeight;
+
+    selectionRect._bounds = {
+        minX: newMinX,
+        minY: newMinY,
+        maxX: newMaxX,
+        maxY: newMaxY
+    };
+
+    isScalingSelection = false;
+    scaleHandle = null;
+    originalBounds = null;
+    dragStartPoint = null;
+
+    document.removeEventListener('pointermove', scaleSelection);
+    document.removeEventListener('pointerup', stopScalingSelection);
+}
+
+function scalePathDataAroundPoint(pathD, cx, cy, scaleX, scaleY) {
+    // Scale path data around a center point
+    return pathD.replace(/([MLQ])\s*([\d.\-]+)\s+([\d.\-]+)(?:\s*,\s*([\d.\-]+)\s+([\d.\-]+))?/g,
+        (match, command, x1, y1, x2, y2) => {
+            const dx1 = parseFloat(x1) - cx;
+            const dy1 = parseFloat(y1) - cy;
+            const newX1 = cx + dx1 * scaleX;
+            const newY1 = cy + dy1 * scaleY;
+
+            if (command === 'Q' && x2 !== undefined && y2 !== undefined) {
+                const dx2 = parseFloat(x2) - cx;
+                const dy2 = parseFloat(y2) - cy;
+                const newX2 = cx + dx2 * scaleX;
+                const newY2 = cy + dy2 * scaleY;
+                return `${command} ${newX1} ${newY1}, ${newX2} ${newY2}`;
+            } else {
+                return `${command} ${newX1} ${newY1}`;
+            }
+        });
+}
+
+function startDraggingSelection(e) {
+    if (e.pointerType === 'touch') return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    isDraggingSelection = true;
+    dragStartPoint = getCoordinates(e);
+
+    // Add move and up listeners to document
+    document.addEventListener('pointermove', dragSelection);
+    document.addEventListener('pointerup', stopDraggingSelection);
+}
+
+function dragSelection(e) {
+    if (!isDraggingSelection || !dragStartPoint) return;
+
+    const currentPoint = getCoordinates(e);
+    const dx = currentPoint.x - dragStartPoint.x;
+    const dy = currentPoint.y - dragStartPoint.y;
+
+    // Move selection rectangle
+    if (selectionRect) {
+        const bounds = selectionRect._bounds;
+        selectionRect.setAttribute('x', bounds.minX + dx);
+        selectionRect.setAttribute('y', bounds.minY + dy);
+    }
+
+    // Move all selected strokes
+    selectedStrokes.forEach(stroke => {
+        if (!stroke._originalTransform) {
+            stroke._originalTransform = { dx: 0, dy: 0 };
+        }
+
+        const transform = `translate(${dx}, ${dy})`;
+        stroke.setAttribute('transform', transform);
+    });
+
+    // Update handles
+    updateScaleHandles();
+}
+
+function stopDraggingSelection(e) {
+    if (!isDraggingSelection) return;
+
+    const currentPoint = getCoordinates(e);
+    const dx = currentPoint.x - dragStartPoint.x;
+    const dy = currentPoint.y - dragStartPoint.y;
+
+    // Apply the translation permanently to each stroke
+    selectedStrokes.forEach(stroke => {
+        const currentD = stroke.getAttribute('d');
+        if (currentD) {
+            // Remove transform and update path data directly
+            stroke.removeAttribute('transform');
+
+            // Update path data with the translation
+            const newD = translatePathData(currentD, dx, dy);
+            stroke.setAttribute('d', newD);
+
+            // Update stored stroke points
+            if (stroke._strokePoints) {
+                stroke._strokePoints = stroke._strokePoints.map(pt => ({
+                    x: pt.x + dx,
+                    y: pt.y + dy
+                }));
+            }
+        }
+    });
+
+    // Update selection rect bounds
+    if (selectionRect) {
+        const bounds = selectionRect._bounds;
+        bounds.minX += dx;
+        bounds.minY += dy;
+        bounds.maxX += dx;
+        bounds.maxY += dy;
+    }
+
+    isDraggingSelection = false;
+    dragStartPoint = null;
+
+    // Remove listeners
+    document.removeEventListener('pointermove', dragSelection);
+    document.removeEventListener('pointerup', stopDraggingSelection);
+}
+
+function translatePathData(pathD, dx, dy) {
+    // Translate path data coordinates
+    return pathD.replace(/([MLQ])\s*([\d.\-]+)\s+([\d.\-]+)(?:\s*,\s*([\d.\-]+)\s+([\d.\-]+))?/g,
+        (match, command, x1, y1, x2, y2) => {
+            const newX1 = parseFloat(x1) + dx;
+            const newY1 = parseFloat(y1) + dy;
+
+            if (command === 'Q' && x2 !== undefined && y2 !== undefined) {
+                const newX2 = parseFloat(x2) + dx;
+                const newY2 = parseFloat(y2) + dy;
+                return `${command} ${newX1} ${newY1}, ${newX2} ${newY2}`;
+            } else {
+                return `${command} ${newX1} ${newY1}`;
+            }
+        });
+}
+
+function clearSelection() {
+    // Remove selection rectangle
+    if (selectionRect && selectionRect.parentNode) {
+        selectionRect.remove();
+    }
+    selectionRect = null;
+
+    // Remove handles
+    selectionHandles.forEach(handle => {
+        if (handle.parentNode) handle.remove();
+    });
+    selectionHandles = [];
+
+    selectedStrokes = [];
 }
 
 function erase(e) {
@@ -946,6 +1585,11 @@ function restorePageDrawings(pageNum) {
         const scaleY = currentViewBoxHeight / savedData.viewBoxHeight;
 
         savedData.paths.forEach(pathData => {
+            // Skip if path data is missing
+            if (!pathData.d) {
+                return;
+            }
+
             const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
 
             // Scale the path if viewBox dimensions changed
