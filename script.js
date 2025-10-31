@@ -32,6 +32,10 @@ let laserFadeTimeout = null;
 let activeTool = 'pen'; // 'pen', 'eraser', 'laser', 'lasso'
 let isLassoing = false;
 
+// Presentation state
+let presentationConnection = null;
+let isPresentationReceiver = false;
+
 // Selection state
 let selectedStrokes = [];
 let selectionRect = null;
@@ -45,6 +49,7 @@ let originalBounds = null;
 // PDF state
 let pdfDoc = null;
 let currentPage = 1;
+let pdfArrayBuffer = null; // Store PDF data for presentation
 
 // Store drawings per page (with viewBox dimensions)
 let pageDrawings = {};
@@ -80,6 +85,16 @@ function resizeSVG() {
 // PDF.js worker configuration
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
+// Check if this is a presentation receiver
+if (window.location.hash === '#receiver') {
+    isPresentationReceiver = true;
+    console.log('This is a presentation receiver');
+
+    // Immediately hide home screen and show drawing screen for receivers
+    homeScreen.style.display = 'none';
+    drawingScreen.style.display = 'flex';
+}
+
 // ============================================
 // PDF HANDLING
 // ============================================
@@ -90,7 +105,10 @@ pdfInput.addEventListener('change', async (e) => {
 
     const fileReader = new FileReader();
     fileReader.onload = async function() {
-        const typedArray = new Uint8Array(this.result);
+        // Create a copy of the ArrayBuffer to prevent detachment
+        const originalBuffer = this.result;
+        pdfArrayBuffer = originalBuffer.slice(0); // Clone the ArrayBuffer
+        const typedArray = new Uint8Array(originalBuffer);
 
         try {
             pdfDoc = await pdfjsLib.getDocument(typedArray).promise;
@@ -282,6 +300,14 @@ function initializeDrawingCanvas() {
             }
             // Close the modal
             eraserModal.style.display = 'none';
+
+            // Send clear-canvas to presentation
+            if (presentationConnection && presentationConnection.state === 'connected') {
+                presentationConnection.send(JSON.stringify({
+                    type: 'clear-canvas',
+                    page: currentPage
+                }));
+            }
         });
     }
 
@@ -495,6 +521,12 @@ function initializeDrawingCanvas() {
 
     // Update page number display
     updatePageNavigation();
+
+    // Presentation icon
+    const presentationIcon = document.getElementById('presentationIcon');
+    if (presentationIcon && !isPresentationReceiver) {
+        presentationIcon.addEventListener('click', startPresentation);
+    }
 }
 
 function toggleFullscreen() {
@@ -707,6 +739,493 @@ function updatePageNavigation() {
             nextPageIcon.classList.remove('disabled');
         }
     }
+
+    // Send page update to presentation display if connected
+    if (presentationConnection && presentationConnection.state === 'connected') {
+        presentationConnection.send(JSON.stringify({
+            type: 'page-change',
+            page: currentPage,
+            drawings: pageDrawings // Send updated drawings
+        }));
+    }
+}
+
+// ============================================
+// PRESENTATION FUNCTIONS
+// ============================================
+
+function startPresentation() {
+    // If presentation is already active, close it
+    if (presentationConnection) {
+        console.log('Closing presentation');
+        presentationConnection.terminate();
+        presentationConnection = null;
+        return;
+    }
+
+    if (!pdfDoc) {
+        alert('Please load a PDF first');
+        return;
+    }
+
+    // Check if Presentation API is supported
+    if (!window.PresentationRequest) {
+        alert('Presentation API is not supported in this browser. Try using Chrome or Edge.');
+        return;
+    }
+
+    // Save current page drawings before starting presentation
+    saveCurrentPageDrawings();
+    console.log('Drawings saved before presentation:', JSON.stringify(pageDrawings).length, 'characters');
+
+    // Create presentation request with receiver URL
+    const presentationUrl = window.location.href.split('#')[0] + '#receiver';
+    const presentationRequest = new PresentationRequest([presentationUrl]);
+
+    // Start the presentation
+    presentationRequest.start()
+        .then(connection => {
+            presentationConnection = connection;
+            console.log('Presentation started successfully, state:', connection.state);
+
+            // Listen for ready signal from receiver
+            connection.addEventListener('message', (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    console.log('Controller received message:', message.type);
+
+                    if (message.type === 'receiver-ready') {
+                        console.log('Receiver is ready, sending PDF data');
+                        if (pdfArrayBuffer) {
+                            // Convert ArrayBuffer to base64 for transmission
+                            const base64 = arrayBufferToBase64(pdfArrayBuffer);
+
+                            connection.send(JSON.stringify({
+                                type: 'load-pdf',
+                                pdfData: base64,
+                                page: currentPage,
+                                drawings: pageDrawings // Send all page drawings
+                            }));
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error handling controller message:', error);
+                }
+            });
+
+            // Listen for connection state changes
+            connection.addEventListener('close', () => {
+                console.log('Presentation closed');
+                presentationConnection = null;
+            });
+
+            connection.addEventListener('terminate', () => {
+                console.log('Presentation terminated');
+                presentationConnection = null;
+            });
+        })
+        .catch(error => {
+            console.error('Error starting presentation:', error);
+            if (error.name === 'NotAllowedError') {
+                alert('Presentation request was denied. Please try again.');
+            } else if (error.name === 'NotFoundError') {
+                alert('No available presentation displays found.');
+            } else {
+                alert('Failed to start presentation: ' + error.message);
+            }
+        });
+}
+
+async function loadPDFFromBase64(base64Data, pageNum, drawings) {
+    console.log('Loading PDF from base64, length:', base64Data.length);
+
+    // Convert base64 back to ArrayBuffer
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    try {
+        pdfDoc = await pdfjsLib.getDocument(bytes).promise;
+        console.log('PDF loaded, pages:', pdfDoc.numPages);
+
+        // Store drawings if provided
+        if (drawings) {
+            pageDrawings = drawings;
+            console.log('Drawings loaded for pages:', Object.keys(drawings));
+        }
+
+        // Show drawing screen, hide home screen
+        homeScreen.style.display = 'none';
+        drawingScreen.style.display = 'flex';
+
+        // Wait for layout
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Render the PDF
+        currentPage = pageNum || 1;
+        await renderPDFPage(currentPage);
+
+        // Initialize drawing canvas if not already initialized
+        if (!svg.hasChildNodes() || svg.childElementCount === 0) {
+            initializeDrawingCanvas();
+        }
+
+        // Sync SVG size
+        resizeSVG();
+
+        // Restore drawings for current page
+        console.log('About to restore drawings, currentViewBoxWidth:', currentViewBoxWidth);
+        restorePageDrawings(currentPage);
+
+        console.log('PDF displayed in receiver with drawings');
+        console.log('SVG element children count:', svg.childElementCount);
+    } catch (error) {
+        console.error('Error loading PDF in receiver:', error);
+    }
+}
+
+function setupPresentationReceiver() {
+    console.log('Setting up presentation receiver');
+
+    // Hide header for clean presentation view
+    const header = document.getElementById('header');
+    if (header) {
+        header.style.display = 'none';
+    }
+
+    // Set background to black for presentation mode
+    document.body.style.background = '#000000';
+
+    // Enter fullscreen automatically
+    if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(err => {
+            console.log('Fullscreen request failed:', err);
+        });
+    }
+
+    // Wait for presentation connection
+    if (navigator.presentation && navigator.presentation.receiver) {
+        console.log('Presentation receiver API available');
+        navigator.presentation.receiver.connectionList.then(list => {
+            console.log('Connection list ready, connections:', list.connections.length);
+
+            // Handle existing connections
+            list.connections.forEach(connection => {
+                console.log('Existing receiver connection found');
+                setupConnectionHandlers(connection);
+            });
+
+            // Handle new connections
+            list.addEventListener('connectionavailable', event => {
+                console.log('New connection available');
+                setupConnectionHandlers(event.connection);
+            });
+        }).catch(err => {
+            console.error('Error getting connection list:', err);
+        });
+    } else {
+        console.error('Presentation receiver API not available');
+    }
+}
+
+function setupConnectionHandlers(connection) {
+    console.log('Setting up connection handlers');
+
+    connection.addEventListener('message', async (event) => {
+        console.log('Message received, data:', event.data.substring(0, 100) + '...');
+
+        try {
+            const message = JSON.parse(event.data);
+            console.log('Parsed message type:', message.type);
+
+            if (message.type === 'load-pdf') {
+                console.log('Loading PDF, data length:', message.pdfData.length);
+                await loadPDFFromBase64(message.pdfData, message.page, message.drawings);
+            } else if (message.type === 'page-change') {
+                console.log('Changing to page:', message.page);
+
+                // Update drawings if provided
+                if (message.drawings) {
+                    pageDrawings = message.drawings;
+                }
+
+                if (pdfDoc && message.page !== currentPage) {
+                    currentPage = message.page;
+                    await renderPDFPage(currentPage);
+                    restorePageDrawings(currentPage);
+                }
+            } else if (message.type === 'stroke-start') {
+                // Start a new stroke on receiver
+                handleReceiverStrokeStart(message);
+            } else if (message.type === 'stroke-update') {
+                // Update the stroke on receiver
+                handleReceiverStrokeUpdate(message);
+            } else if (message.type === 'stroke-end') {
+                // Finalize the stroke on receiver
+                handleReceiverStrokeEnd(message);
+            } else if (message.type === 'stroke-erase') {
+                // Remove the stroke on receiver
+                handleReceiverStrokeErase(message);
+            } else if (message.type === 'laser-start') {
+                // Start laser stroke on receiver
+                handleReceiverLaserStart(message);
+            } else if (message.type === 'laser-update') {
+                // Update laser stroke on receiver
+                handleReceiverLaserUpdate(message);
+            } else if (message.type === 'laser-end') {
+                // End laser stroke on receiver
+                handleReceiverLaserEnd(message);
+            } else if (message.type === 'selection-update') {
+                // Update drawings after selection/move/scale
+                handleReceiverSelectionUpdate(message);
+            } else if (message.type === 'clear-canvas') {
+                // Clear canvas on receiver
+                handleReceiverClearCanvas(message);
+            }
+        } catch (error) {
+            console.error('Error handling message:', error);
+        }
+    });
+
+    // Send ready signal to controller
+    console.log('Sending ready signal to controller');
+    connection.send(JSON.stringify({ type: 'receiver-ready' }));
+}
+
+// Set up receiver immediately if this is a receiver page
+if (isPresentationReceiver) {
+    // Wait for DOM to be ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupPresentationReceiver);
+    } else {
+        setupPresentationReceiver();
+    }
+}
+
+// Real-time stroke handlers for receiver
+let receiverStrokes = {}; // Store strokes being drawn in real-time
+
+function handleReceiverStrokeStart(message) {
+    const { strokeId, color, width, point } = message;
+
+    // Denormalize coordinates to receiver's viewBox space
+    const actualPoint = {
+        x: point.x * currentViewBoxWidth,
+        y: point.y * currentViewBoxHeight
+    };
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', color);
+    path.setAttribute('stroke-width', width);
+    path.setAttribute('stroke-linecap', 'round');
+    path.setAttribute('stroke-linejoin', 'round');
+    path._strokeId = strokeId;
+    path._strokePoints = [];
+
+    svg.appendChild(path);
+
+    // Store stroke data
+    receiverStrokes[strokeId] = {
+        path: path,
+        points: [actualPoint]
+    };
+
+    // Draw initial point
+    const pathData = `M ${actualPoint.x} ${actualPoint.y}`;
+    path.setAttribute('d', pathData);
+}
+
+function handleReceiverStrokeUpdate(message) {
+    const { strokeId, point } = message;
+    const stroke = receiverStrokes[strokeId];
+
+    if (!stroke) return;
+
+    // Denormalize coordinates to receiver's viewBox space
+    const actualPoint = {
+        x: point.x * currentViewBoxWidth,
+        y: point.y * currentViewBoxHeight
+    };
+
+    stroke.points.push(actualPoint);
+
+    // Store point for eraser
+    if (stroke.path._strokePoints) {
+        stroke.path._strokePoints.push(actualPoint);
+    }
+
+    // Update path
+    const pathData = pointsToPath(stroke.points);
+    stroke.path.setAttribute('d', pathData);
+}
+
+function handleReceiverStrokeEnd(message) {
+    const { strokeId } = message;
+    const stroke = receiverStrokes[strokeId];
+
+    if (!stroke) return;
+
+    // Stroke is complete, can be removed from active strokes
+    delete receiverStrokes[strokeId];
+}
+
+function handleReceiverStrokeErase(message) {
+    const { strokeId } = message;
+
+    // Find and remove the stroke
+    const paths = svg.querySelectorAll('path');
+    paths.forEach(path => {
+        if (path._strokeId === strokeId) {
+            path.remove();
+        }
+    });
+
+    // Also remove from active strokes if still there
+    delete receiverStrokes[strokeId];
+}
+
+// Laser stroke handlers for receiver
+let receiverLaserStrokes = [];
+let receiverLaserTimeout = null;
+
+function handleReceiverLaserStart(message) {
+    const { strokeId, point } = message;
+
+    // Denormalize coordinates
+    const actualPoint = {
+        x: point.x * currentViewBoxWidth,
+        y: point.y * currentViewBoxHeight
+    };
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', '#ff0000');
+    path.setAttribute('stroke-width', '5');
+    path.setAttribute('stroke-linecap', 'round');
+    path.setAttribute('stroke-linejoin', 'round');
+    path.setAttribute('opacity', '1');
+    path.setAttribute('filter', 'url(#laserGlow)');
+    path.classList.add('laser-stroke');
+    path._strokeId = strokeId;
+
+    svg.appendChild(path);
+
+    // Store laser stroke data
+    receiverStrokes[strokeId] = {
+        path: path,
+        points: [actualPoint]
+    };
+
+    // Draw initial point
+    const pathData = `M ${actualPoint.x} ${actualPoint.y}`;
+    path.setAttribute('d', pathData);
+
+    // Clear any existing fade timeout
+    if (receiverLaserTimeout) {
+        clearTimeout(receiverLaserTimeout);
+        receiverLaserTimeout = null;
+    }
+}
+
+function handleReceiverLaserUpdate(message) {
+    const { strokeId, point } = message;
+    const stroke = receiverStrokes[strokeId];
+
+    if (!stroke) return;
+
+    // Denormalize coordinates
+    const actualPoint = {
+        x: point.x * currentViewBoxWidth,
+        y: point.y * currentViewBoxHeight
+    };
+
+    stroke.points.push(actualPoint);
+
+    // Update path
+    const pathData = pointsToPath(stroke.points);
+    stroke.path.setAttribute('d', pathData);
+}
+
+function handleReceiverLaserEnd(message) {
+    const { strokeId } = message;
+    const stroke = receiverStrokes[strokeId];
+
+    if (!stroke) return;
+
+    // Add to laser strokes array for fading
+    receiverLaserStrokes.push(stroke.path);
+
+    // Remove from active strokes
+    delete receiverStrokes[strokeId];
+
+    // Clear existing timeout
+    if (receiverLaserTimeout) {
+        clearTimeout(receiverLaserTimeout);
+    }
+
+    // Fade all laser strokes after 2 seconds
+    receiverLaserTimeout = setTimeout(() => {
+        receiverLaserStrokes.forEach(laserPath => {
+            laserPath.style.transition = 'opacity 0.5s ease';
+            laserPath.setAttribute('opacity', '0');
+
+            setTimeout(() => {
+                if (laserPath.parentNode) {
+                    laserPath.remove();
+                }
+            }, 500);
+        });
+
+        receiverLaserStrokes = [];
+        receiverLaserTimeout = null;
+    }, 2000);
+}
+
+function handleReceiverSelectionUpdate(message) {
+    const { page, drawings } = message;
+
+    // Update drawings data
+    if (drawings) {
+        pageDrawings = drawings;
+    }
+
+    // Re-render current page if it matches
+    if (page === currentPage) {
+        restorePageDrawings(currentPage);
+    }
+}
+
+function handleReceiverClearCanvas(message) {
+    const { page } = message;
+
+    // Clear drawings for the specified page
+    delete pageDrawings[page];
+
+    // If it's the current page, clear the canvas
+    if (page === currentPage) {
+        clearCanvas();
+
+        // Re-add eraser indicator and laser pointer
+        if (eraserIndicator) {
+            svg.appendChild(eraserIndicator);
+        }
+        if (laserPointer) {
+            svg.appendChild(laserPointer);
+        }
+    }
+}
+
+// Helper function to convert ArrayBuffer to base64
+function arrayBufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
 }
 
 // ============================================
@@ -807,12 +1326,29 @@ function startDrawing(e) {
         currentPath.setAttribute('filter', 'url(#laserGlow)');
         currentPath.classList.add('laser-stroke');
 
+        // Generate unique ID for laser stroke
+        currentPath._strokeId = Date.now() + '_' + Math.random();
+
         svg.appendChild(currentPath);
 
         // Clear any existing fade timeout
         if (laserFadeTimeout) {
             clearTimeout(laserFadeTimeout);
             laserFadeTimeout = null;
+        }
+
+        // Send laser-start to presentation
+        if (presentationConnection && presentationConnection.state === 'connected') {
+            const normalizedPoint = {
+                x: coords.x / currentViewBoxWidth,
+                y: coords.y / currentViewBoxHeight
+            };
+
+            presentationConnection.send(JSON.stringify({
+                type: 'laser-start',
+                strokeId: currentPath._strokeId,
+                point: normalizedPoint
+            }));
         }
 
         e.preventDefault();
@@ -863,7 +1399,27 @@ function startDrawing(e) {
     // Store points for fast eraser collision detection
     currentPath._strokePoints = [];
 
+    // Generate unique ID for this stroke
+    currentPath._strokeId = Date.now() + '_' + Math.random();
+
     svg.appendChild(currentPath);
+
+    // Send stroke-start to presentation
+    if (presentationConnection && presentationConnection.state === 'connected') {
+        // Normalize coordinates (0-1 range) for cross-resolution compatibility
+        const normalizedPoint = {
+            x: coords.x / currentViewBoxWidth,
+            y: coords.y / currentViewBoxHeight
+        };
+
+        presentationConnection.send(JSON.stringify({
+            type: 'stroke-start',
+            strokeId: currentPath._strokeId,
+            color: currentColor,
+            width: currentStrokeWidth,
+            point: normalizedPoint
+        }));
+    }
 
     e.preventDefault();
 }
@@ -889,6 +1445,21 @@ function draw(e) {
 
         const pathData = pointsToPath(points);
         currentPath.setAttribute('d', pathData);
+
+        // Send laser-update to presentation
+        if (presentationConnection && presentationConnection.state === 'connected' && currentPath._strokeId) {
+            const normalizedPoint = {
+                x: coords.x / currentViewBoxWidth,
+                y: coords.y / currentViewBoxHeight
+            };
+
+            presentationConnection.send(JSON.stringify({
+                type: 'laser-update',
+                strokeId: currentPath._strokeId,
+                point: normalizedPoint
+            }));
+        }
+
         return;
     }
 
@@ -914,11 +1485,35 @@ function draw(e) {
 
     const pathData = pointsToPath(points);
     currentPath.setAttribute('d', pathData);
+
+    // Send stroke-update to presentation
+    if (presentationConnection && presentationConnection.state === 'connected' && currentPath._strokeId) {
+        // Normalize coordinates (0-1 range) for cross-resolution compatibility
+        const normalizedPoint = {
+            x: coords.x / currentViewBoxWidth,
+            y: coords.y / currentViewBoxHeight
+        };
+
+        presentationConnection.send(JSON.stringify({
+            type: 'stroke-update',
+            strokeId: currentPath._strokeId,
+            point: normalizedPoint
+        }));
+    }
 }
 
 function stopDrawing() {
     if (isDrawing) {
         isDrawing = false;
+
+        // Send stroke-end to presentation
+        if (presentationConnection && presentationConnection.state === 'connected' && currentPath && currentPath._strokeId) {
+            presentationConnection.send(JSON.stringify({
+                type: 'stroke-end',
+                strokeId: currentPath._strokeId
+            }));
+        }
+
         currentPath = null;
         points = [];
     }
@@ -934,10 +1529,19 @@ function stopDrawing() {
     if (isLasering) {
         isLasering = false;
         const laserPath = currentPath;
+        const laserStrokeId = currentPath ? currentPath._strokeId : null;
 
         // Add to active laser strokes array
         if (laserPath) {
             laserStrokes.push(laserPath);
+        }
+
+        // Send laser-end to presentation
+        if (presentationConnection && presentationConnection.state === 'connected' && laserStrokeId) {
+            presentationConnection.send(JSON.stringify({
+                type: 'laser-end',
+                strokeId: laserStrokeId
+            }));
         }
 
         // Clear existing timeout
@@ -1439,12 +2043,29 @@ function stopDraggingSelection(e) {
         bounds.maxY += dy;
     }
 
+    // Send selection update to presentation
+    if (presentationConnection && presentationConnection.state === 'connected') {
+        sendSelectionUpdate();
+    }
+
     isDraggingSelection = false;
     dragStartPoint = null;
 
     // Remove listeners
     document.removeEventListener('pointermove', dragSelection);
     document.removeEventListener('pointerup', stopDraggingSelection);
+}
+
+function sendSelectionUpdate() {
+    // Save current page drawings first
+    saveCurrentPageDrawings();
+
+    // Send updated drawings to presentation
+    presentationConnection.send(JSON.stringify({
+        type: 'selection-update',
+        page: currentPage,
+        drawings: pageDrawings
+    }));
 }
 
 function translatePathData(pathD, dx, dy) {
@@ -1531,7 +2152,16 @@ function erase(e) {
                 }
 
                 if (shouldErase) {
+                    const strokeId = path._strokeId;
                     path.remove();
+
+                    // Send erase notification to presentation
+                    if (presentationConnection && presentationConnection.state === 'connected' && strokeId) {
+                        presentationConnection.send(JSON.stringify({
+                            type: 'stroke-erase',
+                            strokeId: strokeId
+                        }));
+                    }
                 }
             }
         });
@@ -1567,6 +2197,8 @@ function saveCurrentPageDrawings() {
 }
 
 function restorePageDrawings(pageNum) {
+    console.log('Restoring drawings for page:', pageNum, 'Available pages:', Object.keys(pageDrawings));
+
     // Clear current canvas
     clearCanvas();
 
@@ -1581,12 +2213,17 @@ function restorePageDrawings(pageNum) {
     // Restore drawings for this page if they exist
     if (pageDrawings[pageNum] && pageDrawings[pageNum].paths) {
         const savedData = pageDrawings[pageNum];
+        console.log('Found', savedData.paths.length, 'paths for page', pageNum);
+
         const scaleX = currentViewBoxWidth / savedData.viewBoxWidth;
         const scaleY = currentViewBoxHeight / savedData.viewBoxHeight;
+        console.log('Scale factors:', scaleX, scaleY);
 
+        let restoredCount = 0;
         savedData.paths.forEach(pathData => {
             // Skip if path data is missing
             if (!pathData.d) {
+                console.log('Skipping path with no data');
                 return;
             }
 
@@ -1614,7 +2251,12 @@ function restorePageDrawings(pageNum) {
             }
 
             svg.insertBefore(path, eraserIndicator);
+            restoredCount++;
         });
+
+        console.log('Restored', restoredCount, 'paths to SVG');
+    } else {
+        console.log('No drawings found for page', pageNum);
     }
 }
 
