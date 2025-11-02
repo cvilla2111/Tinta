@@ -23,34 +23,89 @@ body {
     align-items: center;
     justify-content: center;
     background: #e0e0e0;
+    overflow-y: auto;
 }
 
-#pdfUploadContainer {
+#pdfGalleryContainer {
     width: 100%;
-    max-width: 500px;
-    padding: 20px;
+    max-width: 1200px;
+    padding: 40px 20px;
 }
 
-#uploadBox {
+#pdfGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+    width: 100%;
+    align-items: start;
+}
+
+.pdf-thumbnail {
+    position: relative;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    width: 100%;
-    aspect-ratio: 16 / 9;
-    border: 3px dashed #999999;
-    border-radius: 20px;
-    background: #ffffff;
     cursor: pointer;
     transition: all 0.3s ease;
 }
 
-#uploadBox:hover {
+.pdf-thumbnail-image {
+    width: 100%;
+    background: #ffffff;
+    border-radius: 12px;
+    border: 2px solid #d0d0d0;
+    overflow: hidden;
+    transition: border-color 0.3s ease;
+}
+
+.pdf-thumbnail:hover .pdf-thumbnail-image {
+    border-color: #999999;
+}
+
+.pdf-thumbnail.upload-box .pdf-thumbnail-image {
+    border: 3px dashed #999999;
+    background: #ffffff;
+    aspect-ratio: 16 / 9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pdf-thumbnail.upload-box:hover .pdf-thumbnail-image {
     border-color: #666666;
     background: #f9f9f9;
 }
 
-#plusIcon {
-    font-size: 120px;
+.pdf-thumbnail-image.landscape {
+    aspect-ratio: 16 / 9;
+}
+
+.pdf-thumbnail-image.portrait {
+    aspect-ratio: 9 / 16;
+}
+
+.pdf-thumbnail canvas {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.pdf-name {
+    margin-top: 8px;
+    color: #000000;
+    font-size: 12px;
+    font-weight: 500;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+}
+
+.plus-icon {
+    font-size: 60px;
     color: #999999;
     font-weight: 200;
     line-height: 1;
@@ -86,12 +141,6 @@ body {
     width: 24px;
     height: 24px;
     cursor: pointer;
-    opacity: 0.6;
-    transition: opacity 0.2s ease;
-}
-
-#homeIcon:hover {
-    opacity: 1;
 }
 
 #headerCenter {
@@ -103,10 +152,58 @@ body {
     padding: 0 20px;
 }
 
+#undoRedoContainer {
+    display: flex;
+    align-items: center;
+    gap: 25px;
+    padding-right: 45px;
+    border-right: 1px solid #d0d0d0;
+    height: 40px;
+}
+
+.icon-container {
+    position: relative;
+    display: inline-flex;
+    padding: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-container:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.icon-container:active {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+#undoIcon, #redoIcon {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    display: block;
+}
+
+#undoIcon.disabled, #redoIcon.disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.icon-container.disabled {
+    cursor: not-allowed;
+}
+
+.icon-container.disabled:hover {
+    background-color: transparent;
+}
+
 #colorPicker {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 5px;
     margin-left: 20px;
     border-right: 1px solid #d0d0d0;
     padding-right: 20px;
@@ -127,12 +224,7 @@ body {
     width: 20px;
     height: 20px;
     cursor: pointer;
-    opacity: 0.6;
-    transition: opacity 0.2s ease;
-}
-
-#pageNavigation img:hover {
-    opacity: 1;
+    display: block;
 }
 
 #pageNavigation img.disabled {
@@ -152,12 +244,7 @@ body {
     width: 24px;
     height: 24px;
     cursor: pointer;
-    opacity: 0.6;
-    transition: opacity 0.2s ease;
-}
-
-#presentationIcon:hover {
-    opacity: 1;
+    display: block;
 }
 
 .color-circle {
@@ -165,15 +252,14 @@ body {
     height: 24px;
     border-radius: 50% !important;
     cursor: pointer;
-    border: 2px solid transparent;
-    transition: border-color 0.2s ease;
-    overflow: hidden;
+    border: none;
+    overflow: visible;
     -webkit-tap-highlight-color: transparent;
     outline: none;
-}
-
-.color-circle:hover {
-    border-color: rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
 }
 
 .color-circle:active {
@@ -184,9 +270,16 @@ body {
     outline: none;
 }
 
-.color-circle.active {
-    border-color: #000000;
-    border-width: 3px;
+.color-check {
+    width: 14px;
+    height: 14px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+}
+
+.color-circle.active .color-check {
+    opacity: 1;
 }
 
 #headerRight {
@@ -354,16 +447,50 @@ body {
     opacity: 0.7;
 }
 
+.color-palette-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+}
+
+.palette-color {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+    transition: transform 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.palette-color:hover {
+    transform: scale(1.15);
+}
+
+.palette-color:active {
+    transform: scale(1.05);
+}
+
+.palette-check {
+    width: 12px;
+    height: 12px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+}
+
+.palette-color.active-palette .palette-check {
+    opacity: 1;
+}
+
 #maximizeIcon {
     width: 24px;
     height: 24px;
     cursor: pointer;
-    opacity: 0.6;
-    transition: opacity 0.2s ease;
-}
-
-#maximizeIcon:hover {
-    opacity: 1;
+    display: block;
 }
 
 #canvasContainer {

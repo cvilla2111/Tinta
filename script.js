@@ -56,6 +56,11 @@ let pageDrawings = {};
 let currentViewBoxWidth = 0;
 let currentViewBoxHeight = 0;
 
+// Undo/Redo state
+let undoHistory = {}; // History stack per page
+let redoHistory = {}; // Redo stack per page
+const MAX_HISTORY = 50; // Maximum number of undo steps
+
 // Animation state
 let isPageChanging = false;
 
@@ -93,6 +98,150 @@ if (window.location.hash === '#receiver') {
     // Immediately hide home screen and show drawing screen for receivers
     homeScreen.style.display = 'none';
     drawingScreen.style.display = 'flex';
+} else {
+    // Load PDFs from the pdf folder on homepage
+    loadPDFGallery();
+}
+
+// ============================================
+// PDF GALLERY FUNCTIONS
+// ============================================
+
+async function loadPDFGallery() {
+    const pdfGrid = document.getElementById('pdfGrid');
+    if (!pdfGrid) return;
+
+    let pdfFiles = [];
+
+    // Try Node.js server endpoint
+    try {
+        const response = await fetch('pdf/list');
+        if (response.ok && response.headers.get('content-type')?.includes('application/json')) {
+            const fileList = await response.json();
+            pdfFiles = fileList.map(filename => `pdf/${filename}`);
+            console.log(`Found ${pdfFiles.length} PDF(s) in the pdf/ folder`);
+        }
+    } catch (error) {
+        console.error('Could not load PDF list. Please run the server using:');
+        console.error('  node server.js');
+        console.error('');
+        console.error('If you don\'t have Node.js installed, download it from: https://nodejs.org/');
+        return;
+    }
+
+    // Load all discovered PDFs
+    for (const pdfPath of pdfFiles) {
+        try {
+            const response = await fetch(pdfPath);
+            if (response.ok) {
+                const arrayBuffer = await response.arrayBuffer();
+                // Clone the ArrayBuffer to prevent detachment issues
+                const clonedBuffer = arrayBuffer.slice(0);
+                await createPDFThumbnail(pdfPath, clonedBuffer, pdfGrid);
+            }
+        } catch (error) {
+            console.error(`Failed to load ${pdfPath}:`, error.message);
+        }
+    }
+
+    if (pdfFiles.length > 0) {
+        console.log(`Successfully loaded ${pdfFiles.length} PDF thumbnail(s)`);
+    }
+}
+
+async function createPDFThumbnail(pdfPath, arrayBuffer, container) {
+    const pdfName = pdfPath.split('/').pop().replace('.pdf', '');
+
+    // Clone the arrayBuffer again to keep a persistent copy for the click handler
+    const persistentBuffer = arrayBuffer.slice(0);
+
+    // Load PDF to get first page
+    const typedArray = new Uint8Array(arrayBuffer);
+    const pdf = await pdfjsLib.getDocument(typedArray).promise;
+    const page = await pdf.getPage(1);
+
+    // Get page viewport
+    const viewport = page.getViewport({ scale: 1.0 });
+    const aspectRatio = viewport.width / viewport.height;
+
+    // Determine orientation
+    const isLandscape = aspectRatio > 1;
+
+    // Create thumbnail wrapper
+    const thumbnail = document.createElement('div');
+    thumbnail.className = 'pdf-thumbnail';
+
+    // Create thumbnail image container
+    const thumbnailImage = document.createElement('div');
+    thumbnailImage.className = `pdf-thumbnail-image ${isLandscape ? 'landscape' : 'portrait'}`;
+
+    // Create canvas for PDF thumbnail
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+
+    // Set canvas size (half of the upload box size, approximately 200px width for landscape)
+    const thumbnailWidth = 200;
+    const scale = thumbnailWidth / viewport.width;
+    const scaledViewport = page.getViewport({ scale: scale });
+
+    canvas.width = scaledViewport.width;
+    canvas.height = scaledViewport.height;
+
+    // Render PDF page to canvas
+    await page.render({
+        canvasContext: context,
+        viewport: scaledViewport
+    }).promise;
+
+    // Add canvas to thumbnail image
+    thumbnailImage.appendChild(canvas);
+    thumbnail.appendChild(thumbnailImage);
+
+    // Add PDF name below thumbnail
+    const nameLabel = document.createElement('div');
+    nameLabel.className = 'pdf-name';
+    nameLabel.textContent = pdfName;
+    thumbnail.appendChild(nameLabel);
+
+    // Add click handler to load this PDF
+    // Use the persistent buffer cloned at the beginning
+    thumbnail.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        loadPDFFromPath(pdfPath, persistentBuffer);
+    });
+
+    // Insert before the upload box
+    const uploadBox = container.querySelector('.upload-box');
+    container.insertBefore(thumbnail, uploadBox);
+}
+
+async function loadPDFFromPath(pdfPath, arrayBuffer) {
+    try {
+        // Store PDF data
+        pdfArrayBuffer = arrayBuffer.slice(0);
+        const typedArray = new Uint8Array(arrayBuffer);
+
+        pdfDoc = await pdfjsLib.getDocument(typedArray).promise;
+
+        // Switch to drawing screen
+        homeScreen.style.display = 'none';
+        drawingScreen.style.display = 'flex';
+
+        // Wait for layout to complete
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Render PDF page
+        await renderPDFPage(1);
+
+        // Initialize drawing canvas after PDF is rendered
+        initializeDrawingCanvas();
+
+        // Sync SVG canvas size with PDF canvas
+        resizeSVG();
+    } catch (error) {
+        console.error('Error loading PDF:', error);
+    }
 }
 
 // ============================================
@@ -288,6 +437,10 @@ function initializeDrawingCanvas() {
     const clearCanvasBtn = document.getElementById('clearCanvasBtn');
     if (clearCanvasBtn) {
         clearCanvasBtn.addEventListener('click', () => {
+            // Save state to history BEFORE clearing canvas
+            saveCurrentPageDrawings();
+            saveStateToHistory();
+
             clearCanvas();
             // Clear saved drawings for current page
             delete pageDrawings[currentPage];
@@ -313,14 +466,87 @@ function initializeDrawingCanvas() {
 
     // Color picker
     const colorCircles = document.querySelectorAll('.color-circle');
+    const colorPaletteModal = document.getElementById('colorPaletteModal');
+    const colorPalette = document.getElementById('colorPalette');
+    let currentEditingCircle = null;
+
     colorCircles.forEach(circle => {
-        circle.addEventListener('click', () => {
-            // Remove active class from all circles
-            colorCircles.forEach(c => c.classList.remove('active'));
-            // Add active class to clicked circle
-            circle.classList.add('active');
-            // Set current color
-            currentColor = circle.getAttribute('data-color');
+        circle.addEventListener('click', (e) => {
+            e.stopPropagation();
+
+            // Always close color palette modal when clicking any circle
+            const wasPaletteOpen = colorPaletteModal && colorPaletteModal.style.display === 'block';
+            if (wasPaletteOpen) {
+                colorPaletteModal.style.display = 'none';
+                currentEditingCircle = null;
+            }
+
+            // If circle is already active and palette wasn't open, open color palette to edit it
+            if (circle.classList.contains('active') && !wasPaletteOpen) {
+                currentEditingCircle = circle;
+                const currentColor = circle.getAttribute('data-color');
+
+                // Set color picker value
+                if (colorPalette) {
+                    colorPalette.value = currentColor;
+                }
+
+                // Remove active-palette class from all palette colors
+                const paletteColors = document.querySelectorAll('.palette-color');
+                paletteColors.forEach(pc => pc.classList.remove('active-palette'));
+
+                // Add active-palette class to matching color in palette
+                paletteColors.forEach(paletteColor => {
+                    const paletteColorValue = paletteColor.getAttribute('data-palette-color');
+                    // Normalize hex colors for comparison (uppercase)
+                    if (paletteColorValue && paletteColorValue.toUpperCase() === currentColor.toUpperCase()) {
+                        paletteColor.classList.add('active-palette');
+                    }
+                });
+
+                // Position palette modal at the second color circle position (fixed position)
+                const secondCircle = colorCircles[1]; // Get the second circle
+                const rect = secondCircle.getBoundingClientRect();
+                colorPaletteModal.style.left = `${rect.left + (rect.width / 2)}px`;
+                colorPaletteModal.style.top = '63px'; // Top aligned with pen modal
+                colorPaletteModal.style.transform = 'translateX(-50%)';
+                colorPaletteModal.style.display = 'block';
+            } else if (!circle.classList.contains('active')) {
+                // Close pen modal if it's open
+                if (penModal && penModal.style.display === 'block') {
+                    penModal.style.display = 'none';
+                }
+
+                // Remove active class from all circles
+                colorCircles.forEach(c => c.classList.remove('active'));
+                // Add active class to clicked circle
+                circle.classList.add('active');
+                // Set current color
+                currentColor = circle.getAttribute('data-color');
+                // Change to pen tool when selecting a color
+                setActiveTool('pen');
+            }
+        });
+    });
+
+    // Color palette click handler for individual color circles
+    const paletteColors = document.querySelectorAll('.palette-color');
+    paletteColors.forEach(paletteColor => {
+        paletteColor.addEventListener('click', (e) => {
+            const newColor = paletteColor.getAttribute('data-palette-color');
+
+            if (currentEditingCircle) {
+                // Update circle's data-color attribute
+                currentEditingCircle.setAttribute('data-color', newColor);
+                // Update circle's background color
+                currentEditingCircle.style.backgroundColor = newColor;
+                // Update current color
+                currentColor = newColor;
+
+                // Close the color palette modal
+                colorPaletteModal.style.display = 'none';
+                currentEditingCircle = null;
+            }
         });
     });
 
@@ -398,6 +624,8 @@ function initializeDrawingCanvas() {
         const clickedOnPenTool = penToolContainer && penToolContainer.contains(e.target);
         const clickedInEraserModal = eraserModal && eraserModal.contains(e.target);
         const clickedOnEraserTool = eraserIcon && eraserIcon.contains(e.target);
+        const clickedInColorPaletteModal = colorPaletteModal && colorPaletteModal.contains(e.target);
+        const clickedOnColorCircle = Array.from(colorCircles).some(circle => circle.contains(e.target));
 
         // Close pen modal (preset circles modal) if clicking outside
         if (penModal && penModal.style.display === 'block') {
@@ -437,6 +665,23 @@ function initializeDrawingCanvas() {
                 sliderModal.style.display = 'none';
                 currentEditingPreset = null;
             }
+        }
+
+        // Close color palette modal if clicking outside
+        if (colorPaletteModal && colorPaletteModal.style.display === 'block') {
+            // Don't close if clicking inside the modal itself
+            if (clickedInColorPaletteModal) {
+                return;
+            }
+
+            // Don't close if clicking on a color circle (handled by circle click handler)
+            if (clickedOnColorCircle) {
+                return;
+            }
+
+            // Close if clicking outside
+            colorPaletteModal.style.display = 'none';
+            currentEditingCircle = null;
         }
     };
 
@@ -527,6 +772,19 @@ function initializeDrawingCanvas() {
     if (presentationIcon && !isPresentationReceiver) {
         presentationIcon.addEventListener('click', startPresentation);
     }
+
+    // Undo/Redo icons
+    const undoIcon = document.getElementById('undoIcon');
+    const redoIcon = document.getElementById('redoIcon');
+    if (undoIcon) {
+        undoIcon.addEventListener('click', undo);
+    }
+    if (redoIcon) {
+        redoIcon.addEventListener('click', redo);
+    }
+
+    // Update undo/redo button states
+    updateUndoRedoButtons();
 }
 
 function toggleFullscreen() {
@@ -704,6 +962,9 @@ async function navigatePage(direction) {
     // Update page navigation UI
     updatePageNavigation();
 
+    // Update undo/redo buttons for new page
+    updateUndoRedoButtons();
+
     // Fade in
     pdfCanvas.style.opacity = '1';
     svg.style.opacity = '1';
@@ -715,6 +976,8 @@ function updatePageNavigation() {
     const pageNumberDisplay = document.getElementById('pageNumber');
     const prevPageIcon = document.getElementById('prevPageIcon');
     const nextPageIcon = document.getElementById('nextPageIcon');
+    const prevPageContainer = document.getElementById('prevPageContainer');
+    const nextPageContainer = document.getElementById('nextPageContainer');
 
     if (!pdfDoc) return;
 
@@ -727,16 +990,20 @@ function updatePageNavigation() {
     if (prevPageIcon) {
         if (currentPage <= 1) {
             prevPageIcon.classList.add('disabled');
+            if (prevPageContainer) prevPageContainer.classList.add('disabled');
         } else {
             prevPageIcon.classList.remove('disabled');
+            if (prevPageContainer) prevPageContainer.classList.remove('disabled');
         }
     }
 
     if (nextPageIcon) {
         if (currentPage >= pdfDoc.numPages) {
             nextPageIcon.classList.add('disabled');
+            if (nextPageContainer) nextPageContainer.classList.add('disabled');
         } else {
             nextPageIcon.classList.remove('disabled');
+            if (nextPageContainer) nextPageContainer.classList.remove('disabled');
         }
     }
 
@@ -1103,7 +1370,7 @@ function handleReceiverLaserStart(message) {
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('fill', 'none');
     path.setAttribute('stroke', '#ff0000');
-    path.setAttribute('stroke-width', '5');
+    path.setAttribute('stroke-width', '8');
     path.setAttribute('stroke-linecap', 'round');
     path.setAttribute('stroke-linejoin', 'round');
     path.setAttribute('opacity', '1');
@@ -1111,7 +1378,21 @@ function handleReceiverLaserStart(message) {
     path.classList.add('laser-stroke');
     path._strokeId = strokeId;
 
+    // Create white inner stroke
+    const innerPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    innerPath.setAttribute('fill', 'none');
+    innerPath.setAttribute('stroke', '#ffffff');
+    innerPath.setAttribute('stroke-width', '3');
+    innerPath.setAttribute('stroke-linecap', 'round');
+    innerPath.setAttribute('stroke-linejoin', 'round');
+    innerPath.setAttribute('opacity', '1');
+    innerPath.setAttribute('pointer-events', 'none');
+    innerPath.classList.add('laser-stroke');
+    innerPath.classList.add('laser-inner');
+    path._innerPath = innerPath;
+
     svg.appendChild(path);
+    svg.appendChild(innerPath);
 
     // Store laser stroke data
     receiverStrokes[strokeId] = {
@@ -1147,6 +1428,11 @@ function handleReceiverLaserUpdate(message) {
     // Update path
     const pathData = pointsToPath(stroke.points);
     stroke.path.setAttribute('d', pathData);
+
+    // Update inner path
+    if (stroke.path._innerPath) {
+        stroke.path._innerPath.setAttribute('d', pathData);
+    }
 }
 
 function handleReceiverLaserEnd(message) {
@@ -1166,22 +1452,31 @@ function handleReceiverLaserEnd(message) {
         clearTimeout(receiverLaserTimeout);
     }
 
-    // Fade all laser strokes after 2 seconds
+    // Fade all laser strokes after 1 second
     receiverLaserTimeout = setTimeout(() => {
         receiverLaserStrokes.forEach(laserPath => {
             laserPath.style.transition = 'opacity 0.5s ease';
             laserPath.setAttribute('opacity', '0');
 
+            // Fade inner path too
+            if (laserPath._innerPath) {
+                laserPath._innerPath.style.transition = 'opacity 0.5s ease';
+                laserPath._innerPath.setAttribute('opacity', '0');
+            }
+
             setTimeout(() => {
                 if (laserPath.parentNode) {
                     laserPath.remove();
+                }
+                if (laserPath._innerPath && laserPath._innerPath.parentNode) {
+                    laserPath._innerPath.remove();
                 }
             }, 500);
         });
 
         receiverLaserStrokes = [];
         receiverLaserTimeout = null;
-    }, 2000);
+    }, 1000);
 }
 
 function handleReceiverSelectionUpdate(message) {
@@ -1226,6 +1521,129 @@ function arrayBufferToBase64(buffer) {
         binary += String.fromCharCode(bytes[i]);
     }
     return btoa(binary);
+}
+
+// ============================================
+// UNDO/REDO FUNCTIONS
+// ============================================
+
+function saveStateToHistory() {
+    // Initialize history arrays for current page if they don't exist
+    if (!undoHistory[currentPage]) {
+        undoHistory[currentPage] = [];
+    }
+
+    // Save current state to undo history
+    const currentState = JSON.parse(JSON.stringify(pageDrawings[currentPage] || { paths: [], viewBoxWidth: currentViewBoxWidth, viewBoxHeight: currentViewBoxHeight }));
+    undoHistory[currentPage].push(currentState);
+
+    // Limit history size
+    if (undoHistory[currentPage].length > MAX_HISTORY) {
+        undoHistory[currentPage].shift();
+    }
+
+    // Clear redo history when a new action is performed
+    redoHistory[currentPage] = [];
+
+    updateUndoRedoButtons();
+}
+
+function undo() {
+    if (!undoHistory[currentPage] || undoHistory[currentPage].length === 0) {
+        return;
+    }
+
+    // Initialize redo history for current page if it doesn't exist
+    if (!redoHistory[currentPage]) {
+        redoHistory[currentPage] = [];
+    }
+
+    // Save current state to redo history
+    // First sync current SVG state to pageDrawings
+    saveCurrentPageDrawings();
+    const currentState = JSON.parse(JSON.stringify(pageDrawings[currentPage] || { paths: [], viewBoxWidth: currentViewBoxWidth, viewBoxHeight: currentViewBoxHeight }));
+    redoHistory[currentPage].push(currentState);
+
+    // Pop from undo history and restore
+    const previousState = undoHistory[currentPage].pop();
+    pageDrawings[currentPage] = JSON.parse(JSON.stringify(previousState));
+
+    // Restore the previous state to canvas
+    restorePageDrawings(currentPage);
+
+    // Update button states
+    updateUndoRedoButtons();
+
+    // Send update to presentation if connected
+    if (presentationConnection && presentationConnection.state === 'connected') {
+        presentationConnection.send(JSON.stringify({
+            type: 'selection-update',
+            page: currentPage,
+            drawings: pageDrawings
+        }));
+    }
+}
+
+function redo() {
+    if (!redoHistory[currentPage] || redoHistory[currentPage].length === 0) {
+        return;
+    }
+
+    // Save current state to undo history
+    // First sync current SVG state to pageDrawings
+    saveCurrentPageDrawings();
+    const currentState = JSON.parse(JSON.stringify(pageDrawings[currentPage] || { paths: [], viewBoxWidth: currentViewBoxWidth, viewBoxHeight: currentViewBoxHeight }));
+
+    if (!undoHistory[currentPage]) {
+        undoHistory[currentPage] = [];
+    }
+    undoHistory[currentPage].push(currentState);
+
+    // Pop from redo history and restore
+    const nextState = redoHistory[currentPage].pop();
+    pageDrawings[currentPage] = JSON.parse(JSON.stringify(nextState));
+
+    // Restore the next state to canvas
+    restorePageDrawings(currentPage);
+
+    // Update button states
+    updateUndoRedoButtons();
+
+    // Send update to presentation if connected
+    if (presentationConnection && presentationConnection.state === 'connected') {
+        presentationConnection.send(JSON.stringify({
+            type: 'selection-update',
+            page: currentPage,
+            drawings: pageDrawings
+        }));
+    }
+}
+
+function updateUndoRedoButtons() {
+    const undoIcon = document.getElementById('undoIcon');
+    const redoIcon = document.getElementById('redoIcon');
+    const undoContainer = document.getElementById('undoContainer');
+    const redoContainer = document.getElementById('redoContainer');
+
+    if (!undoIcon || !redoIcon) return;
+
+    // Update undo button
+    if (undoHistory[currentPage] && undoHistory[currentPage].length > 0) {
+        undoIcon.classList.remove('disabled');
+        if (undoContainer) undoContainer.classList.remove('disabled');
+    } else {
+        undoIcon.classList.add('disabled');
+        if (undoContainer) undoContainer.classList.add('disabled');
+    }
+
+    // Update redo button
+    if (redoHistory[currentPage] && redoHistory[currentPage].length > 0) {
+        redoIcon.classList.remove('disabled');
+        if (redoContainer) redoContainer.classList.remove('disabled');
+    } else {
+        redoIcon.classList.add('disabled');
+        if (redoContainer) redoContainer.classList.add('disabled');
+    }
 }
 
 // ============================================
@@ -1300,6 +1718,11 @@ function startDrawing(e) {
 
     // Check if eraser button (top of pen) is being used
     if (e.button === 5 || e.buttons === 32) {
+        // Save state to history BEFORE starting to erase
+        if (!isErasing) {
+            saveCurrentPageDrawings();
+            saveStateToHistory();
+        }
         isErasing = true;
         eraserIndicator.style.display = 'block';
         erase(e);
@@ -1319,17 +1742,31 @@ function startDrawing(e) {
         currentPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         currentPath.setAttribute('fill', 'none');
         currentPath.setAttribute('stroke', '#ff0000');
-        currentPath.setAttribute('stroke-width', '5');
+        currentPath.setAttribute('stroke-width', '8');
         currentPath.setAttribute('stroke-linecap', 'round');
         currentPath.setAttribute('stroke-linejoin', 'round');
         currentPath.setAttribute('opacity', '1');
         currentPath.setAttribute('filter', 'url(#laserGlow)');
         currentPath.classList.add('laser-stroke');
 
+        // Create white inner stroke
+        const innerPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        innerPath.setAttribute('fill', 'none');
+        innerPath.setAttribute('stroke', '#ffffff');
+        innerPath.setAttribute('stroke-width', '3');
+        innerPath.setAttribute('stroke-linecap', 'round');
+        innerPath.setAttribute('stroke-linejoin', 'round');
+        innerPath.setAttribute('opacity', '1');
+        innerPath.setAttribute('pointer-events', 'none');
+        innerPath.classList.add('laser-stroke');
+        innerPath.classList.add('laser-inner');
+        currentPath._innerPath = innerPath;
+
         // Generate unique ID for laser stroke
         currentPath._strokeId = Date.now() + '_' + Math.random();
 
         svg.appendChild(currentPath);
+        svg.appendChild(innerPath);
 
         // Clear any existing fade timeout
         if (laserFadeTimeout) {
@@ -1355,6 +1792,11 @@ function startDrawing(e) {
         return;
     } else if (activeTool === 'eraser') {
         // Activate eraser mode
+        // Save state to history BEFORE starting to erase
+        if (!isErasing) {
+            saveCurrentPageDrawings();
+            saveStateToHistory();
+        }
         isErasing = true;
         eraserIndicator.style.display = 'block';
         erase(e);
@@ -1385,6 +1827,12 @@ function startDrawing(e) {
     // Pen mode - default drawing behavior
     isDrawing = true;
     points = [];
+
+    // Save state to history BEFORE starting new stroke
+    // First sync current SVG state to pageDrawings
+    saveCurrentPageDrawings();
+    // Then save that state to history
+    saveStateToHistory();
 
     const coords = getCoordinates(e);
     points.push(coords);
@@ -1445,6 +1893,11 @@ function draw(e) {
 
         const pathData = pointsToPath(points);
         currentPath.setAttribute('d', pathData);
+
+        // Update inner path
+        if (currentPath._innerPath) {
+            currentPath._innerPath.setAttribute('d', pathData);
+        }
 
         // Send laser-update to presentation
         if (presentationConnection && presentationConnection.state === 'connected' && currentPath._strokeId) {
@@ -1520,6 +1973,7 @@ function stopDrawing() {
     if (isErasing) {
         isErasing = false;
         eraserIndicator.style.display = 'none';
+
         // Cancel any pending erase operation
         if (eraseAnimationFrame) {
             cancelAnimationFrame(eraseAnimationFrame);
@@ -1549,17 +2003,26 @@ function stopDrawing() {
             clearTimeout(laserFadeTimeout);
         }
 
-        // Set new timeout to fade all laser strokes after 2 seconds of inactivity
+        // Set new timeout to fade all laser strokes after 1 second of inactivity
         laserFadeTimeout = setTimeout(() => {
             // Fade out all laser strokes
             laserStrokes.forEach(stroke => {
                 stroke.style.transition = 'opacity 0.5s ease';
                 stroke.setAttribute('opacity', '0');
 
+                // Fade inner path too
+                if (stroke._innerPath) {
+                    stroke._innerPath.style.transition = 'opacity 0.5s ease';
+                    stroke._innerPath.setAttribute('opacity', '0');
+                }
+
                 // Remove after fade completes
                 setTimeout(() => {
                     if (stroke.parentNode) {
                         stroke.remove();
+                    }
+                    if (stroke._innerPath && stroke._innerPath.parentNode) {
+                        stroke._innerPath.remove();
                     }
                 }, 500);
             });
@@ -1567,7 +2030,7 @@ function stopDrawing() {
             // Clear the array
             laserStrokes = [];
             laserFadeTimeout = null;
-        }, 2000); // Wait 2 seconds, then fade
+        }, 1000); // Wait 1 second, then fade
 
         currentPath = null;
         points = [];
@@ -1758,6 +2221,10 @@ function startScalingSelection(e) {
 
     e.preventDefault();
     e.stopPropagation();
+
+    // Save state to history BEFORE starting to scale
+    saveCurrentPageDrawings();
+    saveStateToHistory();
 
     isScalingSelection = true;
     scaleHandle = e.target;
@@ -1969,6 +2436,10 @@ function startDraggingSelection(e) {
 
     e.preventDefault();
     e.stopPropagation();
+
+    // Save state to history BEFORE starting to drag
+    saveCurrentPageDrawings();
+    saveStateToHistory();
 
     isDraggingSelection = true;
     dragStartPoint = getCoordinates(e);
@@ -2364,6 +2835,9 @@ document.addEventListener('keydown', async (e) => {
                 // Update page navigation UI
                 updatePageNavigation();
 
+                // Update undo/redo buttons for new page
+                updateUndoRedoButtons();
+
                 // Fade in
                 pdfCanvas.style.opacity = '1';
                 svg.style.opacity = '1';
@@ -2394,6 +2868,9 @@ document.addEventListener('keydown', async (e) => {
 
                 // Update page navigation UI
                 updatePageNavigation();
+
+                // Update undo/redo buttons for new page
+                updateUndoRedoButtons();
 
                 // Fade in
                 pdfCanvas.style.opacity = '1';
