@@ -96,8 +96,7 @@ if (window.location.hash === '#receiver') {
     console.log('This is a presentation receiver');
 
     // Immediately hide home screen and show drawing screen for receivers
-    homeScreen.style.display = 'none';
-    drawingScreen.style.display = 'flex';
+    document.body.classList.add('drawing-mode');
 } else {
     // Load PDFs from the pdf folder on homepage
     loadPDFGallery();
@@ -225,8 +224,7 @@ async function loadPDFFromPath(pdfPath, arrayBuffer) {
         pdfDoc = await pdfjsLib.getDocument(typedArray).promise;
 
         // Switch to drawing screen
-        homeScreen.style.display = 'none';
-        drawingScreen.style.display = 'flex';
+        document.body.classList.add('drawing-mode');
 
         // Wait for layout to complete
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -263,8 +261,7 @@ pdfInput.addEventListener('change', async (e) => {
             pdfDoc = await pdfjsLib.getDocument(typedArray).promise;
 
             // Switch to drawing screen first
-            homeScreen.style.display = 'none';
-            drawingScreen.style.display = 'flex';
+            document.body.classList.add('drawing-mode');
 
             // Wait for layout to complete
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -358,8 +355,8 @@ function initializeDrawingCanvas() {
         clearTimeout(resizeTimeout);
         resizeTimeout = setTimeout(async () => {
             // Fade out
-            pdfCanvas.style.opacity = '0';
-            svg.style.opacity = '0';
+            pdfCanvas.classList.add('fade-out');
+            svg.classList.add('fade-out');
 
             // Wait for fade out animation
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -374,8 +371,8 @@ function initializeDrawingCanvas() {
             restorePageDrawings(currentPage);
 
             // Fade in
-            pdfCanvas.style.opacity = '1';
-            svg.style.opacity = '1';
+            pdfCanvas.classList.remove('fade-out');
+            svg.classList.remove('fade-out');
         }, 300);
     });
 
@@ -392,8 +389,8 @@ function initializeDrawingCanvas() {
         penToolContainer.addEventListener('click', (e) => {
             // If pen is already active, toggle modal
             if (activeTool === 'pen') {
-                const isModalOpen = penModal.style.display === 'block';
-                penModal.style.display = isModalOpen ? 'none' : 'block';
+                const isModalOpen = penModal.classList.contains('show');
+                penModal.classList.toggle('show');
 
                 if (!isModalOpen) {
                     // Position modal below pen icon
@@ -414,8 +411,8 @@ function initializeDrawingCanvas() {
         eraserIcon.addEventListener('click', () => {
             // If eraser is already active, toggle modal
             if (activeTool === 'eraser') {
-                const isModalOpen = eraserModal.style.display === 'block';
-                eraserModal.style.display = isModalOpen ? 'none' : 'block';
+                const isModalOpen = eraserModal.classList.contains('show');
+                eraserModal.classList.toggle('show');
 
                 if (!isModalOpen) {
                     // Position modal below eraser icon
@@ -452,7 +449,7 @@ function initializeDrawingCanvas() {
                 svg.appendChild(laserPointer);
             }
             // Close the modal
-            eraserModal.style.display = 'none';
+            eraserModal.classList.remove('show');
 
             // Send clear-canvas to presentation
             if (presentationConnection && presentationConnection.state === 'connected') {
@@ -475,9 +472,9 @@ function initializeDrawingCanvas() {
             e.stopPropagation();
 
             // Always close color palette modal when clicking any circle
-            const wasPaletteOpen = colorPaletteModal && colorPaletteModal.style.display === 'block';
+            const wasPaletteOpen = colorPaletteModal && colorPaletteModal.classList.contains('show');
             if (wasPaletteOpen) {
-                colorPaletteModal.style.display = 'none';
+                colorPaletteModal.classList.remove('show');
                 currentEditingCircle = null;
             }
 
@@ -510,11 +507,11 @@ function initializeDrawingCanvas() {
                 colorPaletteModal.style.left = `${rect.left + (rect.width / 2)}px`;
                 colorPaletteModal.style.top = '63px'; // Top aligned with pen modal
                 colorPaletteModal.style.transform = 'translateX(-50%)';
-                colorPaletteModal.style.display = 'block';
+                colorPaletteModal.classList.add('show');
             } else if (!circle.classList.contains('active')) {
                 // Close pen modal if it's open
-                if (penModal && penModal.style.display === 'block') {
-                    penModal.style.display = 'none';
+                if (penModal && penModal.classList.contains('show')) {
+                    penModal.classList.remove('show');
                 }
 
                 // Remove active class from all circles
@@ -544,7 +541,7 @@ function initializeDrawingCanvas() {
                 currentColor = newColor;
 
                 // Close the color palette modal
-                colorPaletteModal.style.display = 'none';
+                colorPaletteModal.classList.remove('show');
                 currentEditingCircle = null;
             }
         });
@@ -578,11 +575,11 @@ function initializeDrawingCanvas() {
                 const modalWidth = 200; // min-width from CSS (same as pen modal)
                 sliderModal.style.left = `${rect.left + (rect.width / 2) - (modalWidth / 2)}px`;
                 sliderModal.style.top = `${rect.bottom + 5}px`;
-                sliderModal.style.display = 'block';
+                sliderModal.classList.add('show');
             } else {
                 // Close slider modal if it's open
-                if (sliderModal && sliderModal.style.display === 'block') {
-                    sliderModal.style.display = 'none';
+                if (sliderModal && sliderModal.classList.contains('show')) {
+                    sliderModal.classList.remove('show');
                     currentEditingPreset = null;
                 }
 
@@ -628,27 +625,27 @@ function initializeDrawingCanvas() {
         const clickedOnColorCircle = Array.from(colorCircles).some(circle => circle.contains(e.target));
 
         // Close pen modal (preset circles modal) if clicking outside
-        if (penModal && penModal.style.display === 'block') {
+        if (penModal && penModal.classList.contains('show')) {
             if (!clickedInPenModal && !clickedOnPenTool && !clickedInSliderModal) {
-                penModal.style.display = 'none';
+                penModal.classList.remove('show');
                 // Also close slider modal if it's open
-                if (sliderModal && sliderModal.style.display === 'block') {
-                    sliderModal.style.display = 'none';
+                if (sliderModal && sliderModal.classList.contains('show')) {
+                    sliderModal.classList.remove('show');
                     currentEditingPreset = null;
                 }
             }
         }
 
         // Close eraser modal if clicking outside
-        if (eraserModal && eraserModal.style.display === 'block') {
+        if (eraserModal && eraserModal.classList.contains('show')) {
             if (!clickedInEraserModal && !clickedOnEraserTool) {
-                eraserModal.style.display = 'none';
+                eraserModal.classList.remove('show');
             }
         }
 
         // Close slider modal only if clicking outside of it (but not inside pen modal or on presets)
         // The slider modal should NOT close when clicking inside the slider itself
-        if (sliderModal && sliderModal.style.display === 'block') {
+        if (sliderModal && sliderModal.classList.contains('show')) {
             // Don't close if clicking inside the slider modal itself
             if (clickedInSliderModal) {
                 return;
@@ -662,13 +659,13 @@ function initializeDrawingCanvas() {
 
             // Close if clicking outside both modals
             if (!clickedInPenModal) {
-                sliderModal.style.display = 'none';
+                sliderModal.classList.remove('show');
                 currentEditingPreset = null;
             }
         }
 
         // Close color palette modal if clicking outside
-        if (colorPaletteModal && colorPaletteModal.style.display === 'block') {
+        if (colorPaletteModal && colorPaletteModal.classList.contains('show')) {
             // Don't close if clicking inside the modal itself
             if (clickedInColorPaletteModal) {
                 return;
@@ -680,7 +677,7 @@ function initializeDrawingCanvas() {
             }
 
             // Close if clicking outside
-            colorPaletteModal.style.display = 'none';
+            colorPaletteModal.classList.remove('show');
             currentEditingCircle = null;
         }
     };
@@ -852,43 +849,19 @@ async function updateFullscreenIcon() {
 function setActiveTool(tool) {
     activeTool = tool;
 
-    // Update icon styles to show active tool
-    const penToolContainer = document.getElementById('penToolContainer');
-    const laserIcon = document.getElementById('laserIcon');
-    const eraserIcon = document.getElementById('eraserIcon');
-    const lassoIcon = document.getElementById('lassoIcon');
-    const penModal = document.getElementById('penModal');
-    const eraserModal = document.getElementById('eraserModal');
-
-    // Remove active class from all icons
-    if (penToolContainer) penToolContainer.classList.remove('active');
-    if (laserIcon) laserIcon.classList.remove('active');
-    if (eraserIcon) eraserIcon.classList.remove('active');
-    if (lassoIcon) lassoIcon.classList.remove('active');
+    // OPTIMIZATION #2: Set active tool via data attribute on parent
+    const headerCenter = document.getElementById('headerCenter');
+    if (headerCenter) {
+        headerCenter.setAttribute('data-active-tool', tool);
+    }
 
     // Close modals when switching tools
-    if (penModal) penModal.style.display = 'none';
-    if (eraserModal) eraserModal.style.display = 'none';
+    const penModal = document.getElementById('penModal');
+    const eraserModal = document.getElementById('eraserModal');
+    if (penModal) penModal.classList.remove('show');
+    if (eraserModal) eraserModal.classList.remove('show');
 
-    // Add active class to selected tool
-    if (tool === 'pen' && penToolContainer) {
-        penToolContainer.classList.add('active');
-    } else if (tool === 'laser' && laserIcon) {
-        laserIcon.classList.add('active');
-    } else if (tool === 'eraser' && eraserIcon) {
-        eraserIcon.classList.add('active');
-    } else if (tool === 'lasso' && lassoIcon) {
-        lassoIcon.classList.add('active');
-    }
-
-    // Update cursor
-    if (tool === 'laser') {
-        svg.style.cursor = 'none';
-    } else if (tool === 'lasso') {
-        svg.style.cursor = 'crosshair';
-    } else {
-        svg.style.cursor = 'crosshair';
-    }
+    // OPTIMIZATION #7: Cursor is now controlled by CSS via data-active-tool attribute
 }
 
 function returnToHome() {
@@ -909,8 +882,7 @@ function returnToHome() {
     }
 
     // Return to home screen
-    drawingScreen.style.display = 'none';
-    homeScreen.style.display = 'flex';
+    document.body.classList.remove('drawing-mode');
 
     // Reset PDF state to allow opening new PDFs
     pdfDoc = null;
@@ -943,8 +915,8 @@ async function navigatePage(direction) {
     isPageChanging = true;
 
     // Fade out
-    pdfCanvas.style.opacity = '0';
-    svg.style.opacity = '0';
+    pdfCanvas.classList.add('fade-out');
+    svg.classList.add('fade-out');
 
     // Wait for fade out animation
     await new Promise(resolve => setTimeout(resolve, 150));
@@ -966,8 +938,8 @@ async function navigatePage(direction) {
     updateUndoRedoButtons();
 
     // Fade in
-    pdfCanvas.style.opacity = '1';
-    svg.style.opacity = '1';
+    pdfCanvas.classList.remove('fade-out');
+    svg.classList.remove('fade-out');
 
     isPageChanging = false;
 }
@@ -986,25 +958,11 @@ function updatePageNavigation() {
         pageNumberDisplay.textContent = currentPage;
     }
 
-    // Enable/disable navigation arrows
-    if (prevPageIcon) {
-        if (currentPage <= 1) {
-            prevPageIcon.classList.add('disabled');
-            if (prevPageContainer) prevPageContainer.classList.add('disabled');
-        } else {
-            prevPageIcon.classList.remove('disabled');
-            if (prevPageContainer) prevPageContainer.classList.remove('disabled');
-        }
-    }
-
-    if (nextPageIcon) {
-        if (currentPage >= pdfDoc.numPages) {
-            nextPageIcon.classList.add('disabled');
-            if (nextPageContainer) nextPageContainer.classList.add('disabled');
-        } else {
-            nextPageIcon.classList.remove('disabled');
-            if (nextPageContainer) nextPageContainer.classList.remove('disabled');
-        }
+    // OPTIMIZATION #5: Enable/disable navigation via data attributes
+    const pageNav = document.getElementById('pageNavigation');
+    if (pageNav && pdfDoc) {
+        pageNav.setAttribute('data-can-prev', currentPage > 1 ? 'true' : 'false');
+        pageNav.setAttribute('data-can-next', currentPage < pdfDoc.numPages ? 'true' : 'false');
     }
 
     // Send page update to presentation display if connected
@@ -1124,8 +1082,7 @@ async function loadPDFFromBase64(base64Data, pageNum, drawings) {
         }
 
         // Show drawing screen, hide home screen
-        homeScreen.style.display = 'none';
-        drawingScreen.style.display = 'flex';
+        document.body.classList.add('drawing-mode');
 
         // Wait for layout
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -1455,13 +1412,11 @@ function handleReceiverLaserEnd(message) {
     // Fade all laser strokes after 1 second
     receiverLaserTimeout = setTimeout(() => {
         receiverLaserStrokes.forEach(laserPath => {
-            laserPath.style.transition = 'opacity 0.5s ease';
-            laserPath.setAttribute('opacity', '0');
+            laserPath.classList.add('fade-out');
 
             // Fade inner path too
             if (laserPath._innerPath) {
-                laserPath._innerPath.style.transition = 'opacity 0.5s ease';
-                laserPath._innerPath.setAttribute('opacity', '0');
+                laserPath._innerPath.classList.add('fade-out');
             }
 
             setTimeout(() => {
@@ -1620,30 +1575,16 @@ function redo() {
 }
 
 function updateUndoRedoButtons() {
-    const undoIcon = document.getElementById('undoIcon');
-    const redoIcon = document.getElementById('redoIcon');
-    const undoContainer = document.getElementById('undoContainer');
-    const redoContainer = document.getElementById('redoContainer');
+    // OPTIMIZATION #6: Update undo/redo states via data attributes
+    const undoRedoContainer = document.getElementById('undoRedoContainer');
 
-    if (!undoIcon || !redoIcon) return;
+    if (!undoRedoContainer) return;
 
-    // Update undo button
-    if (undoHistory[currentPage] && undoHistory[currentPage].length > 0) {
-        undoIcon.classList.remove('disabled');
-        if (undoContainer) undoContainer.classList.remove('disabled');
-    } else {
-        undoIcon.classList.add('disabled');
-        if (undoContainer) undoContainer.classList.add('disabled');
-    }
+    const canUndo = undoHistory[currentPage] && undoHistory[currentPage].length > 0;
+    const canRedo = redoHistory[currentPage] && redoHistory[currentPage].length > 0;
 
-    // Update redo button
-    if (redoHistory[currentPage] && redoHistory[currentPage].length > 0) {
-        redoIcon.classList.remove('disabled');
-        if (redoContainer) redoContainer.classList.remove('disabled');
-    } else {
-        redoIcon.classList.add('disabled');
-        if (redoContainer) redoContainer.classList.add('disabled');
-    }
+    undoRedoContainer.setAttribute('data-can-undo', canUndo ? 'true' : 'false');
+    undoRedoContainer.setAttribute('data-can-redo', canRedo ? 'true' : 'false');
 }
 
 // ============================================
@@ -2005,15 +1946,13 @@ function stopDrawing() {
 
         // Set new timeout to fade all laser strokes after 1 second of inactivity
         laserFadeTimeout = setTimeout(() => {
-            // Fade out all laser strokes
+            // OPTIMIZATION #10: Fade out all laser strokes via CSS class
             laserStrokes.forEach(stroke => {
-                stroke.style.transition = 'opacity 0.5s ease';
-                stroke.setAttribute('opacity', '0');
+                stroke.classList.add('fade-out');
 
                 // Fade inner path too
                 if (stroke._innerPath) {
-                    stroke._innerPath.style.transition = 'opacity 0.5s ease';
-                    stroke._innerPath.setAttribute('opacity', '0');
+                    stroke._innerPath.classList.add('fade-out');
                 }
 
                 // Remove after fade completes
@@ -2816,8 +2755,8 @@ document.addEventListener('keydown', async (e) => {
                 isPageChanging = true;
 
                 // Fade out
-                pdfCanvas.style.opacity = '0';
-                svg.style.opacity = '0';
+                pdfCanvas.classList.add('fade-out');
+                svg.classList.add('fade-out');
 
                 // Wait for fade out animation
                 await new Promise(resolve => setTimeout(resolve, 150));
@@ -2839,8 +2778,8 @@ document.addEventListener('keydown', async (e) => {
                 updateUndoRedoButtons();
 
                 // Fade in
-                pdfCanvas.style.opacity = '1';
-                svg.style.opacity = '1';
+                pdfCanvas.classList.remove('fade-out');
+                svg.classList.remove('fade-out');
 
                 isPageChanging = false;
             }
@@ -2850,8 +2789,8 @@ document.addEventListener('keydown', async (e) => {
                 isPageChanging = true;
 
                 // Fade out
-                pdfCanvas.style.opacity = '0';
-                svg.style.opacity = '0';
+                pdfCanvas.classList.add('fade-out');
+                svg.classList.add('fade-out');
 
                 // Wait for fade out animation
                 await new Promise(resolve => setTimeout(resolve, 150));
@@ -2873,8 +2812,8 @@ document.addEventListener('keydown', async (e) => {
                 updateUndoRedoButtons();
 
                 // Fade in
-                pdfCanvas.style.opacity = '1';
-                svg.style.opacity = '1';
+                pdfCanvas.classList.remove('fade-out');
+                svg.classList.remove('fade-out');
 
                 isPageChanging = false;
             }

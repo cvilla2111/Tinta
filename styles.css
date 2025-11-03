@@ -26,6 +26,23 @@ body {
     overflow-y: auto;
 }
 
+/* OPTIMIZATION #4: Screen switching via body class */
+body.drawing-mode #homeScreen {
+    display: none !important;
+}
+
+body.drawing-mode #drawingScreen {
+    display: flex !important;
+}
+
+body:not(.drawing-mode) #drawingScreen {
+    display: none !important;
+}
+
+body:not(.drawing-mode) #homeScreen {
+    display: flex !important;
+}
+
 #pdfGalleryContainer {
     width: 100%;
     max-width: 1200px;
@@ -200,6 +217,29 @@ body {
     background-color: transparent;
 }
 
+/* OPTIMIZATION #6: Undo/Redo disabled states via data attributes */
+#undoRedoContainer[data-can-undo="false"] #undoIcon,
+#undoRedoContainer[data-can-undo="false"] #undoContainer {
+    opacity: 0.3;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+#undoRedoContainer[data-can-undo="false"] #undoContainer:hover {
+    background-color: transparent;
+}
+
+#undoRedoContainer[data-can-redo="false"] #redoIcon,
+#undoRedoContainer[data-can-redo="false"] #redoContainer {
+    opacity: 0.3;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+#undoRedoContainer[data-can-redo="false"] #redoContainer:hover {
+    background-color: transparent;
+}
+
 #colorPicker {
     display: flex;
     align-items: center;
@@ -230,6 +270,29 @@ body {
 #pageNavigation img.disabled {
     opacity: 0.3;
     cursor: not-allowed;
+}
+
+/* OPTIMIZATION #5: Navigation disabled states via data attributes */
+#pageNavigation[data-can-prev="false"] #prevPageIcon,
+#pageNavigation[data-can-prev="false"] #prevPageContainer {
+    opacity: 0.3;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+#pageNavigation[data-can-prev="false"] #prevPageContainer:hover {
+    background-color: transparent;
+}
+
+#pageNavigation[data-can-next="false"] #nextPageIcon,
+#pageNavigation[data-can-next="false"] #nextPageContainer {
+    opacity: 0.3;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+#pageNavigation[data-can-next="false"] #nextPageContainer:hover {
+    background-color: transparent;
 }
 
 #pageNumber {
@@ -307,6 +370,23 @@ body {
     background-color: #d0d0d0;
 }
 
+/* OPTIMIZATION #2: Active tool state via data attribute */
+#headerCenter[data-active-tool="pen"] #penToolContainer {
+    background-color: #d0d0d0;
+}
+
+#headerCenter[data-active-tool="laser"] #laserIcon {
+    background-color: #d0d0d0;
+}
+
+#headerCenter[data-active-tool="eraser"] #eraserIcon {
+    background-color: #d0d0d0;
+}
+
+#headerCenter[data-active-tool="lasso"] #lassoIcon {
+    background-color: #d0d0d0;
+}
+
 .tool-icon {
     display: block;
     width: 24px;
@@ -335,6 +415,7 @@ body {
     background-color: transparent;
 }
 
+/* OPTIMIZATION #1: Modal visibility via CSS classes */
 .tool-modal {
     position: absolute;
     top: 63px;
@@ -345,6 +426,11 @@ body {
     border-radius: 8px;
     z-index: 1000;
     min-width: 200px;
+    display: none !important; /* Hidden by default - !important needed to override inline styles */
+}
+
+.tool-modal.show {
+    display: block !important; /* Show when 'show' class is added - !important needed to override inline styles */
 }
 
 .modal-content {
@@ -394,6 +480,7 @@ body {
     border-radius: 50%;
 }
 
+/* OPTIMIZATION #1: Slider modal visibility via CSS classes */
 .slider-modal {
     position: absolute;
     background: #f9f9f9;
@@ -401,6 +488,11 @@ body {
     border-radius: 8px;
     z-index: 1001;
     min-width: 200px;
+    display: none !important; /* Hidden by default - !important needed to override inline styles */
+}
+
+.slider-modal.show {
+    display: block !important; /* Show when 'show' class is added - !important needed to override inline styles */
 }
 
 .slider-modal .modal-content {
@@ -512,6 +604,7 @@ body {
     transform: translate(-50%, -50%);
     z-index: 1;
     transition: opacity 0.1s ease;
+    opacity: 1;
 }
 
 #drawingCanvas {
@@ -525,8 +618,35 @@ body {
     z-index: 2;
     pointer-events: all;
     transition: opacity 0.1s ease;
+    opacity: 1;
+}
+
+/* OPTIMIZATION #7: SVG cursor via data attribute */
+#headerCenter[data-active-tool="laser"] ~ #canvasContainer #drawingCanvas {
+    cursor: none;
+}
+
+#headerCenter[data-active-tool="pen"] ~ #canvasContainer #drawingCanvas,
+#headerCenter[data-active-tool="eraser"] ~ #canvasContainer #drawingCanvas,
+#headerCenter[data-active-tool="lasso"] ~ #canvasContainer #drawingCanvas {
+    cursor: crosshair;
+}
+
+/* OPTIMIZATION #3: Fade transition via CSS class */
+#pdfCanvas.fade-out,
+#drawingCanvas.fade-out {
+    opacity: 0;
 }
 
 .laser-stroke {
     pointer-events: none;
+}
+
+/* OPTIMIZATION #10: Laser fade out via CSS class */
+.laser-stroke {
+    transition: opacity 0.5s ease;
+}
+
+.laser-stroke.fade-out {
+    opacity: 0;
 }
