@@ -2820,3 +2820,150 @@ document.addEventListener('keydown', async (e) => {
         }
     }
 });
+
+// ============================================
+// PAGE FILMSTRIP FUNCTIONS
+// ============================================
+
+let isFilmstripOpen = false;
+
+async function generateFilmstripThumbnails() {
+    if (!pdfDoc) return;
+
+    const filmstripPages = document.getElementById('filmstripPages');
+    if (!filmstripPages) return;
+
+    // Clear existing thumbnails
+    filmstripPages.innerHTML = '';
+
+    // Generate thumbnail for each page
+    for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+        const page = await pdfDoc.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 0.5 });
+
+        // Create canvas for thumbnail
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        // Render page to canvas
+        await page.render({
+            canvasContext: context,
+            viewport: viewport
+        }).promise;
+
+        // Create filmstrip page container
+        const pageContainer = document.createElement('div');
+        pageContainer.className = 'filmstrip-page';
+        pageContainer.dataset.pageNum = pageNum;
+        if (pageNum === currentPage) {
+            pageContainer.classList.add('active');
+        }
+
+        // Add page number label
+        const pageLabel = document.createElement('div');
+        pageLabel.className = 'filmstrip-page-number';
+        pageLabel.textContent = pageNum;
+
+        pageContainer.appendChild(canvas);
+        pageContainer.appendChild(pageLabel);
+        filmstripPages.appendChild(pageContainer);
+
+        // Add click handler
+        pageContainer.addEventListener('click', async () => {
+            if (pageNum !== currentPage) {
+                await goToPage(pageNum);
+            }
+            // Close filmstrip after selecting a page
+            toggleFilmstrip();
+        });
+    }
+}
+
+function toggleFilmstrip() {
+    const filmstrip = document.getElementById('pageFilmstrip');
+    if (!filmstrip) return;
+
+    isFilmstripOpen = !isFilmstripOpen;
+
+    if (isFilmstripOpen) {
+        filmstrip.classList.add('show');
+        // Generate thumbnails if not already generated
+        if (filmstrip.querySelector('#filmstripPages').children.length === 0) {
+            generateFilmstripThumbnails();
+        } else {
+            // Update active state
+            updateFilmstripActiveState();
+        }
+    } else {
+        filmstrip.classList.remove('show');
+    }
+}
+
+function updateFilmstripActiveState() {
+    const filmstripPages = document.querySelectorAll('.filmstrip-page');
+    filmstripPages.forEach(page => {
+        const pageNum = parseInt(page.dataset.pageNum);
+        if (pageNum === currentPage) {
+            page.classList.add('active');
+        } else {
+            page.classList.remove('active');
+        }
+    });
+}
+
+async function goToPage(pageNum) {
+    if (!pdfDoc || pageNum < 1 || pageNum > pdfDoc.numPages || pageNum === currentPage) {
+        return;
+    }
+
+    // Save current page drawings
+    saveCurrentPageDrawings();
+
+    // Fade out
+    pdfCanvas.classList.add('fade-out');
+    svg.classList.add('fade-out');
+
+    // Wait for fade animation
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Change page
+    currentPage = pageNum;
+    await renderPDFPage(currentPage);
+
+    // Restore new page drawings
+    restorePageDrawings(currentPage);
+
+    // Update page navigation UI
+    updatePageNavigation();
+
+    // Update undo/redo buttons
+    updateUndoRedoButtons();
+
+    // Update filmstrip active state
+    updateFilmstripActiveState();
+
+    // Fade in
+    pdfCanvas.classList.remove('fade-out');
+    svg.classList.remove('fade-out');
+}
+
+// Add click handler to page number
+const pageNumber = document.getElementById('pageNumber');
+if (pageNumber) {
+    pageNumber.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleFilmstrip();
+    });
+}
+
+// Close filmstrip when clicking outside
+document.addEventListener('click', (e) => {
+    const filmstrip = document.getElementById('pageFilmstrip');
+    const pageNumber = document.getElementById('pageNumber');
+
+    if (isFilmstripOpen && filmstrip && !filmstrip.contains(e.target) && e.target !== pageNumber) {
+        toggleFilmstrip();
+    }
+});
