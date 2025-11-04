@@ -58,6 +58,41 @@ let currentViewBoxHeight = 0;
 
 // Undo/Redo state
 let undoHistory = {}; // History stack per page
+
+// ============================================
+// CUSTOM ALERT MODAL
+// ============================================
+
+function showAlert(message) {
+    const modal = document.getElementById('customAlertModal');
+    const messageElement = document.getElementById('customAlertMessage');
+    const okBtn = document.getElementById('customAlertOkBtn');
+
+    if (!modal || !messageElement || !okBtn) {
+        // Fallback to console if modal elements don't exist
+        console.error('Alert:', message);
+        return;
+    }
+
+    messageElement.textContent = message;
+    modal.classList.add('show');
+
+    // Remove any existing event listeners to avoid duplicates
+    const newOkBtn = okBtn.cloneNode(true);
+    okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+
+    // Add click event to close modal
+    newOkBtn.addEventListener('click', () => {
+        modal.classList.remove('show');
+    });
+
+    // Close modal when clicking outside the content
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.classList.remove('show');
+        }
+    });
+}
 let redoHistory = {}; // Redo stack per page
 const MAX_HISTORY = 50; // Maximum number of undo steps
 
@@ -386,7 +421,9 @@ function initializeDrawingCanvas() {
     const eraserModal = document.getElementById('eraserModal');
 
     if (penToolContainer) {
-        penToolContainer.addEventListener('click', (e) => {
+        penToolContainer.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+
             // If pen is already active, toggle modal
             if (activeTool === 'pen') {
                 const isModalOpen = penModal.classList.contains('show');
@@ -405,10 +442,15 @@ function initializeDrawingCanvas() {
     }
 
     if (laserIcon) {
-        laserIcon.addEventListener('click', () => setActiveTool('laser'));
+        laserIcon.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            setActiveTool('laser');
+        });
     }
     if (eraserIcon) {
-        eraserIcon.addEventListener('click', () => {
+        eraserIcon.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+
             // If eraser is already active, toggle modal
             if (activeTool === 'eraser') {
                 const isModalOpen = eraserModal.classList.contains('show');
@@ -427,7 +469,10 @@ function initializeDrawingCanvas() {
     }
 
     if (lassoIcon) {
-        lassoIcon.addEventListener('click', () => setActiveTool('lasso'));
+        lassoIcon.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            setActiveTool('lasso');
+        });
     }
 
     // Clear canvas button
@@ -861,6 +906,11 @@ function setActiveTool(tool) {
     if (penModal) penModal.classList.remove('show');
     if (eraserModal) eraserModal.classList.remove('show');
 
+    // Clear selection when switching away from lasso
+    if (tool !== 'lasso' && selectionRect) {
+        clearSelection();
+    }
+
     // OPTIMIZATION #7: Cursor is now controlled by CSS via data-active-tool attribute
 }
 
@@ -995,7 +1045,7 @@ function startPresentation() {
 
     // Check if Presentation API is supported
     if (!window.PresentationRequest) {
-        alert('Presentation API is not supported in this browser. Try using Chrome or Edge.');
+        showAlert('Presentation API is not supported in this browser. Try using Chrome or Edge.');
         return;
     }
 
@@ -1052,11 +1102,11 @@ function startPresentation() {
         .catch(error => {
             console.error('Error starting presentation:', error);
             if (error.name === 'NotAllowedError') {
-                alert('Presentation request was denied. Please try again.');
+                showAlert('Presentation request was denied. Please try again.');
             } else if (error.name === 'NotFoundError') {
-                alert('No available presentation displays found.');
+                showAlert('No available presentation displays found.');
             } else {
-                alert('Failed to start presentation: ' + error.message);
+                showAlert('Failed to start presentation: ' + error.message);
             }
         });
 }
@@ -2099,7 +2149,7 @@ function createScaleHandles(minX, minY, maxX, maxY) {
     });
     selectionHandles = [];
 
-    const handleSize = 8;
+    const handleSize = 10; // Increased by 25% from 8
     const positions = [
         { x: minX, y: minY, cursor: 'nwse-resize', corner: 'top-left' },
         { x: maxX, y: minY, cursor: 'nesw-resize', corner: 'top-right' },
@@ -2140,7 +2190,7 @@ function updateScaleHandles() {
     const maxX = minX + width;
     const maxY = minY + height;
 
-    const handleSize = 8;
+    const handleSize = 10; // Increased by 25% from 8
     const positions = [
         { x: minX, y: minY },
         { x: maxX, y: minY },
@@ -2508,6 +2558,7 @@ function clearSelection() {
     });
     selectionHandles = [];
 
+    // Clear selected strokes array
     selectedStrokes = [];
 }
 
