@@ -2652,7 +2652,8 @@ function saveCurrentPageDrawings() {
             fill: path.getAttribute('fill'),
             strokeLinecap: path.getAttribute('stroke-linecap'),
             strokeLinejoin: path.getAttribute('stroke-linejoin'),
-            strokePoints: path._strokePoints || []
+            strokePoints: path._strokePoints || [],
+            strokeId: path._strokeId // Save strokeId for presentation sync
         }))
     };
 }
@@ -2709,6 +2710,11 @@ function restorePageDrawings(pageNum) {
                     x: pt.x * scaleX,
                     y: pt.y * scaleY
                 }));
+            }
+
+            // Restore strokeId for presentation sync
+            if (pathData.strokeId) {
+                path._strokeId = pathData.strokeId;
             }
 
             svg.insertBefore(path, eraserIndicator);
