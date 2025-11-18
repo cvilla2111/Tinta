@@ -1090,11 +1090,6 @@ function startPresentation() {
         return;
     }
 
-    if (!pdfDoc) {
-        alert('Please load a PDF first');
-        return;
-    }
-
     // Check if Presentation API is supported
     if (!window.PresentationRequest) {
         showAlert('Presentation API is not supported in this browser. Try using Chrome or Edge.');
@@ -1122,9 +1117,10 @@ function startPresentation() {
                     console.log('Controller received message:', message.type);
 
                     if (message.type === 'receiver-ready') {
-                        console.log('Receiver is ready, sending PDF data');
-                        if (pdfArrayBuffer) {
-                            // Convert ArrayBuffer to base64 for transmission
+                        console.log('Receiver is ready, sending data');
+
+                        if (pdfDoc && pdfArrayBuffer) {
+                            // Send PDF data if available
                             const base64 = arrayBufferToBase64(pdfArrayBuffer);
 
                             connection.send(JSON.stringify({
@@ -1133,6 +1129,16 @@ function startPresentation() {
                                 page: currentPage,
                                 drawings: pageDrawings // Send all page drawings
                             }));
+                            console.log('Sent PDF data to receiver');
+                        } else {
+                            // Send blank canvas state
+                            connection.send(JSON.stringify({
+                                type: 'load-blank-canvas',
+                                drawings: pageDrawings,
+                                canvasWidth: pdfCanvas.width,
+                                canvasHeight: pdfCanvas.height
+                            }));
+                            console.log('Sent blank canvas data to receiver');
                         }
                     }
                 } catch (error) {
@@ -1161,6 +1167,54 @@ function startPresentation() {
                 showAlert('Failed to start presentation: ' + error.message);
             }
         });
+}
+
+async function loadBlankCanvasForPresentation(canvasWidth, canvasHeight, drawings) {
+    console.log('Loading blank canvas for presentation');
+
+    // No PDF in blank canvas mode
+    pdfDoc = null;
+    currentPage = 1;
+
+    // Set up canvas dimensions
+    pdfCanvas.width = canvasWidth;
+    pdfCanvas.height = canvasHeight;
+
+    // Calculate display size to maintain aspect ratio
+    const container = document.getElementById('canvasContainer');
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    const canvasAspect = canvasWidth / canvasHeight;
+    const containerAspect = containerWidth / containerHeight;
+
+    let displayWidth, displayHeight;
+    if (containerAspect > canvasAspect) {
+        displayHeight = containerHeight;
+        displayWidth = displayHeight * canvasAspect;
+    } else {
+        displayWidth = containerWidth;
+        displayHeight = displayWidth / canvasAspect;
+    }
+
+    pdfCanvas.style.width = `${displayWidth}px`;
+    pdfCanvas.style.height = `${displayHeight}px`;
+
+    // Fill with white background
+    const ctx = pdfCanvas.getContext('2d');
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    // Set up SVG canvas
+    resizeSVG();
+
+    // Restore drawings if provided
+    if (drawings) {
+        pageDrawings = drawings;
+        restorePageDrawings(currentPage);
+    }
+
+    // Initialize drawing canvas
+    initializeDrawingCanvas();
 }
 
 async function loadPDFFromBase64(base64Data, pageNum, drawings) {
@@ -1269,6 +1323,9 @@ function setupConnectionHandlers(connection) {
             if (message.type === 'load-pdf') {
                 console.log('Loading PDF, data length:', message.pdfData.length);
                 await loadPDFFromBase64(message.pdfData, message.page, message.drawings);
+            } else if (message.type === 'load-blank-canvas') {
+                console.log('Loading blank canvas');
+                await loadBlankCanvasForPresentation(message.canvasWidth, message.canvasHeight, message.drawings);
             } else if (message.type === 'page-change') {
                 console.log('Changing to page:', message.page);
 
