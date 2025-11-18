@@ -99,6 +99,9 @@ const MAX_HISTORY = 50; // Maximum number of undo steps
 // Animation state
 let isPageChanging = false;
 
+// Track if drawing canvas has been initialized
+let isDrawingCanvasInitialized = false;
+
 // ============================================
 // INITIALIZATION
 // ============================================
@@ -379,6 +382,12 @@ async function renderPDFPage(pageNum) {
 }
 
 function initializeDrawingCanvas() {
+    // Only initialize once to prevent duplicate event listeners
+    if (isDrawingCanvasInitialized) {
+        return;
+    }
+    isDrawingCanvasInitialized = true;
+
     // Attach drawing event listeners
     attachEventListeners();
 
@@ -952,6 +961,21 @@ function returnToHome() {
 
     // Reset file input to allow selecting the same file again
     pdfInput.value = '';
+
+    // Close any open modals
+    const penModal = document.getElementById('penModal');
+    const eraserModal = document.getElementById('eraserModal');
+    const colorPaletteModal = document.getElementById('colorPaletteModal');
+    if (penModal) penModal.classList.remove('show');
+    if (eraserModal) eraserModal.classList.remove('show');
+    if (colorPaletteModal) colorPaletteModal.classList.remove('show');
+
+    // Reset active tool to default (pen) to prevent modal behavior issues
+    activeTool = 'pen';
+    const headerCenter = document.getElementById('headerCenter');
+    if (headerCenter) {
+        headerCenter.setAttribute('data-active-tool', 'pen');
+    }
 }
 
 async function navigatePage(direction) {
