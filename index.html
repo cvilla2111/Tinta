@@ -28,7 +28,14 @@
     <div id="drawingScreen" style="display: none;">
         <header id="header">
             <div id="headerLeft">
-                <img src="icons/library.svg" id="homeIcon" alt="Return to Home">
+                <div id="libraryWhiteboardContainer">
+                    <div class="icon-container" id="libraryContainer">
+                        <img src="icons/library.svg" id="homeIcon" alt="Library">
+                    </div>
+                    <div class="icon-container" id="whiteboardContainer">
+                        <img src="icons/whiteboard.svg" id="whiteboardIcon" alt="Whiteboard">
+                    </div>
+                </div>
             </div>
             <div id="headerCenter">
                 <div id="undoRedoContainer">
@@ -239,6 +246,9 @@
         <div id="canvasContainer">
             <canvas id="pdfCanvas"></canvas>
             <svg id="drawingCanvas" xmlns="http://www.w3.org/2000/svg"></svg>
+            <!-- Whiteboard overlay layer -->
+            <canvas id="whiteboardCanvas" style="display: none;"></canvas>
+            <svg id="whiteboardDrawingCanvas" xmlns="http://www.w3.org/2000/svg" style="display: none;"></svg>
         </div>
 
         <!-- Page Filmstrip Panel -->

@@ -9,6 +9,12 @@ const drawingScreen = document.getElementById('drawingScreen');
 const pdfInput = document.getElementById('pdfInput');
 const pdfCanvas = document.getElementById('pdfCanvas');
 const svg = document.getElementById('drawingCanvas');
+let activeSvg = svg; // Track the currently active SVG for drawing
+
+// Function to get the active drawing SVG (main or whiteboard)
+function getActiveSvg() {
+    return activeSvg;
+}
 
 // Drawing state
 let isDrawing = false;
@@ -50,6 +56,11 @@ let originalBounds = null;
 let pdfDoc = null;
 let currentPage = 1;
 let pdfArrayBuffer = null; // Store PDF data for presentation
+
+// Whiteboard state - to preserve PDF when toggling to blank canvas
+let isWhiteboardMode = false;
+let savedPdfState = null; // Stores PDF state when switching to whiteboard
+let whiteboardDrawings = ''; // Stores whiteboard SVG content
 
 // Store drawings per page (with viewBox dimensions)
 let pageDrawings = {};
@@ -157,9 +168,9 @@ function initializeBlankCanvas() {
     pdfCanvas.style.width = `${drawableWidth}px`;
     pdfCanvas.style.height = `${drawableHeight}px`;
 
-    // Fill with white background
+    // Fill with antique paper background for blank canvas
     const ctx = pdfCanvas.getContext('2d');
-    ctx.fillStyle = '#FFFFFF';
+    ctx.fillStyle = '#F4ECD8'; // Antique paper color
     ctx.fillRect(0, 0, pdfCanvas.width, pdfCanvas.height);
 
     // Set up SVG canvas to match
@@ -323,9 +334,27 @@ async function loadPDFFromPath(pdfPath, arrayBuffer) {
         // Wait for layout to complete
         await new Promise(resolve => setTimeout(resolve, 100));
 
+        // Reset whiteboard mode and clear saved state
+        isWhiteboardMode = false;
+        savedPdfState = null;
+        const whiteboardContainer = document.getElementById('whiteboardContainer');
+        if (whiteboardContainer) {
+            whiteboardContainer.classList.remove('active');
+            whiteboardContainer.style.display = 'flex'; // Show whiteboard icon when PDF is loaded
+        }
+
+        // Clear any drawings from initial blank canvas
+        clearCanvas();
+
         // Reset page drawings and current page
         currentPage = 1;
         pageDrawings = {};
+
+        // Clear filmstrip thumbnails for new PDF
+        const filmstripPages = document.getElementById('filmstripPages');
+        if (filmstripPages) {
+            filmstripPages.innerHTML = '';
+        }
 
         // Render PDF page
         await renderPDFPage(1);
@@ -335,6 +364,9 @@ async function loadPDFFromPath(pdfPath, arrayBuffer) {
 
         // Sync SVG canvas size with PDF canvas
         resizeSVG();
+
+        // Update page navigation to enable/disable buttons
+        updatePageNavigation();
     } catch (error) {
         console.error('Error loading PDF:', error);
     }
@@ -364,9 +396,27 @@ pdfInput.addEventListener('change', async (e) => {
             // Wait for layout to complete
             await new Promise(resolve => setTimeout(resolve, 100));
 
+            // Reset whiteboard mode and clear saved state
+            isWhiteboardMode = false;
+            savedPdfState = null;
+            const whiteboardContainer = document.getElementById('whiteboardContainer');
+            if (whiteboardContainer) {
+                whiteboardContainer.classList.remove('active');
+                whiteboardContainer.style.display = 'flex'; // Show whiteboard icon when PDF is loaded
+            }
+
+            // Clear any drawings from initial blank canvas
+            clearCanvas();
+
             // Reset page drawings and current page
             currentPage = 1;
             pageDrawings = {};
+
+            // Clear filmstrip thumbnails for new PDF
+            const filmstripPages = document.getElementById('filmstripPages');
+            if (filmstripPages) {
+                filmstripPages.innerHTML = '';
+            }
 
             // Render PDF page
             await renderPDFPage(1);
@@ -376,6 +426,9 @@ pdfInput.addEventListener('change', async (e) => {
 
             // Sync SVG canvas size with PDF canvas
             resizeSVG();
+
+            // Update page navigation to enable/disable buttons
+            updatePageNavigation();
         } catch (error) {
             console.error('Error loading PDF:', error);
         }
@@ -789,6 +842,13 @@ function initializeDrawingCanvas() {
         homeIcon.addEventListener('click', openLibrary);
     }
 
+    // Whiteboard icon - toggle blank canvas
+    const whiteboardIcon = document.getElementById('whiteboardIcon');
+    const whiteboardContainer = document.getElementById('whiteboardContainer');
+    if (whiteboardIcon && whiteboardContainer) {
+        whiteboardIcon.addEventListener('click', toggleWhiteboard);
+    }
+
     // Fullscreen icon toggle
     const maximizeIcon = document.getElementById('maximizeIcon');
     if (maximizeIcon) {
@@ -803,6 +863,7 @@ function initializeDrawingCanvas() {
 
     // Create eraser indicator (initially hidden)
     eraserIndicator = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    eraserIndicator.setAttribute('id', 'eraserIndicator');
     eraserIndicator.setAttribute('r', '20');
     eraserIndicator.setAttribute('fill', 'none');
     eraserIndicator.setAttribute('stroke', '#000000');
@@ -837,6 +898,7 @@ function initializeDrawingCanvas() {
 
     // Create laser pointer indicator (initially hidden)
     laserPointer = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    laserPointer.setAttribute('id', 'laserPointer');
     laserPointer.setAttribute('r', '5');
     laserPointer.setAttribute('fill', '#ff0000');
     laserPointer.setAttribute('opacity', '0.8');
@@ -967,6 +1029,155 @@ function setActiveTool(tool) {
     // OPTIMIZATION #7: Cursor is now controlled by CSS via data-active-tool attribute
 }
 
+async function toggleWhiteboard() {
+    const whiteboardContainer = document.getElementById('whiteboardContainer');
+    const whiteboardCanvas = document.getElementById('whiteboardCanvas');
+    const whiteboardSvg = document.getElementById('whiteboardDrawingCanvas');
+
+    if (!isWhiteboardMode) {
+        // Switch to whiteboard mode
+        isWhiteboardMode = true;
+
+        // Save current PDF state if one is loaded
+        if (pdfDoc) {
+            saveCurrentPageDrawings();
+            savedPdfState = {
+                pdfDoc: pdfDoc,
+                pdfArrayBuffer: pdfArrayBuffer,
+                currentPage: currentPage,
+                pageDrawings: JSON.parse(JSON.stringify(pageDrawings))
+            };
+            // PDF stays static in background - no changes needed
+        }
+
+        // Setup whiteboard canvas (same size as main canvas)
+        const container = document.getElementById('canvasContainer');
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
+
+        // Calculate 16:9 drawable area
+        let drawableWidth, drawableHeight;
+        const containerAspect = containerWidth / containerHeight;
+        const targetAspect = 16 / 9;
+
+        if (containerAspect > targetAspect) {
+            drawableHeight = containerHeight;
+            drawableWidth = drawableHeight * targetAspect;
+        } else {
+            drawableWidth = containerWidth;
+            drawableHeight = drawableWidth / targetAspect;
+        }
+
+        const dpr = window.devicePixelRatio || 1;
+        whiteboardCanvas.width = drawableWidth * dpr;
+        whiteboardCanvas.height = drawableHeight * dpr;
+        whiteboardCanvas.style.width = `${drawableWidth}px`;
+        whiteboardCanvas.style.height = `${drawableHeight}px`;
+
+        // Fill with antique paper background
+        const ctx = whiteboardCanvas.getContext('2d');
+        ctx.fillStyle = '#F4ECD8'; // Antique paper color
+        ctx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+
+        // Setup whiteboard SVG
+        whiteboardSvg.setAttribute('viewBox', `0 0 ${drawableWidth} ${drawableHeight}`);
+        whiteboardSvg.style.width = `${drawableWidth}px`;
+        whiteboardSvg.style.height = `${drawableHeight}px`;
+
+        // Restore previous whiteboard drawings if any
+        if (whiteboardDrawings) {
+            whiteboardSvg.innerHTML = whiteboardDrawings;
+        }
+
+        // Position whiteboard at top (hidden)
+        whiteboardCanvas.classList.add('slide-from-top');
+        whiteboardSvg.classList.add('slide-from-top');
+
+        // Show whiteboard layers
+        whiteboardCanvas.style.display = 'block';
+        whiteboardSvg.style.display = 'block';
+
+        // Trigger reflow
+        void whiteboardCanvas.offsetHeight;
+
+        // Drop down the whiteboard
+        whiteboardCanvas.classList.remove('slide-from-top');
+        whiteboardSvg.classList.remove('slide-from-top');
+
+        // Redirect drawing events to whiteboard SVG
+        // Detach event listeners from main SVG
+        detachEventListeners(activeSvg);
+
+        // Switch to whiteboard SVG
+        activeSvg = whiteboardSvg;
+
+        // Attach event listeners to whiteboard SVG
+        attachEventListeners();
+
+        // Copy eraser indicator and laser pointer to whiteboard
+        if (eraserIndicator && eraserIndicator.parentNode === svg) {
+            whiteboardSvg.appendChild(eraserIndicator);
+        }
+        if (laserPointer && laserPointer.parentNode === svg) {
+            whiteboardSvg.appendChild(laserPointer);
+        }
+
+        // Add active state to whiteboard icon
+        if (whiteboardContainer) {
+            whiteboardContainer.classList.add('active');
+        }
+    } else {
+        // Switch back from whiteboard mode
+        isWhiteboardMode = false;
+
+        // Remove active state from whiteboard icon
+        if (whiteboardContainer) {
+            whiteboardContainer.classList.remove('active');
+        }
+
+        // Save whiteboard drawings before closing
+        whiteboardDrawings = whiteboardSvg.innerHTML;
+
+        // Detach event listeners from whiteboard SVG
+        detachEventListeners(activeSvg);
+
+        // Switch back to main SVG
+        activeSvg = svg;
+
+        // Attach event listeners to main SVG
+        attachEventListeners();
+
+        // Move eraser indicator and laser pointer back to main SVG
+        if (eraserIndicator && eraserIndicator.parentNode === whiteboardSvg) {
+            svg.appendChild(eraserIndicator);
+        }
+        if (laserPointer && laserPointer.parentNode === whiteboardSvg) {
+            svg.appendChild(laserPointer);
+        }
+
+        // Slide whiteboard up
+        whiteboardCanvas.classList.add('slide-to-top');
+        whiteboardSvg.classList.add('slide-to-top');
+
+        // Wait for animation
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // Hide whiteboard layers (but don't clear the drawings)
+        whiteboardCanvas.style.display = 'none';
+        whiteboardSvg.style.display = 'none';
+
+        // Clean up animation classes
+        whiteboardCanvas.classList.remove('slide-to-top');
+        whiteboardSvg.classList.remove('slide-to-top');
+
+        // If PDF was saved, it's already visible in background
+        if (savedPdfState) {
+            // PDF is already rendered and visible, just clear the saved state
+            savedPdfState = null;
+        }
+    }
+}
+
 function openLibrary() {
     // Exit fullscreen if active
     if (document.fullscreenElement ||
@@ -986,6 +1197,15 @@ function openLibrary() {
 
     // Switch to home screen (library view)
     document.body.classList.remove('drawing-mode');
+
+    // Hide whiteboard icon when returning to library
+    const whiteboardContainer = document.getElementById('whiteboardContainer');
+    if (whiteboardContainer) {
+        whiteboardContainer.style.display = 'none';
+    }
+
+    // Reset file input to allow selecting the same file again
+    pdfInput.value = '';
 
     // Close any open modals
     const penModal = document.getElementById('penModal');
@@ -1762,7 +1982,7 @@ function updateUndoRedoButtons() {
 // ============================================
 
 function getCoordinates(e) {
-    const rect = svg.getBoundingClientRect();
+    const rect = activeSvg.getBoundingClientRect();
     const clientX = e.clientX || (e.touches && e.touches[0].clientX);
     const clientY = e.clientY || (e.touches && e.touches[0].clientY);
 
@@ -1771,7 +1991,7 @@ function getCoordinates(e) {
     const y = clientY - rect.top;
 
     // Get current viewBox dimensions
-    const viewBox = svg.viewBox.baseVal;
+    const viewBox = activeSvg.viewBox.baseVal;
     const viewBoxWidth = viewBox.width;
     const viewBoxHeight = viewBox.height;
 
@@ -1876,8 +2096,8 @@ function startDrawing(e) {
         // Generate unique ID for laser stroke
         currentPath._strokeId = Date.now() + '_' + Math.random();
 
-        svg.appendChild(currentPath);
-        svg.appendChild(innerPath);
+        activeSvg.appendChild(currentPath);
+        activeSvg.appendChild(innerPath);
 
         // Clear any existing fade timeout
         if (laserFadeTimeout) {
@@ -1929,7 +2149,7 @@ function startDrawing(e) {
         currentPath.setAttribute('stroke-linecap', 'round');
         currentPath.setAttribute('stroke-linejoin', 'round');
 
-        svg.appendChild(currentPath);
+        activeSvg.appendChild(currentPath);
 
         e.preventDefault();
         return;
@@ -1961,7 +2181,7 @@ function startDrawing(e) {
     // Generate unique ID for this stroke
     currentPath._strokeId = Date.now() + '_' + Math.random();
 
-    svg.appendChild(currentPath);
+    activeSvg.appendChild(currentPath);
 
     // Send stroke-start to presentation
     if (presentationConnection && presentationConnection.state === 'connected') {
@@ -2187,7 +2407,7 @@ function selectStrokesInLasso(lassoPoints) {
     clearSelection();
 
     // Get all paths (exclude laser strokes and utility elements)
-    const paths = svg.querySelectorAll('path:not(.laser-stroke)');
+    const paths = activeSvg.querySelectorAll('path:not(.laser-stroke)');
 
     paths.forEach(path => {
         // Skip if no stroke points
@@ -2253,7 +2473,7 @@ function createSelectionRect() {
     // Store original position for dragging
     selectionRect._bounds = { minX, minY, maxX, maxY };
 
-    svg.appendChild(selectionRect);
+    activeSvg.appendChild(selectionRect);
 
     // Create corner handles for scaling
     createScaleHandles(minX, minY, maxX, maxY);
@@ -2292,7 +2512,7 @@ function createScaleHandles(minX, minY, maxX, maxY) {
         handle.classList.add('scale-handle');
         handle._corner = pos.corner;
 
-        svg.appendChild(handle);
+        activeSvg.appendChild(handle);
         selectionHandles.push(handle);
 
         // Add scaling listeners
@@ -2703,7 +2923,7 @@ function erase(e) {
     // Use requestAnimationFrame to throttle erase operations
     eraseAnimationFrame = requestAnimationFrame(() => {
         // Get all path elements
-        const paths = svg.querySelectorAll('path');
+        const paths = activeSvg.querySelectorAll('path');
         const eraserRadiusSquared = eraserRadius * eraserRadius;
 
         paths.forEach(path => {
@@ -2757,9 +2977,15 @@ function erase(e) {
 }
 
 function clearCanvas() {
-    while (svg.firstChild) {
-        svg.removeChild(svg.firstChild);
-    }
+    // Remove all children except eraser indicator, laser pointer, and defs
+    const children = Array.from(activeSvg.children);
+    children.forEach(child => {
+        // Keep eraser indicator, laser pointer, and defs elements
+        if (child.id === 'eraserIndicator' || child.id === 'laserPointer' || child.tagName === 'defs') {
+            return;
+        }
+        activeSvg.removeChild(child);
+    });
 }
 
 function saveCurrentPageDrawings() {
@@ -2875,22 +3101,35 @@ function scalePathData(pathD, scaleX, scaleY) {
 // EVENT LISTENERS
 // ============================================
 
+function detachEventListeners(targetSvg) {
+    // Remove all drawing event listeners from the target SVG
+    targetSvg.removeEventListener('mousedown', startDrawing);
+    targetSvg.removeEventListener('mousemove', draw);
+    targetSvg.removeEventListener('mouseup', stopDrawing);
+    targetSvg.removeEventListener('mouseout', stopDrawing);
+    targetSvg.removeEventListener('pointerdown', startDrawing);
+    targetSvg.removeEventListener('pointermove', draw);
+    targetSvg.removeEventListener('pointerup', stopDrawing);
+    targetSvg.removeEventListener('pointerout', stopDrawing);
+    targetSvg.removeEventListener('pointercancel', stopDrawing);
+}
+
 function attachEventListeners() {
     // Mouse events
-    svg.addEventListener('mousedown', startDrawing);
-    svg.addEventListener('mousemove', draw);
-    svg.addEventListener('mouseup', stopDrawing);
-    svg.addEventListener('mouseout', stopDrawing);
+    activeSvg.addEventListener('mousedown', startDrawing);
+    activeSvg.addEventListener('mousemove', draw);
+    activeSvg.addEventListener('mouseup', stopDrawing);
+    activeSvg.addEventListener('mouseout', stopDrawing);
 
     // Pointer events (Surface Pen support)
-    svg.addEventListener('pointerdown', startDrawing);
-    svg.addEventListener('pointermove', draw);
-    svg.addEventListener('pointerup', stopDrawing);
-    svg.addEventListener('pointerout', stopDrawing);
-    svg.addEventListener('pointercancel', stopDrawing);
+    activeSvg.addEventListener('pointerdown', startDrawing);
+    activeSvg.addEventListener('pointermove', draw);
+    activeSvg.addEventListener('pointerup', stopDrawing);
+    activeSvg.addEventListener('pointerout', stopDrawing);
+    activeSvg.addEventListener('pointercancel', stopDrawing);
 
     // Prevent context menu on double-tap and right-click
-    svg.addEventListener('contextmenu', (e) => {
+    activeSvg.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         return false;
     });

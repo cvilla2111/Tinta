@@ -154,10 +154,25 @@ body:not(.drawing-mode) #homeScreen {
     justify-content: flex-start;
 }
 
-#homeIcon {
+#libraryWhiteboardContainer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#homeIcon, #whiteboardIcon {
     width: 24px;
     height: 24px;
     cursor: pointer;
+    display: block;
+}
+
+#whiteboardContainer {
+    display: none; /* Hidden by default, shown when PDF is loaded */
+}
+
+#whiteboardContainer.active {
+    background-color: #d0d0d0;
 }
 
 #headerCenter {
@@ -603,7 +618,7 @@ body:not(.drawing-mode) #homeScreen {
     top: 50%;
     transform: translate(-50%, -50%);
     z-index: 1;
-    transition: opacity 0.1s ease;
+    transition: opacity 0.1s ease, transform 0.3s ease;
     opacity: 1;
 }
 
@@ -617,8 +632,43 @@ body:not(.drawing-mode) #homeScreen {
     display: block;
     z-index: 2;
     pointer-events: all;
-    transition: opacity 0.1s ease;
+    transition: opacity 0.1s ease, transform 0.3s ease;
     opacity: 1;
+}
+
+/* Whiteboard overlay canvases */
+#whiteboardCanvas, #whiteboardDrawingCanvas {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    transition: transform 0.3s ease;
+}
+
+#whiteboardCanvas {
+    z-index: 9;
+    background-color: #F4ECD8; /* Antique paper color */
+}
+
+#whiteboardDrawingCanvas {
+    z-index: 10;
+    cursor: crosshair;
+    touch-action: none;
+    pointer-events: all;
+}
+
+/* Whiteboard slide animations */
+/* Start position: above viewport (hidden above header) */
+#whiteboardCanvas.slide-from-top,
+#whiteboardDrawingCanvas.slide-from-top {
+    transform: translate(-50%, calc(-150%));
+}
+
+/* End position: slides up and hides above header */
+#whiteboardCanvas.slide-to-top,
+#whiteboardDrawingCanvas.slide-to-top {
+    transform: translate(-50%, calc(-150%));
 }
 
 /* OPTIMIZATION #7: SVG cursor via data attribute */
