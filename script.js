@@ -1226,9 +1226,20 @@ function setupConnectionHandlers(connection) {
                 }
 
                 if (pdfDoc && message.page !== currentPage) {
+                    // Fade out
+                    pdfCanvas.classList.add('fade-out');
+                    svg.classList.add('fade-out');
+
+                    // Wait for fade out animation
+                    await new Promise(resolve => setTimeout(resolve, 100));
+
                     currentPage = message.page;
                     await renderPDFPage(currentPage);
                     restorePageDrawings(currentPage);
+
+                    // Fade in
+                    pdfCanvas.classList.remove('fade-out');
+                    svg.classList.remove('fade-out');
                 }
             } else if (message.type === 'stroke-start') {
                 // Start a new stroke on receiver
