@@ -515,32 +515,22 @@ function initializeDrawingCanvas() {
         });
     }
 
-    // Color picker
-    const colorCircles = document.querySelectorAll('.color-circle');
+    // Color picker - single color circle
+    const colorCircle = document.querySelector('.color-circle');
     const colorPaletteModal = document.getElementById('colorPaletteModal');
-    const colorPalette = document.getElementById('colorPalette');
-    let currentEditingCircle = null;
 
-    colorCircles.forEach(circle => {
-        circle.addEventListener('click', (e) => {
+    if (colorCircle) {
+        colorCircle.addEventListener('click', (e) => {
             e.stopPropagation();
 
-            // Always close color palette modal when clicking any circle
+            // Toggle color palette modal
             const wasPaletteOpen = colorPaletteModal && colorPaletteModal.classList.contains('show');
+
             if (wasPaletteOpen) {
                 colorPaletteModal.classList.remove('show');
-                currentEditingCircle = null;
-            }
-
-            // If circle is already active and palette wasn't open, open color palette to edit it
-            if (circle.classList.contains('active') && !wasPaletteOpen) {
-                currentEditingCircle = circle;
-                const currentColor = circle.getAttribute('data-color');
-
-                // Set color picker value
-                if (colorPalette) {
-                    colorPalette.value = currentColor;
-                }
+            } else {
+                // Open color palette modal
+                const currentColor = colorCircle.getAttribute('data-color');
 
                 // Remove active-palette class from all palette colors
                 const paletteColors = document.querySelectorAll('.palette-color');
@@ -555,30 +545,15 @@ function initializeDrawingCanvas() {
                     }
                 });
 
-                // Position palette modal at the second color circle position (fixed position)
-                const secondCircle = colorCircles[1]; // Get the second circle
-                const rect = secondCircle.getBoundingClientRect();
+                // Position palette modal at the color circle position
+                const rect = colorCircle.getBoundingClientRect();
                 colorPaletteModal.style.left = `${rect.left + (rect.width / 2)}px`;
-                colorPaletteModal.style.top = '63px'; // Top aligned with pen modal
+                colorPaletteModal.style.top = '48px'; // Top aligned with pen modal
                 colorPaletteModal.style.transform = 'translateX(-50%)';
                 colorPaletteModal.classList.add('show');
-            } else if (!circle.classList.contains('active')) {
-                // Close pen modal if it's open
-                if (penModal && penModal.classList.contains('show')) {
-                    penModal.classList.remove('show');
-                }
-
-                // Remove active class from all circles
-                colorCircles.forEach(c => c.classList.remove('active'));
-                // Add active class to clicked circle
-                circle.classList.add('active');
-                // Set current color
-                currentColor = circle.getAttribute('data-color');
-                // Change to pen tool when selecting a color
-                setActiveTool('pen');
             }
         });
-    });
+    }
 
     // Color palette click handler for individual color circles
     const paletteColors = document.querySelectorAll('.palette-color');
@@ -586,17 +561,23 @@ function initializeDrawingCanvas() {
         paletteColor.addEventListener('click', (e) => {
             const newColor = paletteColor.getAttribute('data-palette-color');
 
-            if (currentEditingCircle) {
+            if (colorCircle) {
                 // Update circle's data-color attribute
-                currentEditingCircle.setAttribute('data-color', newColor);
+                colorCircle.setAttribute('data-color', newColor);
                 // Update circle's background color
-                currentEditingCircle.style.backgroundColor = newColor;
+                colorCircle.style.backgroundColor = newColor;
                 // Update current color
                 currentColor = newColor;
 
+                // Update active-palette class
+                paletteColors.forEach(pc => pc.classList.remove('active-palette'));
+                paletteColor.classList.add('active-palette');
+
                 // Close the color palette modal
                 colorPaletteModal.classList.remove('show');
-                currentEditingCircle = null;
+
+                // Change to pen tool when selecting a color
+                setActiveTool('pen');
             }
         });
     });
@@ -676,7 +657,7 @@ function initializeDrawingCanvas() {
         const clickedInEraserModal = eraserModal && eraserModal.contains(e.target);
         const clickedOnEraserTool = eraserIcon && eraserIcon.contains(e.target);
         const clickedInColorPaletteModal = colorPaletteModal && colorPaletteModal.contains(e.target);
-        const clickedOnColorCircle = Array.from(colorCircles).some(circle => circle.contains(e.target));
+        const clickedOnColorCircle = colorCircle && colorCircle.contains(e.target);
 
         // Close pen modal (preset circles modal) if clicking outside
         if (penModal && penModal.classList.contains('show')) {
@@ -732,7 +713,6 @@ function initializeDrawingCanvas() {
 
             // Close if clicking outside
             colorPaletteModal.classList.remove('show');
-            currentEditingCircle = null;
         }
     };
 

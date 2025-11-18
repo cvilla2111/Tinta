@@ -315,7 +315,7 @@ body:not(.drawing-mode) #homeScreen {
     height: 24px;
     border-radius: 50% !important;
     cursor: pointer;
-    border: none;
+    border: 1px solid #d0d0d0;
     overflow: visible;
     -webkit-tap-highlight-color: transparent;
     outline: none;
@@ -550,7 +550,7 @@ body:not(.drawing-mode) #homeScreen {
     height: 28px;
     border-radius: 50%;
     cursor: pointer;
-    border: none;
+    border: 1px solid #d0d0d0;
     transition: transform 0.2s ease;
     display: flex;
     align-items: center;
