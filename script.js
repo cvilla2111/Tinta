@@ -125,6 +125,56 @@ function resizeSVG() {
     currentViewBoxHeight = pdfHeight;
 }
 
+// ============================================
+// BLANK CANVAS INITIALIZATION
+// ============================================
+
+function initializeBlankCanvas() {
+    // Create a blank white canvas for drawing
+    const container = document.getElementById('canvasContainer');
+    if (!container) return;
+
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+
+    // Calculate 16:9 drawable area
+    let drawableWidth, drawableHeight;
+    const containerAspect = containerWidth / containerHeight;
+    const targetAspect = 16 / 9;
+
+    if (containerAspect > targetAspect) {
+        drawableHeight = containerHeight;
+        drawableWidth = drawableHeight * targetAspect;
+    } else {
+        drawableWidth = containerWidth;
+        drawableHeight = drawableWidth / targetAspect;
+    }
+
+    // Set up blank white PDF canvas
+    const dpr = window.devicePixelRatio || 1;
+    pdfCanvas.width = drawableWidth * dpr;
+    pdfCanvas.height = drawableHeight * dpr;
+    pdfCanvas.style.width = `${drawableWidth}px`;
+    pdfCanvas.style.height = `${drawableHeight}px`;
+
+    // Fill with white background
+    const ctx = pdfCanvas.getContext('2d');
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, pdfCanvas.width, pdfCanvas.height);
+
+    // Set up SVG canvas to match
+    resizeSVG();
+
+    // Initialize drawing canvas
+    initializeDrawingCanvas();
+
+    // Set current page to 1 (for blank canvas mode)
+    currentPage = 1;
+
+    // Update page navigation to show we're on a blank canvas
+    updatePageNavigation();
+}
+
 // PDF.js worker configuration
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -136,7 +186,13 @@ if (window.location.hash === '#receiver') {
     // Immediately hide home screen and show drawing screen for receivers
     document.body.classList.add('drawing-mode');
 } else {
-    // Load PDFs from the pdf folder on homepage
+    // Start directly on drawing screen with blank canvas
+    document.body.classList.add('drawing-mode');
+
+    // Initialize blank canvas
+    initializeBlankCanvas();
+
+    // Load PDFs in background for when user opens library
     loadPDFGallery();
 }
 
@@ -267,10 +323,14 @@ async function loadPDFFromPath(pdfPath, arrayBuffer) {
         // Wait for layout to complete
         await new Promise(resolve => setTimeout(resolve, 100));
 
+        // Reset page drawings and current page
+        currentPage = 1;
+        pageDrawings = {};
+
         // Render PDF page
         await renderPDFPage(1);
 
-        // Initialize drawing canvas after PDF is rendered
+        // Initialize drawing canvas after PDF is rendered (only once)
         initializeDrawingCanvas();
 
         // Sync SVG canvas size with PDF canvas
@@ -304,10 +364,14 @@ pdfInput.addEventListener('change', async (e) => {
             // Wait for layout to complete
             await new Promise(resolve => setTimeout(resolve, 100));
 
+            // Reset page drawings and current page
+            currentPage = 1;
+            pageDrawings = {};
+
             // Render PDF page
             await renderPDFPage(1);
 
-            // Initialize drawing canvas after PDF is rendered
+            // Initialize drawing canvas after PDF is rendered (only once)
             initializeDrawingCanvas();
 
             // Sync SVG canvas size with PDF canvas
@@ -719,10 +783,10 @@ function initializeDrawingCanvas() {
     document.addEventListener('click', handleOutsideClick);
     document.addEventListener('touchstart', handleOutsideClick);
 
-    // Home icon - return to homepage
+    // Library icon - open PDF library
     const homeIcon = document.getElementById('homeIcon');
     if (homeIcon) {
-        homeIcon.addEventListener('click', returnToHome);
+        homeIcon.addEventListener('click', openLibrary);
     }
 
     // Fullscreen icon toggle
@@ -903,7 +967,7 @@ function setActiveTool(tool) {
     // OPTIMIZATION #7: Cursor is now controlled by CSS via data-active-tool attribute
 }
 
-function returnToHome() {
+function openLibrary() {
     // Exit fullscreen if active
     if (document.fullscreenElement ||
         document.webkitFullscreenElement ||
@@ -920,27 +984,8 @@ function returnToHome() {
         }
     }
 
-    // Return to home screen
+    // Switch to home screen (library view)
     document.body.classList.remove('drawing-mode');
-
-    // Reset PDF state to allow opening new PDFs
-    pdfDoc = null;
-    currentPage = 1;
-    pageDrawings = {};
-
-    // Clear the canvas
-    clearCanvas();
-
-    // Re-add indicators after clearing
-    if (eraserIndicator) {
-        svg.appendChild(eraserIndicator);
-    }
-    if (laserPointer) {
-        svg.appendChild(laserPointer);
-    }
-
-    // Reset file input to allow selecting the same file again
-    pdfInput.value = '';
 
     // Close any open modals
     const penModal = document.getElementById('penModal');
@@ -949,13 +994,6 @@ function returnToHome() {
     if (penModal) penModal.classList.remove('show');
     if (eraserModal) eraserModal.classList.remove('show');
     if (colorPaletteModal) colorPaletteModal.classList.remove('show');
-
-    // Reset active tool to default (pen) to prevent modal behavior issues
-    activeTool = 'pen';
-    const headerCenter = document.getElementById('headerCenter');
-    if (headerCenter) {
-        headerCenter.setAttribute('data-active-tool', 'pen');
-    }
 }
 
 async function navigatePage(direction) {
@@ -1004,8 +1042,19 @@ function updatePageNavigation() {
     const nextPageIcon = document.getElementById('nextPageIcon');
     const prevPageContainer = document.getElementById('prevPageContainer');
     const nextPageContainer = document.getElementById('nextPageContainer');
+    const pageNav = document.getElementById('pageNavigation');
 
-    if (!pdfDoc) return;
+    // If no PDF loaded (blank canvas mode), disable navigation and hide page number
+    if (!pdfDoc) {
+        if (pageNumberDisplay) {
+            pageNumberDisplay.textContent = '';
+        }
+        if (pageNav) {
+            pageNav.setAttribute('data-can-prev', 'false');
+            pageNav.setAttribute('data-can-next', 'false');
+        }
+        return;
+    }
 
     // Update page number display
     if (pageNumberDisplay) {
@@ -1013,8 +1062,7 @@ function updatePageNavigation() {
     }
 
     // OPTIMIZATION #5: Enable/disable navigation via data attributes
-    const pageNav = document.getElementById('pageNavigation');
-    if (pageNav && pdfDoc) {
+    if (pageNav) {
         pageNav.setAttribute('data-can-prev', currentPage > 1 ? 'true' : 'false');
         pageNav.setAttribute('data-can-next', currentPage < pdfDoc.numPages ? 'true' : 'false');
     }
