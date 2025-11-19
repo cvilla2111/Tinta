@@ -16,6 +16,17 @@ function getActiveSvg() {
     return activeSvg;
 }
 
+// Function to get adjusted stroke width based on viewBox scaling
+function getAdjustedStrokeWidth() {
+    // When in whiteboard mode, scale down the stroke width
+    // because whiteboard has a smaller viewBox (no DPR multiplication)
+    if (isWhiteboardMode) {
+        const dpr = window.devicePixelRatio || 1;
+        return currentStrokeWidth / dpr;
+    }
+    return currentStrokeWidth;
+}
+
 // Drawing state
 let isDrawing = false;
 let isErasing = false;
@@ -168,10 +179,33 @@ function initializeBlankCanvas() {
     pdfCanvas.style.width = `${drawableWidth}px`;
     pdfCanvas.style.height = `${drawableHeight}px`;
 
-    // Fill with antique paper background for blank canvas
+    // Fill with antique paper background and draw notebook lines for blank canvas
     const ctx = pdfCanvas.getContext('2d');
     ctx.fillStyle = '#F4ECD8'; // Antique paper color
     ctx.fillRect(0, 0, pdfCanvas.width, pdfCanvas.height);
+
+    // Draw notebook lines
+    const lineSpacing = 30 * dpr; // Space between lines (scaled for DPR)
+    const marginLeft = 60 * dpr; // Left margin for red line (scaled for DPR)
+
+    // Draw horizontal ruled lines
+    ctx.strokeStyle = '#D4C5B9'; // Light brown color for lines
+    ctx.lineWidth = 1 * dpr;
+    ctx.beginPath();
+
+    for (let y = lineSpacing; y < pdfCanvas.height; y += lineSpacing) {
+        ctx.moveTo(0, y);
+        ctx.lineTo(pdfCanvas.width, y);
+    }
+    ctx.stroke();
+
+    // Draw vertical margin line (red/pink)
+    ctx.strokeStyle = '#E8A5A5'; // Soft red/pink color
+    ctx.lineWidth = 2 * dpr;
+    ctx.beginPath();
+    ctx.moveTo(marginLeft, 0);
+    ctx.lineTo(marginLeft, pdfCanvas.height);
+    ctx.stroke();
 
     // Set up SVG canvas to match
     resizeSVG();
@@ -346,6 +380,9 @@ async function loadPDFFromPath(pdfPath, arrayBuffer) {
         // Clear any drawings from initial blank canvas
         clearCanvas();
 
+        // Reset to pen tool when loading PDF
+        setActiveTool('pen');
+
         // Reset page drawings and current page
         currentPage = 1;
         pageDrawings = {};
@@ -407,6 +444,9 @@ pdfInput.addEventListener('change', async (e) => {
 
             // Clear any drawings from initial blank canvas
             clearCanvas();
+
+            // Reset to pen tool when loading PDF
+            setActiveTool('pen');
 
             // Reset page drawings and current page
             currentPage = 1;
@@ -512,6 +552,9 @@ function initializeDrawingCanvas() {
     let resizeTimeout;
     window.addEventListener('resize', async () => {
         if (!pdfDoc || !currentPage) return;
+
+        // Skip resize handling when whiteboard is open
+        if (isWhiteboardMode) return;
 
         clearTimeout(resizeTimeout);
         resizeTimeout = setTimeout(async () => {
@@ -1050,21 +1093,24 @@ async function toggleWhiteboard() {
             // PDF stays static in background - no changes needed
         }
 
-        // Setup whiteboard canvas (same size as main canvas)
+        // Setup whiteboard canvas (reduced by 10px on left, right, bottom)
         const container = document.getElementById('canvasContainer');
         const containerWidth = container.clientWidth;
         const containerHeight = container.clientHeight;
 
-        // Calculate 16:9 drawable area
+        // Calculate 16:9 drawable area with 10px spacing on left, right, bottom
+        const horizontalSpacing = 20; // 10px left + 10px right
+        const verticalSpacing = 10; // 10px bottom (no top spacing)
+
         let drawableWidth, drawableHeight;
-        const containerAspect = containerWidth / containerHeight;
+        const containerAspect = (containerWidth - horizontalSpacing) / (containerHeight - verticalSpacing);
         const targetAspect = 16 / 9;
 
         if (containerAspect > targetAspect) {
-            drawableHeight = containerHeight;
+            drawableHeight = containerHeight - verticalSpacing;
             drawableWidth = drawableHeight * targetAspect;
         } else {
-            drawableWidth = containerWidth;
+            drawableWidth = containerWidth - horizontalSpacing;
             drawableHeight = drawableWidth / targetAspect;
         }
 
@@ -1074,10 +1120,33 @@ async function toggleWhiteboard() {
         whiteboardCanvas.style.width = `${drawableWidth}px`;
         whiteboardCanvas.style.height = `${drawableHeight}px`;
 
-        // Fill with antique paper background
+        // Fill with antique paper background and draw notebook lines
         const ctx = whiteboardCanvas.getContext('2d');
         ctx.fillStyle = '#F4ECD8'; // Antique paper color
         ctx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+
+        // Draw notebook lines
+        const lineSpacing = 30 * dpr; // Space between lines (scaled for DPR)
+        const marginLeft = 60 * dpr; // Left margin for red line (scaled for DPR)
+
+        // Draw horizontal ruled lines
+        ctx.strokeStyle = '#D4C5B9'; // Light brown color for lines
+        ctx.lineWidth = 1 * dpr;
+        ctx.beginPath();
+
+        for (let y = lineSpacing; y < whiteboardCanvas.height; y += lineSpacing) {
+            ctx.moveTo(0, y);
+            ctx.lineTo(whiteboardCanvas.width, y);
+        }
+        ctx.stroke();
+
+        // Draw vertical margin line (red/pink)
+        ctx.strokeStyle = '#E8A5A5'; // Soft red/pink color
+        ctx.lineWidth = 2 * dpr;
+        ctx.beginPath();
+        ctx.moveTo(marginLeft, 0);
+        ctx.lineTo(marginLeft, whiteboardCanvas.height);
+        ctx.stroke();
 
         // Setup whiteboard SVG
         whiteboardSvg.setAttribute('viewBox', `0 0 ${drawableWidth} ${drawableHeight}`);
@@ -2073,7 +2142,8 @@ function startDrawing(e) {
         currentPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         currentPath.setAttribute('fill', 'none');
         currentPath.setAttribute('stroke', '#ff0000');
-        currentPath.setAttribute('stroke-width', '8');
+        const laserWidth = isWhiteboardMode ? 8 / (window.devicePixelRatio || 1) : 8;
+        currentPath.setAttribute('stroke-width', laserWidth);
         currentPath.setAttribute('stroke-linecap', 'round');
         currentPath.setAttribute('stroke-linejoin', 'round');
         currentPath.setAttribute('opacity', '1');
@@ -2084,7 +2154,8 @@ function startDrawing(e) {
         const innerPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         innerPath.setAttribute('fill', 'none');
         innerPath.setAttribute('stroke', '#ffffff');
-        innerPath.setAttribute('stroke-width', '3');
+        const laserInnerWidth = isWhiteboardMode ? 3 / (window.devicePixelRatio || 1) : 3;
+        innerPath.setAttribute('stroke-width', laserInnerWidth);
         innerPath.setAttribute('stroke-linecap', 'round');
         innerPath.setAttribute('stroke-linejoin', 'round');
         innerPath.setAttribute('opacity', '1');
@@ -2171,7 +2242,7 @@ function startDrawing(e) {
     currentPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     currentPath.setAttribute('fill', 'none');
     currentPath.setAttribute('stroke', currentColor);
-    currentPath.setAttribute('stroke-width', currentStrokeWidth);
+    currentPath.setAttribute('stroke-width', getAdjustedStrokeWidth());
     currentPath.setAttribute('stroke-linecap', 'round');
     currentPath.setAttribute('stroke-linejoin', 'round');
 

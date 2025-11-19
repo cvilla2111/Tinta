@@ -640,8 +640,8 @@ body:not(.drawing-mode) #homeScreen {
 #whiteboardCanvas, #whiteboardDrawingCanvas {
     position: absolute;
     left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
+    top: 0;
+    transform: translateX(-50%);
     z-index: 10;
     transition: transform 0.3s ease;
 }
@@ -662,13 +662,13 @@ body:not(.drawing-mode) #homeScreen {
 /* Start position: above viewport (hidden above header) */
 #whiteboardCanvas.slide-from-top,
 #whiteboardDrawingCanvas.slide-from-top {
-    transform: translate(-50%, calc(-150%));
+    transform: translate(-50%, -100%);
 }
 
 /* End position: slides up and hides above header */
 #whiteboardCanvas.slide-to-top,
 #whiteboardDrawingCanvas.slide-to-top {
-    transform: translate(-50%, calc(-150%));
+    transform: translate(-50%, -100%);
 }
 
 /* OPTIMIZATION #7: SVG cursor via data attribute */
