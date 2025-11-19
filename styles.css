@@ -144,7 +144,7 @@ body:not(.drawing-mode) #homeScreen {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 20px;
+    padding: 0 clamp(8px, 2vw, 20px);
     flex-shrink: 0;
 }
 
@@ -157,12 +157,12 @@ body:not(.drawing-mode) #homeScreen {
 #libraryWhiteboardContainer {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: clamp(4px, 1vw, 8px);
 }
 
 #homeIcon, #whiteboardIcon {
-    width: 24px;
-    height: 24px;
+    width: clamp(20px, 3vw, 24px);
+    height: clamp(20px, 3vw, 24px);
     cursor: pointer;
     display: block;
 }
@@ -178,17 +178,17 @@ body:not(.drawing-mode) #homeScreen {
 #headerCenter {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: clamp(8px, 2.5vw, 20px);
     border-left: 1px solid #d0d0d0;
     border-right: 1px solid #d0d0d0;
-    padding: 0 20px;
+    padding: 0 clamp(8px, 2.5vw, 20px);
 }
 
 #undoRedoContainer {
     display: flex;
     align-items: center;
-    gap: 25px;
-    padding-right: 45px;
+    gap: clamp(10px, 3vw, 25px);
+    padding-right: clamp(15px, 5vw, 45px);
     border-right: 1px solid #d0d0d0;
     height: 40px;
 }
@@ -196,7 +196,7 @@ body:not(.drawing-mode) #homeScreen {
 .icon-container {
     position: relative;
     display: inline-flex;
-    padding: 8px;
+    padding: clamp(4px, 1vw, 8px);
     border-radius: 4px;
     cursor: pointer;
     transition: background-color 0.2s ease;
@@ -213,8 +213,8 @@ body:not(.drawing-mode) #homeScreen {
 }
 
 #undoIcon, #redoIcon {
-    width: 20px;
-    height: 20px;
+    width: clamp(18px, 2.5vw, 20px);
+    height: clamp(18px, 2.5vw, 20px);
     cursor: pointer;
     display: block;
 }
@@ -258,26 +258,26 @@ body:not(.drawing-mode) #homeScreen {
 #colorPicker {
     display: flex;
     align-items: center;
-    gap: 5px;
-    margin-left: 20px;
+    gap: clamp(3px, 0.8vw, 5px);
+    margin-left: clamp(8px, 2.5vw, 20px);
     border-right: 1px solid #d0d0d0;
-    padding-right: 20px;
+    padding-right: clamp(8px, 2.5vw, 20px);
     height: 40px;
 }
 
 #pageNavigation {
     display: flex;
     align-items: center;
-    gap: 4px;
-    margin-left: 20px;
+    gap: clamp(2px, 0.6vw, 4px);
+    margin-left: clamp(8px, 2.5vw, 20px);
     border-right: 1px solid #d0d0d0;
-    padding-right: 20px;
+    padding-right: clamp(8px, 2.5vw, 20px);
     height: 40px;
 }
 
 #pageNavigation img {
-    width: 20px;
-    height: 20px;
+    width: clamp(18px, 2.5vw, 20px);
+    height: clamp(18px, 2.5vw, 20px);
     cursor: pointer;
     display: block;
 }
@@ -311,7 +311,7 @@ body:not(.drawing-mode) #homeScreen {
 }
 
 #pageNumber {
-    font-size: 14px;
+    font-size: clamp(12px, 1.8vw, 14px);
     font-weight: 500;
     color: #000000;
     min-width: 20px;
@@ -319,15 +319,15 @@ body:not(.drawing-mode) #homeScreen {
 }
 
 #presentationIcon {
-    width: 24px;
-    height: 24px;
+    width: clamp(20px, 3vw, 24px);
+    height: clamp(20px, 3vw, 24px);
     cursor: pointer;
     display: block;
 }
 
 .color-circle {
-    width: 24px;
-    height: 24px;
+    width: clamp(20px, 3vw, 24px);
+    height: clamp(20px, 3vw, 24px);
     border-radius: 50% !important;
     cursor: pointer;
     border: 1px solid #d0d0d0;
@@ -365,13 +365,13 @@ body:not(.drawing-mode) #homeScreen {
     display: flex;
     justify-content: flex-end;
     align-items: center;
-    gap: 24px;
+    gap: clamp(10px, 3vw, 24px);
 }
 
 .tool-icon-container {
     position: relative;
     display: inline-block;
-    padding: 8px;
+    padding: clamp(4px, 1vw, 8px);
     border-radius: 4px;
     cursor: pointer;
     transition: background-color 0.2s ease;
@@ -404,10 +404,10 @@ body:not(.drawing-mode) #homeScreen {
 
 .tool-icon {
     display: block;
-    width: 24px;
-    height: 24px;
+    width: clamp(20px, 3vw, 24px);
+    height: clamp(20px, 3vw, 24px);
     cursor: pointer;
-    padding: 8px;
+    padding: clamp(4px, 1vw, 8px);
     border-radius: 4px;
     transition: background-color 0.2s ease;
     box-sizing: content-box;
@@ -594,8 +594,8 @@ body:not(.drawing-mode) #homeScreen {
 }
 
 #maximizeIcon {
-    width: 24px;
-    height: 24px;
+    width: clamp(20px, 3vw, 24px);
+    height: clamp(20px, 3vw, 24px);
     cursor: pointer;
     display: block;
 }
@@ -640,7 +640,7 @@ body:not(.drawing-mode) #homeScreen {
 #whiteboardCanvas, #whiteboardDrawingCanvas {
     position: absolute;
     left: 50%;
-    top: 0;
+    top: 45px;
     transform: translateX(-50%);
     z-index: 10;
     transition: transform 0.3s ease;
@@ -663,12 +663,14 @@ body:not(.drawing-mode) #homeScreen {
 #whiteboardCanvas.slide-from-top,
 #whiteboardDrawingCanvas.slide-from-top {
     transform: translate(-50%, -100%);
+    top: 0;
 }
 
 /* End position: slides up and hides above header */
 #whiteboardCanvas.slide-to-top,
 #whiteboardDrawingCanvas.slide-to-top {
     transform: translate(-50%, -100%);
+    top: 0;
 }
 
 /* OPTIMIZATION #7: SVG cursor via data attribute */
@@ -835,4 +837,107 @@ body:not(.drawing-mode) #homeScreen {
 
 .custom-alert-btn:active {
     background: #444444;
+}
+
+/* Responsive header for portrait/narrow viewports */
+@media (max-width: 800px), (orientation: portrait) {
+    #header {
+        padding: 0 clamp(4px, 1vw, 8px);
+    }
+
+    #headerCenter {
+        gap: clamp(4px, 1.5vw, 10px);
+        padding: 0 clamp(4px, 1.5vw, 10px);
+    }
+
+    #undoRedoContainer {
+        gap: clamp(6px, 2vw, 12px);
+        padding-right: clamp(8px, 3vw, 20px);
+    }
+
+    #colorPicker {
+        margin-left: clamp(4px, 1.5vw, 10px);
+        padding-right: clamp(4px, 1.5vw, 10px);
+        gap: clamp(2px, 0.5vw, 3px);
+    }
+
+    #pageNavigation {
+        margin-left: clamp(4px, 1.5vw, 10px);
+        padding-right: clamp(4px, 1.5vw, 10px);
+        gap: clamp(1px, 0.4vw, 2px);
+    }
+
+    #headerRight {
+        gap: clamp(6px, 2vw, 12px);
+    }
+
+    #libraryWhiteboardContainer {
+        gap: clamp(3px, 0.6vw, 6px);
+    }
+
+    /* Reduce icon sizes slightly */
+    #homeIcon, #whiteboardIcon {
+        width: clamp(18px, 2.8vw, 22px);
+        height: clamp(18px, 2.8vw, 22px);
+    }
+
+    .color-circle {
+        width: clamp(18px, 2.8vw, 22px);
+        height: clamp(18px, 2.8vw, 22px);
+    }
+
+    .tool-icon {
+        width: clamp(18px, 2.8vw, 22px);
+        height: clamp(18px, 2.8vw, 22px);
+        padding: clamp(3px, 0.8vw, 6px);
+    }
+
+    #presentationIcon, #maximizeIcon {
+        width: clamp(18px, 2.8vw, 22px);
+        height: clamp(18px, 2.8vw, 22px);
+    }
+
+    #undoIcon, #redoIcon {
+        width: clamp(16px, 2.3vw, 18px);
+        height: clamp(16px, 2.3vw, 18px);
+    }
+
+    #pageNavigation img {
+        width: clamp(16px, 2.3vw, 18px);
+        height: clamp(16px, 2.3vw, 18px);
+    }
+
+    #pageNumber {
+        font-size: clamp(11px, 1.6vw, 13px);
+    }
+
+    .icon-container, .tool-icon-container {
+        padding: clamp(3px, 0.8vw, 6px);
+    }
+}
+
+/* Extra narrow screens (very small phones or extreme portrait) */
+@media (max-width: 500px) {
+    #header {
+        padding: 0 4px;
+    }
+
+    #headerCenter {
+        gap: 4px;
+        padding: 0 6px;
+    }
+
+    #undoRedoContainer {
+        gap: 6px;
+        padding-right: 8px;
+    }
+
+    #colorPicker, #pageNavigation {
+        margin-left: 6px;
+        padding-right: 6px;
+    }
+
+    #headerRight {
+        gap: 6px;
+    }
 }
