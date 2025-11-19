@@ -146,6 +146,8 @@ body:not(.drawing-mode) #homeScreen {
     justify-content: space-between;
     padding: 0 clamp(8px, 2vw, 20px);
     flex-shrink: 0;
+    position: relative;
+    z-index: 100;
 }
 
 #headerLeft {
@@ -638,21 +640,21 @@ body:not(.drawing-mode) #homeScreen {
 
 /* Whiteboard overlay canvases */
 #whiteboardCanvas, #whiteboardDrawingCanvas {
-    position: absolute;
+    position: fixed;
     left: 50%;
     top: 45px;
     transform: translateX(-50%);
-    z-index: 10;
-    transition: transform 0.3s ease;
+    z-index: 50;
+    transition: transform 0.3s ease, opacity 0.15s ease;
 }
 
 #whiteboardCanvas {
-    z-index: 9;
+    z-index: 49;
     background-color: #F4ECD8; /* Antique paper color */
 }
 
 #whiteboardDrawingCanvas {
-    z-index: 10;
+    z-index: 50;
     cursor: crosshair;
     touch-action: none;
     pointer-events: all;

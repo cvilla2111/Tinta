@@ -553,12 +553,47 @@ function initializeDrawingCanvas() {
     window.addEventListener('resize', async () => {
         if (!pdfDoc || !currentPage) return;
 
-        // Skip resize handling when whiteboard is open
-        if (isWhiteboardMode) return;
-
         clearTimeout(resizeTimeout);
         resizeTimeout = setTimeout(async () => {
-            // Fade out
+            // If whiteboard is open, close it temporarily
+            let wasWhiteboardOpen = false;
+            const whiteboardCanvas = document.getElementById('whiteboardCanvas');
+            const whiteboardSvg = document.getElementById('whiteboardDrawingCanvas');
+
+            if (isWhiteboardMode) {
+                wasWhiteboardOpen = true;
+
+                // Fade out whiteboard
+                whiteboardCanvas.classList.add('fade-out');
+                whiteboardSvg.classList.add('fade-out');
+
+                // Wait for fade out
+                await new Promise(resolve => setTimeout(resolve, 150));
+
+                // Save whiteboard drawings
+                whiteboardDrawings = whiteboardSvg.innerHTML;
+
+                // Hide whiteboard
+                whiteboardCanvas.style.display = 'none';
+                whiteboardSvg.style.display = 'none';
+
+                // Remove fade classes
+                whiteboardCanvas.classList.remove('fade-out');
+                whiteboardSvg.classList.remove('fade-out');
+
+                // Detach event listeners from whiteboard
+                detachEventListeners(activeSvg);
+
+                // Switch back to main SVG
+                activeSvg = svg;
+
+                // Attach event listeners to main SVG
+                attachEventListeners();
+
+                isWhiteboardMode = false;
+            }
+
+            // Fade out PDF
             pdfCanvas.classList.add('fade-out');
             svg.classList.add('fade-out');
 
@@ -571,12 +606,41 @@ function initializeDrawingCanvas() {
             // Re-render PDF at new size
             await renderPDFPage(currentPage);
 
+            // Clear SVG paths before restoring to avoid duplication
+            const paths = Array.from(svg.querySelectorAll('path'));
+            paths.forEach(path => {
+                // Don't remove utility elements
+                if (path.id !== 'eraserIndicator' && path.id !== 'laserPointer') {
+                    path.remove();
+                }
+            });
+
             // Restore drawings after re-render
             restorePageDrawings(currentPage);
 
-            // Fade in
+            // Fade in PDF
             pdfCanvas.classList.remove('fade-out');
             svg.classList.remove('fade-out');
+
+            // Reopen whiteboard if it was open (without slide animation but with fade)
+            if (wasWhiteboardOpen) {
+                // Small delay to ensure PDF resize is complete
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                // Open whiteboard without slide animation
+                await toggleWhiteboard(false);
+
+                // Fade in whiteboard
+                whiteboardCanvas.classList.add('fade-out');
+                whiteboardSvg.classList.add('fade-out');
+
+                // Trigger reflow
+                void whiteboardCanvas.offsetHeight;
+
+                // Remove fade class to trigger fade-in
+                whiteboardCanvas.classList.remove('fade-out');
+                whiteboardSvg.classList.remove('fade-out');
+            }
         }, 300);
     });
 
@@ -1072,7 +1136,7 @@ function setActiveTool(tool) {
     // OPTIMIZATION #7: Cursor is now controlled by CSS via data-active-tool attribute
 }
 
-async function toggleWhiteboard() {
+async function toggleWhiteboard(animate = true) {
     const whiteboardContainer = document.getElementById('whiteboardContainer');
     const whiteboardCanvas = document.getElementById('whiteboardCanvas');
     const whiteboardSvg = document.getElementById('whiteboardDrawingCanvas');
@@ -1158,20 +1222,22 @@ async function toggleWhiteboard() {
             whiteboardSvg.innerHTML = whiteboardDrawings;
         }
 
-        // Position whiteboard at top (hidden)
-        whiteboardCanvas.classList.add('slide-from-top');
-        whiteboardSvg.classList.add('slide-from-top');
-
         // Show whiteboard layers
         whiteboardCanvas.style.display = 'block';
         whiteboardSvg.style.display = 'block';
 
-        // Trigger reflow
-        void whiteboardCanvas.offsetHeight;
+        if (animate) {
+            // Position whiteboard at top (hidden)
+            whiteboardCanvas.classList.add('slide-from-top');
+            whiteboardSvg.classList.add('slide-from-top');
 
-        // Drop down the whiteboard
-        whiteboardCanvas.classList.remove('slide-from-top');
-        whiteboardSvg.classList.remove('slide-from-top');
+            // Trigger reflow
+            void whiteboardCanvas.offsetHeight;
+
+            // Drop down the whiteboard
+            whiteboardCanvas.classList.remove('slide-from-top');
+            whiteboardSvg.classList.remove('slide-from-top');
+        }
 
         // Redirect drawing events to whiteboard SVG
         // Detach event listeners from main SVG
@@ -1224,20 +1290,26 @@ async function toggleWhiteboard() {
             svg.appendChild(laserPointer);
         }
 
-        // Slide whiteboard up
-        whiteboardCanvas.classList.add('slide-to-top');
-        whiteboardSvg.classList.add('slide-to-top');
+        if (animate) {
+            // Slide whiteboard up
+            whiteboardCanvas.classList.add('slide-to-top');
+            whiteboardSvg.classList.add('slide-to-top');
 
-        // Wait for animation
-        await new Promise(resolve => setTimeout(resolve, 300));
+            // Wait for animation
+            await new Promise(resolve => setTimeout(resolve, 300));
 
-        // Hide whiteboard layers (but don't clear the drawings)
-        whiteboardCanvas.style.display = 'none';
-        whiteboardSvg.style.display = 'none';
+            // Hide whiteboard layers (but don't clear the drawings)
+            whiteboardCanvas.style.display = 'none';
+            whiteboardSvg.style.display = 'none';
 
-        // Clean up animation classes
-        whiteboardCanvas.classList.remove('slide-to-top');
-        whiteboardSvg.classList.remove('slide-to-top');
+            // Clean up animation classes
+            whiteboardCanvas.classList.remove('slide-to-top');
+            whiteboardSvg.classList.remove('slide-to-top');
+        } else {
+            // Hide immediately without animation
+            whiteboardCanvas.style.display = 'none';
+            whiteboardSvg.style.display = 'none';
+        }
 
         // If PDF was saved, it's already visible in background
         if (savedPdfState) {
