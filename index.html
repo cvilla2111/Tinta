@@ -3,272 +3,161 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#f3f3f3">
-    <title>Drawing Canvas</title>
+    <title>PDF Viewer</title>
     <link rel="stylesheet" href="styles.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
-    <!-- Home Screen -->
-    <div id="homeScreen">
-        <div id="pdfGalleryContainer">
-            <input type="file" id="pdfInput" accept="application/pdf" style="display: none;">
-            <div id="pdfGrid">
-                <!-- PDF thumbnails will be inserted here dynamically -->
-                <label for="pdfInput" class="pdf-thumbnail upload-box">
-                    <div class="pdf-thumbnail-image">
-                        <span class="plus-icon">+</span>
-                    </div>
-                </label>
-            </div>
-        </div>
-    </div>
-
-    <!-- Drawing Screen -->
-    <div id="drawingScreen" style="display: none;">
-        <header id="header">
-            <div id="headerLeft">
-                <div id="libraryWhiteboardContainer">
-                    <div class="icon-container" id="libraryContainer">
-                        <img src="icons/library.svg" id="homeIcon" alt="Library">
-                    </div>
-                    <div class="icon-container" id="whiteboardContainer">
-                        <img src="icons/whiteboard.svg" id="whiteboardIcon" alt="Whiteboard">
-                    </div>
-                </div>
-            </div>
-            <div id="headerCenter">
-                <div id="undoRedoContainer">
-                    <div class="icon-container" id="undoContainer">
-                        <img src="icons/undo-2.svg" id="undoIcon" alt="Undo">
-                    </div>
-                    <div class="icon-container" id="redoContainer">
-                        <img src="icons/redo-2.svg" id="redoIcon" alt="Redo">
-                    </div>
-                </div>
-                <div class="tool-icon-container" id="penToolContainer">
-                    <img src="icons/pen-tool.svg" class="tool-icon" id="penToolIcon" alt="Pen Tool">
-                </div>
-                <img src="icons/laser.svg" class="tool-icon" id="laserIcon" alt="Laser">
-                <img src="icons/eraser.svg" class="tool-icon" id="eraserIcon" alt="Eraser">
-                <img src="icons/lasso.svg" class="tool-icon" id="lassoIcon" alt="Lasso">
+    <div class="container">
+        <header class="header">
+            <div class="header-left">
+                <h1>PDF Viewer</h1>
             </div>
 
-            <!-- Pen Tool Modal -->
-            <div id="penModal" class="tool-modal" style="display: none;">
-                <div class="modal-content">
-                    <div class="stroke-preset-container">
-                        <div class="stroke-preset" data-width="3" data-preset-index="0">
-                            <div class="stroke-dot" style="width: 3px; height: 3px;"></div>
-                        </div>
-                        <div class="stroke-preset active" data-width="5" data-preset-index="1">
-                            <div class="stroke-dot" style="width: 5px; height: 5px;"></div>
-                        </div>
-                        <div class="stroke-preset" data-width="15" data-preset-index="2">
-                            <div class="stroke-dot" style="width: 15px; height: 15px;"></div>
-                        </div>
+            <div class="header-controls" id="headerControls" style="display: none;">
+                <!-- Navigation -->
+                <div class="toolbar-group">
+                    <button id="prevPage" class="btn btn-icon-sm" title="Previous Page">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                    </button>
+                    <div class="page-info">
+                        <span id="pageNum">1</span>/<span id="pageCount">0</span>
                     </div>
+                    <button id="nextPage" class="btn btn-icon-sm" title="Next Page">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
                 </div>
-            </div>
 
-            <!-- Slider Modal -->
-            <div id="sliderModal" class="slider-modal" style="display: none;">
-                <div class="modal-content">
-                    <input type="range" id="strokeSlider" min="1" max="10" value="2" step="0.5">
+                <!-- Zoom -->
+                <div class="toolbar-group">
+                    <button id="zoomOut" class="btn btn-icon-sm" title="Zoom Out">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="8" y1="11" x2="14" y2="11"></line>
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                    </button>
+                    <span class="zoom-level" id="zoomLevel">100%</span>
+                    <button id="zoomIn" class="btn btn-icon-sm" title="Zoom In">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="11" y1="8" x2="11" y2="14"></line>
+                            <line x1="8" y1="11" x2="14" y2="11"></line>
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                    </button>
+                    <button id="zoomFit" class="btn btn-icon-sm" title="Fit to Width">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="9" y1="3" x2="9" y2="21"></line>
+                            <line x1="15" y1="3" x2="15" y2="21"></line>
+                        </svg>
+                    </button>
                 </div>
-            </div>
 
-            <!-- Eraser Modal -->
-            <div id="eraserModal" class="tool-modal" style="display: none;">
-                <div class="modal-content">
-                    <div id="clearCanvasBtn" class="clear-canvas-text">Clear Canvas</div>
+                <!-- Drawing Tools -->
+                <div class="toolbar-group">
+                    <button id="penTool" class="btn btn-icon-sm tool-active" title="Pen">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+                            <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+                        </svg>
+                    </button>
+                    <button id="eraserTool" class="btn btn-icon-sm" title="Eraser">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 20H7L3 16l7-7 9 9v2z"></path>
+                        </svg>
+                    </button>
                 </div>
-            </div>
 
-            <!-- Color Palette Modal -->
-            <div id="colorPaletteModal" class="tool-modal" style="display: none;">
-                <div class="modal-content">
-                    <div class="color-palette-grid">
-                        <!-- Row 1 - Vivid primary colors -->
-                        <div class="palette-color" data-palette-color="#FFFFFF" style="background-color: #FFFFFF;">
-                            <svg class="palette-check" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </div>
-                        <div class="palette-color" data-palette-color="#000000" style="background-color: #000000;">
-                            <svg class="palette-check" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </div>
-                        <div class="palette-color" data-palette-color="#db090c" style="background-color: #db090c;">
-                            <svg class="palette-check" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </div>
-                        <div class="palette-color" data-palette-color="#FF6600" style="background-color: #FF6600;">
-                            <svg class="palette-check" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </div>
-                        <div class="palette-color" data-palette-color="#FFCC00" style="background-color: #FFCC00;">
-                            <svg class="palette-check" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </div>
-                        <div class="palette-color" data-palette-color="#00CC00" style="background-color: #00CC00;">
-                            <svg class="palette-check" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </div>
-                        <div class="palette-color" data-palette-color="#003fff" style="background-color: #003fff;">
-                            <svg class="palette-check" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </div>
-                        <!-- Row 2 - Bright secondary colors -->
-                        <div class="palette-color" data-palette-color="#CC00FF" style="background-color: #CC00FF;">
-                            <svg class="palette-check" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </div>
-                        <div class="palette-color" data-palette-color="#FF0099" style="background-color: #FF0099;">
-                            <svg class="palette-check" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </div>
-                        <div class="palette-color" data-palette-color="#00CCFF" style="background-color: #00CCFF;">
-                            <svg class="palette-check" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </div>
-                        <div class="palette-color" data-palette-color="#66FF00" style="background-color: #66FF00;">
-                            <svg class="palette-check" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </div>
-                        <div class="palette-color" data-palette-color="#FF3366" style="background-color: #FF3366;">
-                            <svg class="palette-check" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </div>
-                        <div class="palette-color" data-palette-color="#FFFF00" style="background-color: #FFFF00;">
-                            <svg class="palette-check" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </div>
-                        <!-- Row 3 - Marker colors -->
-                        <div class="palette-color" data-palette-color="#FF9900" style="background-color: #FF9900;">
-                            <svg class="palette-check" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </div>
-                        <div class="palette-color" data-palette-color="#33CC33" style="background-color: #33CC33;">
-                            <svg class="palette-check" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </div>
-                        <div class="palette-color" data-palette-color="#3399FF" style="background-color: #3399FF;">
-                            <svg class="palette-check" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </div>
-                        <div class="palette-color" data-palette-color="#9933FF" style="background-color: #9933FF;">
-                            <svg class="palette-check" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </div>
-                        <div class="palette-color" data-palette-color="#FF6699" style="background-color: #FF6699;">
-                            <svg class="palette-check" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </div>
-                        <div class="palette-color" data-palette-color="#00FFCC" style="background-color: #00FFCC;">
-                            <svg class="palette-check" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </div>
-                        <!-- Row 4 - Additional vivid colors -->
-                        <div class="palette-color" data-palette-color="#FF0066" style="background-color: #FF0066;">
-                            <svg class="palette-check" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </div>
-                        <div class="palette-color" data-palette-color="#CC6600" style="background-color: #CC6600;">
-                            <svg class="palette-check" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </div>
-                        <div class="palette-color" data-palette-color="#669900" style="background-color: #669900;">
-                            <svg class="palette-check" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </div>
-                        <div class="palette-color" data-palette-color="#0099CC" style="background-color: #0099CC;">
-                            <svg class="palette-check" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </div>
-                        <div class="palette-color" data-palette-color="#6600CC" style="background-color: #6600CC;">
-                            <svg class="palette-check" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </div>
-                        <div class="palette-color" data-palette-color="#FF00FF" style="background-color: #FF00FF;">
-                            <svg class="palette-check" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </div>
-                    </div>
+                <!-- Colors -->
+                <div class="toolbar-group color-picker">
+                    <button class="color-btn color-active" data-color="#000000" style="background: #000000;" title="Black"></button>
+                    <button class="color-btn" data-color="#FF0000" style="background: #FF0000;" title="Red"></button>
+                    <button class="color-btn" data-color="#0000FF" style="background: #0000FF;" title="Blue"></button>
+                    <button class="color-btn" data-color="#00AA00" style="background: #00AA00;" title="Green"></button>
+                </div>
+
+                <!-- Stroke Width -->
+                <div class="toolbar-group">
+                    <button id="thinStroke" class="btn btn-icon-sm stroke-btn" title="Thin" data-width="2">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                            <line x1="4" y1="12" x2="20" y2="12"></line>
+                        </svg>
+                    </button>
+                    <button id="mediumStroke" class="btn btn-icon-sm stroke-btn stroke-active" title="Medium" data-width="4">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="4" y1="12" x2="20" y2="12"></line>
+                        </svg>
+                    </button>
+                    <button id="thickStroke" class="btn btn-icon-sm stroke-btn" title="Thick" data-width="6">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                            <line x1="4" y1="12" x2="20" y2="12"></line>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Actions -->
+                <div class="toolbar-group">
+                    <button id="undoBtn" class="btn btn-icon-sm" title="Undo" disabled>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 7v6h6"></path>
+                            <path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"></path>
+                        </svg>
+                    </button>
+                    <button id="clearBtn" class="btn btn-icon-sm" title="Clear All">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+                        </svg>
+                    </button>
                 </div>
             </div>
 
-            <div id="colorPicker">
-                <div class="color-circle" data-color="#000000" style="background-color: #000000;"></div>
-            </div>
-            <div id="pageNavigation">
-                <div class="icon-container" id="prevPageContainer">
-                    <img src="icons/arrow-left-from-line.svg" id="prevPageIcon" alt="Previous Page">
-                </div>
-                <span id="pageNumber">1</span>
-                <div class="icon-container" id="nextPageContainer">
-                    <img src="icons/arrow-right-from-line.svg" id="nextPageIcon" alt="Next Page">
-                </div>
-            </div>
-            <div id="headerRight">
-                <div class="icon-container" id="presentationContainer">
-                    <img src="icons/presentation.svg" id="presentationIcon" alt="Presentation">
-                </div>
-                <div class="icon-container" id="maximizeContainer">
-                    <img src="icons/maximize-2.svg" id="maximizeIcon" alt="Maximize">
-                </div>
+            <div class="header-right">
+                <input type="file" id="fileInput" accept=".pdf" hidden>
+                <button id="openFileBtn" class="btn btn-primary">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                        <polyline points="13 2 13 9 20 9"></polyline>
+                    </svg>
+                    Open PDF
+                </button>
             </div>
         </header>
-        <div id="canvasContainer">
-            <canvas id="pdfCanvas"></canvas>
-            <svg id="drawingCanvas" xmlns="http://www.w3.org/2000/svg"></svg>
-            <!-- Whiteboard overlay layer -->
-            <canvas id="whiteboardCanvas" style="display: none;"></canvas>
-            <svg id="whiteboardDrawingCanvas" xmlns="http://www.w3.org/2000/svg" style="display: none;"></svg>
-        </div>
 
-        <!-- Page Filmstrip Panel -->
-        <div id="pageFilmstrip" class="filmstrip-panel">
-            <div class="filmstrip-content">
-                <div id="filmstripPages">
-                    <!-- Page thumbnails will be inserted here dynamically -->
+        <div class="main-content">
+            <div class="welcome-screen" id="welcomeScreen">
+                <div class="welcome-content">
+                    <svg class="welcome-icon" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    <h2>Welcome to PDF Viewer</h2>
+                    <p>Click "Open PDF" to get started</p>
+                </div>
+            </div>
+
+            <div class="pdf-viewer" id="pdfViewer" style="display: none;">
+                <div class="canvas-container" id="canvasContainer">
+                    <div class="pdf-wrapper" id="pdfWrapper">
+                        <canvas id="pdfCanvas"></canvas>
+                        <svg id="annotationLayer" class="annotation-layer"></svg>
+                        <canvas id="activeStrokeCanvas" class="active-stroke-layer"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Custom Alert Modal -->
-    <div id="customAlertModal" class="custom-alert-modal">
-        <div class="custom-alert-content">
-            <p id="customAlertMessage"></p>
-            <button id="customAlertOkBtn" class="custom-alert-btn">OK</button>
-        </div>
-    </div>
-
-    <script src="script.js"></script>
+    <!-- PDF.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
