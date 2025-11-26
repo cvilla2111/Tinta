@@ -117,6 +117,26 @@ body {
     transform: translateY(0);
 }
 
+.btn-icon {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 0.5rem;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-icon:hover {
+    background-color: var(--bg-tertiary);
+    transform: translateY(-1px);
+}
+
+.btn-icon:active {
+    transform: translateY(0);
+}
+
 .btn-icon-sm {
     background-color: var(--bg-secondary);
     color: var(--text-primary);

@@ -10,7 +10,26 @@
     <div class="container">
         <header class="header">
             <div class="header-left">
-                <h1>PDF Viewer</h1>
+                <input type="file" id="fileInput" accept=".pdf" hidden>
+                <button id="openFileBtn" class="btn btn-icon-sm" title="Open PDF">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                        <polyline points="13 2 13 9 20 9"></polyline>
+                    </svg>
+                </button>
+                <div style="width: 28px;"></div>
+                <button id="undoBtn" class="btn btn-icon-sm" title="Undo" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 7v6h6"></path>
+                        <path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"></path>
+                    </svg>
+                </button>
+                <button id="redoBtn" class="btn btn-icon-sm" title="Redo" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 7v6h-6"></path>
+                        <path d="M3 17a9 9 0 019-9 9 9 0 016 2.3L21 13"></path>
+                    </svg>
+                </button>
             </div>
 
             <div class="header-controls" id="headerControls" style="display: none;">
@@ -102,12 +121,6 @@
 
                 <!-- Actions -->
                 <div class="toolbar-group">
-                    <button id="undoBtn" class="btn btn-icon-sm" title="Undo" disabled>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M3 7v6h6"></path>
-                            <path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"></path>
-                        </svg>
-                    </button>
                     <button id="clearBtn" class="btn btn-icon-sm" title="Clear All">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="3 6 5 6 21 6"></polyline>
@@ -115,17 +128,6 @@
                         </svg>
                     </button>
                 </div>
-            </div>
-
-            <div class="header-right">
-                <input type="file" id="fileInput" accept=".pdf" hidden>
-                <button id="openFileBtn" class="btn btn-primary">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
-                        <polyline points="13 2 13 9 20 9"></polyline>
-                    </svg>
-                    Open PDF
-                </button>
             </div>
         </header>
 

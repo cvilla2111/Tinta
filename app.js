@@ -10,6 +10,7 @@ let scale = 1.5;
 
 // Annotation State
 let annotations = {}; // Keyed by page number
+let undoStack = {}; // Undo history keyed by page number
 let currentTool = 'pen';
 let currentColor = '#000000';
 let currentStrokeWidth = 4;
@@ -17,6 +18,7 @@ let isDrawing = false;
 let currentPath = null;
 let currentPoints = [];
 let activePointerId = null; // Track which pointer is currently drawing
+let isEraserActive = false; // Track if current stroke is erasing
 
 // DOM Elements
 const fileInput = document.getElementById('fileInput');
@@ -44,6 +46,7 @@ const pdfWrapper = document.getElementById('pdfWrapper');
 const penTool = document.getElementById('penTool');
 const eraserTool = document.getElementById('eraserTool');
 const undoBtn = document.getElementById('undoBtn');
+const redoBtn = document.getElementById('redoBtn');
 const clearBtn = document.getElementById('clearBtn');
 const colorBtns = document.querySelectorAll('.color-btn');
 const strokeBtns = document.querySelectorAll('.stroke-btn');
@@ -64,6 +67,7 @@ zoomFitBtn.addEventListener('click', fitToWidth);
 penTool.addEventListener('click', () => setTool('pen'));
 eraserTool.addEventListener('click', () => setTool('eraser'));
 undoBtn.addEventListener('click', undoLastStroke);
+redoBtn.addEventListener('click', redoLastStroke);
 clearBtn.addEventListener('click', clearAllAnnotations);
 
 colorBtns.forEach(btn => {
@@ -355,7 +359,16 @@ function startDrawing(e) {
     const pos = getPointerPos(e);
     currentPoints = [pos];
 
-    if (currentTool === 'pen') {
+    // Detect stylus eraser end (button 5, bitmask 32)
+    const isUsingEraserEnd = (e.buttons & 32) !== 0;
+    isEraserActive = isUsingEraserEnd || currentTool === 'eraser';
+
+    if (isEraserActive) {
+        // Draw eraser preview circle
+        drawEraserPreview(pos.x, pos.y);
+        // Check for strokes to erase
+        eraseAtPoint(pos.x, pos.y);
+    } else if (currentTool === 'pen') {
         // Setup canvas context for drawing - match SVG stroke exactly
         activeStrokeCtx.strokeStyle = currentColor;
         activeStrokeCtx.lineWidth = currentStrokeWidth;
@@ -372,11 +385,6 @@ function startDrawing(e) {
                 diameter: currentStrokeWidth
             });
         }
-    } else if (currentTool === 'eraser') {
-        // Draw eraser preview circle
-        drawEraserPreview(pos.x, pos.y);
-        // Check for strokes to erase
-        eraseAtPoint(pos.x, pos.y);
     }
 }
 
@@ -398,7 +406,7 @@ function draw(e) {
 
     const pos = getPointerPos(e);
 
-    if (currentTool === 'eraser') {
+    if (isEraserActive) {
         // Draw eraser preview and erase
         drawEraserPreview(pos.x, pos.y);
         eraseAtPoint(pos.x, pos.y);
@@ -467,15 +475,17 @@ function endDrawing(e) {
         e.stopPropagation();
     }
 
-    // Clear eraser preview
-    if (currentTool === 'eraser') {
+    // Clear eraser preview if we were erasing
+    if (isEraserActive) {
         activeStrokeCtx.clearRect(0, 0, activeStrokeCanvas.width, activeStrokeCanvas.height);
     }
 
     isDrawing = false;
     activePointerId = null; // Clear active pointer
+    const wasEraserActive = isEraserActive;
+    isEraserActive = false; // Reset eraser state
 
-    if (currentTool === 'pen' && currentPoints.length > 1) {
+    if (!wasEraserActive && currentTool === 'pen' && currentPoints.length > 1) {
         // Extract normalized coordinates for storage
         const normalizedPoints = currentPoints.map(p => ({
             x: p.normalizedX,
@@ -505,7 +515,10 @@ function endDrawing(e) {
         // Clear active stroke canvas
         activeStrokeCtx.clearRect(0, 0, activeStrokeCanvas.width, activeStrokeCanvas.height);
 
-        updateUndoButton();
+        // Clear redo stack when new stroke is added
+        undoStack[pageNum] = [];
+
+        updateUndoRedoButtons();
     }
 
     currentPoints = [];
@@ -548,7 +561,48 @@ function undoLastStroke() {
         lastStroke.element.parentNode.removeChild(lastStroke.element);
     }
 
-    updateUndoButton();
+    // Add to undo stack
+    if (!undoStack[pageNum]) {
+        undoStack[pageNum] = [];
+    }
+    undoStack[pageNum].push(lastStroke);
+
+    updateUndoRedoButtons();
+}
+
+function redoLastStroke() {
+    const pageUndoStack = undoStack[pageNum];
+    if (!pageUndoStack || pageUndoStack.length === 0) return;
+
+    const strokeToRedo = pageUndoStack.pop();
+
+    // Convert normalized coordinates to screen coordinates for rendering
+    const width = canvas.offsetWidth;
+    const height = canvas.offsetHeight;
+    const screenPoints = strokeToRedo.points.map(p => ({
+        x: p.x * width,
+        y: p.y * height,
+        normalizedX: p.x,
+        normalizedY: p.y
+    }));
+
+    // Create new SVG path element
+    const newPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    newPath.setAttribute('stroke', strokeToRedo.color);
+    newPath.setAttribute('stroke-width', strokeToRedo.width);
+    newPath.setAttribute('d', pointsToPath(screenPoints));
+    annotationLayer.appendChild(newPath);
+
+    // Update element reference
+    strokeToRedo.element = newPath;
+
+    // Add back to annotations
+    if (!annotations[pageNum]) {
+        annotations[pageNum] = [];
+    }
+    annotations[pageNum].push(strokeToRedo);
+
+    updateUndoRedoButtons();
 }
 
 function clearAllAnnotations() {
@@ -562,12 +616,18 @@ function clearAllAnnotations() {
     // Clear annotations data
     annotations[pageNum] = [];
 
-    updateUndoButton();
+    // Clear undo stack since we can't redo after clear all
+    undoStack[pageNum] = [];
+
+    updateUndoRedoButtons();
 }
 
-function updateUndoButton() {
+function updateUndoRedoButtons() {
     const hasAnnotations = annotations[pageNum] && annotations[pageNum].length > 0;
+    const hasUndoStack = undoStack[pageNum] && undoStack[pageNum].length > 0;
+
     undoBtn.disabled = !hasAnnotations;
+    redoBtn.disabled = !hasUndoStack;
 }
 
 function syncAnnotationLayer() {
@@ -621,7 +681,7 @@ function loadPageAnnotations() {
         });
     }
 
-    updateUndoButton();
+    updateUndoRedoButtons();
 }
 
 // ============================================
@@ -629,7 +689,7 @@ function loadPageAnnotations() {
 // ============================================
 
 function drawEraserPreview(x, y) {
-    const eraserSize = 20; // Eraser radius
+    const eraserSize = 10; // Eraser radius
 
     activeStrokeCtx.clearRect(0, 0, activeStrokeCanvas.width, activeStrokeCanvas.height);
     activeStrokeCtx.beginPath();
@@ -640,7 +700,7 @@ function drawEraserPreview(x, y) {
 }
 
 function eraseAtPoint(x, y) {
-    const eraserSize = 20; // Match preview size
+    const eraserSize = 10; // Match preview size
     const pageAnnotations = annotations[pageNum];
 
     if (!pageAnnotations || pageAnnotations.length === 0) return;
@@ -683,5 +743,8 @@ function eraseAtPoint(x, y) {
         }
     }
 
-    updateUndoButton();
+    // Clear redo stack when erasing
+    undoStack[pageNum] = [];
+
+    updateUndoRedoButtons();
 }
