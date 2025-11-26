@@ -269,7 +269,7 @@ function fitToWidth() {
 
     pdfDoc.getPage(pageNum).then(page => {
         const canvasContainer = document.getElementById('canvasContainer');
-        const containerWidth = canvasContainer.clientWidth - 64; // Account for padding
+        const containerWidth = canvasContainer.clientWidth; // Full width
         const viewport = page.getViewport({ scale: 1 });
         scale = containerWidth / viewport.width;
         updateZoomDisplay();
