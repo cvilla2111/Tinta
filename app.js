@@ -132,6 +132,7 @@ function disableFingerScroll() {
     scrollToggleBtn.title = 'Enable Finger Scroll';
     scrollToggleBtn.classList.remove('tool-active');
     activeStrokeCanvas.style.pointerEvents = 'all';
+    activeStrokeCanvas.style.touchAction = 'none'; // Re-enable stylus drawing
 }
 
 // Scroll toggle functionality
@@ -144,6 +145,7 @@ scrollToggleBtn.addEventListener('click', () => {
         scrollToggleBtn.title = 'Disable Finger Scroll';
         scrollToggleBtn.classList.add('tool-active');
         activeStrokeCanvas.style.pointerEvents = 'none'; // Allow touch to pass through for scrolling
+        activeStrokeCanvas.style.touchAction = 'auto'; // Allow touch scrolling
     } else {
         disableFingerScroll();
     }
