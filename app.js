@@ -7,6 +7,7 @@ let pageNum = 1;
 let pageIsRendering = false;
 let pageNumIsPending = null;
 let scale = 1.5;
+let fitMode = 'width'; // Track current fit mode: 'width', 'height', 'best'
 
 // Annotation State
 let annotations = {}; // Keyed by page number
@@ -22,7 +23,16 @@ let isEraserActive = false; // Track if current stroke is erasing
 
 // DOM Elements
 const fileInput = document.getElementById('fileInput');
+const welcomeFileInput = document.getElementById('welcomeFileInput');
 const openFileBtn = document.getElementById('openFileBtn');
+const welcomeOpenBtn = document.getElementById('welcomeOpenBtn');
+const scrollToggleBtn = document.getElementById('scrollToggleBtn');
+const scrollIcon = document.getElementById('scrollIcon');
+const menuBtn = document.getElementById('menuBtn');
+const menuModal = document.getElementById('menuModal');
+const themeToggleBtn = document.getElementById('themeToggleBtn');
+const themeIcon = document.getElementById('themeIcon');
+const themeLabel = document.getElementById('themeLabel');
 const welcomeScreen = document.getElementById('welcomeScreen');
 const pdfViewer = document.getElementById('pdfViewer');
 const headerControls = document.getElementById('headerControls');
@@ -38,6 +48,12 @@ const zoomOutBtn = document.getElementById('zoomOut');
 const zoomFitBtn = document.getElementById('zoomFit');
 const zoomLevelDisplay = document.getElementById('zoomLevel');
 const canvasContainer = document.getElementById('canvasContainer');
+const fullscreenBtn = document.getElementById('fullscreenBtn');
+const fullscreenIcon = document.getElementById('fullscreenIcon');
+const filmstripModal = document.getElementById('filmstripModal');
+const filmstripContent = document.getElementById('filmstripContent');
+const closeFilmstrip = document.getElementById('closeFilmstrip');
+const pageInfo = document.querySelector('.page-info');
 
 // Annotation Elements
 const annotationLayer = document.getElementById('annotationLayer');
@@ -61,13 +77,19 @@ const strokeOptions = document.querySelectorAll('.stroke-option');
 let inkPresenter = null;
 
 // Event Listeners - PDF Controls
-openFileBtn.addEventListener('click', () => fileInput.click());
+openFileBtn.addEventListener('click', () => {
+    fileInput.click();
+    closeAllModals();
+});
+welcomeOpenBtn.addEventListener('click', () => welcomeFileInput.click());
 fileInput.addEventListener('change', handleFileSelect);
+welcomeFileInput.addEventListener('change', handleFileSelect);
 prevPageBtn.addEventListener('click', showPrevPage);
 nextPageBtn.addEventListener('click', showNextPage);
 zoomInBtn.addEventListener('click', zoomIn);
 zoomOutBtn.addEventListener('click', zoomOut);
-zoomFitBtn.addEventListener('click', fitToWidth);
+zoomFitBtn.addEventListener('click', cycleFitMode);
+fullscreenBtn.addEventListener('click', toggleFullscreen);
 
 // Event Listeners - Annotation Tools
 penBtn.addEventListener('click', (e) => {
@@ -92,12 +114,129 @@ clearBtn.addEventListener('click', () => {
     closeAllModals();
 });
 
+// State for finger scroll
+let fingerScrollEnabled = false;
+
 // Helper function to close all modals
 function closeAllModals() {
     colorPickerModal.style.display = 'none';
     strokePickerModal.style.display = 'none';
     eraserModal.style.display = 'none';
+    menuModal.style.display = 'none';
 }
+
+// Function to disable finger scroll
+function disableFingerScroll() {
+    fingerScrollEnabled = false;
+    scrollIcon.innerHTML = '<path d="M18 11V6a2 2 0 0 0-4 0v5M14 11V4a2 2 0 0 0-4 0v7M10 11V6a2 2 0 0 0-4 0v5M6 11v4a8 8 0 0 0 8 8h.3a8 8 0 0 0 7.7-6.1l1-4A2 2 0 0 0 21 10h-2"></path><line x1="12" y1="2" x2="12" y2="22" stroke-dasharray="2,2" opacity="0.5"></line>';
+    scrollToggleBtn.title = 'Enable Finger Scroll';
+    scrollToggleBtn.classList.remove('tool-active');
+    activeStrokeCanvas.style.pointerEvents = 'all';
+}
+
+// Scroll toggle functionality
+scrollToggleBtn.addEventListener('click', () => {
+    fingerScrollEnabled = !fingerScrollEnabled;
+
+    if (fingerScrollEnabled) {
+        // Enabled - show hand with slash to indicate scrolling is active
+        scrollIcon.innerHTML = '<path d="M18 11V6a2 2 0 0 0-4 0v5M14 11V4a2 2 0 0 0-4 0v7M10 11V6a2 2 0 0 0-4 0v5M6 11v4a8 8 0 0 0 8 8h.3a8 8 0 0 0 7.7-6.1l1-4A2 2 0 0 0 21 10h-2"></path><circle cx="14" cy="14" r="10" opacity="0.3" fill="currentColor"></circle>';
+        scrollToggleBtn.title = 'Disable Finger Scroll';
+        scrollToggleBtn.classList.add('tool-active');
+        activeStrokeCanvas.style.pointerEvents = 'none'; // Allow touch to pass through for scrolling
+    } else {
+        disableFingerScroll();
+    }
+});
+
+// Listen for stylus touches when finger scroll is enabled
+document.addEventListener('pointerdown', (e) => {
+    // If finger scroll is enabled and stylus/pen/mouse touches anywhere on the PDF area, disable it
+    if (fingerScrollEnabled && (e.pointerType === 'pen' || e.pointerType === 'mouse')) {
+        // Check if the pointer is over the PDF viewer area
+        const pdfViewerRect = pdfViewer.getBoundingClientRect();
+        if (e.clientX >= pdfViewerRect.left && e.clientX <= pdfViewerRect.right &&
+            e.clientY >= pdfViewerRect.top && e.clientY <= pdfViewerRect.bottom) {
+            // Prevent scrolling immediately
+            e.preventDefault();
+            e.stopPropagation();
+            disableFingerScroll();
+        }
+    }
+}, { passive: false });
+
+// Menu modal toggle
+menuBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isVisible = menuModal.style.display === 'block';
+    closeAllModals();
+    menuModal.style.display = isVisible ? 'none' : 'block';
+});
+
+// Theme Management
+function initTheme() {
+    // Use system preference on load
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    console.log('Initializing theme. System prefers dark:', prefersDark);
+    if (prefersDark) {
+        document.documentElement.classList.add('dark');
+    }
+    console.log('Initial HTML classes:', document.documentElement.className);
+    updateThemeButton(prefersDark);
+}
+
+function updateThemeButton(isDark) {
+    // Check if elements exist before updating
+    if (!themeIcon || !themeLabel) return;
+
+    if (isDark) {
+        // Currently dark, show sun icon (to switch to light)
+        themeIcon.innerHTML = '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>';
+        themeLabel.textContent = 'Light Mode';
+    } else {
+        // Currently light, show moon icon (to switch to dark)
+        themeIcon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>';
+        themeLabel.textContent = 'Dark Mode';
+    }
+}
+
+function toggleTheme() {
+    const isDark = document.documentElement.classList.contains('dark');
+
+    console.log('Toggle theme clicked. Current mode:', isDark ? 'dark' : 'light');
+
+    if (isDark) {
+        // Switch to light mode
+        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
+        console.log('Switched to light mode');
+        updateThemeButton(false);
+    } else {
+        // Switch to dark mode
+        document.documentElement.classList.remove('light');
+        document.documentElement.classList.add('dark');
+        console.log('Switched to dark mode');
+        updateThemeButton(true);
+    }
+
+    console.log('HTML element classes:', document.documentElement.className);
+
+    closeAllModals();
+}
+
+// Theme toggle button
+if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        console.log('Theme button clicked!');
+        toggleTheme();
+    });
+} else {
+    console.error('Theme toggle button not found!');
+}
+
+// Initialize theme on page load
+initTheme();
 
 // Color picker modal toggle
 colorPickerBtn.addEventListener('click', (e) => {
@@ -139,7 +278,8 @@ eraserBtn.addEventListener('click', (e) => {
 document.addEventListener('click', (e) => {
     if (!colorPickerBtn.contains(e.target) && !colorPickerModal.contains(e.target) &&
         !penBtn.contains(e.target) && !strokePickerModal.contains(e.target) &&
-        !eraserBtn.contains(e.target) && !eraserModal.contains(e.target)) {
+        !eraserBtn.contains(e.target) && !eraserModal.contains(e.target) &&
+        !menuBtn.contains(e.target) && !menuModal.contains(e.target)) {
         closeAllModals();
     }
 });
@@ -164,8 +304,14 @@ activeStrokeCanvas.addEventListener('pointerup', endDrawing);
 activeStrokeCanvas.addEventListener('pointerleave', endDrawing);
 activeStrokeCanvas.addEventListener('pointercancel', endDrawing);
 
-// Disable context menu on long press
+// Disable context menu on long press for canvas
 activeStrokeCanvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+});
+
+// Disable context menu on toolbars (touch and hold)
+const header = document.querySelector('.header');
+header.addEventListener('contextmenu', (e) => {
     e.preventDefault();
 });
 
@@ -237,9 +383,18 @@ function loadPDF(file) {
                 const containerWidth = canvasContainer.clientWidth;
                 const viewport = page.getViewport({ scale: 1 });
                 scale = containerWidth / viewport.width;
+                fitMode = 'width'; // Set initial fit mode
                 updateZoomDisplay();
+                updateFitButton(); // Update button to show current mode
                 renderPage(pageNum);
                 updatePageControls();
+
+                // Enter fullscreen after PDF is loaded
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => {
+                        console.log('Fullscreen not available or denied:', err);
+                    });
+                }
             });
         }).catch(err => {
             console.error('Error loading PDF:', err);
@@ -344,18 +499,83 @@ function zoomOut() {
     queueRenderPage(pageNum);
 }
 
+// Cycle through fit modes: width -> height -> width
+function cycleFitMode() {
+    if (!pdfDoc) return;
+
+    // Toggle between width and height
+    if (fitMode === 'width') {
+        fitMode = 'height';
+        fitToHeight();
+    } else {
+        fitMode = 'width';
+        fitToWidth();
+    }
+
+    updateFitButton();
+}
+
 // Fit to width
 function fitToWidth() {
     if (!pdfDoc) return;
 
     pdfDoc.getPage(pageNum).then(page => {
         const canvasContainer = document.getElementById('canvasContainer');
-        const containerWidth = canvasContainer.clientWidth; // Full width
+        const containerWidth = canvasContainer.clientWidth;
         const viewport = page.getViewport({ scale: 1 });
         scale = containerWidth / viewport.width;
         updateZoomDisplay();
         queueRenderPage(pageNum);
     });
+}
+
+// Fit to height
+function fitToHeight() {
+    if (!pdfDoc) return;
+
+    pdfDoc.getPage(pageNum).then(page => {
+        const canvasContainer = document.getElementById('canvasContainer');
+        const containerHeight = canvasContainer.clientHeight;
+        const viewport = page.getViewport({ scale: 1 });
+        scale = containerHeight / viewport.height;
+        updateZoomDisplay();
+        queueRenderPage(pageNum);
+    });
+}
+
+// Best fit (fit entire page in viewport)
+function fitToBest() {
+    if (!pdfDoc) return;
+
+    pdfDoc.getPage(pageNum).then(page => {
+        const canvasContainer = document.getElementById('canvasContainer');
+        const containerWidth = canvasContainer.clientWidth;
+        const containerHeight = canvasContainer.clientHeight;
+        const viewport = page.getViewport({ scale: 1 });
+
+        // Calculate scale for both dimensions and use the smaller one
+        const scaleWidth = containerWidth / viewport.width;
+        const scaleHeight = containerHeight / viewport.height;
+        scale = Math.min(scaleWidth, scaleHeight);
+
+        updateZoomDisplay();
+        queueRenderPage(pageNum);
+    });
+}
+
+// Update fit button icon and title based on current mode
+function updateFitButton() {
+    const fitIcon = zoomFitBtn.querySelector('svg');
+
+    if (fitMode === 'width') {
+        // Fit to width icon (vertical lines)
+        fitIcon.innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line>';
+        zoomFitBtn.title = 'Fit to Width';
+    } else {
+        // Fit to height icon (horizontal lines)
+        fitIcon.innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line>';
+        zoomFitBtn.title = 'Fit to Height';
+    }
 }
 
 // Update zoom display
@@ -365,6 +585,157 @@ function updateZoomDisplay() {
 
 // Initialize zoom display
 updateZoomDisplay();
+
+// Fullscreen toggle
+function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+        // Enter fullscreen
+        document.documentElement.requestFullscreen().catch(err => {
+            console.error('Error attempting to enable fullscreen:', err);
+        });
+    } else {
+        // Exit fullscreen
+        document.exitFullscreen();
+    }
+}
+
+// Update fullscreen icon when fullscreen state changes
+document.addEventListener('fullscreenchange', () => {
+    if (document.fullscreenElement) {
+        // In fullscreen - show exit fullscreen icon
+        fullscreenIcon.innerHTML = '<path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path>';
+        fullscreenBtn.title = 'Exit Fullscreen';
+    } else {
+        // Not in fullscreen - show enter fullscreen icon
+        fullscreenIcon.innerHTML = '<path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>';
+        fullscreenBtn.title = 'Fullscreen';
+    }
+});
+
+// ============================================
+// PAGE FILMSTRIP FUNCTIONS
+// ============================================
+
+// Open filmstrip when clicking page info
+if (pageInfo) {
+    pageInfo.addEventListener('click', () => {
+        if (pdfDoc) {
+            openFilmstrip();
+        }
+    });
+}
+
+// Close filmstrip button
+if (closeFilmstrip) {
+    closeFilmstrip.addEventListener('click', () => {
+        closeFilmstripModal();
+    });
+}
+
+// Close filmstrip when clicking overlay
+if (filmstripModal) {
+    filmstripModal.addEventListener('click', (e) => {
+        if (e.target === filmstripModal) {
+            closeFilmstripModal();
+        }
+    });
+}
+
+// Open filmstrip and generate thumbnails
+function openFilmstrip() {
+    if (!pdfDoc) return;
+
+    filmstripModal.style.display = 'block';
+    // Trigger animation after display is set
+    setTimeout(() => {
+        filmstripModal.classList.add('show');
+    }, 10);
+    generateFilmstripThumbnails();
+}
+
+// Close filmstrip with animation
+function closeFilmstripModal() {
+    filmstripModal.classList.remove('show');
+    // Wait for animation to complete before hiding
+    setTimeout(() => {
+        filmstripModal.style.display = 'none';
+    }, 300);
+}
+
+// Generate thumbnails for all pages
+async function generateFilmstripThumbnails() {
+    // Clear existing thumbnails
+    filmstripContent.innerHTML = '';
+
+    const thumbnailWidth = 300; // Fixed width for thumbnails
+    const numPages = pdfDoc.numPages;
+
+    for (let i = 1; i <= numPages; i++) {
+        const page = await pdfDoc.getPage(i);
+        const viewport = page.getViewport({ scale: 1 });
+
+        // Calculate scale to fit thumbnail width
+        const thumbScale = thumbnailWidth / viewport.width;
+        const thumbViewport = page.getViewport({ scale: thumbScale });
+
+        // Create canvas for thumbnail
+        const thumbCanvas = document.createElement('canvas');
+        thumbCanvas.width = thumbViewport.width;
+        thumbCanvas.height = thumbViewport.height;
+        const thumbCtx = thumbCanvas.getContext('2d');
+
+        // Render page to thumbnail canvas
+        await page.render({
+            canvasContext: thumbCtx,
+            viewport: thumbViewport
+        }).promise;
+
+        // Create filmstrip page element
+        const pageEl = document.createElement('div');
+        pageEl.className = 'filmstrip-page';
+        if (i === pageNum) {
+            pageEl.classList.add('active');
+        }
+        pageEl.dataset.pageNum = i;
+
+        // Add canvas
+        pageEl.appendChild(thumbCanvas);
+
+        // Add page number label
+        const label = document.createElement('div');
+        label.className = 'filmstrip-page-number';
+        label.textContent = `Page ${i}`;
+        pageEl.appendChild(label);
+
+        // Click handler to navigate to page
+        pageEl.addEventListener('click', () => {
+            goToPage(i);
+            closeFilmstripModal();
+        });
+
+        filmstripContent.appendChild(pageEl);
+    }
+
+    // Scroll to current page in filmstrip
+    scrollToCurrentPageInFilmstrip();
+}
+
+// Navigate to specific page
+function goToPage(num) {
+    if (num < 1 || num > pdfDoc.numPages) return;
+    pageNum = num;
+    queueRenderPage(pageNum);
+    updatePageControls();
+    loadPageAnnotations();
+}
+
+// Scroll filmstrip to show current page
+function scrollToCurrentPageInFilmstrip() {
+    const activePage = filmstripContent.querySelector('.filmstrip-page.active');
+    if (activePage) {
+        activePage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
 
 // Initialize Ink API
 async function initInkAPI() {
