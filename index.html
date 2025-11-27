@@ -30,27 +30,7 @@
                         <path d="M3 17a9 9 0 019-9 9 9 0 016 2.3L21 13"></path>
                     </svg>
                 </button>
-            </div>
-
-            <div class="header-controls" id="headerControls" style="display: none;">
-                <!-- Navigation -->
-                <div class="toolbar-group">
-                    <button id="prevPage" class="btn btn-icon-sm" title="Previous Page">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="15 18 9 12 15 6"></polyline>
-                        </svg>
-                    </button>
-                    <div class="page-info">
-                        <span id="pageNum">1</span>/<span id="pageCount">0</span>
-                    </div>
-                    <button id="nextPage" class="btn btn-icon-sm" title="Next Page">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="9 18 15 12 9 6"></polyline>
-                        </svg>
-                    </button>
-                </div>
-
-                <!-- Zoom -->
+                <div style="width: 28px;"></div>
                 <div class="toolbar-group">
                     <button id="zoomOut" class="btn btn-icon-sm" title="Zoom Out">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -76,7 +56,9 @@
                         </svg>
                     </button>
                 </div>
+            </div>
 
+            <div class="header-controls" id="headerControls" style="display: none;">
                 <!-- Drawing Tools -->
                 <div class="toolbar-group">
                     <button id="penTool" class="btn btn-icon-sm tool-active" title="Pen">
@@ -93,30 +75,98 @@
                 </div>
 
                 <!-- Colors -->
-                <div class="toolbar-group color-picker">
-                    <button class="color-btn color-active" data-color="#000000" style="background: #000000;" title="Black"></button>
-                    <button class="color-btn" data-color="#FF0000" style="background: #FF0000;" title="Red"></button>
-                    <button class="color-btn" data-color="#0000FF" style="background: #0000FF;" title="Blue"></button>
-                    <button class="color-btn" data-color="#00AA00" style="background: #00AA00;" title="Green"></button>
+                <div class="toolbar-group color-picker-container">
+                    <button id="colorPickerBtn" class="btn btn-icon-sm" title="Color Picker">
+                        <div class="color-indicator" style="background: #000000;"></div>
+                    </button>
+
+                    <!-- Color Picker Modal -->
+                    <div id="colorPickerModal" class="color-modal" style="display: none;">
+                        <div class="color-grid">
+                            <button class="color-option" data-color="#000000" style="background: #000000;" title="Black"></button>
+                            <button class="color-option" data-color="#FFFFFF" style="background: #FFFFFF; border: 1px solid #ccc;" title="White"></button>
+                            <button class="color-option" data-color="#FF0000" style="background: #FF0000;" title="Red"></button>
+                            <button class="color-option" data-color="#FF6B00" style="background: #FF6B00;" title="Orange"></button>
+                            <button class="color-option" data-color="#FFD700" style="background: #FFD700;" title="Gold"></button>
+                            <button class="color-option" data-color="#FFFF00" style="background: #FFFF00;" title="Yellow"></button>
+
+                            <button class="color-option" data-color="#00FF00" style="background: #00FF00;" title="Lime"></button>
+                            <button class="color-option" data-color="#00AA00" style="background: #00AA00;" title="Green"></button>
+                            <button class="color-option" data-color="#00FFFF" style="background: #00FFFF;" title="Cyan"></button>
+                            <button class="color-option" data-color="#0099FF" style="background: #0099FF;" title="Light Blue"></button>
+                            <button class="color-option" data-color="#0000FF" style="background: #0000FF;" title="Blue"></button>
+                            <button class="color-option" data-color="#0000AA" style="background: #0000AA;" title="Dark Blue"></button>
+
+                            <button class="color-option" data-color="#9900FF" style="background: #9900FF;" title="Purple"></button>
+                            <button class="color-option" data-color="#FF00FF" style="background: #FF00FF;" title="Magenta"></button>
+                            <button class="color-option" data-color="#FF1493" style="background: #FF1493;" title="Hot Pink"></button>
+                            <button class="color-option" data-color="#FF69B4" style="background: #FF69B4;" title="Pink"></button>
+                            <button class="color-option" data-color="#8B0000" style="background: #8B0000;" title="Dark Red"></button>
+                            <button class="color-option" data-color="#A0522D" style="background: #A0522D;" title="Brown"></button>
+
+                            <button class="color-option" data-color="#666666" style="background: #666666;" title="Dark Gray"></button>
+                            <button class="color-option" data-color="#999999" style="background: #999999;" title="Gray"></button>
+                            <button class="color-option" data-color="#00CED1" style="background: #00CED1;" title="Turquoise"></button>
+                            <button class="color-option" data-color="#32CD32" style="background: #32CD32;" title="Lime Green"></button>
+                            <button class="color-option" data-color="#FFB6C1" style="background: #FFB6C1;" title="Light Pink"></button>
+                            <button class="color-option" data-color="#FFA500" style="background: #FFA500;" title="Orange"></button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Stroke Width -->
-                <div class="toolbar-group">
-                    <button id="thinStroke" class="btn btn-icon-sm stroke-btn" title="Thin" data-width="2">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                <div class="toolbar-group stroke-picker-container">
+                    <button id="strokePickerBtn" class="btn btn-icon-sm" title="Stroke Width">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="strokeIndicator">
                             <line x1="4" y1="12" x2="20" y2="12"></line>
                         </svg>
                     </button>
-                    <button id="mediumStroke" class="btn btn-icon-sm stroke-btn stroke-active" title="Medium" data-width="4">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="4" y1="12" x2="20" y2="12"></line>
-                        </svg>
-                    </button>
-                    <button id="thickStroke" class="btn btn-icon-sm stroke-btn" title="Thick" data-width="6">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                            <line x1="4" y1="12" x2="20" y2="12"></line>
-                        </svg>
-                    </button>
+
+                    <!-- Stroke Picker Modal -->
+                    <div id="strokePickerModal" class="stroke-modal" style="display: none;">
+                        <div class="stroke-grid">
+                            <button class="stroke-option" data-width="1" title="Extra Thin">
+                                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1">
+                                    <line x1="4" y1="14" x2="24" y2="14"></line>
+                                </svg>
+                            </button>
+                            <button class="stroke-option" data-width="2" title="Thin">
+                                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="4" y1="14" x2="24" y2="14"></line>
+                                </svg>
+                            </button>
+                            <button class="stroke-option" data-width="3" title="Medium Thin">
+                                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="3">
+                                    <line x1="4" y1="14" x2="24" y2="14"></line>
+                                </svg>
+                            </button>
+                            <button class="stroke-option stroke-active" data-width="4" title="Medium">
+                                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="4">
+                                    <line x1="4" y1="14" x2="24" y2="14"></line>
+                                </svg>
+                            </button>
+                            <button class="stroke-option" data-width="5" title="Medium Thick">
+                                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="5">
+                                    <line x1="4" y1="14" x2="24" y2="14"></line>
+                                </svg>
+                            </button>
+                            <button class="stroke-option" data-width="6" title="Thick">
+                                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="6">
+                                    <line x1="4" y1="14" x2="24" y2="14"></line>
+                                </svg>
+                            </button>
+                            <button class="stroke-option" data-width="8" title="Extra Thick">
+                                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="8">
+                                    <line x1="4" y1="14" x2="24" y2="14"></line>
+                                </svg>
+                            </button>
+                            <button class="stroke-option" data-width="10" title="Very Thick">
+                                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="10">
+                                    <line x1="4" y1="14" x2="24" y2="14"></line>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Actions -->
@@ -125,6 +175,25 @@
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="3 6 5 6 21 6"></polyline>
                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="header-right" id="headerRight" style="display: none;">
+                <!-- Navigation -->
+                <div class="toolbar-group">
+                    <button id="prevPage" class="btn btn-icon-sm" title="Previous Page">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                    </button>
+                    <div class="page-info">
+                        <span id="pageNum">1</span>/<span id="pageCount">0</span>
+                    </div>
+                    <button id="nextPage" class="btn btn-icon-sm" title="Next Page">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="9 18 15 12 9 6"></polyline>
                         </svg>
                     </button>
                 </div>

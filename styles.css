@@ -294,34 +294,99 @@ body {
     color: white !important;
 }
 
-.color-picker {
-    display: flex;
-    gap: 0.35rem;
-    align-items: center;
+.color-picker-container {
+    position: relative;
 }
 
-.color-btn {
-    width: 22px;
-    height: 22px;
+.color-indicator {
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
-    border: 2px solid var(--border-color);
+    border: 2px solid var(--bg-primary);
+    box-shadow: 0 0 0 1px var(--border-color);
+}
+
+.color-modal {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px;
+    box-shadow: var(--shadow-md);
+    z-index: 1000;
+}
+
+.color-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+}
+
+.color-option {
+    width: 28px;
+    height: 28px;
+    border: 2px solid transparent;
+    border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s ease;
     padding: 0;
 }
 
-.color-btn:hover {
+.color-option:hover {
     transform: scale(1.1);
-    border-color: var(--text-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    border-color: var(--accent-color);
 }
 
-.color-btn.color-active {
-    border: 2.5px solid var(--text-primary);
-    box-shadow: 0 0 0 1px var(--bg-primary);
+.stroke-picker-container {
+    position: relative;
 }
 
-.stroke-btn.stroke-active {
-    background-color: var(--bg-tertiary) !important;
+.stroke-modal {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px;
+    box-shadow: var(--shadow-md);
+    z-index: 1000;
+}
+
+.stroke-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+}
+
+.stroke-option {
+    width: 36px;
+    height: 36px;
+    border: 2px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 4px;
+    background: var(--bg-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.stroke-option:hover {
+    transform: scale(1.05);
+    background: var(--bg-tertiary);
+    border-color: var(--accent-color);
+}
+
+.stroke-option.stroke-active {
+    background: var(--bg-tertiary);
+    border-color: var(--accent-color);
 }
 
 /* Scrollbar Styling */

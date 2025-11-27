@@ -26,6 +26,7 @@ const openFileBtn = document.getElementById('openFileBtn');
 const welcomeScreen = document.getElementById('welcomeScreen');
 const pdfViewer = document.getElementById('pdfViewer');
 const headerControls = document.getElementById('headerControls');
+const headerRight = document.getElementById('headerRight');
 const canvas = document.getElementById('pdfCanvas');
 const ctx = canvas.getContext('2d');
 const pageNumDisplay = document.getElementById('pageNum');
@@ -48,8 +49,14 @@ const eraserTool = document.getElementById('eraserTool');
 const undoBtn = document.getElementById('undoBtn');
 const redoBtn = document.getElementById('redoBtn');
 const clearBtn = document.getElementById('clearBtn');
-const colorBtns = document.querySelectorAll('.color-btn');
-const strokeBtns = document.querySelectorAll('.stroke-btn');
+const colorPickerBtn = document.getElementById('colorPickerBtn');
+const colorPickerModal = document.getElementById('colorPickerModal');
+const colorIndicator = document.querySelector('.color-indicator');
+const colorOptions = document.querySelectorAll('.color-option');
+const strokePickerBtn = document.getElementById('strokePickerBtn');
+const strokePickerModal = document.getElementById('strokePickerModal');
+const strokeIndicator = document.getElementById('strokeIndicator');
+const strokeOptions = document.querySelectorAll('.stroke-option');
 
 // Ink API
 let inkPresenter = null;
@@ -70,19 +77,60 @@ undoBtn.addEventListener('click', undoLastStroke);
 redoBtn.addEventListener('click', redoLastStroke);
 clearBtn.addEventListener('click', clearAllAnnotations);
 
-colorBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-        currentColor = btn.dataset.color;
-        colorBtns.forEach(b => b.classList.remove('color-active'));
-        btn.classList.add('color-active');
+// Helper function to close all modals
+function closeAllModals() {
+    colorPickerModal.style.display = 'none';
+    strokePickerModal.style.display = 'none';
+}
+
+// Color picker modal toggle
+colorPickerBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isVisible = colorPickerModal.style.display === 'block';
+    closeAllModals();
+    colorPickerModal.style.display = isVisible ? 'none' : 'block';
+});
+
+// Color selection
+colorOptions.forEach(option => {
+    option.addEventListener('click', (e) => {
+        e.stopPropagation();
+        currentColor = option.dataset.color;
+        colorIndicator.style.background = currentColor;
+        closeAllModals();
+        // Activate pen tool when color is selected
+        setTool('pen');
     });
 });
 
-strokeBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-        currentStrokeWidth = parseInt(btn.dataset.width);
-        strokeBtns.forEach(b => b.classList.remove('stroke-active'));
-        btn.classList.add('stroke-active');
+// Close modals when clicking outside
+document.addEventListener('click', (e) => {
+    if (!colorPickerBtn.contains(e.target) && !colorPickerModal.contains(e.target) &&
+        !strokePickerBtn.contains(e.target) && !strokePickerModal.contains(e.target)) {
+        closeAllModals();
+    }
+});
+
+// Stroke picker modal toggle
+strokePickerBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isVisible = strokePickerModal.style.display === 'block';
+    closeAllModals();
+    strokePickerModal.style.display = isVisible ? 'none' : 'block';
+});
+
+// Stroke width selection
+strokeOptions.forEach(option => {
+    option.addEventListener('click', (e) => {
+        e.stopPropagation();
+        currentStrokeWidth = parseInt(option.dataset.width);
+        strokeIndicator.setAttribute('stroke-width', currentStrokeWidth);
+        // Update active state
+        strokeOptions.forEach(o => o.classList.remove('stroke-active'));
+        option.classList.add('stroke-active');
+        closeAllModals();
+        // Activate pen tool when stroke width is selected
+        setTool('pen');
     });
 });
 
@@ -152,6 +200,7 @@ function loadPDF(file) {
             welcomeScreen.style.display = 'none';
             pdfViewer.style.display = 'flex';
             headerControls.style.display = 'flex';
+            headerRight.style.display = 'flex';
 
             // Initialize Ink API
             await initInkAPI();
@@ -249,16 +298,16 @@ function updatePageControls() {
 
 // Zoom in
 function zoomIn() {
-    if (scale >= 3) return;
-    scale += 0.25;
+    if (scale >= 5) return;
+    scale += 0.01;
     updateZoomDisplay();
     queueRenderPage(pageNum);
 }
 
 // Zoom out
 function zoomOut() {
-    if (scale <= 0.5) return;
-    scale -= 0.25;
+    if (scale <= 0.1) return;
+    scale -= 0.01;
     updateZoomDisplay();
     queueRenderPage(pageNum);
 }
@@ -345,6 +394,9 @@ function startDrawing(e) {
     if (e.pointerType === 'touch') {
         return;
     }
+
+    // Close all modals when stylus/pen touches the screen
+    closeAllModals();
 
     // For pen/mouse only: capture pointer and prevent default
     e.preventDefault();
