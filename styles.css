@@ -341,19 +341,13 @@ body {
     left: 0;
     pointer-events: all;
     cursor: auto;
-    /* Disable ALL touch actions - critical for stylus pointer capture */
-    touch-action: none;
+    /* Touch action will be controlled by JavaScript */
     /* Prevent user from selecting text/elements */
     user-select: none;
     -webkit-user-select: none;
 }
 
-/* Make canvas area ignore touch completely - pass through to scrollable container */
-@media (pointer: coarse) and (hover: none) {
-    .canvas-container {
-        overflow: hidden;
-    }
-}
+/* Removed media query that was preventing scrolling on some touch devices */
 
 /* Tool and color buttons */
 .tool-active {

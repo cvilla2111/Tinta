@@ -132,9 +132,13 @@ function disableFingerScroll() {
     scrollToggleBtn.title = 'Enable Finger Scroll';
     scrollToggleBtn.classList.remove('tool-active');
     activeStrokeCanvas.style.pointerEvents = 'all';
-    activeStrokeCanvas.style.touchAction = 'none'; // Re-enable stylus drawing
-    activeStrokeCanvas.style.display = 'block'; // Show canvas
-    canvasContainer.style.touchAction = 'none'; // Prevent container scrolling
+    activeStrokeCanvas.style.touchAction = 'none';
+    activeStrokeCanvas.style.display = 'block';
+    annotationLayer.style.pointerEvents = 'none';
+    annotationLayer.style.touchAction = 'none';
+    pdfWrapper.style.touchAction = 'none';
+    canvasContainer.style.touchAction = 'none';
+    canvasContainer.style.overflow = 'auto';
 }
 
 // Scroll toggle functionality
@@ -146,8 +150,13 @@ scrollToggleBtn.addEventListener('click', () => {
         scrollIcon.innerHTML = '<path d="M18 11V6a2 2 0 0 0-4 0v5M14 11V4a2 2 0 0 0-4 0v7M10 11V6a2 2 0 0 0-4 0v5M6 11v4a8 8 0 0 0 8 8h.3a8 8 0 0 0 7.7-6.1l1-4A2 2 0 0 0 21 10h-2"></path><circle cx="14" cy="14" r="10" opacity="0.3" fill="currentColor"></circle>';
         scrollToggleBtn.title = 'Disable Finger Scroll';
         scrollToggleBtn.classList.add('tool-active');
-        activeStrokeCanvas.style.display = 'none'; // Completely hide the canvas
-        canvasContainer.style.touchAction = 'auto'; // Allow container touch scrolling
+        activeStrokeCanvas.style.display = 'none';
+        annotationLayer.style.pointerEvents = 'none';
+        annotationLayer.style.touchAction = 'auto';
+        pdfWrapper.style.touchAction = 'auto';
+        canvasContainer.style.touchAction = 'pan-y'; // Explicitly allow vertical panning
+        canvasContainer.style.overflow = 'scroll'; // Force scrolling
+        console.log('Finger scroll enabled - Surface Go 2 mode');
     } else {
         disableFingerScroll();
     }
