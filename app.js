@@ -44,8 +44,9 @@ const annotationLayer = document.getElementById('annotationLayer');
 const activeStrokeCanvas = document.getElementById('activeStrokeCanvas');
 const activeStrokeCtx = activeStrokeCanvas.getContext('2d');
 const pdfWrapper = document.getElementById('pdfWrapper');
-const penTool = document.getElementById('penTool');
-const eraserTool = document.getElementById('eraserTool');
+const penBtn = document.getElementById('penBtn');
+const eraserBtn = document.getElementById('eraserBtn');
+const eraserModal = document.getElementById('eraserModal');
 const undoBtn = document.getElementById('undoBtn');
 const redoBtn = document.getElementById('redoBtn');
 const clearBtn = document.getElementById('clearBtn');
@@ -53,9 +54,7 @@ const colorPickerBtn = document.getElementById('colorPickerBtn');
 const colorPickerModal = document.getElementById('colorPickerModal');
 const colorIndicator = document.querySelector('.color-indicator');
 const colorOptions = document.querySelectorAll('.color-option');
-const strokePickerBtn = document.getElementById('strokePickerBtn');
 const strokePickerModal = document.getElementById('strokePickerModal');
-const strokeIndicator = document.getElementById('strokeIndicator');
 const strokeOptions = document.querySelectorAll('.stroke-option');
 
 // Ink API
@@ -71,16 +70,33 @@ zoomOutBtn.addEventListener('click', zoomOut);
 zoomFitBtn.addEventListener('click', fitToWidth);
 
 // Event Listeners - Annotation Tools
-penTool.addEventListener('click', () => setTool('pen'));
-eraserTool.addEventListener('click', () => setTool('eraser'));
+penBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+
+    // If pen is already active, toggle modal
+    if (currentTool === 'pen') {
+        const isVisible = strokePickerModal.style.display === 'block';
+        closeAllModals();
+        strokePickerModal.style.display = isVisible ? 'none' : 'block';
+    } else {
+        // If pen is not active, activate it without opening modal
+        closeAllModals();
+        setTool('pen');
+    }
+});
+
 undoBtn.addEventListener('click', undoLastStroke);
 redoBtn.addEventListener('click', redoLastStroke);
-clearBtn.addEventListener('click', clearAllAnnotations);
+clearBtn.addEventListener('click', () => {
+    clearAllAnnotations();
+    closeAllModals();
+});
 
 // Helper function to close all modals
 function closeAllModals() {
     colorPickerModal.style.display = 'none';
     strokePickerModal.style.display = 'none';
+    eraserModal.style.display = 'none';
 }
 
 // Color picker modal toggle
@@ -103,20 +119,29 @@ colorOptions.forEach(option => {
     });
 });
 
-// Close modals when clicking outside
-document.addEventListener('click', (e) => {
-    if (!colorPickerBtn.contains(e.target) && !colorPickerModal.contains(e.target) &&
-        !strokePickerBtn.contains(e.target) && !strokePickerModal.contains(e.target)) {
+// Eraser button - activate tool or open modal
+eraserBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+
+    // If eraser is already active, toggle modal
+    if (currentTool === 'eraser') {
+        const isVisible = eraserModal.style.display === 'block';
         closeAllModals();
+        eraserModal.style.display = isVisible ? 'none' : 'block';
+    } else {
+        // If eraser is not active, activate it without opening modal
+        closeAllModals();
+        setTool('eraser');
     }
 });
 
-// Stroke picker modal toggle
-strokePickerBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const isVisible = strokePickerModal.style.display === 'block';
-    closeAllModals();
-    strokePickerModal.style.display = isVisible ? 'none' : 'block';
+// Close modals when clicking outside
+document.addEventListener('click', (e) => {
+    if (!colorPickerBtn.contains(e.target) && !colorPickerModal.contains(e.target) &&
+        !penBtn.contains(e.target) && !strokePickerModal.contains(e.target) &&
+        !eraserBtn.contains(e.target) && !eraserModal.contains(e.target)) {
+        closeAllModals();
+    }
 });
 
 // Stroke width selection
@@ -124,13 +149,11 @@ strokeOptions.forEach(option => {
     option.addEventListener('click', (e) => {
         e.stopPropagation();
         currentStrokeWidth = parseInt(option.dataset.width);
-        strokeIndicator.setAttribute('stroke-width', currentStrokeWidth);
         // Update active state
         strokeOptions.forEach(o => o.classList.remove('stroke-active'));
         option.classList.add('stroke-active');
         closeAllModals();
-        // Activate pen tool when stroke width is selected
-        setTool('pen');
+        // Pen tool is already active since modal only opens when pen is active
     });
 });
 
@@ -207,8 +230,17 @@ function loadPDF(file) {
 
             // Reset to first page
             pageNum = 1;
-            renderPage(pageNum);
-            updatePageControls();
+
+            // Calculate fit to width scale as default
+            pdf.getPage(pageNum).then(page => {
+                const canvasContainer = document.getElementById('canvasContainer');
+                const containerWidth = canvasContainer.clientWidth;
+                const viewport = page.getViewport({ scale: 1 });
+                scale = containerWidth / viewport.width;
+                updateZoomDisplay();
+                renderPage(pageNum);
+                updatePageControls();
+            });
         }).catch(err => {
             console.error('Error loading PDF:', err);
             alert('Error loading PDF file. Please try another file.');
@@ -358,12 +390,12 @@ function setTool(tool) {
     currentTool = tool;
 
     if (tool === 'pen') {
-        penTool.classList.add('tool-active');
-        eraserTool.classList.remove('tool-active');
+        penBtn.classList.add('tool-active');
+        eraserBtn.classList.remove('tool-active');
         annotationLayer.classList.add('drawing-mode');
     } else if (tool === 'eraser') {
-        eraserTool.classList.add('tool-active');
-        penTool.classList.remove('tool-active');
+        eraserBtn.classList.add('tool-active');
+        penBtn.classList.remove('tool-active');
         annotationLayer.classList.add('drawing-mode');
     }
 }

@@ -59,70 +59,16 @@
             </div>
 
             <div class="header-controls" id="headerControls" style="display: none;">
-                <!-- Drawing Tools -->
-                <div class="toolbar-group">
-                    <button id="penTool" class="btn btn-icon-sm tool-active" title="Pen">
+                <!-- Pen Tool with Modal -->
+                <div class="toolbar-group pen-picker-container">
+                    <button id="penBtn" class="btn btn-icon-sm tool-active" title="Pen">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
                             <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
                         </svg>
                     </button>
-                    <button id="eraserTool" class="btn btn-icon-sm" title="Eraser">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M20 20H7L3 16l7-7 9 9v2z"></path>
-                        </svg>
-                    </button>
-                </div>
 
-                <!-- Colors -->
-                <div class="toolbar-group color-picker-container">
-                    <button id="colorPickerBtn" class="btn btn-icon-sm" title="Color Picker">
-                        <div class="color-indicator" style="background: #000000;"></div>
-                    </button>
-
-                    <!-- Color Picker Modal -->
-                    <div id="colorPickerModal" class="color-modal" style="display: none;">
-                        <div class="color-grid">
-                            <button class="color-option" data-color="#000000" style="background: #000000;" title="Black"></button>
-                            <button class="color-option" data-color="#FFFFFF" style="background: #FFFFFF; border: 1px solid #ccc;" title="White"></button>
-                            <button class="color-option" data-color="#FF0000" style="background: #FF0000;" title="Red"></button>
-                            <button class="color-option" data-color="#FF6B00" style="background: #FF6B00;" title="Orange"></button>
-                            <button class="color-option" data-color="#FFD700" style="background: #FFD700;" title="Gold"></button>
-                            <button class="color-option" data-color="#FFFF00" style="background: #FFFF00;" title="Yellow"></button>
-
-                            <button class="color-option" data-color="#00FF00" style="background: #00FF00;" title="Lime"></button>
-                            <button class="color-option" data-color="#00AA00" style="background: #00AA00;" title="Green"></button>
-                            <button class="color-option" data-color="#00FFFF" style="background: #00FFFF;" title="Cyan"></button>
-                            <button class="color-option" data-color="#0099FF" style="background: #0099FF;" title="Light Blue"></button>
-                            <button class="color-option" data-color="#0000FF" style="background: #0000FF;" title="Blue"></button>
-                            <button class="color-option" data-color="#0000AA" style="background: #0000AA;" title="Dark Blue"></button>
-
-                            <button class="color-option" data-color="#9900FF" style="background: #9900FF;" title="Purple"></button>
-                            <button class="color-option" data-color="#FF00FF" style="background: #FF00FF;" title="Magenta"></button>
-                            <button class="color-option" data-color="#FF1493" style="background: #FF1493;" title="Hot Pink"></button>
-                            <button class="color-option" data-color="#FF69B4" style="background: #FF69B4;" title="Pink"></button>
-                            <button class="color-option" data-color="#8B0000" style="background: #8B0000;" title="Dark Red"></button>
-                            <button class="color-option" data-color="#A0522D" style="background: #A0522D;" title="Brown"></button>
-
-                            <button class="color-option" data-color="#666666" style="background: #666666;" title="Dark Gray"></button>
-                            <button class="color-option" data-color="#999999" style="background: #999999;" title="Gray"></button>
-                            <button class="color-option" data-color="#00CED1" style="background: #00CED1;" title="Turquoise"></button>
-                            <button class="color-option" data-color="#32CD32" style="background: #32CD32;" title="Lime Green"></button>
-                            <button class="color-option" data-color="#FFB6C1" style="background: #FFB6C1;" title="Light Pink"></button>
-                            <button class="color-option" data-color="#FFA500" style="background: #FFA500;" title="Orange"></button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Stroke Width -->
-                <div class="toolbar-group stroke-picker-container">
-                    <button id="strokePickerBtn" class="btn btn-icon-sm" title="Stroke Width">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="strokeIndicator">
-                            <line x1="4" y1="12" x2="20" y2="12"></line>
-                        </svg>
-                    </button>
-
-                    <!-- Stroke Picker Modal -->
+                    <!-- Stroke Width Modal -->
                     <div id="strokePickerModal" class="stroke-modal" style="display: none;">
                         <div class="stroke-grid">
                             <button class="stroke-option" data-width="1" title="Extra Thin">
@@ -169,15 +115,66 @@
                     </div>
                 </div>
 
-                <!-- Actions -->
-                <div class="toolbar-group">
-                    <button id="clearBtn" class="btn btn-icon-sm" title="Clear All">
+                <!-- Eraser Tool with Modal -->
+                <div class="toolbar-group eraser-picker-container">
+                    <button id="eraserBtn" class="btn btn-icon-sm" title="Eraser">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+                            <path d="M20 20H7L3 16l7-7 9 9v2z"></path>
                         </svg>
                     </button>
+
+                    <!-- Eraser Modal -->
+                    <div id="eraserModal" class="eraser-modal" style="display: none;">
+                        <button id="clearBtn" class="eraser-option clear-option" title="Clear All Annotations">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+                            </svg>
+                            <span>Clear All</span>
+                        </button>
+                    </div>
                 </div>
+
+                <!-- Colors -->
+                <div class="toolbar-group color-picker-container">
+                    <button id="colorPickerBtn" class="btn btn-icon-sm" title="Color Picker">
+                        <div class="color-indicator" style="background: #000000;"></div>
+                    </button>
+
+                    <!-- Color Picker Modal -->
+                    <div id="colorPickerModal" class="color-modal" style="display: none;">
+                        <div class="color-grid">
+                            <button class="color-option" data-color="#000000" style="background: #000000;" title="Black"></button>
+                            <button class="color-option" data-color="#FFFFFF" style="background: #FFFFFF; border: 1px solid #ccc;" title="White"></button>
+                            <button class="color-option" data-color="#FF0000" style="background: #FF0000;" title="Red"></button>
+                            <button class="color-option" data-color="#FF6B00" style="background: #FF6B00;" title="Orange"></button>
+                            <button class="color-option" data-color="#FFD700" style="background: #FFD700;" title="Gold"></button>
+                            <button class="color-option" data-color="#FFFF00" style="background: #FFFF00;" title="Yellow"></button>
+
+                            <button class="color-option" data-color="#00FF00" style="background: #00FF00;" title="Lime"></button>
+                            <button class="color-option" data-color="#00AA00" style="background: #00AA00;" title="Green"></button>
+                            <button class="color-option" data-color="#00FFFF" style="background: #00FFFF;" title="Cyan"></button>
+                            <button class="color-option" data-color="#0099FF" style="background: #0099FF;" title="Light Blue"></button>
+                            <button class="color-option" data-color="#0000FF" style="background: #0000FF;" title="Blue"></button>
+                            <button class="color-option" data-color="#0000AA" style="background: #0000AA;" title="Dark Blue"></button>
+
+                            <button class="color-option" data-color="#9900FF" style="background: #9900FF;" title="Purple"></button>
+                            <button class="color-option" data-color="#FF00FF" style="background: #FF00FF;" title="Magenta"></button>
+                            <button class="color-option" data-color="#FF1493" style="background: #FF1493;" title="Hot Pink"></button>
+                            <button class="color-option" data-color="#FF69B4" style="background: #FF69B4;" title="Pink"></button>
+                            <button class="color-option" data-color="#8B0000" style="background: #8B0000;" title="Dark Red"></button>
+                            <button class="color-option" data-color="#A0522D" style="background: #A0522D;" title="Brown"></button>
+
+                            <button class="color-option" data-color="#666666" style="background: #666666;" title="Dark Gray"></button>
+                            <button class="color-option" data-color="#999999" style="background: #999999;" title="Gray"></button>
+                            <button class="color-option" data-color="#00CED1" style="background: #00CED1;" title="Turquoise"></button>
+                            <button class="color-option" data-color="#32CD32" style="background: #32CD32;" title="Lime Green"></button>
+                            <button class="color-option" data-color="#FFB6C1" style="background: #FFB6C1;" title="Light Pink"></button>
+                            <button class="color-option" data-color="#FFA500" style="background: #FFA500;" title="Orange"></button>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
             <div class="header-right" id="headerRight" style="display: none;">
