@@ -20,6 +20,11 @@ let currentPath = null;
 let currentPoints = [];
 let activePointerId = null; // Track which pointer is currently drawing
 let isEraserActive = false; // Track if current stroke is erasing
+let laserStrokes = []; // Store all laser strokes
+let lastLaserStrokeTime = 0; // Timestamp of last laser stroke
+let laserClearTimeout = null; // Timeout for clearing laser strokes
+let laserFadeOpacity = 1.0; // Current opacity for laser fade animation
+let laserFadeAnimationId = null; // Animation frame ID for fade
 
 // DOM Elements
 const fileInput = document.getElementById('fileInput');
@@ -61,6 +66,7 @@ const activeStrokeCanvas = document.getElementById('activeStrokeCanvas');
 const activeStrokeCtx = activeStrokeCanvas.getContext('2d');
 const pdfWrapper = document.getElementById('pdfWrapper');
 const penBtn = document.getElementById('penBtn');
+const laserBtn = document.getElementById('laserBtn');
 const eraserBtn = document.getElementById('eraserBtn');
 const eraserModal = document.getElementById('eraserModal');
 const undoBtn = document.getElementById('undoBtn');
@@ -112,6 +118,12 @@ redoBtn.addEventListener('click', redoLastStroke);
 clearBtn.addEventListener('click', () => {
     clearAllAnnotations();
     closeAllModals();
+});
+
+// Laser pointer button
+laserBtn.addEventListener('click', () => {
+    closeAllModals();
+    setTool('laser');
 });
 
 // State for finger scroll
@@ -775,10 +787,17 @@ function setTool(tool) {
 
     if (tool === 'pen') {
         penBtn.classList.add('tool-active');
+        laserBtn.classList.remove('tool-active');
+        eraserBtn.classList.remove('tool-active');
+        annotationLayer.classList.add('drawing-mode');
+    } else if (tool === 'laser') {
+        laserBtn.classList.add('tool-active');
+        penBtn.classList.remove('tool-active');
         eraserBtn.classList.remove('tool-active');
         annotationLayer.classList.add('drawing-mode');
     } else if (tool === 'eraser') {
         eraserBtn.classList.add('tool-active');
+        laserBtn.classList.remove('tool-active');
         penBtn.classList.remove('tool-active');
         annotationLayer.classList.add('drawing-mode');
     }
@@ -836,6 +855,24 @@ function startDrawing(e) {
         drawEraserPreview(pos.x, pos.y);
         // Check for strokes to erase
         eraseAtPoint(pos.x, pos.y);
+    } else if (currentTool === 'laser') {
+        // Cancel any ongoing fade animation when starting new laser stroke
+        if (laserFadeAnimationId) {
+            cancelAnimationFrame(laserFadeAnimationId);
+            laserFadeAnimationId = null;
+        }
+
+        // Ensure full opacity when drawing
+        laserFadeOpacity = 1.0;
+
+        // Setup laser - same as pen but red
+        activeStrokeCtx.strokeStyle = '#FF0000'; // Red color
+        activeStrokeCtx.lineWidth = 4; // Medium size
+        activeStrokeCtx.lineCap = 'round';
+        activeStrokeCtx.lineJoin = 'round';
+
+        activeStrokeCtx.beginPath();
+        activeStrokeCtx.moveTo(pos.x, pos.y);
     } else if (currentTool === 'pen') {
         // Setup canvas context for drawing - match SVG stroke exactly
         activeStrokeCtx.strokeStyle = currentColor;
@@ -881,7 +918,15 @@ function draw(e) {
         return;
     }
 
-    if (currentTool !== 'pen') return;
+    if (currentTool === 'laser' || currentTool === 'pen') {
+        // Continue drawing (works for both laser and pen)
+        // If laser, ensure opacity is at 100% while actively drawing
+        if (currentTool === 'laser') {
+            laserFadeOpacity = 1.0;
+        }
+    } else {
+        return;
+    }
 
     // Only add point if it's far enough from the last one (reduce noise)
     const lastPoint = currentPoints[currentPoints.length - 1];
@@ -899,6 +944,26 @@ function draw(e) {
     if (currentPoints.length >= 3) {
         // Clear and redraw with smooth curve
         activeStrokeCtx.clearRect(0, 0, activeStrokeCanvas.width, activeStrokeCanvas.height);
+
+        // If laser tool, redraw all saved laser strokes first
+        if (currentTool === 'laser') {
+            if (laserStrokes.length > 0) {
+                redrawLaserStrokes(1.0); // Force full opacity while drawing
+            }
+
+            // Set up context for laser (since we cleared and used save/restore)
+            activeStrokeCtx.strokeStyle = '#FF0000';
+            activeStrokeCtx.lineWidth = 4;
+            activeStrokeCtx.lineCap = 'round';
+            activeStrokeCtx.lineJoin = 'round';
+            // Add blur/glow effect with increased glow
+            activeStrokeCtx.shadowBlur = 15;
+            activeStrokeCtx.shadowColor = 'rgba(255, 0, 0, 0.9)';
+            activeStrokeCtx.shadowOffsetX = 0;
+            activeStrokeCtx.shadowOffsetY = 0;
+            activeStrokeCtx.globalCompositeOperation = 'source-over';
+        }
+
         activeStrokeCtx.beginPath();
         activeStrokeCtx.moveTo(currentPoints[0].x, currentPoints[0].y);
 
@@ -918,8 +983,40 @@ function draw(e) {
         activeStrokeCtx.stroke();
     } else {
         // For first few points, just draw lines
-        activeStrokeCtx.lineTo(pos.x, pos.y);
-        activeStrokeCtx.stroke();
+        // If laser tool, we need to preserve saved strokes
+        if (currentTool === 'laser') {
+            // Clear and redraw everything for laser
+            activeStrokeCtx.clearRect(0, 0, activeStrokeCanvas.width, activeStrokeCanvas.height);
+
+            // Redraw all saved laser strokes with full opacity
+            if (laserStrokes.length > 0) {
+                redrawLaserStrokes(1.0); // Force full opacity while drawing
+            }
+
+            // Draw current stroke with simple lines (for first few points)
+            activeStrokeCtx.save();
+            activeStrokeCtx.strokeStyle = '#FF0000';
+            activeStrokeCtx.lineWidth = 4;
+            activeStrokeCtx.lineCap = 'round';
+            activeStrokeCtx.lineJoin = 'round';
+            // Add blur/glow effect with increased glow
+            activeStrokeCtx.shadowBlur = 15;
+            activeStrokeCtx.shadowColor = 'rgba(255, 0, 0, 0.9)';
+            activeStrokeCtx.shadowOffsetX = 0;
+            activeStrokeCtx.shadowOffsetY = 0;
+            activeStrokeCtx.globalCompositeOperation = 'source-over';
+            activeStrokeCtx.beginPath();
+            activeStrokeCtx.moveTo(currentPoints[0].x, currentPoints[0].y);
+            for (let i = 1; i < currentPoints.length; i++) {
+                activeStrokeCtx.lineTo(currentPoints[i].x, currentPoints[i].y);
+            }
+            activeStrokeCtx.stroke();
+            activeStrokeCtx.restore();
+        } else {
+            // For pen tool, just continue drawing
+            activeStrokeCtx.lineTo(pos.x, pos.y);
+            activeStrokeCtx.stroke();
+        }
     }
 }
 
@@ -946,6 +1043,11 @@ function endDrawing(e) {
     // Clear eraser preview if we were erasing
     if (isEraserActive) {
         activeStrokeCtx.clearRect(0, 0, activeStrokeCanvas.width, activeStrokeCanvas.height);
+    }
+
+    // Save laser stroke for temporary display
+    if (currentTool === 'laser' && currentPoints.length > 1) {
+        saveLaserStroke();
     }
 
     isDrawing = false;
@@ -1215,4 +1317,160 @@ function eraseAtPoint(x, y) {
     undoStack[pageNum] = [];
 
     updateUndoRedoButtons();
+}
+
+// ============================================
+// LASER POINTER FUNCTIONS
+// ============================================
+
+function saveLaserStroke() {
+    // Store the laser stroke
+    const laserStroke = {
+        points: currentPoints.map(p => ({ x: p.x, y: p.y }))
+    };
+
+    laserStrokes.push(laserStroke);
+    lastLaserStrokeTime = Date.now();
+
+    // Reset opacity when new stroke is added
+    laserFadeOpacity = 1.0;
+
+    // Cancel any ongoing fade animation
+    if (laserFadeAnimationId) {
+        cancelAnimationFrame(laserFadeAnimationId);
+        laserFadeAnimationId = null;
+    }
+
+    // Clear any existing timeout
+    if (laserClearTimeout) {
+        clearTimeout(laserClearTimeout);
+    }
+
+    // Set timeout to start fade after 0.5 seconds of no activity
+    laserClearTimeout = setTimeout(() => {
+        startLaserFade();
+    }, 500);
+
+    // Clear the canvas first to avoid double-drawing
+    activeStrokeCtx.clearRect(0, 0, activeStrokeCanvas.width, activeStrokeCanvas.height);
+
+    // Redraw all laser strokes (including the one we just saved)
+    redrawLaserStrokes(1.0);
+}
+
+function redrawLaserStrokes(opacity = null) {
+    // Don't clear - just draw all laser strokes
+    // (caller is responsible for clearing if needed)
+
+    // Use provided opacity or current fade opacity
+    // When actively drawing (opacity = 1.0), always use full opacity
+    const useOpacity = opacity !== null ? opacity : laserFadeOpacity;
+
+    // Save current context state
+    activeStrokeCtx.save();
+
+    // Draw all laser strokes with smooth curves (same as pen)
+    // Use rgba to support fade opacity
+    const red = 255;
+    const green = 0;
+    const blue = 0;
+    activeStrokeCtx.strokeStyle = `rgba(${red}, ${green}, ${blue}, ${useOpacity})`;
+    activeStrokeCtx.lineWidth = 4;
+    activeStrokeCtx.lineCap = 'round';
+    activeStrokeCtx.lineJoin = 'round';
+
+    // Add blur/glow effect with increased glow
+    activeStrokeCtx.shadowBlur = 15;
+    activeStrokeCtx.shadowColor = `rgba(${red}, ${green}, ${blue}, ${useOpacity * 0.9})`;
+    activeStrokeCtx.shadowOffsetX = 0;
+    activeStrokeCtx.shadowOffsetY = 0;
+    // Prevent shadow stacking - draw blur only once per stroke
+    activeStrokeCtx.globalCompositeOperation = 'source-over';
+
+    laserStrokes.forEach(stroke => {
+        if (stroke.points.length === 0) return;
+
+        activeStrokeCtx.beginPath();
+        activeStrokeCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+
+        if (stroke.points.length >= 3) {
+            // Draw smooth quadratic curves (same technique as pen)
+            for (let i = 1; i < stroke.points.length - 1; i++) {
+                const curr = stroke.points[i];
+                const next = stroke.points[i + 1];
+                const midX = (curr.x + next.x) / 2;
+                const midY = (curr.y + next.y) / 2;
+                activeStrokeCtx.quadraticCurveTo(curr.x, curr.y, midX, midY);
+            }
+
+            // Draw to last point
+            const last = stroke.points[stroke.points.length - 1];
+            const secondLast = stroke.points[stroke.points.length - 2];
+            activeStrokeCtx.quadraticCurveTo(secondLast.x, secondLast.y, last.x, last.y);
+        } else {
+            // For strokes with few points, just draw lines
+            for (let i = 1; i < stroke.points.length; i++) {
+                activeStrokeCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+            }
+        }
+
+        activeStrokeCtx.stroke();
+    });
+
+    // Restore context state
+    activeStrokeCtx.restore();
+}
+
+function startLaserFade() {
+    // Start fade animation
+    const fadeStartTime = performance.now();
+    const fadeDuration = 500; // 0.5 second fade
+
+    function animateFade(currentTime) {
+        // CRITICAL: Stop fade animation if user starts drawing again
+        if (isDrawing && currentTool === 'laser') {
+            laserFadeOpacity = 1.0;
+            laserFadeAnimationId = null;
+            return;
+        }
+
+        const elapsed = currentTime - fadeStartTime;
+        const progress = Math.min(elapsed / fadeDuration, 1);
+
+        // Ease-out cubic for smooth fade
+        laserFadeOpacity = 1 - (progress * progress * progress);
+
+        // Clear and redraw with new opacity
+        activeStrokeCtx.clearRect(0, 0, activeStrokeCanvas.width, activeStrokeCanvas.height);
+
+        if (laserStrokes.length > 0) {
+            redrawLaserStrokes();
+        }
+
+        if (progress < 1) {
+            // Continue animation
+            laserFadeAnimationId = requestAnimationFrame(animateFade);
+        } else {
+            // Fade complete, clear everything
+            clearLaserStrokes();
+        }
+    }
+
+    laserFadeAnimationId = requestAnimationFrame(animateFade);
+}
+
+function clearLaserStrokes() {
+    laserStrokes = [];
+    laserFadeOpacity = 1.0;
+    activeStrokeCtx.clearRect(0, 0, activeStrokeCanvas.width, activeStrokeCanvas.height);
+
+    if (laserClearTimeout) {
+        clearTimeout(laserClearTimeout);
+        laserClearTimeout = null;
+    }
+
+    if (laserFadeAnimationId) {
+        cancelAnimationFrame(laserFadeAnimationId);
+        laserFadeAnimationId = null;
+    }
 }
