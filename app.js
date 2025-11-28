@@ -879,6 +879,9 @@ function startDrawing(e) {
         activeStrokeCtx.lineWidth = currentStrokeWidth;
         activeStrokeCtx.lineCap = 'round';
         activeStrokeCtx.lineJoin = 'round';
+        // Clear any shadow settings from laser
+        activeStrokeCtx.shadowBlur = 0;
+        activeStrokeCtx.shadowColor = 'transparent';
 
         activeStrokeCtx.beginPath();
         activeStrokeCtx.moveTo(pos.x, pos.y);
@@ -981,6 +984,12 @@ function draw(e) {
         const secondLast = currentPoints[currentPoints.length - 2];
         activeStrokeCtx.quadraticCurveTo(secondLast.x, secondLast.y, last.x, last.y);
         activeStrokeCtx.stroke();
+
+        // Reset shadow settings after drawing (for non-laser tools)
+        if (currentTool !== 'laser') {
+            activeStrokeCtx.shadowBlur = 0;
+            activeStrokeCtx.shadowColor = 'transparent';
+        }
     } else {
         // For first few points, just draw lines
         // If laser tool, we need to preserve saved strokes
@@ -1262,6 +1271,9 @@ function drawEraserPreview(x, y) {
     const eraserSize = 10; // Eraser radius
 
     activeStrokeCtx.clearRect(0, 0, activeStrokeCanvas.width, activeStrokeCanvas.height);
+    // Clear any shadow settings from laser
+    activeStrokeCtx.shadowBlur = 0;
+    activeStrokeCtx.shadowColor = 'transparent';
     activeStrokeCtx.beginPath();
     activeStrokeCtx.arc(x, y, eraserSize, 0, Math.PI * 2);
     activeStrokeCtx.strokeStyle = '#999';
