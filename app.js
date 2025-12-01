@@ -25,6 +25,19 @@ let lastLaserStrokeTime = 0; // Timestamp of last laser stroke
 let laserClearTimeout = null; // Timeout for clearing laser strokes
 let laserFadeOpacity = 1.0; // Current opacity for laser fade animation
 let laserFadeAnimationId = null; // Animation frame ID for fade
+let lassoPoints = []; // Store lasso selection path points
+let selectedAnnotations = []; // Store currently selected annotation indices
+let isLassoing = false; // Track if user is drawing lasso
+let selectionBox = null; // Visual bounding box for selected annotations
+let isDraggingSelection = false; // Track if dragging selected annotations
+let dragStartPos = null; // Starting position for drag
+let selectionBounds = null; // Bounding box coordinates of selection
+let selectionBoxNeedsRedraw = false; // Flag to batch selection box redraws
+let isResizingSelection = false; // Track if resizing selected annotations
+let resizeHandle = null; // Which resize handle is being dragged ('nw', 'ne', 'sw', 'se')
+let resizeStartBounds = null; // Original bounds when resize started
+let resizeStartAnnotations = null; // Original annotation data when resize started
+const HANDLE_SIZE = 12; // Size of resize handles in pixels (50% bigger: 8 * 1.5 = 12)
 
 // DOM Elements
 const fileInput = document.getElementById('fileInput');
@@ -67,6 +80,7 @@ const activeStrokeCtx = activeStrokeCanvas.getContext('2d');
 const pdfWrapper = document.getElementById('pdfWrapper');
 const penBtn = document.getElementById('penBtn');
 const laserBtn = document.getElementById('laserBtn');
+const lassoBtn = document.getElementById('lassoBtn');
 const eraserBtn = document.getElementById('eraserBtn');
 const eraserModal = document.getElementById('eraserModal');
 const undoBtn = document.getElementById('undoBtn');
@@ -78,6 +92,7 @@ const colorIndicator = document.querySelector('.color-indicator');
 const colorOptions = document.querySelectorAll('.color-option');
 const strokePickerModal = document.getElementById('strokePickerModal');
 const strokeOptions = document.querySelectorAll('.stroke-option');
+const presentBtn = document.getElementById('presentBtn');
 
 // Ink API
 let inkPresenter = null;
@@ -124,6 +139,12 @@ clearBtn.addEventListener('click', () => {
 laserBtn.addEventListener('click', () => {
     closeAllModals();
     setTool('laser');
+});
+
+// Lasso selection button
+lassoBtn.addEventListener('click', () => {
+    closeAllModals();
+    setTool('lasso');
 });
 
 // State for finger scroll
@@ -373,7 +394,7 @@ document.addEventListener('keydown', (e) => {
 function handleFileSelect(e) {
     const file = e.target.files[0];
     if (file && file.type === 'application/pdf') {
-        loadPDF(file);
+        loadPDFWithPresentation(file);
     } else {
         alert('Please select a valid PDF file');
     }
@@ -491,6 +512,7 @@ function showPrevPage() {
     queueRenderPage(pageNum);
     updatePageControls();
     loadPageAnnotations();
+    syncPresentationPage(pageNum);
 }
 
 // Show next page
@@ -500,6 +522,7 @@ function showNextPage() {
     queueRenderPage(pageNum);
     updatePageControls();
     loadPageAnnotations();
+    syncPresentationPage(pageNum);
 }
 
 // Update page controls
@@ -752,6 +775,7 @@ function goToPage(num) {
     queueRenderPage(pageNum);
     updatePageControls();
     loadPageAnnotations();
+    syncPresentationPage(pageNum);
 }
 
 // Scroll filmstrip to show current page
@@ -785,19 +809,31 @@ async function initInkAPI() {
 function setTool(tool) {
     currentTool = tool;
 
+    // Clear any existing selection when switching tools
+    clearSelection();
+
     if (tool === 'pen') {
         penBtn.classList.add('tool-active');
         laserBtn.classList.remove('tool-active');
+        lassoBtn.classList.remove('tool-active');
         eraserBtn.classList.remove('tool-active');
         annotationLayer.classList.add('drawing-mode');
     } else if (tool === 'laser') {
         laserBtn.classList.add('tool-active');
         penBtn.classList.remove('tool-active');
+        lassoBtn.classList.remove('tool-active');
+        eraserBtn.classList.remove('tool-active');
+        annotationLayer.classList.add('drawing-mode');
+    } else if (tool === 'lasso') {
+        lassoBtn.classList.add('tool-active');
+        penBtn.classList.remove('tool-active');
+        laserBtn.classList.remove('tool-active');
         eraserBtn.classList.remove('tool-active');
         annotationLayer.classList.add('drawing-mode');
     } else if (tool === 'eraser') {
         eraserBtn.classList.add('tool-active');
         laserBtn.classList.remove('tool-active');
+        lassoBtn.classList.remove('tool-active');
         penBtn.classList.remove('tool-active');
         annotationLayer.classList.add('drawing-mode');
     }
@@ -855,6 +891,39 @@ function startDrawing(e) {
         drawEraserPreview(pos.x, pos.y);
         // Check for strokes to erase
         eraseAtPoint(pos.x, pos.y);
+    } else if (currentTool === 'lasso') {
+        // Check if clicking on a resize handle
+        const handle = getResizeHandle(pos.x, pos.y);
+        if (handle) {
+            isResizingSelection = true;
+            resizeHandle = handle;
+            dragStartPos = pos;
+            resizeStartBounds = { ...selectionBounds };
+            // Save original annotation data
+            const pageAnnotations = annotations[pageNum];
+            resizeStartAnnotations = selectedAnnotations.map(index => ({
+                index,
+                points: pageAnnotations[index].points.map(p => ({ ...p }))
+            }));
+        } else if (isPointInSelectionBox(pos.x, pos.y)) {
+            // Click inside selection box to drag
+            isDraggingSelection = true;
+            dragStartPos = pos;
+        } else {
+            // Start new lasso selection
+            clearSelection();
+            isLassoing = true;
+            lassoPoints = [pos];
+            activeStrokeCtx.strokeStyle = '#0099FF';
+            activeStrokeCtx.lineWidth = 2;
+            activeStrokeCtx.setLineDash([5, 5]); // Dashed line
+            activeStrokeCtx.lineCap = 'round';
+            activeStrokeCtx.lineJoin = 'round';
+            activeStrokeCtx.beginPath();
+            activeStrokeCtx.moveTo(pos.x, pos.y);
+            // Sync initial lasso point to presentation
+            syncPresentationActiveStroke(lassoPoints, 'lasso', '#0099FF', 2, 1);
+        }
     } else if (currentTool === 'laser') {
         // Cancel any ongoing fade animation when starting new laser stroke
         if (laserFadeAnimationId) {
@@ -921,6 +990,29 @@ function draw(e) {
         return;
     }
 
+    if (currentTool === 'lasso') {
+        if (isResizingSelection && dragStartPos && resizeHandle) {
+            // Resize selected annotations
+            resizeSelectedAnnotations(pos);
+            return;
+        } else if (isDraggingSelection && dragStartPos) {
+            // Drag selected annotations
+            const dx = pos.x - dragStartPos.x;
+            const dy = pos.y - dragStartPos.y;
+            moveSelectedAnnotations(dx, dy);
+            dragStartPos = pos;
+            return;
+        } else if (isLassoing) {
+            // Draw lasso path
+            lassoPoints.push(pos);
+            activeStrokeCtx.lineTo(pos.x, pos.y);
+            activeStrokeCtx.stroke();
+            // Sync lasso to presentation
+            syncPresentationActiveStroke(lassoPoints, 'lasso', '#0099FF', 2, 1);
+            return;
+        }
+    }
+
     if (currentTool === 'laser' || currentTool === 'pen') {
         // Continue drawing (works for both laser and pen)
         // If laser, ensure opacity is at 100% while actively drawing
@@ -942,6 +1034,13 @@ function draw(e) {
     if (distance < 2) return;
 
     currentPoints.push(pos);
+
+    // Sync real-time drawing to presentation
+    if (currentTool === 'pen') {
+        syncPresentationActiveStroke(currentPoints, 'pen', currentColor, currentStrokeWidth, 1);
+    } else if (currentTool === 'laser') {
+        syncPresentationActiveStroke(currentPoints, 'laser', '#FF0000', 4, laserFadeOpacity);
+    }
 
     // Draw smooth curve on canvas
     if (currentPoints.length >= 3) {
@@ -985,6 +1084,28 @@ function draw(e) {
         activeStrokeCtx.quadraticCurveTo(secondLast.x, secondLast.y, last.x, last.y);
         activeStrokeCtx.stroke();
 
+        // For laser, draw thin bright core line on top
+        if (currentTool === 'laser') {
+            activeStrokeCtx.strokeStyle = 'rgba(255, 200, 200, 1.0)'; // Bright pinkish-white core
+            activeStrokeCtx.lineWidth = 0.8; // Very thin core line
+            activeStrokeCtx.shadowBlur = 0; // No blur for the core
+            activeStrokeCtx.shadowColor = 'transparent';
+
+            activeStrokeCtx.beginPath();
+            activeStrokeCtx.moveTo(currentPoints[0].x, currentPoints[0].y);
+
+            for (let i = 1; i < currentPoints.length - 1; i++) {
+                const curr = currentPoints[i];
+                const next = currentPoints[i + 1];
+                const midX = (curr.x + next.x) / 2;
+                const midY = (curr.y + next.y) / 2;
+                activeStrokeCtx.quadraticCurveTo(curr.x, curr.y, midX, midY);
+            }
+
+            activeStrokeCtx.quadraticCurveTo(secondLast.x, secondLast.y, last.x, last.y);
+            activeStrokeCtx.stroke();
+        }
+
         // Reset shadow settings after drawing (for non-laser tools)
         if (currentTool !== 'laser') {
             activeStrokeCtx.shadowBlur = 0;
@@ -1020,6 +1141,19 @@ function draw(e) {
                 activeStrokeCtx.lineTo(currentPoints[i].x, currentPoints[i].y);
             }
             activeStrokeCtx.stroke();
+
+            // Draw thin bright core line on top
+            activeStrokeCtx.strokeStyle = 'rgba(255, 200, 200, 1.0)'; // Bright pinkish-white core
+            activeStrokeCtx.lineWidth = 0.8; // Very thin core line
+            activeStrokeCtx.shadowBlur = 0; // No blur for the core
+            activeStrokeCtx.shadowColor = 'transparent';
+            activeStrokeCtx.beginPath();
+            activeStrokeCtx.moveTo(currentPoints[0].x, currentPoints[0].y);
+            for (let i = 1; i < currentPoints.length; i++) {
+                activeStrokeCtx.lineTo(currentPoints[i].x, currentPoints[i].y);
+            }
+            activeStrokeCtx.stroke();
+
             activeStrokeCtx.restore();
         } else {
             // For pen tool, just continue drawing
@@ -1054,12 +1188,29 @@ function endDrawing(e) {
         activeStrokeCtx.clearRect(0, 0, activeStrokeCanvas.width, activeStrokeCanvas.height);
     }
 
+    // Complete lasso selection
+    if (isLassoing && currentTool === 'lasso' && lassoPoints.length > 2) {
+        completeLassoSelection();
+        clearPresentationActiveStroke();
+    }
+
     // Save laser stroke for temporary display
     if (currentTool === 'laser' && currentPoints.length > 1) {
         saveLaserStroke();
+        // Don't clear presentation active stroke for laser - let it fade naturally
+    } else if (currentTool === 'pen' && currentPoints.length > 1) {
+        // Clear active stroke for pen when finished
+        clearPresentationActiveStroke();
     }
 
     isDrawing = false;
+    isLassoing = false;
+    isDraggingSelection = false;
+    isResizingSelection = false;
+    resizeHandle = null;
+    dragStartPos = null;
+    resizeStartBounds = null;
+    resizeStartAnnotations = null;
     activePointerId = null; // Clear active pointer
     const wasEraserActive = isEraserActive;
     isEraserActive = false; // Reset eraser state
@@ -1098,6 +1249,7 @@ function endDrawing(e) {
         undoStack[pageNum] = [];
 
         updateUndoRedoButtons();
+        syncPresentationAnnotations();
     }
 
     currentPoints = [];
@@ -1147,6 +1299,7 @@ function undoLastStroke() {
     undoStack[pageNum].push(lastStroke);
 
     updateUndoRedoButtons();
+    syncPresentationAnnotations();
 }
 
 function redoLastStroke() {
@@ -1182,6 +1335,7 @@ function redoLastStroke() {
     annotations[pageNum].push(strokeToRedo);
 
     updateUndoRedoButtons();
+    syncPresentationAnnotations();
 }
 
 function clearAllAnnotations() {
@@ -1199,6 +1353,7 @@ function clearAllAnnotations() {
     undoStack[pageNum] = [];
 
     updateUndoRedoButtons();
+    syncPresentationAnnotations();
 }
 
 function updateUndoRedoButtons() {
@@ -1320,15 +1475,36 @@ function eraseAtPoint(x, y) {
                 annotation.element.parentNode.removeChild(annotation.element);
             }
 
+            // Check if this annotation is in the selection
+            const selectionIndex = selectedAnnotations.indexOf(i);
+            if (selectionIndex !== -1) {
+                // Remove from selection
+                selectedAnnotations.splice(selectionIndex, 1);
+            }
+
             // Remove from array
             pageAnnotations.splice(i, 1);
+
+            // Adjust selection indices since we removed an annotation
+            // All indices >= i need to be decremented by 1
+            selectedAnnotations = selectedAnnotations.map(idx => idx > i ? idx - 1 : idx);
         }
+    }
+
+    // If all selected annotations were erased, clear the selection box
+    if (selectedAnnotations.length === 0 && selectionBounds) {
+        clearSelection();
+        syncPresentationSelectionBox(); // Clear selection box from presentation
+    } else if (selectedAnnotations.length > 0) {
+        // Recalculate selection box for remaining selected annotations
+        drawSelectionBox();
     }
 
     // Clear redo stack when erasing
     undoStack[pageNum] = [];
 
     updateUndoRedoButtons();
+    syncPresentationAnnotations();
 }
 
 // ============================================
@@ -1378,6 +1554,12 @@ function redrawLaserStrokes(opacity = null) {
     // When actively drawing (opacity = 1.0), always use full opacity
     const useOpacity = opacity !== null ? opacity : laserFadeOpacity;
 
+    // Sync laser strokes to presentation with current opacity
+    if (laserStrokes.length > 0 && laserStrokes[laserStrokes.length - 1].points) {
+        const lastStroke = laserStrokes[laserStrokes.length - 1];
+        syncPresentationActiveStroke(lastStroke.points, 'laser', '#FF0000', 4, useOpacity);
+    }
+
     // Save current context state
     activeStrokeCtx.save();
 
@@ -1407,6 +1589,42 @@ function redrawLaserStrokes(opacity = null) {
 
         if (stroke.points.length >= 3) {
             // Draw smooth quadratic curves (same technique as pen)
+            for (let i = 1; i < stroke.points.length - 1; i++) {
+                const curr = stroke.points[i];
+                const next = stroke.points[i + 1];
+                const midX = (curr.x + next.x) / 2;
+                const midY = (curr.y + next.y) / 2;
+                activeStrokeCtx.quadraticCurveTo(curr.x, curr.y, midX, midY);
+            }
+
+            // Draw to last point
+            const last = stroke.points[stroke.points.length - 1];
+            const secondLast = stroke.points[stroke.points.length - 2];
+            activeStrokeCtx.quadraticCurveTo(secondLast.x, secondLast.y, last.x, last.y);
+        } else {
+            // For strokes with few points, just draw lines
+            for (let i = 1; i < stroke.points.length; i++) {
+                activeStrokeCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+            }
+        }
+
+        activeStrokeCtx.stroke();
+    });
+
+    // Draw thin bright core line on top of each stroke
+    activeStrokeCtx.strokeStyle = `rgba(255, 200, 200, ${useOpacity})`; // Bright pinkish-white core
+    activeStrokeCtx.lineWidth = 0.8; // Very thin core line
+    activeStrokeCtx.shadowBlur = 0; // No blur for the core
+    activeStrokeCtx.shadowColor = 'transparent';
+
+    laserStrokes.forEach(stroke => {
+        if (stroke.points.length === 0) return;
+
+        activeStrokeCtx.beginPath();
+        activeStrokeCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+
+        if (stroke.points.length >= 3) {
+            // Draw smooth quadratic curves (same technique as outer glow)
             for (let i = 1; i < stroke.points.length - 1; i++) {
                 const curr = stroke.points[i];
                 const next = stroke.points[i + 1];
@@ -1476,6 +1694,9 @@ function clearLaserStrokes() {
     laserFadeOpacity = 1.0;
     activeStrokeCtx.clearRect(0, 0, activeStrokeCanvas.width, activeStrokeCanvas.height);
 
+    // Clear laser from presentation
+    clearPresentationActiveStroke();
+
     if (laserClearTimeout) {
         clearTimeout(laserClearTimeout);
         laserClearTimeout = null;
@@ -1486,3 +1707,747 @@ function clearLaserStrokes() {
         laserFadeAnimationId = null;
     }
 }
+
+// ============================================
+// LASSO SELECTION FUNCTIONS
+// ============================================
+
+function completeLassoSelection() {
+    // Close the lasso path
+    activeStrokeCtx.closePath();
+    activeStrokeCtx.stroke();
+
+    // Find annotations inside lasso
+    selectAnnotationsInLasso();
+
+    // Clear lasso drawing and show selection box
+    setTimeout(() => {
+        activeStrokeCtx.clearRect(0, 0, activeStrokeCanvas.width, activeStrokeCanvas.height);
+        activeStrokeCtx.setLineDash([]); // Reset line dash
+
+        // Redraw selection box if we have selected annotations
+        if (selectedAnnotations.length > 0 && selectionBounds) {
+            const { minX, minY, maxX, maxY } = selectionBounds;
+            activeStrokeCtx.save();
+            activeStrokeCtx.strokeStyle = '#0099FF';
+            activeStrokeCtx.lineWidth = 2;
+            activeStrokeCtx.setLineDash([5, 5]);
+            activeStrokeCtx.strokeRect(minX, minY, maxX - minX, maxY - minY);
+            activeStrokeCtx.restore();
+        }
+    }, 200);
+
+    lassoPoints = [];
+}
+
+function selectAnnotationsInLasso() {
+    const pageAnnotations = annotations[pageNum];
+    if (!pageAnnotations || pageAnnotations.length === 0) return;
+
+    // Clear previous selection
+    clearSelection();
+
+    const width = canvas.offsetWidth;
+    const height = canvas.offsetHeight;
+
+    // Check each annotation
+    pageAnnotations.forEach((annotation, index) => {
+        // Convert normalized points to screen coordinates
+        const screenPoints = annotation.points.map(p => ({
+            x: p.x * width,
+            y: p.y * height
+        }));
+
+        // Check if any point of the annotation is inside the lasso
+        let isSelected = false;
+        for (const point of screenPoints) {
+            if (isPointInPolygon(point, lassoPoints)) {
+                isSelected = true;
+                break;
+            }
+        }
+
+        if (isSelected) {
+            selectedAnnotations.push(index);
+        }
+    });
+
+    if (selectedAnnotations.length > 0) {
+        // Calculate and draw bounding box
+        drawSelectionBox();
+    }
+
+    console.log(`Selected ${selectedAnnotations.length} annotations`);
+}
+
+// Point-in-polygon algorithm (ray casting)
+function isPointInPolygon(point, polygon) {
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const xi = polygon[i].x, yi = polygon[i].y;
+        const xj = polygon[j].x, yj = polygon[j].y;
+
+        const intersect = ((yi > point.y) !== (yj > point.y))
+            && (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+    }
+    return inside;
+}
+
+function clearSelection() {
+    selectedAnnotations = [];
+    selectionBounds = null;
+
+    // Clear selection box from canvas
+    if (!isDrawing && !isDraggingSelection) {
+        activeStrokeCtx.clearRect(0, 0, activeStrokeCanvas.width, activeStrokeCanvas.height);
+    }
+
+    // Sync cleared selection to presentation
+    syncPresentationSelectionBox();
+}
+
+function drawSelectionBox() {
+    const pageAnnotations = annotations[pageNum];
+    if (!pageAnnotations || selectedAnnotations.length === 0) return;
+
+    const width = canvas.offsetWidth;
+    const height = canvas.offsetHeight;
+
+    // Calculate bounding box of selected annotations
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+    selectedAnnotations.forEach(index => {
+        const annotation = pageAnnotations[index];
+        annotation.points.forEach(p => {
+            const x = p.x * width;
+            const y = p.y * height;
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
+        });
+    });
+
+    // Add padding
+    const padding = 10;
+    minX -= padding;
+    minY -= padding;
+    maxX += padding;
+    maxY += padding;
+
+    selectionBounds = { minX, minY, maxX, maxY };
+
+    // Draw selection box
+    activeStrokeCtx.clearRect(0, 0, activeStrokeCanvas.width, activeStrokeCanvas.height);
+    activeStrokeCtx.save();
+    activeStrokeCtx.strokeStyle = '#0099FF';
+    activeStrokeCtx.lineWidth = 2;
+    activeStrokeCtx.setLineDash([5, 5]);
+    activeStrokeCtx.strokeRect(minX, minY, maxX - minX, maxY - minY);
+
+    // Draw resize handles at corners
+    activeStrokeCtx.fillStyle = '#0099FF';
+    activeStrokeCtx.setLineDash([]); // Solid fill for handles
+    const halfHandle = HANDLE_SIZE / 2;
+
+    // Top-left
+    activeStrokeCtx.fillRect(minX - halfHandle, minY - halfHandle, HANDLE_SIZE, HANDLE_SIZE);
+    // Top-right
+    activeStrokeCtx.fillRect(maxX - halfHandle, minY - halfHandle, HANDLE_SIZE, HANDLE_SIZE);
+    // Bottom-left
+    activeStrokeCtx.fillRect(minX - halfHandle, maxY - halfHandle, HANDLE_SIZE, HANDLE_SIZE);
+    // Bottom-right
+    activeStrokeCtx.fillRect(maxX - halfHandle, maxY - halfHandle, HANDLE_SIZE, HANDLE_SIZE);
+
+    activeStrokeCtx.restore();
+
+    // Sync selection box to presentation
+    syncPresentationSelectionBox();
+}
+
+function getResizeHandle(x, y) {
+    if (!selectionBounds) return null;
+
+    const { minX, minY, maxX, maxY } = selectionBounds;
+    const halfHandle = HANDLE_SIZE / 2;
+
+    // Check each corner handle
+    // Top-left
+    if (Math.abs(x - minX) <= halfHandle && Math.abs(y - minY) <= halfHandle) {
+        return 'nw';
+    }
+    // Top-right
+    if (Math.abs(x - maxX) <= halfHandle && Math.abs(y - minY) <= halfHandle) {
+        return 'ne';
+    }
+    // Bottom-left
+    if (Math.abs(x - minX) <= halfHandle && Math.abs(y - maxY) <= halfHandle) {
+        return 'sw';
+    }
+    // Bottom-right
+    if (Math.abs(x - maxX) <= halfHandle && Math.abs(y - maxY) <= halfHandle) {
+        return 'se';
+    }
+
+    return null;
+}
+
+function isPointInSelectionBox(x, y) {
+    if (!selectionBounds) return false;
+    const { minX, minY, maxX, maxY } = selectionBounds;
+    return x >= minX && x <= maxX && y >= minY && y <= maxY;
+}
+
+function moveSelectedAnnotations(dx, dy) {
+    const pageAnnotations = annotations[pageNum];
+    if (!pageAnnotations) return;
+
+    const width = canvas.offsetWidth;
+    const height = canvas.offsetHeight;
+
+    // Convert pixel delta to normalized delta
+    const normalizedDx = dx / width;
+    const normalizedDy = dy / height;
+
+    selectedAnnotations.forEach(index => {
+        const annotation = pageAnnotations[index];
+
+        // Update normalized points
+        annotation.points = annotation.points.map(p => ({
+            x: p.x + normalizedDx,
+            y: p.y + normalizedDy
+        }));
+
+        // Update SVG element
+        const screenPoints = annotation.points.map(p => ({
+            x: p.x * width,
+            y: p.y * height,
+            normalizedX: p.x,
+            normalizedY: p.y
+        }));
+
+        annotation.element.setAttribute('d', pointsToPath(screenPoints));
+    });
+
+    // Update selection box position
+    if (selectionBounds) {
+        selectionBounds.minX += dx;
+        selectionBounds.minY += dy;
+        selectionBounds.maxX += dx;
+        selectionBounds.maxY += dy;
+
+        // Request redraw in next frame for smoother rendering
+        if (!selectionBoxNeedsRedraw) {
+            selectionBoxNeedsRedraw = true;
+            requestAnimationFrame(() => {
+                if (selectionBounds) {
+                    const { minX, minY, maxX, maxY } = selectionBounds;
+                    activeStrokeCtx.clearRect(0, 0, activeStrokeCanvas.width, activeStrokeCanvas.height);
+                    activeStrokeCtx.save();
+                    activeStrokeCtx.strokeStyle = '#0099FF';
+                    activeStrokeCtx.lineWidth = 2;
+                    activeStrokeCtx.setLineDash([5, 5]);
+                    activeStrokeCtx.strokeRect(minX, minY, maxX - minX, maxY - minY);
+
+                    // Draw resize handles
+                    activeStrokeCtx.fillStyle = '#0099FF';
+                    activeStrokeCtx.setLineDash([]);
+                    const halfHandle = HANDLE_SIZE / 2;
+                    activeStrokeCtx.fillRect(minX - halfHandle, minY - halfHandle, HANDLE_SIZE, HANDLE_SIZE);
+                    activeStrokeCtx.fillRect(maxX - halfHandle, minY - halfHandle, HANDLE_SIZE, HANDLE_SIZE);
+                    activeStrokeCtx.fillRect(minX - halfHandle, maxY - halfHandle, HANDLE_SIZE, HANDLE_SIZE);
+                    activeStrokeCtx.fillRect(maxX - halfHandle, maxY - halfHandle, HANDLE_SIZE, HANDLE_SIZE);
+
+                    activeStrokeCtx.restore();
+                }
+                selectionBoxNeedsRedraw = false;
+                // Sync selection box to presentation
+                syncPresentationSelectionBox();
+            });
+        }
+    }
+
+    // Sync moved annotations to presentation in real-time
+    syncPresentationAnnotations();
+}
+
+function resizeSelectedAnnotations(currentPos) {
+    if (!resizeStartBounds || !resizeStartAnnotations || !resizeHandle) return;
+
+    const pageAnnotations = annotations[pageNum];
+    if (!pageAnnotations) return;
+
+    const width = canvas.offsetWidth;
+    const height = canvas.offsetHeight;
+
+    // Calculate original dimensions
+    const oldWidth = resizeStartBounds.maxX - resizeStartBounds.minX;
+    const oldHeight = resizeStartBounds.maxY - resizeStartBounds.minY;
+    const aspectRatio = oldWidth / oldHeight;
+
+    // Calculate the distance from the opposite corner (anchor point)
+    let anchorX, anchorY, newWidth, newHeight;
+
+    switch (resizeHandle) {
+        case 'nw': // Top-left (anchor: bottom-right)
+            anchorX = resizeStartBounds.maxX;
+            anchorY = resizeStartBounds.maxY;
+            // Calculate new width and height based on pointer position
+            const nwWidth = anchorX - currentPos.x;
+            const nwHeight = anchorY - currentPos.y;
+            // Use the larger scale factor to maintain aspect ratio
+            const nwScale = Math.max(Math.abs(nwWidth / oldWidth), Math.abs(nwHeight / oldHeight));
+            newWidth = oldWidth * nwScale;
+            newHeight = oldHeight * nwScale;
+            break;
+        case 'ne': // Top-right (anchor: bottom-left)
+            anchorX = resizeStartBounds.minX;
+            anchorY = resizeStartBounds.maxY;
+            const neWidth = currentPos.x - anchorX;
+            const neHeight = anchorY - currentPos.y;
+            const neScale = Math.max(Math.abs(neWidth / oldWidth), Math.abs(neHeight / oldHeight));
+            newWidth = oldWidth * neScale;
+            newHeight = oldHeight * neScale;
+            break;
+        case 'sw': // Bottom-left (anchor: top-right)
+            anchorX = resizeStartBounds.maxX;
+            anchorY = resizeStartBounds.minY;
+            const swWidth = anchorX - currentPos.x;
+            const swHeight = currentPos.y - anchorY;
+            const swScale = Math.max(Math.abs(swWidth / oldWidth), Math.abs(swHeight / oldHeight));
+            newWidth = oldWidth * swScale;
+            newHeight = oldHeight * swScale;
+            break;
+        case 'se': // Bottom-right (anchor: top-left)
+            anchorX = resizeStartBounds.minX;
+            anchorY = resizeStartBounds.minY;
+            const seWidth = currentPos.x - anchorX;
+            const seHeight = currentPos.y - anchorY;
+            const seScale = Math.max(Math.abs(seWidth / oldWidth), Math.abs(seHeight / oldHeight));
+            newWidth = oldWidth * seScale;
+            newHeight = oldHeight * seScale;
+            break;
+    }
+
+    // Calculate new bounds based on anchor point and new dimensions
+    let newMinX, newMinY, newMaxX, newMaxY;
+
+    switch (resizeHandle) {
+        case 'nw': // Top-left
+            newMaxX = anchorX;
+            newMaxY = anchorY;
+            newMinX = anchorX - newWidth;
+            newMinY = anchorY - newHeight;
+            break;
+        case 'ne': // Top-right
+            newMinX = anchorX;
+            newMaxY = anchorY;
+            newMaxX = anchorX + newWidth;
+            newMinY = anchorY - newHeight;
+            break;
+        case 'sw': // Bottom-left
+            newMaxX = anchorX;
+            newMinY = anchorY;
+            newMinX = anchorX - newWidth;
+            newMaxY = anchorY + newHeight;
+            break;
+        case 'se': // Bottom-right
+            newMinX = anchorX;
+            newMinY = anchorY;
+            newMaxX = anchorX + newWidth;
+            newMaxY = anchorY + newHeight;
+            break;
+    }
+
+    // Calculate uniform scale factor (same for both X and Y to maintain aspect ratio)
+    const scale = newWidth / oldWidth;
+
+    // Apply uniform scaling to annotations (maintains aspect ratio)
+    resizeStartAnnotations.forEach(({ index, points }) => {
+        const annotation = pageAnnotations[index];
+
+        // Scale each point relative to the resize anchor
+        annotation.points = points.map(p => {
+            const screenX = p.x * width;
+            const screenY = p.y * height;
+
+            // Calculate relative position within original bounds
+            const relX = (screenX - resizeStartBounds.minX) / oldWidth;
+            const relY = (screenY - resizeStartBounds.minY) / oldHeight;
+
+            // Apply uniform scale and translate to new bounds
+            const newScreenX = newMinX + relX * newWidth;
+            const newScreenY = newMinY + relY * newHeight;
+
+            return {
+                x: newScreenX / width,
+                y: newScreenY / height
+            };
+        });
+
+        // Update SVG element
+        const screenPoints = annotation.points.map(p => ({
+            x: p.x * width,
+            y: p.y * height,
+            normalizedX: p.x,
+            normalizedY: p.y
+        }));
+
+        annotation.element.setAttribute('d', pointsToPath(screenPoints));
+    });
+
+    // Update selection bounds
+    selectionBounds = { minX: newMinX, minY: newMinY, maxX: newMaxX, maxY: newMaxY };
+
+    // Redraw selection box with handles
+    if (!selectionBoxNeedsRedraw) {
+        selectionBoxNeedsRedraw = true;
+        requestAnimationFrame(() => {
+            if (selectionBounds) {
+                const { minX, minY, maxX, maxY } = selectionBounds;
+                activeStrokeCtx.clearRect(0, 0, activeStrokeCanvas.width, activeStrokeCanvas.height);
+                activeStrokeCtx.save();
+                activeStrokeCtx.strokeStyle = '#0099FF';
+                activeStrokeCtx.lineWidth = 2;
+                activeStrokeCtx.setLineDash([5, 5]);
+                activeStrokeCtx.strokeRect(minX, minY, maxX - minX, maxY - minY);
+
+                // Draw resize handles
+                activeStrokeCtx.fillStyle = '#0099FF';
+                activeStrokeCtx.setLineDash([]);
+                const halfHandle = HANDLE_SIZE / 2;
+                activeStrokeCtx.fillRect(minX - halfHandle, minY - halfHandle, HANDLE_SIZE, HANDLE_SIZE);
+                activeStrokeCtx.fillRect(maxX - halfHandle, minY - halfHandle, HANDLE_SIZE, HANDLE_SIZE);
+                activeStrokeCtx.fillRect(minX - halfHandle, maxY - halfHandle, HANDLE_SIZE, HANDLE_SIZE);
+                activeStrokeCtx.fillRect(maxX - halfHandle, maxY - halfHandle, HANDLE_SIZE, HANDLE_SIZE);
+
+                activeStrokeCtx.restore();
+            }
+            selectionBoxNeedsRedraw = false;
+            // Sync selection box to presentation
+            syncPresentationSelectionBox();
+        });
+    }
+
+    // Sync resized annotations to presentation in real-time
+    syncPresentationAnnotations();
+}
+// ============================================
+// PRESENTATION MODE FUNCTIONS (Using Presentation API)
+// ============================================
+
+// Presentation state
+let presentationRequest = null;
+let presentationConnection = null;
+let pdfFileData = null; // Store PDF data for presentation
+
+// Store PDF data when loading
+const originalLoadPDF = loadPDF;
+function loadPDFWithPresentation(file) {
+    // Read PDF file as array buffer for presentation
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        pdfFileData = e.target.result;
+    };
+    reader.readAsArrayBuffer(file);
+
+    // Call original loadPDF function
+    originalLoadPDF(file);
+}
+
+// Initialize Presentation Request
+function initPresentationRequest() {
+    if (!navigator.presentation) {
+        console.warn('Presentation API not supported');
+        return;
+    }
+
+    // Create presentation request with the receiver URL
+    presentationRequest = new PresentationRequest(['presentation.html']);
+
+    // Set as default request (allows browser cast button)
+    navigator.presentation.defaultRequest = presentationRequest;
+
+    console.log('Presentation request initialized');
+}
+
+// Present button click handler
+if (presentBtn) {
+    presentBtn.addEventListener('click', startPresentation);
+}
+
+async function startPresentation() {
+    console.log('startPresentation called, current connection state:', presentationConnection?.state);
+
+    // If already presenting, stop it
+    if (presentationConnection && presentationConnection.state !== 'closed' && presentationConnection.state !== 'terminated') {
+        console.log('Stopping existing presentation');
+        stopPresentation();
+        return;
+    }
+
+    if (!pdfDoc || !pdfFileData) {
+        alert('Please load a PDF first');
+        return;
+    }
+
+    if (!navigator.presentation) {
+        alert('Presentation API is not supported in this browser. Please use Chrome or Edge.');
+        return;
+    }
+
+    try {
+        // Always recreate presentation request to ensure clean state
+        console.log('Creating new presentation request');
+        initPresentationRequest();
+
+        console.log('Starting presentation...');
+        // Start presentation - this opens the receiver and returns a PresentationConnection
+        presentationConnection = await presentationRequest.start();
+        console.log('Presentation started, connection state:', presentationConnection.state);
+
+        setupPresentationConnection();
+
+        // Update button appearance
+        presentBtn.classList.add('tool-active');
+        presentBtn.title = 'Stop Presenting';
+    } catch (err) {
+        console.error('Failed to start presentation:', err);
+        if (err.name === 'NotAllowedError') {
+            alert('Presentation was cancelled or not allowed');
+        } else {
+            alert('Failed to start presentation: ' + err.message);
+        }
+        // Clear connection on error
+        presentationConnection = null;
+    }
+}
+
+// Store handler references for cleanup
+let presentationCloseHandler = null;
+let presentationTerminateHandler = null;
+
+function setupPresentationConnection() {
+    if (!presentationConnection) return;
+
+    console.log('Setting up presentation connection, state:', presentationConnection.state);
+
+    // Define handlers
+    presentationCloseHandler = () => {
+        console.log('Presentation connection closed');
+        stopPresentation();
+    };
+
+    presentationTerminateHandler = () => {
+        console.log('Presentation connection terminated');
+        stopPresentation();
+    };
+
+    // Connection state change
+    presentationConnection.addEventListener('close', presentationCloseHandler);
+    presentationConnection.addEventListener('terminate', presentationTerminateHandler);
+
+    // Listen for state changes
+    presentationConnection.addEventListener('statechange', () => {
+        console.log('Connection state changed to:', presentationConnection.state);
+    });
+
+    // Wait for connection to be established, then send initial data
+    if (presentationConnection.state === 'connected') {
+        console.log('Connection already connected, sending data immediately');
+        // Add small delay to ensure receiver is ready
+        setTimeout(() => {
+            sendInitialData();
+        }, 500);
+    } else {
+        console.log('Waiting for connection to connect...');
+        presentationConnection.addEventListener('connect', () => {
+            console.log('Connection connected, sending initial data');
+            setTimeout(() => {
+                sendInitialData();
+            }, 500);
+        });
+    }
+}
+
+function sendInitialData() {
+    if (!presentationConnection || presentationConnection.state !== 'connected') {
+        console.warn('Cannot send initial data - connection not ready. State:', presentationConnection?.state);
+        return;
+    }
+
+    console.log('Sending initial data to presentation...');
+
+    // Send PDF data
+    console.log('Sending PDF data, size:', pdfFileData.byteLength, 'bytes');
+    sendMessage({
+        type: 'LOAD_PDF',
+        pdfData: Array.from(new Uint8Array(pdfFileData))
+    });
+
+    // Send current page and scale
+    console.log('Sending page:', pageNum, 'scale:', scale);
+    sendMessage({
+        type: 'PAGE_CHANGE',
+        pageNum: pageNum
+    });
+
+    sendMessage({
+        type: 'SCALE_CHANGE',
+        scale: scale
+    });
+
+    // Send all annotations
+    console.log('Sending annotations');
+    sendMessage({
+        type: 'ANNOTATIONS_UPDATE',
+        annotations: annotations
+    });
+
+    console.log('Initial data sent successfully');
+}
+
+function sendMessage(message) {
+    if (presentationConnection && presentationConnection.state === 'connected') {
+        try {
+            presentationConnection.send(JSON.stringify(message));
+        } catch (err) {
+            console.error('Failed to send message:', err);
+        }
+    }
+}
+
+function stopPresentation() {
+    console.log('Stopping presentation, current state:', presentationConnection?.state);
+
+    if (presentationConnection) {
+        try {
+            // Remove event listeners to prevent memory leaks and recursive calls
+            if (presentationCloseHandler) {
+                presentationConnection.removeEventListener('close', presentationCloseHandler);
+            }
+            if (presentationTerminateHandler) {
+                presentationConnection.removeEventListener('terminate', presentationTerminateHandler);
+            }
+
+            if (presentationConnection.state !== 'closed' && presentationConnection.state !== 'terminated') {
+                console.log('Terminating presentation connection');
+                // Use terminate() instead of close() to fully end the presentation session
+                presentationConnection.terminate();
+            }
+        } catch (err) {
+            console.error('Error terminating presentation:', err);
+        }
+    }
+
+    // Clear connection and handler references
+    presentationConnection = null;
+    presentationCloseHandler = null;
+    presentationTerminateHandler = null;
+
+    // Update button appearance
+    if (presentBtn) {
+        presentBtn.classList.remove('tool-active');
+        presentBtn.title = 'Present to Second Screen';
+    }
+
+    console.log('Presentation terminated, connection cleared');
+}
+
+// Sync presentation with main window
+function syncPresentationPage(num) {
+    sendMessage({
+        type: 'PAGE_CHANGE',
+        pageNum: num
+    });
+}
+
+function syncPresentationScale(newScale) {
+    sendMessage({
+        type: 'SCALE_CHANGE',
+        scale: newScale
+    });
+}
+
+function syncPresentationAnnotations() {
+    sendMessage({
+        type: 'ANNOTATIONS_UPDATE',
+        annotations: annotations
+    });
+}
+
+// Throttle real-time drawing updates
+let lastDrawSyncTime = 0;
+const DRAW_SYNC_THROTTLE = 8; // milliseconds (~120fps for very smooth drawing)
+
+function syncPresentationActiveStroke(points, tool, color, width, opacity) {
+    const now = Date.now();
+    if (now - lastDrawSyncTime < DRAW_SYNC_THROTTLE) {
+        return; // Throttle to avoid too many messages
+    }
+    lastDrawSyncTime = now;
+
+    const canvasWidth = canvas.offsetWidth;
+    const canvasHeight = canvas.offsetHeight;
+
+    // Normalize points
+    const normalizedPoints = points.map(p => ({
+        x: p.x / canvasWidth,
+        y: p.y / canvasHeight
+    }));
+
+    console.log('Syncing active stroke:', tool, 'points:', points.length);
+    sendMessage({
+        type: 'ACTIVE_STROKE',
+        points: normalizedPoints,
+        tool: tool,
+        color: color,
+        width: width,
+        opacity: opacity
+    });
+}
+
+function clearPresentationActiveStroke() {
+    sendMessage({
+        type: 'CLEAR_ACTIVE_STROKE'
+    });
+}
+
+function syncPresentationSelectionBox() {
+    if (!selectionBounds) {
+        // Clear selection box from presentation
+        sendMessage({
+            type: 'CLEAR_SELECTION_BOX'
+        });
+        return;
+    }
+
+    const canvasWidth = canvas.offsetWidth;
+    const canvasHeight = canvas.offsetHeight;
+
+    // Normalize selection bounds
+    const normalizedBounds = {
+        minX: selectionBounds.minX / canvasWidth,
+        minY: selectionBounds.minY / canvasHeight,
+        maxX: selectionBounds.maxX / canvasWidth,
+        maxY: selectionBounds.maxY / canvasHeight
+    };
+
+    sendMessage({
+        type: 'SELECTION_BOX',
+        bounds: normalizedBounds
+    });
+}
+
+// Handle window close
+window.addEventListener('beforeunload', () => {
+    stopPresentation();
+});
+
+// Initialize presentation request when PDF is loaded
+window.addEventListener('load', () => {
+    if (navigator.presentation) {
+        initPresentationRequest();
+    }
+});
