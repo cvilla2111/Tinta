@@ -73,6 +73,19 @@
         .page-indicator {
             display: none; /* Hidden in presentation mode */
         }
+
+        .page-transition-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #ffffff;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 1000;
+            transition: opacity 0.2s ease;
+        }
     </style>
 </head>
 <body>
@@ -82,16 +95,16 @@
             <canvas id="pdfCanvas"></canvas>
             <svg id="annotationLayer" class="annotation-layer"></svg>
             <canvas id="activeStrokeCanvas" class="annotation-layer"></canvas>
+            <div id="pageTransitionOverlay" class="page-transition-overlay"></div>
             <div class="page-indicator" id="pageIndicator">1 / 1</div>
         </div>
     </div>
 
     <!-- PDF.js Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="pdf.min.js"></script>
     <script>
         // Initialize PDF.js
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 
         // Presentation state
         let pdfDoc = null;
@@ -106,8 +119,13 @@
         const activeStrokeCanvas = document.getElementById('activeStrokeCanvas');
         const activeStrokeCtx = activeStrokeCanvas.getContext('2d');
         const pdfWrapper = document.getElementById('pdfWrapper');
+        const pageTransitionOverlay = document.getElementById('pageTransitionOverlay');
         const loading = document.getElementById('loading');
         const pageIndicator = document.getElementById('pageIndicator');
+
+        // Store laser strokes for redrawing
+        let savedLaserStrokes = [];
+        let savedLaserOpacity = 1.0;
 
         // Initialize Presentation Receiver
         async function initPresentationReceiver() {
@@ -238,9 +256,14 @@
                     }
                     break;
                 case 'ACTIVE_STROKE':
-                    // Real-time drawing (pen, laser, lasso)
+                    // Real-time drawing (pen, lasso)
                     console.log('ACTIVE_STROKE received, tool:', data.tool, 'points:', data.points?.length);
                     drawActiveStroke(data);
+                    break;
+                case 'LASER_STROKES':
+                    // Receive all laser strokes from main screen
+                    console.log('LASER_STROKES received, count:', data.strokes?.length, 'opacity:', data.opacity);
+                    drawLaserStrokes(data.strokes, data.opacity);
                     break;
                 case 'CLEAR_ACTIVE_STROKE':
                     // Clear temporary drawing canvas
@@ -259,6 +282,110 @@
                 default:
                     console.warn('Unknown message type:', data.type);
             }
+        }
+
+        // Draw all laser strokes received from main screen
+        function drawLaserStrokes(strokes, opacity) {
+            // Save laser strokes for redrawing when ACTIVE_STROKE comes in
+            savedLaserStrokes = strokes || [];
+            savedLaserOpacity = opacity || 1.0;
+
+            if (!pdfDoc || !strokes || strokes.length === 0) {
+                // Clear if no strokes
+                clearActiveStroke();
+                return;
+            }
+
+            const width = canvas.offsetWidth;
+            const height = canvas.offsetHeight;
+            const dpr = window.devicePixelRatio || 1;
+
+            // Sync active stroke canvas size
+            const bufferWidth = width * dpr;
+            const bufferHeight = height * dpr;
+
+            if (activeStrokeCanvas.width !== bufferWidth || activeStrokeCanvas.height !== bufferHeight) {
+                activeStrokeCanvas.width = bufferWidth;
+                activeStrokeCanvas.height = bufferHeight;
+                activeStrokeCanvas.style.width = width + 'px';
+                activeStrokeCanvas.style.height = height + 'px';
+            }
+
+            // Clear canvas
+            activeStrokeCtx.clearRect(0, 0, activeStrokeCanvas.width, activeStrokeCanvas.height);
+
+            // Reset transform and apply DPR scaling
+            activeStrokeCtx.setTransform(1, 0, 0, 1, 0, 0);
+            activeStrokeCtx.scale(dpr, dpr);
+
+            // Draw all laser strokes
+            strokes.forEach(stroke => {
+                if (!stroke.points || stroke.points.length === 0) return;
+                const screenPoints = stroke.points.map(p => ({
+                    x: p.x * width,
+                    y: p.y * height
+                }));
+
+                // First pass: Draw glow/shadow effect
+                activeStrokeCtx.strokeStyle = `rgba(255, 0, 0, ${opacity})`;
+                activeStrokeCtx.lineWidth = 4;
+                activeStrokeCtx.lineCap = 'round';
+                activeStrokeCtx.lineJoin = 'round';
+                activeStrokeCtx.shadowBlur = 15;
+                activeStrokeCtx.shadowColor = `rgba(255, 0, 0, ${opacity * 0.9})`;
+                activeStrokeCtx.shadowOffsetX = 0;
+                activeStrokeCtx.shadowOffsetY = 0;
+
+                activeStrokeCtx.beginPath();
+                activeStrokeCtx.moveTo(screenPoints[0].x, screenPoints[0].y);
+
+                if (screenPoints.length === 1) {
+                    activeStrokeCtx.lineTo(screenPoints[0].x + 0.1, screenPoints[0].y + 0.1);
+                } else if (screenPoints.length === 2) {
+                    activeStrokeCtx.lineTo(screenPoints[1].x, screenPoints[1].y);
+                } else {
+                    for (let i = 1; i < screenPoints.length - 1; i++) {
+                        const curr = screenPoints[i];
+                        const next = screenPoints[i + 1];
+                        const endX = (curr.x + next.x) / 2;
+                        const endY = (curr.y + next.y) / 2;
+                        activeStrokeCtx.quadraticCurveTo(curr.x, curr.y, endX, endY);
+                    }
+                    const last = screenPoints[screenPoints.length - 1];
+                    const secondLast = screenPoints[screenPoints.length - 2];
+                    activeStrokeCtx.quadraticCurveTo(secondLast.x, secondLast.y, last.x, last.y);
+                }
+
+                activeStrokeCtx.stroke();
+
+                // Second pass: Draw bright core line on top
+                activeStrokeCtx.strokeStyle = `rgba(255, 200, 200, ${opacity})`;
+                activeStrokeCtx.lineWidth = 0.8;
+                activeStrokeCtx.shadowBlur = 0;
+                activeStrokeCtx.shadowColor = 'transparent';
+
+                activeStrokeCtx.beginPath();
+                activeStrokeCtx.moveTo(screenPoints[0].x, screenPoints[0].y);
+
+                if (screenPoints.length === 1) {
+                    activeStrokeCtx.lineTo(screenPoints[0].x + 0.1, screenPoints[0].y + 0.1);
+                } else if (screenPoints.length === 2) {
+                    activeStrokeCtx.lineTo(screenPoints[1].x, screenPoints[1].y);
+                } else {
+                    for (let i = 1; i < screenPoints.length - 1; i++) {
+                        const curr = screenPoints[i];
+                        const next = screenPoints[i + 1];
+                        const endX = (curr.x + next.x) / 2;
+                        const endY = (curr.y + next.y) / 2;
+                        activeStrokeCtx.quadraticCurveTo(curr.x, curr.y, endX, endY);
+                    }
+                    const last = screenPoints[screenPoints.length - 1];
+                    const secondLast = screenPoints[screenPoints.length - 2];
+                    activeStrokeCtx.quadraticCurveTo(secondLast.x, secondLast.y, last.x, last.y);
+                }
+
+                activeStrokeCtx.stroke();
+            });
         }
 
         function drawActiveStroke(data) {
@@ -285,6 +412,77 @@
             // CRITICAL: Reset transform and apply DPR scaling
             activeStrokeCtx.setTransform(1, 0, 0, 1, 0, 0);
             activeStrokeCtx.scale(dpr, dpr);
+
+            // CRITICAL FIX: If drawing laser, redraw all saved laser strokes first
+            if (data.tool === 'laser' && savedLaserStrokes.length > 0) {
+                savedLaserStrokes.forEach(stroke => {
+                    if (!stroke.points || stroke.points.length === 0) return;
+                    const screenPoints = stroke.points.map(p => ({
+                        x: p.x * width,
+                        y: p.y * height
+                    }));
+
+                    // First pass: Draw glow/shadow effect
+                    activeStrokeCtx.strokeStyle = `rgba(255, 0, 0, ${savedLaserOpacity})`;
+                    activeStrokeCtx.lineWidth = 4;
+                    activeStrokeCtx.lineCap = 'round';
+                    activeStrokeCtx.lineJoin = 'round';
+                    activeStrokeCtx.shadowBlur = 15;
+                    activeStrokeCtx.shadowColor = `rgba(255, 0, 0, ${savedLaserOpacity * 0.9})`;
+                    activeStrokeCtx.shadowOffsetX = 0;
+                    activeStrokeCtx.shadowOffsetY = 0;
+
+                    activeStrokeCtx.beginPath();
+                    activeStrokeCtx.moveTo(screenPoints[0].x, screenPoints[0].y);
+
+                    if (screenPoints.length === 1) {
+                        activeStrokeCtx.lineTo(screenPoints[0].x + 0.1, screenPoints[0].y + 0.1);
+                    } else if (screenPoints.length === 2) {
+                        activeStrokeCtx.lineTo(screenPoints[1].x, screenPoints[1].y);
+                    } else {
+                        for (let i = 1; i < screenPoints.length - 1; i++) {
+                            const curr = screenPoints[i];
+                            const next = screenPoints[i + 1];
+                            const endX = (curr.x + next.x) / 2;
+                            const endY = (curr.y + next.y) / 2;
+                            activeStrokeCtx.quadraticCurveTo(curr.x, curr.y, endX, endY);
+                        }
+                        const last = screenPoints[screenPoints.length - 1];
+                        const secondLast = screenPoints[screenPoints.length - 2];
+                        activeStrokeCtx.quadraticCurveTo(secondLast.x, secondLast.y, last.x, last.y);
+                    }
+
+                    activeStrokeCtx.stroke();
+
+                    // Second pass: Draw bright core line on top
+                    activeStrokeCtx.strokeStyle = `rgba(255, 200, 200, ${savedLaserOpacity})`;
+                    activeStrokeCtx.lineWidth = 0.8;
+                    activeStrokeCtx.shadowBlur = 0;
+                    activeStrokeCtx.shadowColor = 'transparent';
+
+                    activeStrokeCtx.beginPath();
+                    activeStrokeCtx.moveTo(screenPoints[0].x, screenPoints[0].y);
+
+                    if (screenPoints.length === 1) {
+                        activeStrokeCtx.lineTo(screenPoints[0].x + 0.1, screenPoints[0].y + 0.1);
+                    } else if (screenPoints.length === 2) {
+                        activeStrokeCtx.lineTo(screenPoints[1].x, screenPoints[1].y);
+                    } else {
+                        for (let i = 1; i < screenPoints.length - 1; i++) {
+                            const curr = screenPoints[i];
+                            const next = screenPoints[i + 1];
+                            const endX = (curr.x + next.x) / 2;
+                            const endY = (curr.y + next.y) / 2;
+                            activeStrokeCtx.quadraticCurveTo(curr.x, curr.y, endX, endY);
+                        }
+                        const last = screenPoints[screenPoints.length - 1];
+                        const secondLast = screenPoints[screenPoints.length - 2];
+                        activeStrokeCtx.quadraticCurveTo(secondLast.x, secondLast.y, last.x, last.y);
+                    }
+
+                    activeStrokeCtx.stroke();
+                });
+            }
 
             if (!data.points || data.points.length === 0) return;
 
@@ -316,16 +514,14 @@
                 activeStrokeCtx.setLineDash([]);
                 console.log('Lasso drawn');
             } else if (data.tool === 'laser') {
-                // Draw laser stroke with glow effect and bright core
-                const opacity = data.opacity || 1;
-
+                // Draw laser stroke with glow effect
                 // First pass: Draw glow/shadow effect
-                activeStrokeCtx.strokeStyle = `rgba(255, 0, 0, ${opacity})`;
+                activeStrokeCtx.strokeStyle = data.color || '#FF0000';
                 activeStrokeCtx.lineWidth = data.width || 4;
                 activeStrokeCtx.lineCap = 'round';
                 activeStrokeCtx.lineJoin = 'round';
                 activeStrokeCtx.shadowBlur = 15;
-                activeStrokeCtx.shadowColor = `rgba(255, 0, 0, ${opacity * 0.9})`;
+                activeStrokeCtx.shadowColor = `rgba(255, 0, 0, ${(data.opacity || 1) * 0.9})`;
                 activeStrokeCtx.shadowOffsetX = 0;
                 activeStrokeCtx.shadowOffsetY = 0;
 
@@ -352,9 +548,9 @@
                 activeStrokeCtx.stroke();
 
                 // Second pass: Draw bright core line on top
-                activeStrokeCtx.strokeStyle = `rgba(255, 200, 200, ${opacity})`; // Bright pinkish-white core
-                activeStrokeCtx.lineWidth = 0.8; // Very thin core line
-                activeStrokeCtx.shadowBlur = 0; // No blur for the core
+                activeStrokeCtx.strokeStyle = `rgba(255, 200, 200, ${data.opacity || 1})`;
+                activeStrokeCtx.lineWidth = 0.8;
+                activeStrokeCtx.shadowBlur = 0;
                 activeStrokeCtx.shadowColor = 'transparent';
 
                 activeStrokeCtx.beginPath();
@@ -417,6 +613,10 @@
         }
 
         function clearActiveStroke() {
+            // Clear saved laser strokes to prevent old strokes from reappearing
+            savedLaserStrokes = [];
+            savedLaserOpacity = 1.0;
+
             // Save current transform
             activeStrokeCtx.save();
             // Reset to identity matrix to clear entire canvas
@@ -501,6 +701,7 @@
         }
 
         let isRendering = false;
+        let pageNumIsPending = null;
 
         function renderPage(num) {
             if (!pdfDoc) {
@@ -508,16 +709,22 @@
                 return;
             }
 
-            // Prevent concurrent renders that could cause transform issues
+            // Queue page if already rendering
             if (isRendering) {
-                console.log('Already rendering, skipping...');
+                console.log('Already rendering, queuing page:', num);
+                pageNumIsPending = num;
                 return;
             }
 
             isRendering = true;
             console.log('Rendering page', num);
 
-            pdfDoc.getPage(num).then(page => {
+            // Fade in white overlay to cover the page
+            pageTransitionOverlay.style.opacity = '1';
+
+            // Small delay for fade-in to complete before rendering
+            setTimeout(() => {
+                pdfDoc.getPage(num).then(page => {
                 console.log('Got page', num);
 
                 // Get viewport at scale 1 first
@@ -580,15 +787,40 @@
                     loadPageAnnotations();
                     updatePageIndicator();
 
+                    // Fade out white overlay to reveal the new page
+                    pageTransitionOverlay.style.opacity = '0';
+
                     isRendering = false;
+
+                    // Render pending page if any
+                    if (pageNumIsPending !== null) {
+                        const pending = pageNumIsPending;
+                        pageNumIsPending = null;
+                        renderPage(pending);
+                    }
                 }).catch(err => {
                     console.error('Render error:', err);
                     isRendering = false;
+
+                    // Render pending page if any
+                    if (pageNumIsPending !== null) {
+                        const pending = pageNumIsPending;
+                        pageNumIsPending = null;
+                        renderPage(pending);
+                    }
                 });
-            }).catch(err => {
-                console.error('Failed to get page:', err);
-                isRendering = false;
-            });
+                }).catch(err => {
+                    console.error('Failed to get page:', err);
+                    isRendering = false;
+
+                    // Render pending page if any
+                    if (pageNumIsPending !== null) {
+                        const pending = pageNumIsPending;
+                        pageNumIsPending = null;
+                        renderPage(pending);
+                    }
+                });
+            }, 200); // Delay for fade-in to complete
         }
 
         function syncAnnotationLayer() {

@@ -1,0 +1,4 @@
+Finger scroll= hand.svg , undo= undo-2.svg , redo= redo-2.svg , zoom out= zoom-out.svg , zoom in= zoom-in.svg , 
+fit to = monitor-check.svg , pen= pen-tool.svg , eraser= eraser.svg , laser= wand.svg , lasso= lasso.svg , 
+fullscreen= expand.svg , exit fullscreen= minimize-2.svg , present to second screen= cast.svg , 
+previous page= chevron-left.svg , next page = chevron-right.svg

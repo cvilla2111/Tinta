@@ -1,5 +1,5 @@
 // Initialize PDF.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 
 // State
 let pdfDoc = null;
@@ -51,6 +51,10 @@ const menuModal = document.getElementById('menuModal');
 const themeToggleBtn = document.getElementById('themeToggleBtn');
 const themeIcon = document.getElementById('themeIcon');
 const themeLabel = document.getElementById('themeLabel');
+const quitBtn = document.getElementById('quitBtn');
+const quitConfirmModal = document.getElementById('quitConfirmModal');
+const quitCancelBtn = document.getElementById('quitCancelBtn');
+const quitConfirmBtn = document.getElementById('quitConfirmBtn');
 const welcomeScreen = document.getElementById('welcomeScreen');
 const pdfViewer = document.getElementById('pdfViewer');
 const headerControls = document.getElementById('headerControls');
@@ -64,7 +68,6 @@ const nextPageBtn = document.getElementById('nextPage');
 const zoomInBtn = document.getElementById('zoomIn');
 const zoomOutBtn = document.getElementById('zoomOut');
 const zoomFitBtn = document.getElementById('zoomFit');
-const zoomLevelDisplay = document.getElementById('zoomLevel');
 const canvasContainer = document.getElementById('canvasContainer');
 const fullscreenBtn = document.getElementById('fullscreenBtn');
 const fullscreenIcon = document.getElementById('fullscreenIcon');
@@ -78,6 +81,9 @@ const annotationLayer = document.getElementById('annotationLayer');
 const activeStrokeCanvas = document.getElementById('activeStrokeCanvas');
 const activeStrokeCtx = activeStrokeCanvas.getContext('2d');
 const pdfWrapper = document.getElementById('pdfWrapper');
+const pageTransitionOverlay = document.getElementById('pageTransitionOverlay');
+
+// Annotation Elements defined above - no inline styles needed
 const penBtn = document.getElementById('penBtn');
 const laserBtn = document.getElementById('laserBtn');
 const lassoBtn = document.getElementById('lassoBtn');
@@ -149,6 +155,8 @@ lassoBtn.addEventListener('click', () => {
 
 // State for finger scroll
 let fingerScrollEnabled = false;
+let tempScrollFromBarrelButton = false; // Track if barrel button triggered temp scroll
+let previousToolBeforeBarrelScroll = null; // Store previous tool state
 
 // Helper function to close all modals
 function closeAllModals() {
@@ -281,6 +289,45 @@ if (themeToggleBtn) {
     console.error('Theme toggle button not found!');
 }
 
+// Quit button
+if (quitBtn) {
+    quitBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllModals();
+        // Show quit confirmation modal
+        quitConfirmModal.style.display = 'flex';
+    });
+}
+
+// Quit confirmation handlers
+if (quitCancelBtn) {
+    quitCancelBtn.addEventListener('click', () => {
+        quitConfirmModal.style.display = 'none';
+    });
+}
+
+if (quitConfirmBtn) {
+    quitConfirmBtn.addEventListener('click', () => {
+        quitConfirmModal.style.display = 'none';
+
+        // Try multiple methods to close the window/tab
+        // Method 1: Try window.close() - works for windows opened by JavaScript
+        window.close();
+
+        // Method 2: If still here after 100ms, try the workaround
+        setTimeout(() => {
+            // Open a blank window and close it (sometimes helps with permissions)
+            window.open('', '_self', '');
+            window.close();
+        }, 100);
+
+        // Method 3: If still here, navigate to about:blank
+        setTimeout(() => {
+            window.location.href = 'about:blank';
+        }, 200);
+    });
+}
+
 // Initialize theme on page load
 initTheme();
 
@@ -361,6 +408,16 @@ header.addEventListener('contextmenu', (e) => {
     e.preventDefault();
 });
 
+// Disable context menu on entire document to prevent fullscreen exit on long press
+document.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+});
+
+// Disable context menu on PDF viewer area specifically
+pdfViewer.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+});
+
 // Keyboard navigation
 document.addEventListener('keydown', (e) => {
     if (!pdfDoc) return;
@@ -423,25 +480,27 @@ function loadPDF(file) {
             // Reset to first page
             pageNum = 1;
 
-            // Calculate fit to width scale as default
-            pdf.getPage(pageNum).then(page => {
-                const canvasContainer = document.getElementById('canvasContainer');
-                const containerWidth = canvasContainer.clientWidth;
-                const viewport = page.getViewport({ scale: 1 });
-                scale = containerWidth / viewport.width;
-                fitMode = 'width'; // Set initial fit mode
-                updateZoomDisplay();
-                updateFitButton(); // Update button to show current mode
-                renderPage(pageNum);
-                updatePageControls();
+            // Set initial fit mode
+            fitMode = 'width';
+            pageNum = 1;
 
-                // Enter fullscreen after PDF is loaded
-                if (!document.fullscreenElement) {
-                    document.documentElement.requestFullscreen().catch(err => {
-                        console.log('Fullscreen not available or denied:', err);
-                    });
-                }
-            });
+            // Show UI first
+            renderPage(pageNum);
+            updatePageControls();
+            updateFitButton();
+
+            // Enter fullscreen after PDF is loaded
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log('Fullscreen not available or denied:', err);
+                });
+            }
+
+            // Recalculate fit to width after fullscreen attempt (whether successful or not)
+            // Give time for UI to stabilize and fullscreen to complete
+            setTimeout(() => {
+                fitToWidth();
+            }, 300);
         }).catch(err => {
             console.error('Error loading PDF:', err);
             alert('Error loading PDF file. Please try another file.');
@@ -455,7 +514,12 @@ function loadPDF(file) {
 function renderPage(num) {
     pageIsRendering = true;
 
-    pdfDoc.getPage(num).then(page => {
+    // Fade in overlay to cover the page (EXACTLY like presentation screen)
+    pageTransitionOverlay.style.opacity = '1';
+
+    // Small delay for fade-in to complete before rendering
+    setTimeout(() => {
+        pdfDoc.getPage(num).then(page => {
         // Get device pixel ratio for high-DPI displays
         const dpr = window.devicePixelRatio || 1;
         const viewport = page.getViewport({ scale });
@@ -481,16 +545,27 @@ function renderPage(num) {
         renderTask.promise.then(() => {
             pageIsRendering = false;
 
-            // Sync annotation layer
+            // Sync ONLY the SVG layer size (don't touch activeStrokeCanvas - would clear it!)
+            const width = canvas.offsetWidth;
+            const height = canvas.offsetHeight;
+            annotationLayer.setAttribute('width', canvas.style.width);
+            annotationLayer.setAttribute('height', canvas.style.height);
+            annotationLayer.setAttribute('viewBox', `0 0 ${width} ${height}`);
+
+            // Load new annotations and sync canvas
             syncAnnotationLayer();
             loadPageAnnotations();
+
+            // Fade out overlay to reveal the new page (EXACTLY like presentation screen)
+            pageTransitionOverlay.style.opacity = '0';
 
             if (pageNumIsPending !== null) {
                 renderPage(pageNumIsPending);
                 pageNumIsPending = null;
             }
         });
-    });
+        });
+    }, 300); // Normal timing - match CSS transition
 
     // Update page number display
     pageNumDisplay.textContent = num;
@@ -511,7 +586,7 @@ function showPrevPage() {
     pageNum--;
     queueRenderPage(pageNum);
     updatePageControls();
-    loadPageAnnotations();
+    // Don't call loadPageAnnotations here - let renderPage handle it during transition
     syncPresentationPage(pageNum);
 }
 
@@ -521,7 +596,7 @@ function showNextPage() {
     pageNum++;
     queueRenderPage(pageNum);
     updatePageControls();
-    loadPageAnnotations();
+    // Don't call loadPageAnnotations here - let renderPage handle it during transition
     syncPresentationPage(pageNum);
 }
 
@@ -535,7 +610,6 @@ function updatePageControls() {
 function zoomIn() {
     if (scale >= 5) return;
     scale += 0.01;
-    updateZoomDisplay();
     queueRenderPage(pageNum);
 }
 
@@ -543,7 +617,6 @@ function zoomIn() {
 function zoomOut() {
     if (scale <= 0.1) return;
     scale -= 0.01;
-    updateZoomDisplay();
     queueRenderPage(pageNum);
 }
 
@@ -572,7 +645,6 @@ function fitToWidth() {
         const containerWidth = canvasContainer.clientWidth;
         const viewport = page.getViewport({ scale: 1 });
         scale = containerWidth / viewport.width;
-        updateZoomDisplay();
         queueRenderPage(pageNum);
     });
 }
@@ -586,7 +658,6 @@ function fitToHeight() {
         const containerHeight = canvasContainer.clientHeight;
         const viewport = page.getViewport({ scale: 1 });
         scale = containerHeight / viewport.height;
-        updateZoomDisplay();
         queueRenderPage(pageNum);
     });
 }
@@ -606,33 +677,21 @@ function fitToBest() {
         const scaleHeight = containerHeight / viewport.height;
         scale = Math.min(scaleWidth, scaleHeight);
 
-        updateZoomDisplay();
         queueRenderPage(pageNum);
     });
 }
 
-// Update fit button icon and title based on current mode
+// Update fit button title based on current mode (icon doesn't change - it's a static img)
 function updateFitButton() {
-    const fitIcon = zoomFitBtn.querySelector('svg');
-
+    // Update button title only - the icon is now a static img tag
     if (fitMode === 'width') {
-        // Fit to width icon (vertical lines)
-        fitIcon.innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line>';
         zoomFitBtn.title = 'Fit to Width';
     } else {
-        // Fit to height icon (horizontal lines)
-        fitIcon.innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line>';
         zoomFitBtn.title = 'Fit to Height';
     }
 }
 
-// Update zoom display
-function updateZoomDisplay() {
-    zoomLevelDisplay.textContent = Math.round(scale * 100) + '%';
-}
-
-// Initialize zoom display
-updateZoomDisplay();
+// Zoom display removed - no longer needed
 
 // Fullscreen toggle
 function toggleFullscreen() {
@@ -651,12 +710,20 @@ function toggleFullscreen() {
 document.addEventListener('fullscreenchange', () => {
     if (document.fullscreenElement) {
         // In fullscreen - show exit fullscreen icon
-        fullscreenIcon.innerHTML = '<path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path>';
+        fullscreenIcon.src = 'icons/minimize-2.svg';
         fullscreenBtn.title = 'Exit Fullscreen';
     } else {
         // Not in fullscreen - show enter fullscreen icon
-        fullscreenIcon.innerHTML = '<path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>';
+        fullscreenIcon.src = 'icons/expand.svg';
         fullscreenBtn.title = 'Fullscreen';
+    }
+
+    // Recalculate fit to width when entering/exiting fullscreen
+    if (pdfDoc && fitMode === 'width') {
+        // Small delay to let browser finish fullscreen transition
+        setTimeout(() => {
+            fitToWidth();
+        }, 100);
     }
 });
 
@@ -869,6 +936,29 @@ function startDrawing(e) {
     // Close all modals when stylus/pen touches the screen
     closeAllModals();
 
+    // Detect stylus barrel button (button 1, bitmask 2 for Microsoft Surface Pen)
+    const isBarrelButtonPressed = (e.buttons & 2) !== 0 && e.pointerType === 'pen';
+
+    // If barrel button is pressed, start scrolling mode with stylus
+    if (isBarrelButtonPressed) {
+        tempScrollFromBarrelButton = true;
+        previousToolBeforeBarrelScroll = currentTool;
+
+        // Update UI to show scroll mode is active
+        scrollIcon.innerHTML = '<path d="M18 11V6a2 2 0 0 0-4 0v5M14 11V4a2 2 0 0 0-4 0v7M10 11V6a2 2 0 0 0-4 0v5M6 11v4a8 8 0 0 0 8 8h.3a8 8 0 0 0 7.7-6.1l1-4A2 2 0 0 0 21 10h-2"></path><circle cx="14" cy="14" r="10" opacity="0.3" fill="currentColor"></circle>';
+        scrollToggleBtn.title = 'Barrel Button Scrolling';
+        scrollToggleBtn.classList.add('tool-active');
+
+        // Start scroll tracking
+        activePointerId = e.pointerId;
+        isDrawing = true; // Use isDrawing to track that we're in barrel button scroll mode
+        const pos = getPointerPos(e);
+        currentPoints = [pos]; // Store starting position for scroll delta
+
+        // Don't draw, just track for scrolling
+        return;
+    }
+
     // For pen/mouse only: capture pointer and prevent default
     e.preventDefault();
     e.stopPropagation();
@@ -983,6 +1073,21 @@ function draw(e) {
 
     const pos = getPointerPos(e);
 
+    // Handle barrel button scrolling
+    if (tempScrollFromBarrelButton) {
+        const lastPos = currentPoints[currentPoints.length - 1];
+        const dx = pos.x - lastPos.x;
+        const dy = pos.y - lastPos.y;
+
+        // Scroll the canvas container
+        canvasContainer.scrollLeft -= dx;
+        canvasContainer.scrollTop -= dy;
+
+        // Update position for next delta
+        currentPoints = [pos];
+        return;
+    }
+
     if (isEraserActive) {
         // Draw eraser preview and erase
         drawEraserPreview(pos.x, pos.y);
@@ -1049,9 +1154,8 @@ function draw(e) {
 
         // If laser tool, redraw all saved laser strokes first
         if (currentTool === 'laser') {
-            if (laserStrokes.length > 0) {
-                redrawLaserStrokes(1.0); // Force full opacity while drawing
-            }
+            // Include current stroke being drawn for real-time sync to presentation
+            redrawLaserStrokes(1.0, true); // Force full opacity while drawing
 
             // Set up context for laser (since we cleared and used save/restore)
             activeStrokeCtx.strokeStyle = '#FF0000';
@@ -1118,10 +1222,8 @@ function draw(e) {
             // Clear and redraw everything for laser
             activeStrokeCtx.clearRect(0, 0, activeStrokeCanvas.width, activeStrokeCanvas.height);
 
-            // Redraw all saved laser strokes with full opacity
-            if (laserStrokes.length > 0) {
-                redrawLaserStrokes(1.0); // Force full opacity while drawing
-            }
+            // Redraw all saved laser strokes with full opacity, including current stroke
+            redrawLaserStrokes(1.0, true); // Force full opacity while drawing
 
             // Draw current stroke with simple lines (for first few points)
             activeStrokeCtx.save();
@@ -1164,6 +1266,30 @@ function draw(e) {
 }
 
 function endDrawing(e) {
+    // Check if barrel button was released - if so, restore previous mode
+    if (e && tempScrollFromBarrelButton && (e.buttons & 2) === 0) {
+        // Barrel button released - disable temp scroll mode
+        tempScrollFromBarrelButton = false;
+
+        // Restore scroll button UI
+        scrollIcon.innerHTML = '<path d="M18 11V6a2 2 0 0 0-4 0v5M14 11V4a2 2 0 0 0-4 0v7M10 11V6a2 2 0 0 0-4 0v5M6 11v4a8 8 0 0 0 8 8h.3a8 8 0 0 0 7.7-6.1l1-4A2 2 0 0 0 21 10h-2"></path><line x1="12" y1="2" x2="12" y2="22" stroke-dasharray="2,2" opacity="0.5"></line>';
+        scrollToggleBtn.title = 'Enable Finger Scroll';
+        scrollToggleBtn.classList.remove('tool-active');
+
+        // Restore previous tool if it was stored
+        if (previousToolBeforeBarrelScroll !== null) {
+            currentTool = previousToolBeforeBarrelScroll;
+            previousToolBeforeBarrelScroll = null;
+        }
+
+        // Reset drawing state
+        isDrawing = false;
+        activePointerId = null;
+        currentPoints = [];
+
+        return;
+    }
+
     // PALM REJECTION: Only end drawing for the active pointer, ignore palm/finger lifts
     if (e && isDrawing && e.pointerId !== activePointerId) {
         e.preventDefault();
@@ -1215,32 +1341,61 @@ function endDrawing(e) {
     const wasEraserActive = isEraserActive;
     isEraserActive = false; // Reset eraser state
 
-    if (!wasEraserActive && currentTool === 'pen' && currentPoints.length > 1) {
+    if (!wasEraserActive && currentTool === 'pen' && currentPoints.length >= 1) {
         // Extract normalized coordinates for storage
         const normalizedPoints = currentPoints.map(p => ({
             x: p.normalizedX,
             y: p.normalizedY
         }));
 
-        // Convert canvas stroke to SVG path using screen coordinates
-        const svgPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        svgPath.setAttribute('stroke', currentColor);
-        svgPath.setAttribute('stroke-width', currentStrokeWidth);
-        svgPath.setAttribute('d', pointsToPath(currentPoints));
-        annotationLayer.appendChild(svgPath);
+        // Handle single-point tap (dot/period)
+        if (currentPoints.length === 1) {
+            // Create a small circle for a dot
+            const point = currentPoints[0];
+            const radius = currentStrokeWidth / 2; // Dot size matches stroke width
 
-        // Save to annotations with NORMALIZED coordinates
-        if (!annotations[pageNum]) {
-            annotations[pageNum] = [];
+            // Draw a circle using SVG
+            const svgCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            svgCircle.setAttribute('cx', point.x);
+            svgCircle.setAttribute('cy', point.y);
+            svgCircle.setAttribute('r', radius);
+            svgCircle.setAttribute('fill', currentColor);
+            annotationLayer.appendChild(svgCircle);
+
+            // Save as annotation
+            if (!annotations[pageNum]) {
+                annotations[pageNum] = [];
+            }
+
+            annotations[pageNum].push({
+                type: 'circle',
+                element: svgCircle,
+                color: currentColor,
+                width: currentStrokeWidth,
+                points: normalizedPoints,
+                radius: radius
+            });
+        } else {
+            // Multiple points - draw as path (normal stroke)
+            const svgPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            svgPath.setAttribute('stroke', currentColor);
+            svgPath.setAttribute('stroke-width', currentStrokeWidth);
+            svgPath.setAttribute('d', pointsToPath(currentPoints));
+            annotationLayer.appendChild(svgPath);
+
+            // Save to annotations with NORMALIZED coordinates
+            if (!annotations[pageNum]) {
+                annotations[pageNum] = [];
+            }
+
+            annotations[pageNum].push({
+                type: 'path',
+                element: svgPath,
+                color: currentColor,
+                width: currentStrokeWidth,
+                points: normalizedPoints // Store normalized (0-1) coordinates
+            });
         }
-
-        annotations[pageNum].push({
-            type: 'path',
-            element: svgPath,
-            color: currentColor,
-            width: currentStrokeWidth,
-            points: normalizedPoints // Store normalized (0-1) coordinates
-        });
 
         // Clear active stroke canvas
         activeStrokeCtx.clearRect(0, 0, activeStrokeCanvas.width, activeStrokeCanvas.height);
@@ -1318,15 +1473,28 @@ function redoLastStroke() {
         normalizedY: p.y
     }));
 
-    // Create new SVG path element
-    const newPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    newPath.setAttribute('stroke', strokeToRedo.color);
-    newPath.setAttribute('stroke-width', strokeToRedo.width);
-    newPath.setAttribute('d', pointsToPath(screenPoints));
-    annotationLayer.appendChild(newPath);
+    if (strokeToRedo.type === 'circle') {
+        // Handle circle annotations (dots/periods)
+        const newCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        newCircle.setAttribute('cx', screenPoints[0].x);
+        newCircle.setAttribute('cy', screenPoints[0].y);
+        newCircle.setAttribute('r', strokeToRedo.radius);
+        newCircle.setAttribute('fill', strokeToRedo.color);
+        annotationLayer.appendChild(newCircle);
 
-    // Update element reference
-    strokeToRedo.element = newPath;
+        // Update element reference
+        strokeToRedo.element = newCircle;
+    } else {
+        // Handle path annotations (strokes)
+        const newPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        newPath.setAttribute('stroke', strokeToRedo.color);
+        newPath.setAttribute('stroke-width', strokeToRedo.width);
+        newPath.setAttribute('d', pointsToPath(screenPoints));
+        annotationLayer.appendChild(newPath);
+
+        // Update element reference
+        strokeToRedo.element = newPath;
+    }
 
     // Add back to annotations
     if (!annotations[pageNum]) {
@@ -1406,12 +1574,24 @@ function loadPageAnnotations() {
                 normalizedY: p.y
             }));
 
-            const newPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            newPath.setAttribute('stroke', annotation.color);
-            newPath.setAttribute('stroke-width', annotation.width);
-            newPath.setAttribute('d', pointsToPath(screenPoints));
-            annotation.element = newPath;
-            annotationLayer.appendChild(newPath);
+            if (annotation.type === 'circle') {
+                // Handle circle annotations (dots/periods from single taps)
+                const newCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                newCircle.setAttribute('cx', screenPoints[0].x);
+                newCircle.setAttribute('cy', screenPoints[0].y);
+                newCircle.setAttribute('r', annotation.radius);
+                newCircle.setAttribute('fill', annotation.color);
+                annotation.element = newCircle;
+                annotationLayer.appendChild(newCircle);
+            } else {
+                // Handle path annotations (strokes)
+                const newPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                newPath.setAttribute('stroke', annotation.color);
+                newPath.setAttribute('stroke-width', annotation.width);
+                newPath.setAttribute('d', pointsToPath(screenPoints));
+                annotation.element = newPath;
+                annotationLayer.appendChild(newPath);
+            }
         });
     }
 
@@ -1544,9 +1724,12 @@ function saveLaserStroke() {
 
     // Redraw all laser strokes (including the one we just saved)
     redrawLaserStrokes(1.0);
+
+    // CRITICAL: Sync all laser strokes to presentation after completing a stroke
+    syncPresentationLaserStrokes(laserStrokes, 1.0);
 }
 
-function redrawLaserStrokes(opacity = null) {
+function redrawLaserStrokes(opacity = null, includeCurrentStroke = false) {
     // Don't clear - just draw all laser strokes
     // (caller is responsible for clearing if needed)
 
@@ -1554,10 +1737,19 @@ function redrawLaserStrokes(opacity = null) {
     // When actively drawing (opacity = 1.0), always use full opacity
     const useOpacity = opacity !== null ? opacity : laserFadeOpacity;
 
-    // Sync laser strokes to presentation with current opacity
-    if (laserStrokes.length > 0 && laserStrokes[laserStrokes.length - 1].points) {
-        const lastStroke = laserStrokes[laserStrokes.length - 1];
-        syncPresentationActiveStroke(lastStroke.points, 'laser', '#FF0000', 4, useOpacity);
+    // Build list of strokes to sync (include current stroke if actively drawing)
+    let strokesToSync = [...laserStrokes];
+    if (includeCurrentStroke && currentPoints.length > 0) {
+        strokesToSync.push({
+            points: currentPoints.map(p => ({ x: p.x, y: p.y }))
+        });
+    }
+
+    // CRITICAL FIX: Only sync ALL laser strokes when NOT actively drawing
+    // While drawing, ACTIVE_STROKE handles the current stroke (no flickering)
+    // After drawing completes, LASER_STROKES handles fade-out animation
+    if (!isDrawing) {
+        syncPresentationLaserStrokes(strokesToSync, useOpacity);
     }
 
     // Save current context state
@@ -1927,7 +2119,14 @@ function moveSelectedAnnotations(dx, dy) {
             normalizedY: p.y
         }));
 
-        annotation.element.setAttribute('d', pointsToPath(screenPoints));
+        if (annotation.type === 'circle') {
+            // Update circle position
+            annotation.element.setAttribute('cx', screenPoints[0].x);
+            annotation.element.setAttribute('cy', screenPoints[0].y);
+        } else {
+            // Update path
+            annotation.element.setAttribute('d', pointsToPath(screenPoints));
+        }
     });
 
     // Update selection box position
@@ -2094,7 +2293,17 @@ function resizeSelectedAnnotations(currentPos) {
             normalizedY: p.y
         }));
 
-        annotation.element.setAttribute('d', pointsToPath(screenPoints));
+        if (annotation.type === 'circle') {
+            // Update circle position and scale radius
+            annotation.element.setAttribute('cx', screenPoints[0].x);
+            annotation.element.setAttribute('cy', screenPoints[0].y);
+            annotation.element.setAttribute('r', annotation.radius * scale);
+            // Update stored radius
+            annotation.radius = annotation.radius * scale;
+        } else {
+            // Update path
+            annotation.element.setAttribute('d', pointsToPath(screenPoints));
+        }
     });
 
     // Update selection bounds
@@ -2411,6 +2620,35 @@ function syncPresentationActiveStroke(points, tool, color, width, opacity) {
 function clearPresentationActiveStroke() {
     sendMessage({
         type: 'CLEAR_ACTIVE_STROKE'
+    });
+}
+
+// Throttle laser stroke updates - same as pen strokes for consistency
+let lastLaserSyncTime = 0;
+const LASER_SYNC_THROTTLE = 8; // milliseconds (~120fps, same as pen)
+
+function syncPresentationLaserStrokes(strokes, opacity) {
+    const now = Date.now();
+    if (now - lastLaserSyncTime < LASER_SYNC_THROTTLE) {
+        return; // Throttle to avoid too many messages
+    }
+    lastLaserSyncTime = now;
+
+    const canvasWidth = canvas.offsetWidth;
+    const canvasHeight = canvas.offsetHeight;
+
+    // Normalize all laser strokes
+    const normalizedStrokes = strokes.map(stroke => ({
+        points: stroke.points.map(p => ({
+            x: p.x / canvasWidth,
+            y: p.y / canvasHeight
+        }))
+    }));
+
+    sendMessage({
+        type: 'LASER_STROKES',
+        strokes: normalizedStrokes,
+        opacity: opacity
     });
 }
 

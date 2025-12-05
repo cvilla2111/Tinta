@@ -4,56 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PDF Viewer</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=7">
 </head>
 <body>
     <div class="container">
         <header class="header">
             <div class="header-left">
                 <button id="scrollToggleBtn" class="btn btn-icon-sm" title="Enable Finger Scroll">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="scrollIcon">
-                        <path d="M18 11V6a2 2 0 0 0-4 0v5M14 11V4a2 2 0 0 0-4 0v7M10 11V6a2 2 0 0 0-4 0v5M6 11v4a8 8 0 0 0 8 8h.3a8 8 0 0 0 7.7-6.1l1-4A2 2 0 0 0 21 10h-2"></path>
-                        <line x1="12" y1="2" x2="12" y2="22" stroke-dasharray="2,2" opacity="0.5"></line>
-                    </svg>
+                    <img src="icons/hand.svg" width="24" height="24" alt="Finger Scroll" id="scrollIcon">
                 </button>
                 <div style="width: 28px;"></div>
                 <button id="undoBtn" class="btn btn-icon-sm" title="Undo" disabled>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M3 7v6h6"></path>
-                        <path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"></path>
-                    </svg>
+                    <img src="icons/undo-2.svg" width="24" height="24" alt="Undo">
                 </button>
                 <button id="redoBtn" class="btn btn-icon-sm" title="Redo" disabled>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 7v6h-6"></path>
-                        <path d="M3 17a9 9 0 019-9 9 9 0 016 2.3L21 13"></path>
-                    </svg>
+                    <img src="icons/redo-2.svg" width="24" height="24" alt="Redo">
                 </button>
                 <div style="width: 28px;"></div>
                 <div class="toolbar-group">
                     <button id="zoomOut" class="btn btn-icon-sm" title="Zoom Out">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="8" y1="11" x2="14" y2="11"></line>
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
-                    </button>
-                    <span class="zoom-level" id="zoomLevel">100%</span>
+                    <img src="icons/zoom-out.svg" width="24" height="24" alt="Zoom Out">
+                </button>
+                    <button id="zoomFit" class="btn btn-text-sm" title="Fit to Width">Fit</button>
                     <button id="zoomIn" class="btn btn-icon-sm" title="Zoom In">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="11" y1="8" x2="11" y2="14"></line>
-                            <line x1="8" y1="11" x2="14" y2="11"></line>
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
-                    </button>
-                    <button id="zoomFit" class="btn btn-icon-sm" title="Fit to Width">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                            <line x1="9" y1="3" x2="9" y2="21"></line>
-                            <line x1="15" y1="3" x2="15" y2="21"></line>
-                        </svg>
-                    </button>
+                    <img src="icons/zoom-in.svg" width="24" height="24" alt="Zoom In">
+                </button>
                 </div>
             </div>
 
@@ -61,11 +36,8 @@
                 <!-- Pen Tool with Modal -->
                 <div class="toolbar-group pen-picker-container">
                     <button id="penBtn" class="btn btn-icon-sm tool-active" title="Pen">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
-                            <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
-                        </svg>
-                    </button>
+                    <img src="icons/pen-tool.svg" width="24" height="24" alt="Pen">
+                </button>
 
                     <!-- Stroke Width Modal -->
                     <div id="strokePickerModal" class="stroke-modal" style="display: none;">
@@ -117,10 +89,8 @@
                 <!-- Eraser Tool with Modal -->
                 <div class="toolbar-group eraser-picker-container">
                     <button id="eraserBtn" class="btn btn-icon-sm" title="Eraser">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M20 20H7L3 16l7-7 9 9v2z"></path>
-                        </svg>
-                    </button>
+                    <img src="icons/eraser.svg" width="24" height="24" alt="Eraser">
+                </button>
 
                     <!-- Eraser Modal -->
                     <div id="eraserModal" class="eraser-modal" style="display: none;">
@@ -136,14 +106,7 @@
 
                 <!-- Laser Pointer Tool -->
                 <button id="laserBtn" class="btn btn-icon-sm" title="Laser Pointer">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="3" fill="currentColor" opacity="0.6"></circle>
-                        <circle cx="12" cy="12" r="6" opacity="0.3"></circle>
-                        <line x1="12" y1="2" x2="12" y2="6"></line>
-                        <line x1="12" y1="18" x2="12" y2="22"></line>
-                        <line x1="2" y1="12" x2="6" y2="12"></line>
-                        <line x1="18" y1="12" x2="22" y2="12"></line>
-                    </svg>
+                    <img src="icons/wand.svg" width="24" height="24" alt="Laser">
                 </button>
 
                 <!-- Colors -->
@@ -188,10 +151,7 @@
 
                 <!-- Lasso Selection Tool -->
                 <button id="lassoBtn" class="btn btn-icon-sm" title="Lasso Selection">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 2C8 2 5 4 5 7c0 2 1 3 2 4l-3 8c0 1 1 2 2 2s2-1 2-2l1-3c1 0 2 0 3 0l1 3c0 1 1 2 2 2s2-1 2-2l-3-8c1-1 2-2 2-4 0-3-3-5-7-5z"></path>
-                        <circle cx="12" cy="7" r="3" stroke-dasharray="2,2"></circle>
-                    </svg>
+                    <img src="icons/lasso.svg" width="24" height="24" alt="Lasso">
                 </button>
 
                 <!-- Spacer -->
@@ -199,9 +159,7 @@
 
                 <!-- Fullscreen -->
                 <button id="fullscreenBtn" class="btn btn-icon-sm" title="Fullscreen">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="fullscreenIcon">
-                        <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
-                    </svg>
+                    <img src="icons/expand.svg" width="24" height="24" alt="Fullscreen" id="fullscreenIcon">
                 </button>
 
             </div>
@@ -209,10 +167,7 @@
             <div class="header-right" id="headerRight" style="display: none;">
                 <!-- Present to Second Screen -->
                 <button id="presentBtn" class="btn btn-icon-sm" title="Present to Second Screen">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M2 16.1A5 5 0 0 1 5.9 20M2 12.05A9 9 0 0 1 9.95 20M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"></path>
-                        <line x1="2" y1="20" x2="2.01" y2="20"></line>
-                    </svg>
+                    <img src="icons/cast.svg" width="24" height="24" alt="Present">
                 </button>
 
                 <!-- Spacer -->
@@ -221,7 +176,7 @@
                 <!-- Menu -->
                 <div class="toolbar-group menu-container">
                     <button id="menuBtn" class="btn btn-icon-sm" title="Menu">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="1"></circle>
                             <circle cx="12" cy="5" r="1"></circle>
                             <circle cx="12" cy="19" r="1"></circle>
@@ -252,6 +207,15 @@
                             </svg>
                             <span id="themeLabel">Dark Mode</span>
                         </button>
+                        <div class="menu-separator"></div>
+                        <button id="quitBtn" class="menu-option" title="Quit">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                <polyline points="16 17 21 12 16 7"></polyline>
+                                <line x1="21" y1="12" x2="9" y2="12"></line>
+                            </svg>
+                            <span>Quit</span>
+                        </button>
                     </div>
                 </div>
 
@@ -261,18 +225,14 @@
                 <!-- Navigation -->
                 <div class="toolbar-group">
                     <button id="prevPage" class="btn btn-icon-sm" title="Previous Page">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="15 18 9 12 15 6"></polyline>
-                        </svg>
-                    </button>
+                    <img src="icons/chevron-left.svg" width="24" height="24" alt="Previous">
+                </button>
                     <div class="page-info">
                         <span id="pageNum">1</span>/<span id="pageCount">0</span>
                     </div>
                     <button id="nextPage" class="btn btn-icon-sm" title="Next Page">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="9 18 15 12 9 6"></polyline>
-                        </svg>
-                    </button>
+                    <img src="icons/chevron-right.svg" width="24" height="24" alt="Next">
+                </button>
                 </div>
             </div>
         </header>
@@ -298,8 +258,8 @@
                         <canvas id="pdfCanvas"></canvas>
                         <svg id="annotationLayer" class="annotation-layer"></svg>
                         <canvas id="activeStrokeCanvas" class="active-stroke-layer"></canvas>
-                    </div>
-                </div>
+                        <div id="pageTransitionOverlay" class="page-transition-overlay"></div>
+                    </div>                </div>
             </div>
         </div>
 
@@ -320,10 +280,22 @@
                 </div>
             </div>
         </div>
+
+        <!-- Quit Confirmation Modal -->
+        <div id="quitConfirmModal" class="quit-confirm-overlay" style="display: none;">
+            <div class="quit-confirm-dialog">
+                <h3>Quit Application</h3>
+                <p>Are you sure you want to close the app?</p>
+                <div class="quit-confirm-buttons">
+                    <button id="quitCancelBtn" class="btn-quit-cancel">Cancel</button>
+                    <button id="quitConfirmBtn" class="btn-quit-confirm">Quit</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- PDF.js Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="pdf.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
