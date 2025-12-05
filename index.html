@@ -118,33 +118,81 @@
                     <!-- Color Picker Modal -->
                     <div id="colorPickerModal" class="color-modal" style="display: none;">
                         <div class="color-grid">
-                            <button class="color-option" data-color="#000000" style="background: #000000;" title="Black"></button>
-                            <button class="color-option" data-color="#FFFFFF" style="background: #FFFFFF; border: 1px solid #ccc;" title="White"></button>
-                            <button class="color-option" data-color="#FF0000" style="background: #FF0000;" title="Red"></button>
-                            <button class="color-option" data-color="#FF6B00" style="background: #FF6B00;" title="Orange"></button>
-                            <button class="color-option" data-color="#FFD700" style="background: #FFD700;" title="Gold"></button>
-                            <button class="color-option" data-color="#FFFF00" style="background: #FFFF00;" title="Yellow"></button>
+                            <button class="color-option" data-color="#000000" title="Black">
+                                <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16,2 C18,2.5 20,3 21.5,4.5 C22,5 23,5.5 24,6.5 C25.5,8 26.5,9 27,11 C27.5,12 28,13.5 28,15 C28,16.5 27.8,18 27,19.5 C26.5,20.5 26,21.5 25,23 C24,24 23,25 21.5,26 C20,27 18.5,27.5 17,28 C15.5,28.5 14,29 12.5,28.5 C11,28 9.5,27.5 8,26.5 C7,25.5 6,24.5 5,23 C4.5,22 4,20.5 3.5,19 C3,17.5 2.5,16 2.5,14.5 C2.5,13 3,11 4,9.5 C4.5,8.5 5.5,7.5 6.5,6.5 C8,5 9,4.5 10.5,3.5 C12,3 13.5,2.5 15,2.2 C15.5,2 16,2 16,2 Z" fill="#000000"/></svg>
+                            </button>
+                            <button class="color-option" data-color="#FFFFFF" title="White">
+                                <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16,2 C18,2.5 20,3 21.5,4.5 C22,5 23,5.5 24,6.5 C25.5,8 26.5,9 27,11 C27.5,12 28,13.5 28,15 C28,16.5 27.8,18 27,19.5 C26.5,20.5 26,21.5 25,23 C24,24 23,25 21.5,26 C20,27 18.5,27.5 17,28 C15.5,28.5 14,29 12.5,28.5 C11,28 9.5,27.5 8,26.5 C7,25.5 6,24.5 5,23 C4.5,22 4,20.5 3.5,19 C3,17.5 2.5,16 2.5,14.5 C2.5,13 3,11 4,9.5 C4.5,8.5 5.5,7.5 6.5,6.5 C8,5 9,4.5 10.5,3.5 C12,3 13.5,2.5 15,2.2 C15.5,2 16,2 16,2 Z" fill="#FFFFFF" stroke="#ccc" stroke-width="1"/></svg>
+                            </button>
+                            <button class="color-option" data-color="#FF0000" title="Red">
+                                <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16,2 C18,2.5 20,3 21.5,4.5 C22,5 23,5.5 24,6.5 C25.5,8 26.5,9 27,11 C27.5,12 28,13.5 28,15 C28,16.5 27.8,18 27,19.5 C26.5,20.5 26,21.5 25,23 C24,24 23,25 21.5,26 C20,27 18.5,27.5 17,28 C15.5,28.5 14,29 12.5,28.5 C11,28 9.5,27.5 8,26.5 C7,25.5 6,24.5 5,23 C4.5,22 4,20.5 3.5,19 C3,17.5 2.5,16 2.5,14.5 C2.5,13 3,11 4,9.5 C4.5,8.5 5.5,7.5 6.5,6.5 C8,5 9,4.5 10.5,3.5 C12,3 13.5,2.5 15,2.2 C15.5,2 16,2 16,2 Z" fill="#FF0000"/></svg>
+                            </button>
+                            <button class="color-option" data-color="#FF6B00" title="Orange">
+                                <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16,2 C18,2.5 20,3 21.5,4.5 C22,5 23,5.5 24,6.5 C25.5,8 26.5,9 27,11 C27.5,12 28,13.5 28,15 C28,16.5 27.8,18 27,19.5 C26.5,20.5 26,21.5 25,23 C24,24 23,25 21.5,26 C20,27 18.5,27.5 17,28 C15.5,28.5 14,29 12.5,28.5 C11,28 9.5,27.5 8,26.5 C7,25.5 6,24.5 5,23 C4.5,22 4,20.5 3.5,19 C3,17.5 2.5,16 2.5,14.5 C2.5,13 3,11 4,9.5 C4.5,8.5 5.5,7.5 6.5,6.5 C8,5 9,4.5 10.5,3.5 C12,3 13.5,2.5 15,2.2 C15.5,2 16,2 16,2 Z" fill="#FF6B00"/></svg>
+                            </button>
+                            <button class="color-option" data-color="#FFD700" title="Gold">
+                                <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16,2 C18,2.5 20,3 21.5,4.5 C22,5 23,5.5 24,6.5 C25.5,8 26.5,9 27,11 C27.5,12 28,13.5 28,15 C28,16.5 27.8,18 27,19.5 C26.5,20.5 26,21.5 25,23 C24,24 23,25 21.5,26 C20,27 18.5,27.5 17,28 C15.5,28.5 14,29 12.5,28.5 C11,28 9.5,27.5 8,26.5 C7,25.5 6,24.5 5,23 C4.5,22 4,20.5 3.5,19 C3,17.5 2.5,16 2.5,14.5 C2.5,13 3,11 4,9.5 C4.5,8.5 5.5,7.5 6.5,6.5 C8,5 9,4.5 10.5,3.5 C12,3 13.5,2.5 15,2.2 C15.5,2 16,2 16,2 Z" fill="#FFD700"/></svg>
+                            </button>
+                            <button class="color-option" data-color="#FFFF00" title="Yellow">
+                                <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16,2 C18,2.5 20,3 21.5,4.5 C22,5 23,5.5 24,6.5 C25.5,8 26.5,9 27,11 C27.5,12 28,13.5 28,15 C28,16.5 27.8,18 27,19.5 C26.5,20.5 26,21.5 25,23 C24,24 23,25 21.5,26 C20,27 18.5,27.5 17,28 C15.5,28.5 14,29 12.5,28.5 C11,28 9.5,27.5 8,26.5 C7,25.5 6,24.5 5,23 C4.5,22 4,20.5 3.5,19 C3,17.5 2.5,16 2.5,14.5 C2.5,13 3,11 4,9.5 C4.5,8.5 5.5,7.5 6.5,6.5 C8,5 9,4.5 10.5,3.5 C12,3 13.5,2.5 15,2.2 C15.5,2 16,2 16,2 Z" fill="#FFFF00"/></svg>
+                            </button>
 
-                            <button class="color-option" data-color="#00FF00" style="background: #00FF00;" title="Lime"></button>
-                            <button class="color-option" data-color="#00AA00" style="background: #00AA00;" title="Green"></button>
-                            <button class="color-option" data-color="#00FFFF" style="background: #00FFFF;" title="Cyan"></button>
-                            <button class="color-option" data-color="#0099FF" style="background: #0099FF;" title="Light Blue"></button>
-                            <button class="color-option" data-color="#0000FF" style="background: #0000FF;" title="Blue"></button>
-                            <button class="color-option" data-color="#0000AA" style="background: #0000AA;" title="Dark Blue"></button>
+                            <button class="color-option" data-color="#00FF00" title="Lime">
+                                <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16,2 C18,2.5 20,3 21.5,4.5 C22,5 23,5.5 24,6.5 C25.5,8 26.5,9 27,11 C27.5,12 28,13.5 28,15 C28,16.5 27.8,18 27,19.5 C26.5,20.5 26,21.5 25,23 C24,24 23,25 21.5,26 C20,27 18.5,27.5 17,28 C15.5,28.5 14,29 12.5,28.5 C11,28 9.5,27.5 8,26.5 C7,25.5 6,24.5 5,23 C4.5,22 4,20.5 3.5,19 C3,17.5 2.5,16 2.5,14.5 C2.5,13 3,11 4,9.5 C4.5,8.5 5.5,7.5 6.5,6.5 C8,5 9,4.5 10.5,3.5 C12,3 13.5,2.5 15,2.2 C15.5,2 16,2 16,2 Z" fill="#00FF00"/></svg>
+                            </button>
+                            <button class="color-option" data-color="#00AA00" title="Green">
+                                <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16,2 C18,2.5 20,3 21.5,4.5 C22,5 23,5.5 24,6.5 C25.5,8 26.5,9 27,11 C27.5,12 28,13.5 28,15 C28,16.5 27.8,18 27,19.5 C26.5,20.5 26,21.5 25,23 C24,24 23,25 21.5,26 C20,27 18.5,27.5 17,28 C15.5,28.5 14,29 12.5,28.5 C11,28 9.5,27.5 8,26.5 C7,25.5 6,24.5 5,23 C4.5,22 4,20.5 3.5,19 C3,17.5 2.5,16 2.5,14.5 C2.5,13 3,11 4,9.5 C4.5,8.5 5.5,7.5 6.5,6.5 C8,5 9,4.5 10.5,3.5 C12,3 13.5,2.5 15,2.2 C15.5,2 16,2 16,2 Z" fill="#00AA00"/></svg>
+                            </button>
+                            <button class="color-option" data-color="#00FFFF" title="Cyan">
+                                <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16,2 C18,2.5 20,3 21.5,4.5 C22,5 23,5.5 24,6.5 C25.5,8 26.5,9 27,11 C27.5,12 28,13.5 28,15 C28,16.5 27.8,18 27,19.5 C26.5,20.5 26,21.5 25,23 C24,24 23,25 21.5,26 C20,27 18.5,27.5 17,28 C15.5,28.5 14,29 12.5,28.5 C11,28 9.5,27.5 8,26.5 C7,25.5 6,24.5 5,23 C4.5,22 4,20.5 3.5,19 C3,17.5 2.5,16 2.5,14.5 C2.5,13 3,11 4,9.5 C4.5,8.5 5.5,7.5 6.5,6.5 C8,5 9,4.5 10.5,3.5 C12,3 13.5,2.5 15,2.2 C15.5,2 16,2 16,2 Z" fill="#00FFFF"/></svg>
+                            </button>
+                            <button class="color-option" data-color="#0099FF" title="Light Blue">
+                                <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16,2 C18,2.5 20,3 21.5,4.5 C22,5 23,5.5 24,6.5 C25.5,8 26.5,9 27,11 C27.5,12 28,13.5 28,15 C28,16.5 27.8,18 27,19.5 C26.5,20.5 26,21.5 25,23 C24,24 23,25 21.5,26 C20,27 18.5,27.5 17,28 C15.5,28.5 14,29 12.5,28.5 C11,28 9.5,27.5 8,26.5 C7,25.5 6,24.5 5,23 C4.5,22 4,20.5 3.5,19 C3,17.5 2.5,16 2.5,14.5 C2.5,13 3,11 4,9.5 C4.5,8.5 5.5,7.5 6.5,6.5 C8,5 9,4.5 10.5,3.5 C12,3 13.5,2.5 15,2.2 C15.5,2 16,2 16,2 Z" fill="#0099FF"/></svg>
+                            </button>
+                            <button class="color-option" data-color="#0000FF" title="Blue">
+                                <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16,2 C18,2.5 20,3 21.5,4.5 C22,5 23,5.5 24,6.5 C25.5,8 26.5,9 27,11 C27.5,12 28,13.5 28,15 C28,16.5 27.8,18 27,19.5 C26.5,20.5 26,21.5 25,23 C24,24 23,25 21.5,26 C20,27 18.5,27.5 17,28 C15.5,28.5 14,29 12.5,28.5 C11,28 9.5,27.5 8,26.5 C7,25.5 6,24.5 5,23 C4.5,22 4,20.5 3.5,19 C3,17.5 2.5,16 2.5,14.5 C2.5,13 3,11 4,9.5 C4.5,8.5 5.5,7.5 6.5,6.5 C8,5 9,4.5 10.5,3.5 C12,3 13.5,2.5 15,2.2 C15.5,2 16,2 16,2 Z" fill="#0000FF"/></svg>
+                            </button>
+                            <button class="color-option" data-color="#0000AA" title="Dark Blue">
+                                <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16,2 C18,2.5 20,3 21.5,4.5 C22,5 23,5.5 24,6.5 C25.5,8 26.5,9 27,11 C27.5,12 28,13.5 28,15 C28,16.5 27.8,18 27,19.5 C26.5,20.5 26,21.5 25,23 C24,24 23,25 21.5,26 C20,27 18.5,27.5 17,28 C15.5,28.5 14,29 12.5,28.5 C11,28 9.5,27.5 8,26.5 C7,25.5 6,24.5 5,23 C4.5,22 4,20.5 3.5,19 C3,17.5 2.5,16 2.5,14.5 C2.5,13 3,11 4,9.5 C4.5,8.5 5.5,7.5 6.5,6.5 C8,5 9,4.5 10.5,3.5 C12,3 13.5,2.5 15,2.2 C15.5,2 16,2 16,2 Z" fill="#0000AA"/></svg>
+                            </button>
 
-                            <button class="color-option" data-color="#9900FF" style="background: #9900FF;" title="Purple"></button>
-                            <button class="color-option" data-color="#FF00FF" style="background: #FF00FF;" title="Magenta"></button>
-                            <button class="color-option" data-color="#FF1493" style="background: #FF1493;" title="Hot Pink"></button>
-                            <button class="color-option" data-color="#FF69B4" style="background: #FF69B4;" title="Pink"></button>
-                            <button class="color-option" data-color="#8B0000" style="background: #8B0000;" title="Dark Red"></button>
-                            <button class="color-option" data-color="#A0522D" style="background: #A0522D;" title="Brown"></button>
+                            <button class="color-option" data-color="#9900FF" title="Purple">
+                                <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16,2 C18,2.5 20,3 21.5,4.5 C22,5 23,5.5 24,6.5 C25.5,8 26.5,9 27,11 C27.5,12 28,13.5 28,15 C28,16.5 27.8,18 27,19.5 C26.5,20.5 26,21.5 25,23 C24,24 23,25 21.5,26 C20,27 18.5,27.5 17,28 C15.5,28.5 14,29 12.5,28.5 C11,28 9.5,27.5 8,26.5 C7,25.5 6,24.5 5,23 C4.5,22 4,20.5 3.5,19 C3,17.5 2.5,16 2.5,14.5 C2.5,13 3,11 4,9.5 C4.5,8.5 5.5,7.5 6.5,6.5 C8,5 9,4.5 10.5,3.5 C12,3 13.5,2.5 15,2.2 C15.5,2 16,2 16,2 Z" fill="#9900FF"/></svg>
+                            </button>
+                            <button class="color-option" data-color="#FF00FF" title="Magenta">
+                                <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16,2 C18,2.5 20,3 21.5,4.5 C22,5 23,5.5 24,6.5 C25.5,8 26.5,9 27,11 C27.5,12 28,13.5 28,15 C28,16.5 27.8,18 27,19.5 C26.5,20.5 26,21.5 25,23 C24,24 23,25 21.5,26 C20,27 18.5,27.5 17,28 C15.5,28.5 14,29 12.5,28.5 C11,28 9.5,27.5 8,26.5 C7,25.5 6,24.5 5,23 C4.5,22 4,20.5 3.5,19 C3,17.5 2.5,16 2.5,14.5 C2.5,13 3,11 4,9.5 C4.5,8.5 5.5,7.5 6.5,6.5 C8,5 9,4.5 10.5,3.5 C12,3 13.5,2.5 15,2.2 C15.5,2 16,2 16,2 Z" fill="#FF00FF"/></svg>
+                            </button>
+                            <button class="color-option" data-color="#FF1493" title="Hot Pink">
+                                <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16,2 C18,2.5 20,3 21.5,4.5 C22,5 23,5.5 24,6.5 C25.5,8 26.5,9 27,11 C27.5,12 28,13.5 28,15 C28,16.5 27.8,18 27,19.5 C26.5,20.5 26,21.5 25,23 C24,24 23,25 21.5,26 C20,27 18.5,27.5 17,28 C15.5,28.5 14,29 12.5,28.5 C11,28 9.5,27.5 8,26.5 C7,25.5 6,24.5 5,23 C4.5,22 4,20.5 3.5,19 C3,17.5 2.5,16 2.5,14.5 C2.5,13 3,11 4,9.5 C4.5,8.5 5.5,7.5 6.5,6.5 C8,5 9,4.5 10.5,3.5 C12,3 13.5,2.5 15,2.2 C15.5,2 16,2 16,2 Z" fill="#FF1493"/></svg>
+                            </button>
+                            <button class="color-option" data-color="#FF69B4" title="Pink">
+                                <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16,2 C18,2.5 20,3 21.5,4.5 C22,5 23,5.5 24,6.5 C25.5,8 26.5,9 27,11 C27.5,12 28,13.5 28,15 C28,16.5 27.8,18 27,19.5 C26.5,20.5 26,21.5 25,23 C24,24 23,25 21.5,26 C20,27 18.5,27.5 17,28 C15.5,28.5 14,29 12.5,28.5 C11,28 9.5,27.5 8,26.5 C7,25.5 6,24.5 5,23 C4.5,22 4,20.5 3.5,19 C3,17.5 2.5,16 2.5,14.5 C2.5,13 3,11 4,9.5 C4.5,8.5 5.5,7.5 6.5,6.5 C8,5 9,4.5 10.5,3.5 C12,3 13.5,2.5 15,2.2 C15.5,2 16,2 16,2 Z" fill="#FF69B4"/></svg>
+                            </button>
+                            <button class="color-option" data-color="#8B0000" title="Dark Red">
+                                <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16,2 C18,2.5 20,3 21.5,4.5 C22,5 23,5.5 24,6.5 C25.5,8 26.5,9 27,11 C27.5,12 28,13.5 28,15 C28,16.5 27.8,18 27,19.5 C26.5,20.5 26,21.5 25,23 C24,24 23,25 21.5,26 C20,27 18.5,27.5 17,28 C15.5,28.5 14,29 12.5,28.5 C11,28 9.5,27.5 8,26.5 C7,25.5 6,24.5 5,23 C4.5,22 4,20.5 3.5,19 C3,17.5 2.5,16 2.5,14.5 C2.5,13 3,11 4,9.5 C4.5,8.5 5.5,7.5 6.5,6.5 C8,5 9,4.5 10.5,3.5 C12,3 13.5,2.5 15,2.2 C15.5,2 16,2 16,2 Z" fill="#8B0000"/></svg>
+                            </button>
+                            <button class="color-option" data-color="#A0522D" title="Brown">
+                                <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16,2 C18,2.5 20,3 21.5,4.5 C22,5 23,5.5 24,6.5 C25.5,8 26.5,9 27,11 C27.5,12 28,13.5 28,15 C28,16.5 27.8,18 27,19.5 C26.5,20.5 26,21.5 25,23 C24,24 23,25 21.5,26 C20,27 18.5,27.5 17,28 C15.5,28.5 14,29 12.5,28.5 C11,28 9.5,27.5 8,26.5 C7,25.5 6,24.5 5,23 C4.5,22 4,20.5 3.5,19 C3,17.5 2.5,16 2.5,14.5 C2.5,13 3,11 4,9.5 C4.5,8.5 5.5,7.5 6.5,6.5 C8,5 9,4.5 10.5,3.5 C12,3 13.5,2.5 15,2.2 C15.5,2 16,2 16,2 Z" fill="#A0522D"/></svg>
+                            </button>
 
-                            <button class="color-option" data-color="#666666" style="background: #666666;" title="Dark Gray"></button>
-                            <button class="color-option" data-color="#999999" style="background: #999999;" title="Gray"></button>
-                            <button class="color-option" data-color="#00CED1" style="background: #00CED1;" title="Turquoise"></button>
-                            <button class="color-option" data-color="#32CD32" style="background: #32CD32;" title="Lime Green"></button>
-                            <button class="color-option" data-color="#FFB6C1" style="background: #FFB6C1;" title="Light Pink"></button>
-                            <button class="color-option" data-color="#FFA500" style="background: #FFA500;" title="Orange"></button>
+                            <button class="color-option" data-color="#666666" title="Dark Gray">
+                                <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16,2 C18,2.5 20,3 21.5,4.5 C22,5 23,5.5 24,6.5 C25.5,8 26.5,9 27,11 C27.5,12 28,13.5 28,15 C28,16.5 27.8,18 27,19.5 C26.5,20.5 26,21.5 25,23 C24,24 23,25 21.5,26 C20,27 18.5,27.5 17,28 C15.5,28.5 14,29 12.5,28.5 C11,28 9.5,27.5 8,26.5 C7,25.5 6,24.5 5,23 C4.5,22 4,20.5 3.5,19 C3,17.5 2.5,16 2.5,14.5 C2.5,13 3,11 4,9.5 C4.5,8.5 5.5,7.5 6.5,6.5 C8,5 9,4.5 10.5,3.5 C12,3 13.5,2.5 15,2.2 C15.5,2 16,2 16,2 Z" fill="#666666"/></svg>
+                            </button>
+                            <button class="color-option" data-color="#999999" title="Gray">
+                                <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16,2 C18,2.5 20,3 21.5,4.5 C22,5 23,5.5 24,6.5 C25.5,8 26.5,9 27,11 C27.5,12 28,13.5 28,15 C28,16.5 27.8,18 27,19.5 C26.5,20.5 26,21.5 25,23 C24,24 23,25 21.5,26 C20,27 18.5,27.5 17,28 C15.5,28.5 14,29 12.5,28.5 C11,28 9.5,27.5 8,26.5 C7,25.5 6,24.5 5,23 C4.5,22 4,20.5 3.5,19 C3,17.5 2.5,16 2.5,14.5 C2.5,13 3,11 4,9.5 C4.5,8.5 5.5,7.5 6.5,6.5 C8,5 9,4.5 10.5,3.5 C12,3 13.5,2.5 15,2.2 C15.5,2 16,2 16,2 Z" fill="#999999"/></svg>
+                            </button>
+                            <button class="color-option" data-color="#00CED1" title="Turquoise">
+                                <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16,2 C18,2.5 20,3 21.5,4.5 C22,5 23,5.5 24,6.5 C25.5,8 26.5,9 27,11 C27.5,12 28,13.5 28,15 C28,16.5 27.8,18 27,19.5 C26.5,20.5 26,21.5 25,23 C24,24 23,25 21.5,26 C20,27 18.5,27.5 17,28 C15.5,28.5 14,29 12.5,28.5 C11,28 9.5,27.5 8,26.5 C7,25.5 6,24.5 5,23 C4.5,22 4,20.5 3.5,19 C3,17.5 2.5,16 2.5,14.5 C2.5,13 3,11 4,9.5 C4.5,8.5 5.5,7.5 6.5,6.5 C8,5 9,4.5 10.5,3.5 C12,3 13.5,2.5 15,2.2 C15.5,2 16,2 16,2 Z" fill="#00CED1"/></svg>
+                            </button>
+                            <button class="color-option" data-color="#32CD32" title="Lime Green">
+                                <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16,2 C18,2.5 20,3 21.5,4.5 C22,5 23,5.5 24,6.5 C25.5,8 26.5,9 27,11 C27.5,12 28,13.5 28,15 C28,16.5 27.8,18 27,19.5 C26.5,20.5 26,21.5 25,23 C24,24 23,25 21.5,26 C20,27 18.5,27.5 17,28 C15.5,28.5 14,29 12.5,28.5 C11,28 9.5,27.5 8,26.5 C7,25.5 6,24.5 5,23 C4.5,22 4,20.5 3.5,19 C3,17.5 2.5,16 2.5,14.5 C2.5,13 3,11 4,9.5 C4.5,8.5 5.5,7.5 6.5,6.5 C8,5 9,4.5 10.5,3.5 C12,3 13.5,2.5 15,2.2 C15.5,2 16,2 16,2 Z" fill="#32CD32"/></svg>
+                            </button>
+                            <button class="color-option" data-color="#FFB6C1" title="Light Pink">
+                                <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16,2 C18,2.5 20,3 21.5,4.5 C22,5 23,5.5 24,6.5 C25.5,8 26.5,9 27,11 C27.5,12 28,13.5 28,15 C28,16.5 27.8,18 27,19.5 C26.5,20.5 26,21.5 25,23 C24,24 23,25 21.5,26 C20,27 18.5,27.5 17,28 C15.5,28.5 14,29 12.5,28.5 C11,28 9.5,27.5 8,26.5 C7,25.5 6,24.5 5,23 C4.5,22 4,20.5 3.5,19 C3,17.5 2.5,16 2.5,14.5 C2.5,13 3,11 4,9.5 C4.5,8.5 5.5,7.5 6.5,6.5 C8,5 9,4.5 10.5,3.5 C12,3 13.5,2.5 15,2.2 C15.5,2 16,2 16,2 Z" fill="#FFB6C1"/></svg>
+                            </button>
+                            <button class="color-option" data-color="#FFA500" title="Orange">
+                                <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16,2 C18,2.5 20,3 21.5,4.5 C22,5 23,5.5 24,6.5 C25.5,8 26.5,9 27,11 C27.5,12 28,13.5 28,15 C28,16.5 27.8,18 27,19.5 C26.5,20.5 26,21.5 25,23 C24,24 23,25 21.5,26 C20,27 18.5,27.5 17,28 C15.5,28.5 14,29 12.5,28.5 C11,28 9.5,27.5 8,26.5 C7,25.5 6,24.5 5,23 C4.5,22 4,20.5 3.5,19 C3,17.5 2.5,16 2.5,14.5 C2.5,13 3,11 4,9.5 C4.5,8.5 5.5,7.5 6.5,6.5 C8,5 9,4.5 10.5,3.5 C12,3 13.5,2.5 15,2.2 C15.5,2 16,2 16,2 Z" fill="#FFA500"/></svg>
+                            </button>
                         </div>
                     </div>
                 </div>
