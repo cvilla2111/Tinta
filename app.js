@@ -545,6 +545,9 @@ function renderPage(num) {
         renderTask.promise.then(() => {
             pageIsRendering = false;
 
+            // Mark canvas as loaded to fade it in
+            canvas.classList.add('loaded');
+
             // Sync ONLY the SVG layer size (don't touch activeStrokeCanvas - would clear it!)
             const width = canvas.offsetWidth;
             const height = canvas.offsetHeight;
@@ -1135,8 +1138,8 @@ function draw(e) {
         Math.pow(pos.y - lastPoint.y, 2)
     );
 
-    // Minimum distance threshold to reduce jitter
-    if (distance < 2) return;
+    // Minimum distance threshold to reduce jitter (optimized for performance)
+    if (distance < 4) return;
 
     currentPoints.push(pos);
 
@@ -1162,8 +1165,8 @@ function draw(e) {
             activeStrokeCtx.lineWidth = 4;
             activeStrokeCtx.lineCap = 'round';
             activeStrokeCtx.lineJoin = 'round';
-            // Add blur/glow effect with increased glow
-            activeStrokeCtx.shadowBlur = 15;
+            // Add blur/glow effect (optimized for performance)
+            activeStrokeCtx.shadowBlur = 10;
             activeStrokeCtx.shadowColor = 'rgba(255, 0, 0, 0.9)';
             activeStrokeCtx.shadowOffsetX = 0;
             activeStrokeCtx.shadowOffsetY = 0;
@@ -1231,8 +1234,8 @@ function draw(e) {
             activeStrokeCtx.lineWidth = 4;
             activeStrokeCtx.lineCap = 'round';
             activeStrokeCtx.lineJoin = 'round';
-            // Add blur/glow effect with increased glow
-            activeStrokeCtx.shadowBlur = 15;
+            // Add blur/glow effect (optimized for performance)
+            activeStrokeCtx.shadowBlur = 10;
             activeStrokeCtx.shadowColor = 'rgba(255, 0, 0, 0.9)';
             activeStrokeCtx.shadowOffsetX = 0;
             activeStrokeCtx.shadowOffsetY = 0;
@@ -1765,8 +1768,8 @@ function redrawLaserStrokes(opacity = null, includeCurrentStroke = false) {
     activeStrokeCtx.lineCap = 'round';
     activeStrokeCtx.lineJoin = 'round';
 
-    // Add blur/glow effect with increased glow
-    activeStrokeCtx.shadowBlur = 15;
+    // Add blur/glow effect (optimized for performance)
+    activeStrokeCtx.shadowBlur = 10;
     activeStrokeCtx.shadowColor = `rgba(${red}, ${green}, ${blue}, ${useOpacity * 0.9})`;
     activeStrokeCtx.shadowOffsetX = 0;
     activeStrokeCtx.shadowOffsetY = 0;
@@ -2588,7 +2591,7 @@ function syncPresentationAnnotations() {
 
 // Throttle real-time drawing updates
 let lastDrawSyncTime = 0;
-const DRAW_SYNC_THROTTLE = 8; // milliseconds (~120fps for very smooth drawing)
+const DRAW_SYNC_THROTTLE = 16; // milliseconds (~60fps, optimized for performance)
 
 function syncPresentationActiveStroke(points, tool, color, width, opacity) {
     const now = Date.now();
@@ -2625,7 +2628,7 @@ function clearPresentationActiveStroke() {
 
 // Throttle laser stroke updates - same as pen strokes for consistency
 let lastLaserSyncTime = 0;
-const LASER_SYNC_THROTTLE = 8; // milliseconds (~120fps, same as pen)
+const LASER_SYNC_THROTTLE = 16; // milliseconds (~60fps, optimized for performance)
 
 function syncPresentationLaserStrokes(strokes, opacity) {
     const now = Date.now();

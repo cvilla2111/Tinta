@@ -292,7 +292,7 @@ body {
 .toolbar-group {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: 0.25rem;
 }
 
 .page-info {
@@ -300,14 +300,6 @@ body {
     color: var(--text-primary);
     font-weight: 500;
     min-width: 50px;
-    text-align: center;
-}
-
-.zoom-level {
-    font-size: 0.8125rem;
-    color: var(--text-primary);
-    font-weight: 500;
-    min-width: 45px;
     text-align: center;
 }
 
@@ -332,6 +324,10 @@ body {
     box-shadow: var(--shadow-lg);
     background-color: white;
     border-radius: 4px;
+    display: none;
+}
+
+#pdfCanvas.loaded {
     display: block;
 }
 
@@ -966,7 +962,7 @@ html.dark .btn-icon img {
         height: 14px;
     }
 
-    .page-info, .zoom-level {
+    .page-info {
         font-size: 0.75rem;
         min-width: auto;
     }
