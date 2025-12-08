@@ -71,6 +71,11 @@ body {
     color: var(--text-primary);
     line-height: 1.6;
     overflow: hidden;
+    /* Prevent long-press context menus and fullscreen exit prompts */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: none;
 }
 
 .container {
@@ -88,7 +93,8 @@ body {
     align-items: center;
     gap: 1.5rem;
     box-shadow: var(--shadow-sm);
-    z-index: 10;
+    z-index: 5000;
+    position: relative;
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
@@ -184,6 +190,7 @@ body {
 
 .btn-icon-sm:hover {
     background-color: var(--bg-tertiary);
+    border-radius: 4px;
 }
 
 .btn-icon-sm:disabled {
@@ -287,6 +294,10 @@ body {
     flex-direction: column;
     height: 100%;
     background-color: var(--bg-secondary);
+    /* Prevent long-press context menus and fullscreen exit */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 .toolbar-group {
@@ -308,7 +319,7 @@ body {
     overflow: auto;
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
     padding: 0.5rem 0;
     background-color: var(--bg-secondary);
     -webkit-overflow-scrolling: touch;
@@ -318,6 +329,10 @@ body {
 .pdf-wrapper {
     position: relative;
     display: inline-block;
+    /* Prevent long-press context menus */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 #pdfCanvas {
@@ -413,6 +428,7 @@ html.dark .btn-icon img {
 .tool-active {
     background-color: var(--accent-color) !important;
     color: white !important;
+    border-radius: 4px !important;
 }
 
 .pen-picker-container {
@@ -441,7 +457,7 @@ html.dark .btn-icon img {
     border-radius: 8px;
     padding: 8px;
     box-shadow: var(--shadow-md);
-    z-index: 1000;
+    z-index: 2000;
 }
 
 .color-grid {
@@ -491,7 +507,7 @@ html.dark .btn-icon img {
     border-radius: 8px;
     padding: 8px;
     box-shadow: var(--shadow-md);
-    z-index: 1000;
+    z-index: 2000;
 }
 
 .stroke-grid {
@@ -580,7 +596,7 @@ html.dark .stroke-option svg {
     border-radius: 8px;
     padding: 6px;
     box-shadow: var(--shadow-md);
-    z-index: 1000;
+    z-index: 2000;
     min-width: 140px;
 }
 
@@ -632,7 +648,7 @@ html.dark .stroke-option svg {
     border-radius: 8px;
     padding: 6px;
     box-shadow: var(--shadow-md);
-    z-index: 1000;
+    z-index: 2000;
     min-width: 160px;
 }
 
@@ -776,9 +792,9 @@ html.dark .stroke-option svg {
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: transparent;
     z-index: 2000;
-    backdrop-filter: blur(4px);
+    pointer-events: auto;
 }
 
 .filmstrip-container {
@@ -795,6 +811,7 @@ html.dark .stroke-option svg {
     overflow: hidden;
     transform: translateX(100%);
     transition: transform 0.3s ease;
+    pointer-events: auto;
 }
 
 .filmstrip-overlay.show .filmstrip-container {
@@ -1023,4 +1040,203 @@ html.dark .stroke-option svg {
         width: 20px;
         height: 20px;
     }
+}
+
+/* Quick Note Button */
+.quick-note-btn {
+    width: 100%;
+    margin-top: 8px;
+    padding: 10px 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: var(--accent-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(13, 110, 253, 0.2);
+}
+
+.quick-note-btn:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(13, 110, 253, 0.3);
+}
+
+.quick-note-btn svg {
+    flex-shrink: 0;
+}
+
+/* Quick Note Window Overlay */
+.quick-note-overlay {
+    position: fixed;
+    top: 60px; /* Below header */
+    left: 0;
+    width: 100%;
+    height: calc(100% - 60px);
+    background: transparent;
+    z-index: 100;
+    pointer-events: none;
+    transform: translateY(-100%);
+    transition: transform 0.2s ease-out;
+}
+
+.quick-note-overlay.show {
+    transform: translateY(0);
+}
+
+.quick-note-overlay.closing {
+    transition: transform 0.2s ease-in;
+}
+
+.quick-note-window {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    pointer-events: auto;
+}
+
+/* Floating close button inside graph paper */
+.btn-close-quick-note-floating {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    cursor: pointer;
+    padding: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    width: 40px;
+    height: 40px;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.btn-close-quick-note-floating:hover {
+    background: rgba(0, 0, 0, 0.8);
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+html.dark .btn-close-quick-note-floating {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(0, 0, 0, 0.3);
+    color: var(--text-primary);
+}
+
+html.dark .btn-close-quick-note-floating:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+@media (prefers-color-scheme: dark) {
+    html:not(.light) .btn-close-quick-note-floating {
+        background: rgba(255, 255, 255, 0.15);
+        border-color: rgba(0, 0, 0, 0.3);
+        color: var(--text-primary);
+    }
+
+    html:not(.light) .btn-close-quick-note-floating:hover {
+        background: rgba(255, 255, 255, 0.25);
+    }
+}
+
+.quick-note-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+}
+
+.quick-note-canvas-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#quickNoteCanvas {
+    width: 100% !important;
+    height: 100% !important;
+    background:
+        /* Graph paper pattern */
+        linear-gradient(rgba(0, 0, 0, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 0, 0, 0.06) 1px, transparent 1px),
+        /* Larger grid every 5 lines */
+        linear-gradient(rgba(13, 110, 253, 0.12) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(13, 110, 253, 0.12) 1px, transparent 1px),
+        white;
+    background-size: 20px 20px, 20px 20px, 100px 100px, 100px 100px, 100%;
+    background-position: 0 0, 0 0, 0 0, 0 0, 0 0;
+    cursor: crosshair;
+}
+
+/* Dark mode graph paper */
+html.dark #quickNoteCanvas {
+    background:
+        linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+        linear-gradient(rgba(13, 110, 253, 0.2) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(13, 110, 253, 0.2) 1px, transparent 1px),
+        #1a1a1a;
+    background-size: 20px 20px, 20px 20px, 100px 100px, 100px 100px, 100%;
+    background-position: 0 0, 0 0, 0 0, 0 0, 0 0;
+}
+
+@media (prefers-color-scheme: dark) {
+    html:not(.light) #quickNoteCanvas {
+        background:
+            linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+            linear-gradient(rgba(13, 110, 253, 0.2) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(13, 110, 253, 0.2) 1px, transparent 1px),
+            #1a1a1a;
+        background-size: 20px 20px, 20px 20px, 100px 100px, 100px 100px, 100%;
+        background-position: 0 0, 0 0, 0 0, 0 0, 0 0;
+    }
+}
+
+.quick-note-annotation-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.quick-note-annotation-layer path {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.quick-note-active-stroke {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: all;
+    cursor: crosshair;
+    user-select: none;
+    -webkit-user-select: none;
 }

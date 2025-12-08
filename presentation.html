@@ -26,10 +26,17 @@
             width: 100vw;
             height: 100vh;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             position: relative;
-            overflow: hidden;
+            overflow: auto;
+            /* Hide scrollbars while keeping scroll functionality */
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE/Edge */
+        }
+
+        .presentation-container::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
         }
 
         .pdf-wrapper {
@@ -86,6 +93,63 @@
             z-index: 1000;
             transition: opacity 0.2s ease;
         }
+
+        /* Quick Note Styles */
+        .quick-note-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .quick-note-window {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            pointer-events: auto;
+        }
+
+        .quick-note-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .quick-note-canvas {
+            width: 100% !important;
+            height: 100% !important;
+            background:
+                linear-gradient(rgba(0, 0, 0, 0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 0, 0, 0.06) 1px, transparent 1px),
+                linear-gradient(rgba(13, 110, 253, 0.12) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(13, 110, 253, 0.12) 1px, transparent 1px),
+                white;
+            background-size: 20px 20px, 20px 20px, 100px 100px, 100px 100px, 100%;
+            background-position: 0 0, 0 0, 0 0, 0 0, 0 0;
+        }
+
+        .quick-note-annotation-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .quick-note-annotation-layer path {
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
     </style>
 </head>
 <body>
@@ -97,6 +161,16 @@
             <canvas id="activeStrokeCanvas" class="annotation-layer"></canvas>
             <div id="pageTransitionOverlay" class="page-transition-overlay"></div>
             <div class="page-indicator" id="pageIndicator">1 / 1</div>
+        </div>
+    </div>
+
+    <!-- Quick Note Window -->
+    <div id="quickNoteOverlay" class="quick-note-overlay" style="display: none;">
+        <div class="quick-note-window">
+            <div class="quick-note-content">
+                <canvas id="quickNoteCanvas" class="quick-note-canvas"></canvas>
+                <svg id="quickNoteAnnotationLayer" class="quick-note-annotation-layer"></svg>
+            </div>
         </div>
     </div>
 
@@ -113,6 +187,10 @@
         let annotations = {};
         let presentationConnection = null;
 
+        // Track annotation SVG elements for incremental updates (prevent flicker)
+        // Map of page number -> array of {annotation: object, svgPath: element}
+        let annotationElements = {};
+
         const canvas = document.getElementById('pdfCanvas');
         const ctx = canvas.getContext('2d');
         const annotationLayer = document.getElementById('annotationLayer');
@@ -127,11 +205,45 @@
         let savedLaserStrokes = [];
         let savedLaserOpacity = 1.0;
 
+        // Check if running from file:// protocol (local without server)
+        function isRunningLocally() {
+            return window.location.protocol === 'file:';
+        }
+
+        // Initialize BroadcastChannel receiver for local file:// fallback
+        function initBroadcastChannelReceiver() {
+            console.log('Initializing BroadcastChannel receiver for local mode');
+
+            const broadcastChannel = new BroadcastChannel('pdf_presentation');
+
+            broadcastChannel.onmessage = (event) => {
+                console.log('Received message via BroadcastChannel:', event.data.type);
+                handleMessage(event.data);
+            };
+
+            // Update loading message
+            loading.textContent = 'Connected via local mode! Waiting for PDF data...';
+            loading.style.display = 'block';
+
+            console.log('BroadcastChannel receiver initialized and listening');
+
+            // Send ready message to main window
+            broadcastChannel.postMessage({ type: 'PRESENTATION_READY' });
+            console.log('Sent PRESENTATION_READY message to main window');
+        }
+
         // Initialize Presentation Receiver
         async function initPresentationReceiver() {
             console.log('Initializing presentation receiver...');
             console.log('navigator.presentation:', navigator.presentation);
             console.log('navigator.presentation.receiver:', navigator.presentation?.receiver);
+
+            // FALLBACK: Use BroadcastChannel for local file:// usage
+            if (isRunningLocally()) {
+                console.log('Running locally (file://), using BroadcastChannel instead of Presentation API');
+                initBroadcastChannelReceiver();
+                return;
+            }
 
             if (!navigator.presentation || !navigator.presentation.receiver) {
                 console.warn('Presentation Receiver API not supported');
@@ -213,6 +325,9 @@
             annotations = {};
             presentationConnection = null;
 
+            // Clear annotation tracking
+            annotationElements = {};
+
             // Reset UI
             loading.style.display = 'block';
             loading.textContent = 'Waiting for presentation...';
@@ -279,9 +394,113 @@
                     console.log('Clearing selection box');
                     clearActiveStroke();
                     break;
+                case 'SCROLL_POSITION':
+                    // Sync scroll position from main screen
+                    applyScrollPosition(data.scrollX, data.scrollY);
+                    break;
+                case 'QUICK_NOTE_OPEN':
+                    // Show Quick Note
+                    console.log('Opening Quick Note in presentation');
+                    openQuickNotePresentation();
+                    break;
+                case 'QUICK_NOTE_CLOSE':
+                    // Hide Quick Note
+                    console.log('Closing Quick Note in presentation');
+                    closeQuickNotePresentation();
+                    break;
+                case 'QUICK_NOTE_ANNOTATIONS_UPDATE':
+                    // Update Quick Note annotations
+                    console.log('Updating Quick Note annotations in presentation');
+                    updateQuickNoteAnnotations(data.annotations);
+                    break;
                 default:
                     console.warn('Unknown message type:', data.type);
             }
+        }
+
+        // Quick Note in Presentation Screen
+        const quickNoteOverlay = document.getElementById('quickNoteOverlay');
+        const quickNoteCanvas = document.getElementById('quickNoteCanvas');
+        const quickNoteAnnotationLayer = document.getElementById('quickNoteAnnotationLayer');
+        let quickNoteAnnotations = [];
+
+        function openQuickNotePresentation() {
+            quickNoteOverlay.style.display = 'flex';
+            initQuickNoteCanvasPresentation();
+        }
+
+        function closeQuickNotePresentation() {
+            quickNoteOverlay.style.display = 'none';
+        }
+
+        function initQuickNoteCanvasPresentation() {
+            const dpr = window.devicePixelRatio || 1;
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+
+            quickNoteCanvas.style.width = width + 'px';
+            quickNoteCanvas.style.height = height + 'px';
+            quickNoteCanvas.width = width * dpr;
+            quickNoteCanvas.height = height * dpr;
+
+            quickNoteAnnotationLayer.setAttribute('width', width);
+            quickNoteAnnotationLayer.setAttribute('height', height);
+
+            console.log('Quick Note canvas initialized in presentation:', width, 'x', height);
+        }
+
+        function updateQuickNoteAnnotations(annotations) {
+            quickNoteAnnotations = annotations || [];
+
+            // Clear SVG
+            while (quickNoteAnnotationLayer.firstChild) {
+                quickNoteAnnotationLayer.removeChild(quickNoteAnnotationLayer.firstChild);
+            }
+
+            // Redraw all strokes
+            quickNoteAnnotations.forEach(stroke => {
+                // Skip laser strokes
+                if (stroke.tool === 'laser') return;
+
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', quickNotePointsToPath(stroke.points));
+                path.setAttribute('stroke', stroke.color);
+                path.setAttribute('stroke-width', stroke.width);
+                path.setAttribute('fill', 'none');
+                path.setAttribute('stroke-linecap', 'round');
+                path.setAttribute('stroke-linejoin', 'round');
+                path.setAttribute('opacity', stroke.opacity || 1);
+                quickNoteAnnotationLayer.appendChild(path);
+            });
+        }
+
+        function quickNotePointsToPath(points) {
+            if (points.length === 0) return '';
+            if (points.length === 1) {
+                return `M ${points[0].x} ${points[0].y} L ${points[0].x + 0.1} ${points[0].y + 0.1}`;
+            }
+
+            let path = `M ${points[0].x} ${points[0].y}`;
+            for (let i = 1; i < points.length; i++) {
+                path += ` L ${points[i].x} ${points[i].y}`;
+            }
+            return path;
+        }
+
+        function applyScrollPosition(normalizedX, normalizedY) {
+            const container = document.querySelector('.presentation-container');
+            if (!container) return;
+
+            // Calculate actual scroll positions from normalized values
+            const maxScrollLeft = container.scrollWidth - container.clientWidth;
+            const maxScrollTop = container.scrollHeight - container.clientHeight;
+
+            const scrollLeft = normalizedX * maxScrollLeft;
+            const scrollTop = normalizedY * maxScrollTop;
+
+            // Apply scroll position
+            container.scrollLeft = scrollLeft;
+            container.scrollTop = scrollTop;
         }
 
         // Draw all laser strokes received from main screen
@@ -686,6 +905,9 @@
                 console.log('PDF loaded successfully, pages:', pdfDoc.numPages);
 
                 loading.style.display = 'none';
+
+                // CRITICAL: Fade in overlay BEFORE showing pdfWrapper to prevent white flash
+                pageTransitionOverlay.style.opacity = '1';
                 pdfWrapper.style.display = 'block';
 
                 // Wait a moment for the canvas to be properly sized in the DOM
@@ -820,7 +1042,7 @@
                         renderPage(pending);
                     }
                 });
-            }, 200); // Delay for fade-in to complete
+            }, 300); // Delay for fade-in to complete (match main viewer timing)
         }
 
         function syncAnnotationLayer() {
@@ -833,17 +1055,48 @@
         }
 
         function loadPageAnnotations() {
-            // Clear current annotations
-            while (annotationLayer.firstChild) {
-                annotationLayer.removeChild(annotationLayer.firstChild);
-            }
+            // INCREMENTAL UPDATE: Only modify changed annotations to prevent flicker
+            const pageAnnotations = annotations[currentPage] || [];
+            const prevElements = annotationElements[currentPage] || [];
+            const width = canvas.offsetWidth;
+            const height = canvas.offsetHeight;
 
-            const pageAnnotations = annotations[currentPage];
-            if (pageAnnotations && pageAnnotations.length > 0) {
-                const width = canvas.offsetWidth;
-                const height = canvas.offsetHeight;
+            // CRITICAL: First, remove all SVG elements that belong to other pages
+            // This ensures page changes don't leave old strokes visible
+            const currentPageElements = new Set(prevElements.map(el => el.svgPath));
+            Array.from(annotationLayer.children).forEach(child => {
+                if (!currentPageElements.has(child)) {
+                    child.remove();
+                }
+            });
 
-                pageAnnotations.forEach(annotation => {
+            // Track which elements to keep
+            const newElements = [];
+            const usedPrevIndices = new Set();
+
+            // Process each annotation in the new state
+            for (let i = 0; i < pageAnnotations.length; i++) {
+                const annotation = pageAnnotations[i];
+
+                // Try to find matching annotation in previous state
+                let matchIndex = -1;
+                for (let j = 0; j < prevElements.length; j++) {
+                    if (usedPrevIndices.has(j)) continue;
+
+                    const prev = prevElements[j].annotation;
+                    // Check if annotations match (same points, color, width)
+                    if (annotationsMatch(prev, annotation)) {
+                        matchIndex = j;
+                        break;
+                    }
+                }
+
+                if (matchIndex >= 0) {
+                    // Annotation exists and unchanged - reuse existing SVG element
+                    usedPrevIndices.add(matchIndex);
+                    newElements.push(prevElements[matchIndex]);
+                } else {
+                    // New or modified annotation - create new SVG path
                     const screenPoints = annotation.points.map(p => ({
                         x: p.x * width,
                         y: p.y * height
@@ -853,13 +1106,61 @@
                     path.setAttribute('stroke', annotation.color);
                     path.setAttribute('stroke-width', annotation.width);
                     path.setAttribute('d', pointsToPath(screenPoints));
-                    annotationLayer.appendChild(path);
-                });
+
+                    // Insert at correct position
+                    if (i < annotationLayer.children.length) {
+                        annotationLayer.insertBefore(path, annotationLayer.children[i]);
+                    } else {
+                        annotationLayer.appendChild(path);
+                    }
+
+                    newElements.push({ annotation, svgPath: path });
+                }
             }
+
+            // Remove unused elements (deleted annotations)
+            for (let i = 0; i < prevElements.length; i++) {
+                if (!usedPrevIndices.has(i)) {
+                    prevElements[i].svgPath.remove();
+                }
+            }
+
+            // Ensure correct order of elements
+            newElements.forEach((elem, index) => {
+                const currentIndex = Array.from(annotationLayer.children).indexOf(elem.svgPath);
+                if (currentIndex !== index) {
+                    if (index < annotationLayer.children.length) {
+                        annotationLayer.insertBefore(elem.svgPath, annotationLayer.children[index]);
+                    } else {
+                        annotationLayer.appendChild(elem.svgPath);
+                    }
+                }
+            });
+
+            // Update tracking
+            annotationElements[currentPage] = newElements;
+        }
+
+        // Helper function to check if two annotations are identical
+        function annotationsMatch(a, b) {
+            if (!a || !b) return false;
+            if (a.color !== b.color) return false;
+            if (a.width !== b.width) return false;
+            if (a.points.length !== b.points.length) return false;
+
+            // Check all points match
+            for (let i = 0; i < a.points.length; i++) {
+                if (a.points[i].x !== b.points[i].x || a.points[i].y !== b.points[i].y) {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         function pointsToPath(points) {
-            if (points.length < 2) return `M ${points[0].x} ${points[0].y}`;
+            // Handle single point (dot) - draw a tiny line to make it visible
+            if (points.length < 2) return `M ${points[0].x} ${points[0].y} L ${points[0].x + 0.1} ${points[0].y + 0.1}`;
             if (points.length === 2) return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
 
             let path = `M ${points[0].x} ${points[0].y}`;

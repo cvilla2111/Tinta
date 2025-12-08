@@ -12,6 +12,152 @@ let fitMode = 'width'; // Track current fit mode: 'width', 'height', 'best'
 // Annotation State
 let annotations = {}; // Keyed by page number
 let undoStack = {}; // Undo history keyed by page number
+let currentPdfFingerprint = null; // Track current PDF for IndexedDB
+
+// IndexedDB for annotation persistence
+let annotationDB = null;
+
+// OPTIMIZATION: Canvas pool for reusing contexts
+class CanvasPool {
+    constructor(maxSize = 10) {
+        this.pool = [];
+        this.maxSize = maxSize;
+    }
+
+    acquire(width, height, options = {}) {
+        // Try to find a canvas from pool
+        const index = this.pool.findIndex(item =>
+            !item.inUse &&
+            item.canvas.width >= width &&
+            item.canvas.height >= height
+        );
+
+        if (index >= 0) {
+            // Reuse existing canvas
+            const poolItem = this.pool[index];
+            poolItem.inUse = true;
+
+            // Resize if needed
+            if (poolItem.canvas.width !== width || poolItem.canvas.height !== height) {
+                poolItem.canvas.width = width;
+                poolItem.canvas.height = height;
+                // Context is automatically reset when canvas size changes
+            } else {
+                // Clear canvas for reuse
+                const ctx = poolItem.canvas.getContext('2d', options);
+                ctx.clearRect(0, 0, width, height);
+            }
+
+            return poolItem.canvas;
+        }
+
+        // Create new canvas if pool not at max
+        if (this.pool.length < this.maxSize) {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const poolItem = { canvas, inUse: true };
+            this.pool.push(poolItem);
+            return canvas;
+        }
+
+        // Pool at max, create temporary canvas (not pooled)
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        return canvas;
+    }
+
+    release(canvas) {
+        const poolItem = this.pool.find(item => item.canvas === canvas);
+        if (poolItem) {
+            poolItem.inUse = false;
+        }
+    }
+
+    clear() {
+        this.pool = [];
+    }
+}
+
+// Global canvas pool instance
+const canvasPool = new CanvasPool(15); // Allow up to 15 pooled canvases
+
+// Initialize IndexedDB for annotation storage
+function initAnnotationDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open('PDFAnnotationsDB', 1);
+
+        request.onerror = () => {
+            console.warn('IndexedDB not available, using memory-only storage');
+            resolve(null);
+        };
+
+        request.onsuccess = (event) => {
+            annotationDB = event.target.result;
+            console.log('IndexedDB initialized for annotations');
+            resolve(annotationDB);
+        };
+
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+
+            // Create object store for annotations
+            // Key: PDF fingerprint, Value: { annotations, undoStack, timestamp }
+            if (!db.objectStoreNames.contains('annotations')) {
+                db.createObjectStore('annotations', { keyPath: 'pdfId' });
+            }
+        };
+    });
+}
+
+// Save annotations to IndexedDB
+async function saveAnnotationsToIndexedDB() {
+    if (!annotationDB || !currentPdfFingerprint) return;
+
+    try {
+        const transaction = annotationDB.transaction(['annotations'], 'readwrite');
+        const store = transaction.objectStore('annotations');
+
+        const data = {
+            pdfId: currentPdfFingerprint,
+            annotations: annotations,
+            undoStack: undoStack,
+            timestamp: Date.now()
+        };
+
+        await store.put(data);
+        console.log('Annotations saved to IndexedDB');
+    } catch (err) {
+        console.warn('Failed to save annotations to IndexedDB:', err);
+    }
+}
+
+// Load annotations from IndexedDB
+async function loadAnnotationsFromIndexedDB(pdfFingerprint) {
+    if (!annotationDB || !pdfFingerprint) return null;
+
+    try {
+        const transaction = annotationDB.transaction(['annotations'], 'readonly');
+        const store = transaction.objectStore('annotations');
+        const request = store.get(pdfFingerprint);
+
+        return new Promise((resolve, reject) => {
+            request.onsuccess = () => {
+                if (request.result) {
+                    console.log('Loaded annotations from IndexedDB');
+                    resolve(request.result);
+                } else {
+                    resolve(null);
+                }
+            };
+            request.onerror = () => resolve(null);
+        });
+    } catch (err) {
+        console.warn('Failed to load annotations from IndexedDB:', err);
+        return null;
+    }
+}
 let currentTool = 'pen';
 let currentColor = '#000000';
 let currentStrokeWidth = 3;
@@ -137,7 +283,12 @@ penBtn.addEventListener('click', (e) => {
 undoBtn.addEventListener('click', undoLastStroke);
 redoBtn.addEventListener('click', redoLastStroke);
 clearBtn.addEventListener('click', () => {
-    clearAllAnnotations();
+    // If Quick Note is open, clear Quick Note annotations
+    if (quickNoteOpen) {
+        clearAllQuickNoteAnnotations();
+    } else {
+        clearAllAnnotations();
+    }
     closeAllModals();
 });
 
@@ -180,6 +331,9 @@ function disableFingerScroll() {
     pdfWrapper.style.touchAction = 'none';
     canvasContainer.style.touchAction = 'none';
     canvasContainer.style.overflow = 'auto';
+    // Re-enable touch blocking for long-press prevention
+    document.body.style.touchAction = 'none';
+    pdfViewer.style.touchAction = 'none';
 }
 
 // Scroll toggle functionality
@@ -197,6 +351,9 @@ scrollToggleBtn.addEventListener('click', () => {
         pdfWrapper.style.touchAction = 'auto';
         canvasContainer.style.touchAction = 'pan-y'; // Explicitly allow vertical panning
         canvasContainer.style.overflow = 'scroll'; // Force scrolling
+        // Allow touch events for scrolling (but still prevent long-press via touchstart handlers)
+        document.body.style.touchAction = 'pan-y';
+        pdfViewer.style.touchAction = 'pan-y';
         console.log('Finger scroll enabled - Surface Go 2 mode');
     } else {
         disableFingerScroll();
@@ -418,6 +575,55 @@ pdfViewer.addEventListener('contextmenu', (e) => {
     e.preventDefault();
 });
 
+// Prevent touch and hold behavior that triggers fullscreen exit
+// This prevents the browser's long-press menu/fullscreen exit prompt
+let touchTimeout = null;
+
+// Prevent long-press on document (for fullscreen)
+document.addEventListener('touchstart', (e) => {
+    // Clear any existing timeout
+    if (touchTimeout) {
+        clearTimeout(touchTimeout);
+    }
+
+    // Set a flag to prevent context menu after delay
+    touchTimeout = setTimeout(() => {
+        touchTimeout = null;
+    }, 500);
+}, { passive: true });
+
+document.addEventListener('touchend', (e) => {
+    if (touchTimeout) {
+        clearTimeout(touchTimeout);
+        touchTimeout = null;
+    }
+}, { passive: true });
+
+document.addEventListener('touchmove', (e) => {
+    if (touchTimeout) {
+        clearTimeout(touchTimeout);
+        touchTimeout = null;
+    }
+}, { passive: true });
+
+// Prevent long-press specifically on PDF viewer area
+// BUT allow touches when finger scroll is enabled
+pdfViewer.addEventListener('touchstart', (e) => {
+    // Only prevent default if finger scroll is NOT enabled
+    if (!fingerScrollEnabled) {
+        e.preventDefault();
+    }
+}, { passive: false });
+
+// Prevent long-press on canvas
+// BUT allow touches when finger scroll is enabled
+activeStrokeCanvas.addEventListener('touchstart', (e) => {
+    // Only prevent default if finger scroll is NOT enabled
+    if (!fingerScrollEnabled) {
+        e.preventDefault();
+    }
+}, { passive: false });
+
 // Keyboard navigation
 document.addEventListener('keydown', (e) => {
     if (!pdfDoc) return;
@@ -467,6 +673,30 @@ function loadPDF(file) {
         pdfjsLib.getDocument(typedArray).promise.then(async pdf => {
             pdfDoc = pdf;
             pageCountDisplay.textContent = pdf.numPages;
+
+            // Store PDF fingerprint for IndexedDB
+            currentPdfFingerprint = pdf.fingerprints ? pdf.fingerprints[0] : null;
+
+            // OPTIMIZATION: Clear filmstrip cache when new PDF is loaded
+            filmstripCache = null;
+            filmstripCachedPdfId = null;
+
+            // OPTIMIZATION: Load annotations from IndexedDB if available
+            if (currentPdfFingerprint) {
+                const savedData = await loadAnnotationsFromIndexedDB(currentPdfFingerprint);
+                if (savedData) {
+                    annotations = savedData.annotations || {};
+                    undoStack = savedData.undoStack || {};
+                    console.log('Restored annotations from previous session');
+                } else {
+                    // Initialize empty annotations for new PDF
+                    annotations = {};
+                    undoStack = {};
+                }
+            } else {
+                annotations = {};
+                undoStack = {};
+            }
 
             // Show PDF viewer and controls, hide welcome screen
             welcomeScreen.style.display = 'none';
@@ -558,6 +788,9 @@ function renderPage(num) {
             // Load new annotations and sync canvas
             syncAnnotationLayer();
             loadPageAnnotations();
+
+            // Adjust vertical alignment based on PDF size
+            adjustCanvasAlignment();
 
             // Fade out overlay to reveal the new page (EXACTLY like presentation screen)
             pageTransitionOverlay.style.opacity = '0';
@@ -727,7 +960,33 @@ document.addEventListener('fullscreenchange', () => {
         setTimeout(() => {
             fitToWidth();
         }, 100);
+    } else if (pdfDoc) {
+        // For other fit modes, just adjust alignment
+        setTimeout(() => {
+            adjustCanvasAlignment();
+        }, 100);
     }
+});
+
+// Adjust alignment when window is resized
+window.addEventListener('resize', () => {
+    if (pdfDoc) {
+        adjustCanvasAlignment();
+    }
+});
+
+// Sync scroll position to presentation screen
+let lastScrollSyncTime = 0;
+const SCROLL_SYNC_THROTTLE = 50; // Throttle to 20 syncs per second max
+
+canvasContainer.addEventListener('scroll', () => {
+    const now = Date.now();
+    if (now - lastScrollSyncTime < SCROLL_SYNC_THROTTLE) {
+        return; // Throttle to avoid too many messages
+    }
+    lastScrollSyncTime = now;
+
+    syncPresentationScroll();
 });
 
 // ============================================
@@ -780,27 +1039,40 @@ function closeFilmstripModal() {
     }, 300);
 }
 
-// Generate thumbnails for all pages
-async function generateFilmstripThumbnails() {
-    // Clear existing thumbnails
-    filmstripContent.innerHTML = '';
+// Cache for filmstrip thumbnails to avoid regenerating
+let filmstripCache = null;
+let filmstripCachedPdfId = null;
+let thumbnailObserver = null; // Intersection Observer for lazy loading
 
-    const thumbnailWidth = 300; // Fixed width for thumbnails
-    const numPages = pdfDoc.numPages;
+// OPTIMIZATION: Lazy render thumbnail when it becomes visible
+async function renderThumbnail(pageEl, pageNumber) {
+    // Prevent duplicate rendering (race condition between observer and manual pre-render)
+    if (pageEl.dataset.rendered === 'true' || pageEl.dataset.rendering === 'true') {
+        return;
+    }
 
-    for (let i = 1; i <= numPages; i++) {
-        const page = await pdfDoc.getPage(i);
+    // Mark as rendering to prevent duplicate calls
+    pageEl.dataset.rendering = 'true';
+
+    try {
+        const page = await pdfDoc.getPage(pageNumber);
         const viewport = page.getViewport({ scale: 1 });
 
-        // Calculate scale to fit thumbnail width
+        const thumbnailWidth = 300;
         const thumbScale = thumbnailWidth / viewport.width;
         const thumbViewport = page.getViewport({ scale: thumbScale });
 
-        // Create canvas for thumbnail
-        const thumbCanvas = document.createElement('canvas');
-        thumbCanvas.width = thumbViewport.width;
-        thumbCanvas.height = thumbViewport.height;
-        const thumbCtx = thumbCanvas.getContext('2d');
+        // OPTIMIZATION: Acquire canvas from pool instead of creating new one
+        const thumbCanvas = canvasPool.acquire(
+            thumbViewport.width,
+            thumbViewport.height,
+            { willReadFrequently: false, alpha: false }
+        );
+
+        const thumbCtx = thumbCanvas.getContext('2d', {
+            willReadFrequently: false,
+            alpha: false
+        });
 
         // Render page to thumbnail canvas
         await page.render({
@@ -808,16 +1080,66 @@ async function generateFilmstripThumbnails() {
             viewport: thumbViewport
         }).promise;
 
-        // Create filmstrip page element
+        // Replace placeholder with rendered canvas
+        const placeholder = pageEl.querySelector('.thumbnail-placeholder');
+        if (placeholder) {
+            pageEl.replaceChild(thumbCanvas, placeholder);
+        } else {
+            pageEl.insertBefore(thumbCanvas, pageEl.firstChild);
+        }
+
+        pageEl.dataset.rendered = 'true';
+        pageEl.dataset.rendering = 'false';
+
+        // Note: Canvas is not released back to pool as it's now part of DOM
+        // It will be reused when filmstrip cache is cloned
+    } catch (err) {
+        console.error('Failed to render thumbnail:', err);
+        pageEl.dataset.rendering = 'false'; // Reset on error
+    }
+}
+
+// Generate thumbnails for all pages with lazy loading
+async function generateFilmstripThumbnails() {
+    // NOTE: Canvas caching disabled because cloning doesn't preserve pixel data
+    // Each filmstrip open will use lazy loading with Intersection Observer instead
+    // const currentPdfId = pdfDoc ? pdfDoc.fingerprints : null;
+    // if (filmstripCache && filmstripCachedPdfId === currentPdfId) {
+    //     filmstripContent.innerHTML = '';
+    //     filmstripContent.appendChild(filmstripCache.cloneNode(true));
+    //     updateFilmstripActiveState();
+    //     scrollToCurrentPageInFilmstrip();
+    //     setupThumbnailLazyLoading();
+    //     return;
+    // }
+
+    // Clear existing thumbnails
+    filmstripContent.innerHTML = '';
+
+    const numPages = pdfDoc.numPages;
+    const fragment = document.createDocumentFragment();
+
+    // OPTIMIZATION: Create placeholder elements first, render on-demand
+    for (let i = 1; i <= numPages; i++) {
         const pageEl = document.createElement('div');
         pageEl.className = 'filmstrip-page';
         if (i === pageNum) {
             pageEl.classList.add('active');
         }
         pageEl.dataset.pageNum = i;
+        pageEl.dataset.rendered = 'false';
 
-        // Add canvas
-        pageEl.appendChild(thumbCanvas);
+        // Create placeholder for lazy loading
+        const placeholder = document.createElement('div');
+        placeholder.className = 'thumbnail-placeholder';
+        placeholder.style.width = '300px';
+        placeholder.style.height = '200px'; // Approximate height
+        placeholder.style.backgroundColor = 'var(--bg-tertiary)';
+        placeholder.style.display = 'flex';
+        placeholder.style.alignItems = 'center';
+        placeholder.style.justifyContent = 'center';
+        placeholder.textContent = 'Loading...';
+        pageEl.appendChild(placeholder);
 
         // Add page number label
         const label = document.createElement('div');
@@ -825,17 +1147,101 @@ async function generateFilmstripThumbnails() {
         label.textContent = `Page ${i}`;
         pageEl.appendChild(label);
 
-        // Click handler to navigate to page
-        pageEl.addEventListener('click', () => {
-            goToPage(i);
-            closeFilmstripModal();
-        });
-
-        filmstripContent.appendChild(pageEl);
+        fragment.appendChild(pageEl);
     }
+
+    filmstripContent.appendChild(fragment);
+
+    // Pre-render current page and neighbors for instant visibility
+    // Do this BEFORE setting up observer to avoid race conditions
+    const currentPageEl = filmstripContent.querySelector(`[data-page-num="${pageNum}"]`);
+    if (currentPageEl) {
+        console.log('Pre-rendering page:', pageNum);
+        await renderThumbnail(currentPageEl, pageNum);
+
+        // Pre-render neighbors
+        if (pageNum > 1) {
+            const prevPageEl = filmstripContent.querySelector(`[data-page-num="${pageNum - 1}"]`);
+            if (prevPageEl) {
+                console.log('Pre-rendering prev page:', pageNum - 1);
+                await renderThumbnail(prevPageEl, pageNum - 1);
+            }
+        }
+
+        if (pageNum < numPages) {
+            const nextPageEl = filmstripContent.querySelector(`[data-page-num="${pageNum + 1}"]`);
+            if (nextPageEl) {
+                console.log('Pre-rendering next page:', pageNum + 1);
+                await renderThumbnail(nextPageEl, pageNum + 1);
+            }
+        }
+    }
+
+    // Setup Intersection Observer for lazy loading AFTER pre-rendering
+    // This prevents race conditions with manual pre-rendering
+    setupThumbnailLazyLoading();
+
+    // DON'T cache rendered canvases - canvas cloning doesn't preserve pixels!
+    // Cache is disabled for now to avoid empty canvas issue
+    // filmstripCache = filmstripContent.cloneNode(true);
+    // filmstripCachedPdfId = currentPdfId;
 
     // Scroll to current page in filmstrip
     scrollToCurrentPageInFilmstrip();
+}
+
+// Setup Intersection Observer for lazy thumbnail loading
+function setupThumbnailLazyLoading() {
+    // Disconnect previous observer if exists
+    if (thumbnailObserver) {
+        thumbnailObserver.disconnect();
+    }
+
+    // Create new observer
+    thumbnailObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const pageEl = entry.target;
+                const pageNumber = parseInt(pageEl.dataset.pageNum);
+                if (pageNumber && pageEl.dataset.rendered !== 'true') {
+                    renderThumbnail(pageEl, pageNumber);
+                }
+            }
+        });
+    }, {
+        root: filmstripContent,
+        rootMargin: '100px', // Start loading 100px before visible
+        threshold: 0.01
+    });
+
+    // Observe all filmstrip pages
+    const pages = filmstripContent.querySelectorAll('.filmstrip-page');
+    pages.forEach(page => thumbnailObserver.observe(page));
+}
+
+// OPTIMIZATION: Event delegation for filmstrip clicks (prevents memory leaks)
+filmstripContent.addEventListener('click', (e) => {
+    const pageEl = e.target.closest('.filmstrip-page');
+    if (pageEl) {
+        const pageNumber = parseInt(pageEl.dataset.pageNum);
+        if (pageNumber) {
+            goToPage(pageNumber);
+            closeFilmstripModal();
+        }
+    }
+});
+
+// Update active state without regenerating thumbnails
+function updateFilmstripActiveState() {
+    const pages = filmstripContent.querySelectorAll('.filmstrip-page');
+    pages.forEach(page => {
+        const pageNumber = parseInt(page.dataset.pageNum);
+        if (pageNumber === pageNum) {
+            page.classList.add('active');
+        } else {
+            page.classList.remove('active');
+        }
+    });
 }
 
 // Navigate to specific page
@@ -858,17 +1264,25 @@ function scrollToCurrentPageInFilmstrip() {
 
 // Initialize Ink API
 async function initInkAPI() {
+    console.log('initInkAPI called - checking Ink API support...');
+    console.log('navigator.ink exists:', 'ink' in navigator);
+    console.log('activeStrokeCanvas:', activeStrokeCanvas);
+
     if ('ink' in navigator) {
         try {
+            console.log('Requesting Ink presenter...');
             inkPresenter = await navigator.ink.requestPresenter({
                 presentationArea: activeStrokeCanvas
             });
-            console.log('Ink API initialized successfully');
+            console.log('✅ Ink API initialized successfully!');
+            console.log('inkPresenter:', inkPresenter);
         } catch (err) {
-            console.warn('Ink API not available:', err);
+            console.warn('❌ Ink API request failed:', err);
+            inkPresenter = null;
         }
     } else {
-        console.warn('Ink API not supported');
+        console.warn('❌ Ink API not supported in this browser');
+        inkPresenter = null;
     }
 }
 
@@ -925,14 +1339,23 @@ function getPointerPos(e) {
 }
 
 function startDrawing(e) {
-    // PALM REJECTION: If already drawing, ignore ALL other pointers (palm/finger touches)
-    if (isDrawing && activePointerId !== null && e.pointerId !== activePointerId) {
-        e.preventDefault(); // Block the palm/finger from doing anything
+    // BLOCK ALL FINGER TOUCHES unless finger scroll is enabled
+    // This prevents any finger interaction with the PDF canvas
+    if (e.pointerType === 'touch' && !fingerScrollEnabled) {
+        e.preventDefault();
+        e.stopPropagation();
         return;
     }
 
-    // Completely ignore finger touches - no interaction with PDF canvas
-    if (e.pointerType === 'touch') {
+    // If finger scroll is enabled, finger touches should not reach here
+    // (canvas is hidden and touches pass through to container for scrolling)
+    if (e.pointerType === 'touch' && fingerScrollEnabled) {
+        return;
+    }
+
+    // PALM REJECTION: If already drawing, ignore ALL other pointers (palm/finger touches)
+    if (isDrawing && activePointerId !== null && e.pointerId !== activePointerId) {
+        e.preventDefault(); // Block the palm/finger from doing anything
         return;
     }
 
@@ -1032,33 +1455,48 @@ function startDrawing(e) {
         activeStrokeCtx.lineWidth = 4; // Medium size
         activeStrokeCtx.lineCap = 'round';
         activeStrokeCtx.lineJoin = 'round';
+        // Reset composite operation to normal drawing mode
+        activeStrokeCtx.globalCompositeOperation = 'source-over';
 
         activeStrokeCtx.beginPath();
         activeStrokeCtx.moveTo(pos.x, pos.y);
     } else if (currentTool === 'pen') {
         // Setup canvas context for drawing - match SVG stroke exactly
         activeStrokeCtx.strokeStyle = currentColor;
+        // Use same width as final stroke
         activeStrokeCtx.lineWidth = currentStrokeWidth;
         activeStrokeCtx.lineCap = 'round';
         activeStrokeCtx.lineJoin = 'round';
         // Clear any shadow settings from laser
         activeStrokeCtx.shadowBlur = 0;
         activeStrokeCtx.shadowColor = 'transparent';
+        // Reset composite operation from laser tool
+        activeStrokeCtx.globalCompositeOperation = 'source-over';
+        // Enable image smoothing to match SVG anti-aliasing
+        activeStrokeCtx.imageSmoothingEnabled = true;
 
         activeStrokeCtx.beginPath();
         activeStrokeCtx.moveTo(pos.x, pos.y);
 
-        // Use Ink API if available - diameter should match canvas lineWidth
-        if (inkPresenter && e.pointerId !== undefined) {
-            inkPresenter.updateInkTrailStartPoint(e, {
-                color: currentColor,
-                diameter: currentStrokeWidth
-            });
-        }
+        // Ink API disabled for pen tool
+        // Since we're using simple lines (no smoothing), the Ink API's smoothing/tapering
+        // creates a visual mismatch with the canvas stroke, causing backward movement on finish
     }
 }
 
 function draw(e) {
+    // BLOCK ALL FINGER TOUCHES unless finger scroll is enabled
+    if (e.pointerType === 'touch' && !fingerScrollEnabled) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+    }
+
+    // If finger scroll is enabled, finger touches should not reach here
+    if (e.pointerType === 'touch' && fingerScrollEnabled) {
+        return;
+    }
+
     // PALM REJECTION: Only process events from the active drawing pointer
     if (isDrawing && e.pointerId !== activePointerId) {
         e.preventDefault(); // Block palm/finger interference
@@ -1066,9 +1504,6 @@ function draw(e) {
     }
 
     if (!isDrawing) return;
-
-    // Ignore finger touches
-    if (e.pointerType === 'touch') return;
 
     // For pen/mouse: prevent any gesture interference
     e.preventDefault();
@@ -1127,6 +1562,10 @@ function draw(e) {
         if (currentTool === 'laser') {
             laserFadeOpacity = 1.0;
         }
+
+        // Ink API disabled for pen tool
+        // Since we're using simple lines (no smoothing), the Ink API's smoothing/tapering
+        // creates a visual mismatch with the canvas stroke, causing backward movement on finish
     } else {
         return;
     }
@@ -1138,8 +1577,9 @@ function draw(e) {
         Math.pow(pos.y - lastPoint.y, 2)
     );
 
-    // Minimum distance threshold to reduce jitter (optimized for performance)
-    if (distance < 4) return;
+    // Minimum distance threshold to reduce jitter while maintaining precision
+    // Very low threshold (0.5px) for smooth, precise writing - essential for small text
+    if (distance < 0.5) return;
 
     currentPoints.push(pos);
 
@@ -1150,57 +1590,35 @@ function draw(e) {
         syncPresentationActiveStroke(currentPoints, 'laser', '#FF0000', 4, laserFadeOpacity);
     }
 
-    // Draw smooth curve on canvas
+    // Draw the newest segment
     if (currentPoints.length >= 3) {
-        // Clear and redraw with smooth curve
-        activeStrokeCtx.clearRect(0, 0, activeStrokeCanvas.width, activeStrokeCanvas.height);
-
-        // If laser tool, redraw all saved laser strokes first
+        // For laser tool, we need to redraw everything (to maintain hollow outline layering)
         if (currentTool === 'laser') {
+            // Clear canvas - reset transform first to clear entire canvas
+            activeStrokeCtx.save();
+            activeStrokeCtx.setTransform(1, 0, 0, 1, 0, 0);
+            activeStrokeCtx.clearRect(0, 0, activeStrokeCanvas.width, activeStrokeCanvas.height);
+            activeStrokeCtx.restore();
+
             // Include current stroke being drawn for real-time sync to presentation
             redrawLaserStrokes(1.0, true); // Force full opacity while drawing
 
-            // Set up context for laser (since we cleared and used save/restore)
-            activeStrokeCtx.strokeStyle = '#FF0000';
-            activeStrokeCtx.lineWidth = 4;
-            activeStrokeCtx.lineCap = 'round';
+            // HOLLOW RED OUTLINE LASER - Constant width with tapered end cap
+
+            activeStrokeCtx.lineCap = 'round'; // Round caps
             activeStrokeCtx.lineJoin = 'round';
-            // Add blur/glow effect (optimized for performance)
-            activeStrokeCtx.shadowBlur = 10;
-            activeStrokeCtx.shadowColor = 'rgba(255, 0, 0, 0.9)';
-            activeStrokeCtx.shadowOffsetX = 0;
-            activeStrokeCtx.shadowOffsetY = 0;
             activeStrokeCtx.globalCompositeOperation = 'source-over';
-        }
 
-        activeStrokeCtx.beginPath();
-        activeStrokeCtx.moveTo(currentPoints[0].x, currentPoints[0].y);
-
-        // Draw smooth quadratic curves
-        for (let i = 1; i < currentPoints.length - 1; i++) {
-            const curr = currentPoints[i];
-            const next = currentPoints[i + 1];
-            const midX = (curr.x + next.x) / 2;
-            const midY = (curr.y + next.y) / 2;
-            activeStrokeCtx.quadraticCurveTo(curr.x, curr.y, midX, midY);
-        }
-
-        // Draw to last point
-        const last = currentPoints[currentPoints.length - 1];
-        const secondLast = currentPoints[currentPoints.length - 2];
-        activeStrokeCtx.quadraticCurveTo(secondLast.x, secondLast.y, last.x, last.y);
-        activeStrokeCtx.stroke();
-
-        // For laser, draw thin bright core line on top
-        if (currentTool === 'laser') {
-            activeStrokeCtx.strokeStyle = 'rgba(255, 200, 200, 1.0)'; // Bright pinkish-white core
-            activeStrokeCtx.lineWidth = 0.8; // Very thin core line
-            activeStrokeCtx.shadowBlur = 0; // No blur for the core
-            activeStrokeCtx.shadowColor = 'transparent';
+            // Step 1: Draw red outer stroke with glow (constant width with smooth curves)
+            activeStrokeCtx.strokeStyle = '#FF0000';
+            activeStrokeCtx.lineWidth = 5; // Solid appearance
+            activeStrokeCtx.shadowBlur = 8; // Subtle glow
+            activeStrokeCtx.shadowColor = 'rgba(255, 0, 0, 0.7)';
 
             activeStrokeCtx.beginPath();
             activeStrokeCtx.moveTo(currentPoints[0].x, currentPoints[0].y);
 
+            // Draw smooth quadratic curves
             for (let i = 1; i < currentPoints.length - 1; i++) {
                 const curr = currentPoints[i];
                 const next = currentPoints[i + 1];
@@ -1209,7 +1627,58 @@ function draw(e) {
                 activeStrokeCtx.quadraticCurveTo(curr.x, curr.y, midX, midY);
             }
 
-            activeStrokeCtx.quadraticCurveTo(secondLast.x, secondLast.y, last.x, last.y);
+            // Draw to last point
+            if (currentPoints.length > 1) {
+                const last = currentPoints[currentPoints.length - 1];
+                const secondLast = currentPoints[currentPoints.length - 2];
+                activeStrokeCtx.quadraticCurveTo(secondLast.x, secondLast.y, last.x, last.y);
+            }
+            activeStrokeCtx.stroke();
+
+            // Step 2: Draw subtle red center (constant width with smooth curves)
+            activeStrokeCtx.strokeStyle = '#FFB3B3'; // Light red/pink
+            activeStrokeCtx.lineWidth = 1; // Reduced from 1.5
+            activeStrokeCtx.shadowBlur = 0; // No glow on center
+            activeStrokeCtx.shadowColor = 'transparent';
+
+            activeStrokeCtx.beginPath();
+            activeStrokeCtx.moveTo(currentPoints[0].x, currentPoints[0].y);
+
+            // Draw smooth quadratic curves
+            for (let i = 1; i < currentPoints.length - 1; i++) {
+                const curr = currentPoints[i];
+                const next = currentPoints[i + 1];
+                const midX = (curr.x + next.x) / 2;
+                const midY = (curr.y + next.y) / 2;
+                activeStrokeCtx.quadraticCurveTo(curr.x, curr.y, midX, midY);
+            }
+
+            // Draw to last point
+            if (currentPoints.length > 1) {
+                const last = currentPoints[currentPoints.length - 1];
+                const secondLast = currentPoints[currentPoints.length - 2];
+                activeStrokeCtx.quadraticCurveTo(secondLast.x, secondLast.y, last.x, last.y);
+            }
+            activeStrokeCtx.stroke();
+        } else {
+            // FOR PEN: Incremental quadratic smoothing - only draw new segment
+            const len = currentPoints.length;
+            const p0 = currentPoints[len - 3];
+            const p1 = currentPoints[len - 2];
+            const p2 = currentPoints[len - 1];
+
+            // Start from midpoint between p0 and p1
+            const startX = (p0.x + p1.x) / 2;
+            const startY = (p0.y + p1.y) / 2;
+
+            // End at midpoint between p1 and p2
+            const endX = (p1.x + p2.x) / 2;
+            const endY = (p1.y + p2.y) / 2;
+
+            // Draw smooth curve from start to end with p1 as control point
+            activeStrokeCtx.beginPath();
+            activeStrokeCtx.moveTo(startX, startY);
+            activeStrokeCtx.quadraticCurveTo(p1.x, p1.y, endX, endY);
             activeStrokeCtx.stroke();
         }
 
@@ -1222,24 +1691,27 @@ function draw(e) {
         // For first few points, just draw lines
         // If laser tool, we need to preserve saved strokes
         if (currentTool === 'laser') {
-            // Clear and redraw everything for laser
+            // Clear canvas - reset transform first to clear entire canvas
+            activeStrokeCtx.save();
+            activeStrokeCtx.setTransform(1, 0, 0, 1, 0, 0);
             activeStrokeCtx.clearRect(0, 0, activeStrokeCanvas.width, activeStrokeCanvas.height);
+            activeStrokeCtx.restore();
 
             // Redraw all saved laser strokes with full opacity, including current stroke
             redrawLaserStrokes(1.0, true); // Force full opacity while drawing
 
             // Draw current stroke with simple lines (for first few points)
-            activeStrokeCtx.save();
-            activeStrokeCtx.strokeStyle = '#FF0000';
-            activeStrokeCtx.lineWidth = 4;
             activeStrokeCtx.lineCap = 'round';
             activeStrokeCtx.lineJoin = 'round';
-            // Add blur/glow effect (optimized for performance)
-            activeStrokeCtx.shadowBlur = 10;
-            activeStrokeCtx.shadowColor = 'rgba(255, 0, 0, 0.9)';
-            activeStrokeCtx.shadowOffsetX = 0;
-            activeStrokeCtx.shadowOffsetY = 0;
+            activeStrokeCtx.shadowBlur = 0;
+            activeStrokeCtx.shadowColor = 'transparent';
             activeStrokeCtx.globalCompositeOperation = 'source-over';
+
+            // Step 1: Draw red outer stroke with glow (constant width)
+            activeStrokeCtx.strokeStyle = '#FF0000';
+            activeStrokeCtx.lineWidth = 4; // Reduced from 5
+            activeStrokeCtx.shadowBlur = 20; // Strong glow
+            activeStrokeCtx.shadowColor = 'rgba(255, 0, 0, 0.9)';
             activeStrokeCtx.beginPath();
             activeStrokeCtx.moveTo(currentPoints[0].x, currentPoints[0].y);
             for (let i = 1; i < currentPoints.length; i++) {
@@ -1247,10 +1719,10 @@ function draw(e) {
             }
             activeStrokeCtx.stroke();
 
-            // Draw thin bright core line on top
-            activeStrokeCtx.strokeStyle = 'rgba(255, 200, 200, 1.0)'; // Bright pinkish-white core
-            activeStrokeCtx.lineWidth = 0.8; // Very thin core line
-            activeStrokeCtx.shadowBlur = 0; // No blur for the core
+            // Step 2: Draw subtle red center (constant width)
+            activeStrokeCtx.strokeStyle = '#FFB3B3';
+            activeStrokeCtx.lineWidth = 1; // Reduced from 1.5
+            activeStrokeCtx.shadowBlur = 0; // No glow on center
             activeStrokeCtx.shadowColor = 'transparent';
             activeStrokeCtx.beginPath();
             activeStrokeCtx.moveTo(currentPoints[0].x, currentPoints[0].y);
@@ -1258,8 +1730,6 @@ function draw(e) {
                 activeStrokeCtx.lineTo(currentPoints[i].x, currentPoints[i].y);
             }
             activeStrokeCtx.stroke();
-
-            activeStrokeCtx.restore();
         } else {
             // For pen tool, just continue drawing
             activeStrokeCtx.lineTo(pos.x, pos.y);
@@ -1269,6 +1739,18 @@ function draw(e) {
 }
 
 function endDrawing(e) {
+    // BLOCK ALL FINGER TOUCHES unless finger scroll is enabled
+    if (e && e.pointerType === 'touch' && !fingerScrollEnabled) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+    }
+
+    // If finger scroll is enabled, finger touches should not reach here
+    if (e && e.pointerType === 'touch' && fingerScrollEnabled) {
+        return;
+    }
+
     // Check if barrel button was released - if so, restore previous mode
     if (e && tempScrollFromBarrelButton && (e.buttons & 2) === 0) {
         // Barrel button released - disable temp scroll mode
@@ -1376,14 +1858,43 @@ function endDrawing(e) {
                 color: currentColor,
                 width: currentStrokeWidth,
                 points: normalizedPoints,
-                radius: radius
+                radius: radius,
+                tool: 'pen' // Track which tool created this
             });
         } else {
+            // CRITICAL: Draw final segment on canvas to match SVG exactly
+            // Canvas incremental stops at midpoint, but SVG goes to last point
+            // This eliminates the "pull-back" visual artifact
+            if (currentPoints.length >= 2) {
+                const last = currentPoints[currentPoints.length - 1];
+                const secondLast = currentPoints[currentPoints.length - 2];
+
+                // Ensure stroke settings match canvas
+                activeStrokeCtx.strokeStyle = currentColor;
+                activeStrokeCtx.lineWidth = currentStrokeWidth;
+                activeStrokeCtx.lineCap = 'round';
+                activeStrokeCtx.lineJoin = 'round';
+
+                // Draw final curve to actual last point
+                activeStrokeCtx.beginPath();
+                const startX = (secondLast.x + last.x) / 2;
+                const startY = (secondLast.y + last.y) / 2;
+                activeStrokeCtx.moveTo(startX, startY);
+                activeStrokeCtx.quadraticCurveTo(secondLast.x, secondLast.y, last.x, last.y);
+                activeStrokeCtx.stroke();
+            }
+
             // Multiple points - draw as path (normal stroke)
             const svgPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             svgPath.setAttribute('stroke', currentColor);
             svgPath.setAttribute('stroke-width', currentStrokeWidth);
-            svgPath.setAttribute('d', pointsToPath(currentPoints));
+            svgPath.setAttribute('stroke-linecap', 'round');
+            svgPath.setAttribute('stroke-linejoin', 'round');
+            svgPath.setAttribute('fill', 'none');
+            // Use auto rendering to match canvas anti-aliasing
+            svgPath.setAttribute('shape-rendering', 'auto');
+            // Enable minimal quadratic smoothing for final SVG (matches canvas)
+            svgPath.setAttribute('d', pointsToPath(currentPoints, true));
             annotationLayer.appendChild(svgPath);
 
             // Save to annotations with NORMALIZED coordinates
@@ -1396,30 +1907,45 @@ function endDrawing(e) {
                 element: svgPath,
                 color: currentColor,
                 width: currentStrokeWidth,
-                points: normalizedPoints // Store normalized (0-1) coordinates
+                points: normalizedPoints, // Store normalized (0-1) coordinates
+                tool: 'pen' // Track which tool created this
             });
         }
 
-        // Clear active stroke canvas
-        activeStrokeCtx.clearRect(0, 0, activeStrokeCanvas.width, activeStrokeCanvas.height);
+        // CRITICAL: Delay clearing active stroke canvas until AFTER SVG is painted
+        // This eliminates the visual "flicker" when finishing the stroke
+        requestAnimationFrame(() => {
+            activeStrokeCtx.clearRect(0, 0, activeStrokeCanvas.width, activeStrokeCanvas.height);
+        });
 
         // Clear redo stack when new stroke is added
         undoStack[pageNum] = [];
 
         updateUndoRedoButtons();
         syncPresentationAnnotations();
+
+        // OPTIMIZATION: Auto-save annotations to IndexedDB
+        saveAnnotationsToIndexedDB();
     }
 
     currentPoints = [];
 }
 
-function pointsToPath(points) {
+function pointsToPath(points, useSmoothing = true) {
     if (points.length < 2) return `M ${points[0].x} ${points[0].y}`;
     if (points.length === 2) return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
 
-    // Use quadratic Bezier curves for smooth strokes
     let path = `M ${points[0].x} ${points[0].y}`;
 
+    // If smoothing is disabled, use simple lines
+    if (!useSmoothing) {
+        for (let i = 1; i < points.length; i++) {
+            path += ` L ${points[i].x} ${points[i].y}`;
+        }
+        return path;
+    }
+
+    // Use quadratic Bezier curves for smooth strokes (matches canvas rendering)
     // Create smooth curve through points using quadratic Bezier
     for (let i = 1; i < points.length - 1; i++) {
         const curr = points[i];
@@ -1458,6 +1984,9 @@ function undoLastStroke() {
 
     updateUndoRedoButtons();
     syncPresentationAnnotations();
+
+    // OPTIMIZATION: Auto-save after undo
+    saveAnnotationsToIndexedDB();
 }
 
 function redoLastStroke() {
@@ -1492,7 +2021,8 @@ function redoLastStroke() {
         const newPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         newPath.setAttribute('stroke', strokeToRedo.color);
         newPath.setAttribute('stroke-width', strokeToRedo.width);
-        newPath.setAttribute('d', pointsToPath(screenPoints));
+        // Enable minimal quadratic smoothing for all strokes
+        newPath.setAttribute('d', pointsToPath(screenPoints, true));
         annotationLayer.appendChild(newPath);
 
         // Update element reference
@@ -1507,6 +2037,9 @@ function redoLastStroke() {
 
     updateUndoRedoButtons();
     syncPresentationAnnotations();
+
+    // OPTIMIZATION: Auto-save after redo
+    saveAnnotationsToIndexedDB();
 }
 
 function clearAllAnnotations() {
@@ -1525,6 +2058,12 @@ function clearAllAnnotations() {
 
     updateUndoRedoButtons();
     syncPresentationAnnotations();
+
+    // OPTIMIZATION: Auto-save after clear
+    saveAnnotationsToIndexedDB();
+
+    // Switch to pen tool after clearing
+    setTool('pen');
 }
 
 function updateUndoRedoButtons() {
@@ -1533,6 +2072,21 @@ function updateUndoRedoButtons() {
 
     undoBtn.disabled = !hasAnnotations;
     redoBtn.disabled = !hasUndoStack;
+}
+
+function adjustCanvasAlignment() {
+    // Dynamically adjust vertical alignment based on PDF size
+    // Center landscape PDFs that fit in viewport, align portrait PDFs to top
+    const containerHeight = canvasContainer.clientHeight;
+    const pdfHeight = pdfWrapper.offsetHeight;
+
+    if (pdfHeight < containerHeight) {
+        // PDF is shorter than container - center it vertically
+        canvasContainer.style.alignItems = 'center';
+    } else {
+        // PDF is taller than container - align to top for scrolling
+        canvasContainer.style.alignItems = 'flex-start';
+    }
 }
 
 function syncAnnotationLayer() {
@@ -1546,13 +2100,16 @@ function syncAnnotationLayer() {
     annotationLayer.setAttribute('height', canvas.style.height);
     annotationLayer.setAttribute('viewBox', `0 0 ${width} ${height}`);
 
-    // Sync active stroke canvas with DPR for crisp rendering
+    // Sync active stroke canvas WITH DPR scaling for crisp rendering on high-DPI displays
+    // Use CSS pixels for coordinates (matching SVG) but render at native resolution
     activeStrokeCanvas.width = width * dpr;
     activeStrokeCanvas.height = height * dpr;
     activeStrokeCanvas.style.width = width + 'px';
     activeStrokeCanvas.style.height = height + 'px';
 
-    // Scale context to match DPR (like PDF canvas)
+    // Scale canvas context to match DPR while keeping CSS pixel coordinates
+    // This allows us to draw using SVG coordinates but render at native resolution
+    // No offset needed - perfect alignment with SVG
     activeStrokeCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 
@@ -1591,7 +2148,8 @@ function loadPageAnnotations() {
                 const newPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 newPath.setAttribute('stroke', annotation.color);
                 newPath.setAttribute('stroke-width', annotation.width);
-                newPath.setAttribute('d', pointsToPath(screenPoints));
+                // Enable minimal quadratic smoothing for all strokes
+                newPath.setAttribute('d', pointsToPath(screenPoints, true));
                 annotation.element = newPath;
                 annotationLayer.appendChild(newPath);
             }
@@ -1758,32 +2316,26 @@ function redrawLaserStrokes(opacity = null, includeCurrentStroke = false) {
     // Save current context state
     activeStrokeCtx.save();
 
-    // Draw all laser strokes with smooth curves (same as pen)
-    // Use rgba to support fade opacity
-    const red = 255;
-    const green = 0;
-    const blue = 0;
-    activeStrokeCtx.strokeStyle = `rgba(${red}, ${green}, ${blue}, ${useOpacity})`;
-    activeStrokeCtx.lineWidth = 4;
+    // HOLLOW RED OUTLINE LASER - No blur for better performance
+
+    // Step 1: Draw thick red outer stroke with glow for all saved laser strokes (constant width)
     activeStrokeCtx.lineCap = 'round';
     activeStrokeCtx.lineJoin = 'round';
-
-    // Add blur/glow effect (optimized for performance)
-    activeStrokeCtx.shadowBlur = 10;
-    activeStrokeCtx.shadowColor = `rgba(${red}, ${green}, ${blue}, ${useOpacity * 0.9})`;
-    activeStrokeCtx.shadowOffsetX = 0;
-    activeStrokeCtx.shadowOffsetY = 0;
-    // Prevent shadow stacking - draw blur only once per stroke
     activeStrokeCtx.globalCompositeOperation = 'source-over';
 
     laserStrokes.forEach(stroke => {
         if (stroke.points.length === 0) return;
 
+        activeStrokeCtx.strokeStyle = `rgba(255, 0, 0, ${useOpacity})`;
+        activeStrokeCtx.lineWidth = 5; // Solid appearance
+        activeStrokeCtx.shadowBlur = 8; // Subtle glow
+        activeStrokeCtx.shadowColor = `rgba(255, 0, 0, ${useOpacity * 0.7})`;
+
         activeStrokeCtx.beginPath();
         activeStrokeCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
 
+        // Draw smooth quadratic curves for strokes with 3+ points
         if (stroke.points.length >= 3) {
-            // Draw smooth quadratic curves (same technique as pen)
             for (let i = 1; i < stroke.points.length - 1; i++) {
                 const curr = stroke.points[i];
                 const next = stroke.points[i + 1];
@@ -1797,29 +2349,28 @@ function redrawLaserStrokes(opacity = null, includeCurrentStroke = false) {
             const secondLast = stroke.points[stroke.points.length - 2];
             activeStrokeCtx.quadraticCurveTo(secondLast.x, secondLast.y, last.x, last.y);
         } else {
-            // For strokes with few points, just draw lines
+            // For few points, just draw lines
             for (let i = 1; i < stroke.points.length; i++) {
                 activeStrokeCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
             }
         }
-
         activeStrokeCtx.stroke();
     });
 
-    // Draw thin bright core line on top of each stroke
-    activeStrokeCtx.strokeStyle = `rgba(255, 200, 200, ${useOpacity})`; // Bright pinkish-white core
-    activeStrokeCtx.lineWidth = 0.8; // Very thin core line
-    activeStrokeCtx.shadowBlur = 0; // No blur for the core
-    activeStrokeCtx.shadowColor = 'transparent';
-
+    // Step 2: Draw subtle red center (constant width)
     laserStrokes.forEach(stroke => {
         if (stroke.points.length === 0) return;
+
+        activeStrokeCtx.strokeStyle = `rgba(255, 179, 179, ${useOpacity})`;
+        activeStrokeCtx.lineWidth = 1; // Reduced from 1.5
+        activeStrokeCtx.shadowBlur = 0; // No glow on center
+        activeStrokeCtx.shadowColor = 'transparent';
 
         activeStrokeCtx.beginPath();
         activeStrokeCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
 
+        // Draw smooth quadratic curves for strokes with 3+ points
         if (stroke.points.length >= 3) {
-            // Draw smooth quadratic curves (same technique as outer glow)
             for (let i = 1; i < stroke.points.length - 1; i++) {
                 const curr = stroke.points[i];
                 const next = stroke.points[i + 1];
@@ -1833,12 +2384,11 @@ function redrawLaserStrokes(opacity = null, includeCurrentStroke = false) {
             const secondLast = stroke.points[stroke.points.length - 2];
             activeStrokeCtx.quadraticCurveTo(secondLast.x, secondLast.y, last.x, last.y);
         } else {
-            // For strokes with few points, just draw lines
+            // For few points, just draw lines
             for (let i = 1; i < stroke.points.length; i++) {
                 activeStrokeCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
             }
         }
-
         activeStrokeCtx.stroke();
     });
 
@@ -2127,8 +2677,8 @@ function moveSelectedAnnotations(dx, dy) {
             annotation.element.setAttribute('cx', screenPoints[0].x);
             annotation.element.setAttribute('cy', screenPoints[0].y);
         } else {
-            // Update path
-            annotation.element.setAttribute('d', pointsToPath(screenPoints));
+            // Enable minimal quadratic smoothing for all strokes
+            annotation.element.setAttribute('d', pointsToPath(screenPoints, true));
         }
     });
 
@@ -2304,8 +2854,8 @@ function resizeSelectedAnnotations(currentPos) {
             // Update stored radius
             annotation.radius = annotation.radius * scale;
         } else {
-            // Update path
-            annotation.element.setAttribute('d', pointsToPath(screenPoints));
+            // Enable minimal quadratic smoothing for all strokes
+            annotation.element.setAttribute('d', pointsToPath(screenPoints, true));
         }
     });
 
@@ -2368,20 +2918,133 @@ function loadPDFWithPresentation(file) {
     originalLoadPDF(file);
 }
 
+// Check if running from file:// protocol (local without server)
+function isRunningLocally() {
+    return window.location.protocol === 'file:';
+}
+
+// Fallback presentation window for local file:// usage
+let fallbackPresentationWindow = null;
+let fallbackBroadcastChannel = null;
+
+// Fallback presentation mode using window.open() for local file:// usage
+function startFallbackPresentation() {
+    // If window already exists and is not closed, close it first
+    if (fallbackPresentationWindow && !fallbackPresentationWindow.closed) {
+        fallbackPresentationWindow.close();
+        fallbackPresentationWindow = null;
+        presentBtn.classList.remove('tool-active');
+        presentBtn.title = 'Start Presenting';
+
+        // Close broadcast channel
+        if (fallbackBroadcastChannel) {
+            fallbackBroadcastChannel.close();
+            fallbackBroadcastChannel = null;
+        }
+        return;
+    }
+
+    // Open presentation.html in a new window
+    const presentationUrl = 'presentation.html';
+    fallbackPresentationWindow = window.open(
+        presentationUrl,
+        'PDFPresentation',
+        'width=1920,height=1080,menubar=no,toolbar=no,location=no,status=no'
+    );
+
+    if (!fallbackPresentationWindow) {
+        alert('Failed to open presentation window. Please allow popups for this site.');
+        return;
+    }
+
+    // Create BroadcastChannel for communication (works locally without server)
+    fallbackBroadcastChannel = new BroadcastChannel('pdf_presentation');
+
+    // Listen for messages from presentation window
+    fallbackBroadcastChannel.onmessage = (event) => {
+        console.log('Received message from presentation:', event.data);
+
+        // When presentation window is ready, send initial data
+        if (event.data.type === 'PRESENTATION_READY') {
+            console.log('Presentation window is ready, sending initial data');
+            sendFallbackInitialData();
+        }
+    };
+
+    // Monitor if window is closed
+    const checkClosed = setInterval(() => {
+        if (fallbackPresentationWindow.closed) {
+            clearInterval(checkClosed);
+            presentBtn.classList.remove('tool-active');
+            presentBtn.title = 'Start Presenting';
+            if (fallbackBroadcastChannel) {
+                fallbackBroadcastChannel.close();
+                fallbackBroadcastChannel = null;
+            }
+            fallbackPresentationWindow = null;
+        }
+    }, 500);
+
+    // Update button appearance
+    presentBtn.classList.add('tool-active');
+    presentBtn.title = 'Stop Presenting';
+}
+
+// Send initial data to fallback presentation window
+function sendFallbackInitialData() {
+    if (!fallbackBroadcastChannel) return;
+
+    // Send PDF data (convert ArrayBuffer to Uint8Array to Array)
+    fallbackBroadcastChannel.postMessage({
+        type: 'LOAD_PDF',
+        pdfData: Array.from(new Uint8Array(pdfFileData))
+    });
+
+    // Small delay then send current state
+    setTimeout(() => {
+        fallbackBroadcastChannel.postMessage({
+            type: 'PAGE_CHANGE',
+            pageNum: pageNum
+        });
+
+        fallbackBroadcastChannel.postMessage({
+            type: 'SCALE_CHANGE',
+            scale: scale
+        });
+
+        fallbackBroadcastChannel.postMessage({
+            type: 'ANNOTATIONS_UPDATE',
+            annotations: annotations
+        });
+    }, 500);
+}
+
+// sendMessage function is defined later (line ~3203) and handles both fallback and Presentation API modes
+
 // Initialize Presentation Request
 function initPresentationRequest() {
+    // Skip if running locally without server
+    if (isRunningLocally()) {
+        console.log('Running locally (file://), will use fallback window.open() instead of Presentation API');
+        return;
+    }
+
     if (!navigator.presentation) {
         console.warn('Presentation API not supported');
         return;
     }
 
-    // Create presentation request with the receiver URL
-    presentationRequest = new PresentationRequest(['presentation.html']);
+    try {
+        // Create presentation request with the receiver URL
+        presentationRequest = new PresentationRequest(['presentation.html']);
 
-    // Set as default request (allows browser cast button)
-    navigator.presentation.defaultRequest = presentationRequest;
+        // Set as default request (allows browser cast button)
+        navigator.presentation.defaultRequest = presentationRequest;
 
-    console.log('Presentation request initialized');
+        console.log('Presentation request initialized');
+    } catch (err) {
+        console.warn('Failed to initialize Presentation API:', err);
+    }
 }
 
 // Present button click handler
@@ -2390,17 +3053,24 @@ if (presentBtn) {
 }
 
 async function startPresentation() {
-    console.log('startPresentation called, current connection state:', presentationConnection?.state);
+    console.log('startPresentation called');
+
+    if (!pdfDoc || !pdfFileData) {
+        alert('Please load a PDF first');
+        return;
+    }
+
+    // FALLBACK: Use window.open() for local file:// usage
+    if (isRunningLocally()) {
+        console.log('Using fallback window.open() for local presentation');
+        startFallbackPresentation();
+        return;
+    }
 
     // If already presenting, stop it
     if (presentationConnection && presentationConnection.state !== 'closed' && presentationConnection.state !== 'terminated') {
         console.log('Stopping existing presentation');
         stopPresentation();
-        return;
-    }
-
-    if (!pdfDoc || !pdfFileData) {
-        alert('Please load a PDF first');
         return;
     }
 
@@ -2521,6 +3191,17 @@ function sendInitialData() {
 }
 
 function sendMessage(message) {
+    // Use BroadcastChannel for fallback mode (local file:// usage)
+    if (isRunningLocally() && fallbackBroadcastChannel) {
+        try {
+            fallbackBroadcastChannel.postMessage(message);
+        } catch (err) {
+            console.error('Failed to send message via BroadcastChannel:', err);
+        }
+        return;
+    }
+
+    // Use Presentation API for normal server mode
     if (presentationConnection && presentationConnection.state === 'connected') {
         try {
             presentationConnection.send(JSON.stringify(message));
@@ -2655,6 +3336,24 @@ function syncPresentationLaserStrokes(strokes, opacity) {
     });
 }
 
+function syncPresentationScroll() {
+    // Calculate scroll position as percentage of scrollable area
+    const scrollLeft = canvasContainer.scrollLeft;
+    const scrollTop = canvasContainer.scrollTop;
+    const maxScrollLeft = canvasContainer.scrollWidth - canvasContainer.clientWidth;
+    const maxScrollTop = canvasContainer.scrollHeight - canvasContainer.clientHeight;
+
+    // Normalize scroll position (0-1 range)
+    const normalizedScrollX = maxScrollLeft > 0 ? scrollLeft / maxScrollLeft : 0;
+    const normalizedScrollY = maxScrollTop > 0 ? scrollTop / maxScrollTop : 0;
+
+    sendMessage({
+        type: 'SCROLL_POSITION',
+        scrollX: normalizedScrollX,
+        scrollY: normalizedScrollY
+    });
+}
+
 function syncPresentationSelectionBox() {
     if (!selectionBounds) {
         // Clear selection box from presentation
@@ -2684,11 +3383,367 @@ function syncPresentationSelectionBox() {
 // Handle window close
 window.addEventListener('beforeunload', () => {
     stopPresentation();
+    // Final save before closing
+    if (annotationDB && currentPdfFingerprint) {
+        saveAnnotationsToIndexedDB();
+    }
 });
 
-// Initialize presentation request when PDF is loaded
-window.addEventListener('load', () => {
+// Initialize presentation request and IndexedDB when app loads
+window.addEventListener('load', async () => {
+    // OPTIMIZATION: Initialize IndexedDB
+    await initAnnotationDB();
+
     if (navigator.presentation) {
         initPresentationRequest();
     }
 });
+
+// ===== QUICK NOTE FUNCTIONALITY =====
+
+// Quick Note elements and state
+const quickNoteBtn = document.getElementById('quickNoteBtn');
+const quickNoteOverlay = document.getElementById('quickNoteOverlay');
+const quickNoteWindow = document.querySelector('.quick-note-window');
+const closeQuickNoteBtn = document.getElementById('closeQuickNote');
+const quickNoteCanvas = document.getElementById('quickNoteCanvas');
+const quickNoteAnnotationLayer = document.getElementById('quickNoteAnnotationLayer');
+const quickNoteActiveStroke = document.getElementById('quickNoteActiveStroke');
+
+let quickNoteOpen = false;
+let quickNoteCtx = null;
+let quickNoteActiveCtx = null;
+let quickNoteAnnotations = [];
+let quickNoteCurrentStroke = null;
+let quickNoteIsDrawing = false;
+let quickNoteUndoStack = [];
+
+// Initialize Quick Note canvas
+function initQuickNoteCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+
+    // Get available space (full window minus PDF header - 60px)
+    const width = window.innerWidth;
+    const height = window.innerHeight - 60; // 60px is header height
+
+    // Set display size to fill available space
+    quickNoteCanvas.style.width = width + 'px';
+    quickNoteCanvas.style.height = height + 'px';
+    quickNoteActiveStroke.style.width = width + 'px';
+    quickNoteActiveStroke.style.height = height + 'px';
+
+    // Set actual size for high DPI displays
+    quickNoteCanvas.width = width * dpr;
+    quickNoteCanvas.height = height * dpr;
+    quickNoteActiveStroke.width = width * dpr;
+    quickNoteActiveStroke.height = height * dpr;
+
+    // Get contexts
+    quickNoteCtx = quickNoteCanvas.getContext('2d');
+    quickNoteActiveCtx = quickNoteActiveStroke.getContext('2d');
+
+    // Scale contexts for high DPI
+    quickNoteCtx.scale(dpr, dpr);
+    quickNoteActiveCtx.scale(dpr, dpr);
+
+    // Set SVG layer size
+    quickNoteAnnotationLayer.setAttribute('width', width);
+    quickNoteAnnotationLayer.setAttribute('height', height);
+
+    console.log('Quick Note canvas initialized:', width, 'x', height);
+}
+
+// Open Quick Note
+function openQuickNote() {
+    if (quickNoteOpen) return;
+
+    quickNoteOpen = true;
+    quickNoteOverlay.style.display = 'flex';
+
+    // Trigger animation after a small delay to ensure display is set
+    setTimeout(() => {
+        quickNoteOverlay.classList.add('show');
+    }, 10);
+
+    // Initialize canvas on first open
+    if (!quickNoteCtx) {
+        initQuickNoteCanvas();
+        setupQuickNoteDrawing();
+    }
+
+    // Redraw existing annotations
+    redrawQuickNoteAnnotations();
+
+    // Switch to pen tool with white color
+    currentTool = 'pen';
+    currentColor = '#FFFFFF';
+    setTool('pen');
+    colorIndicator.style.background = '#FFFFFF';
+
+    // Notify presentation screen
+    sendMessage({
+        type: 'QUICK_NOTE_OPEN'
+    });
+
+    console.log('Quick Note opened - switched to white pen');
+}
+
+// Close Quick Note
+function closeQuickNote() {
+    if (!quickNoteOpen) return;
+
+    quickNoteOpen = false;
+
+    // Add closing class for smooth easing (no bounce)
+    quickNoteOverlay.classList.add('closing');
+    quickNoteOverlay.classList.remove('show');
+
+    // Hide after animation completes (200ms for closing)
+    setTimeout(() => {
+        quickNoteOverlay.style.display = 'none';
+        quickNoteOverlay.classList.remove('closing');
+    }, 200);
+
+    // Restore to default pen tool with black color
+    currentTool = 'pen';
+    currentColor = '#000000';
+    setTool('pen');
+    colorIndicator.style.background = '#000000';
+
+    // Notify presentation screen
+    sendMessage({
+        type: 'QUICK_NOTE_CLOSE'
+    });
+
+    console.log('Quick Note closed - restored to black pen');
+}
+
+// Setup drawing event listeners for Quick Note
+function setupQuickNoteDrawing() {
+    // Mouse events
+    quickNoteActiveStroke.addEventListener('pointerdown', quickNoteStartDrawing);
+    quickNoteActiveStroke.addEventListener('pointermove', quickNoteDraw);
+    quickNoteActiveStroke.addEventListener('pointerup', quickNoteEndDrawing);
+    quickNoteActiveStroke.addEventListener('pointerleave', quickNoteEndDrawing);
+
+    console.log('Quick Note drawing setup complete');
+}
+
+// Quick Note drawing functions
+function quickNoteStartDrawing(e) {
+    console.log('Quick Note start drawing, currentTool:', currentTool, 'event type:', e.pointerType);
+
+    // Support all drawing tools (pen, highlighter, laser, eraser)
+    if (currentTool !== 'pen' && currentTool !== 'highlighter' && currentTool !== 'laser' && currentTool !== 'eraser') {
+        console.log('Tool not supported:', currentTool);
+        return;
+    }
+
+    // Block touch unless finger scroll is enabled
+    if (e.pointerType === 'touch' && !fingerScrollEnabled) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+    }
+
+    quickNoteIsDrawing = true;
+
+    const rect = quickNoteActiveStroke.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    // Detect stylus eraser end (button 5, bitmask 32)
+    const isUsingEraserEnd = (e.buttons & 32) !== 0;
+    const isQuickNoteEraserActive = isUsingEraserEnd || currentTool === 'eraser';
+
+    // For eraser (tool or barrel button), we don't create a stroke, just track the eraser path
+    if (isQuickNoteEraserActive) {
+        quickNoteCurrentStroke = {
+            tool: 'eraser',
+            points: [{x, y}]
+        };
+        // Start erasing immediately
+        eraseQuickNoteStrokes(x, y);
+    } else {
+        quickNoteCurrentStroke = {
+            tool: currentTool,
+            color: currentColor,
+            width: currentStrokeWidth,
+            opacity: currentTool === 'highlighter' ? 0.3 : (currentTool === 'laser' ? 1 : 1),
+            points: [{x, y}]
+        };
+    }
+
+    e.preventDefault();
+}
+
+function quickNoteDraw(e) {
+    if (!quickNoteIsDrawing || !quickNoteCurrentStroke) return;
+
+    const rect = quickNoteActiveStroke.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    quickNoteCurrentStroke.points.push({x, y});
+
+    // If eraser (tool or barrel button), remove strokes in real-time
+    if (quickNoteCurrentStroke.tool === 'eraser') {
+        eraseQuickNoteStrokes(x, y);
+    } else {
+        // Draw on active stroke canvas for non-eraser tools
+        quickNoteActiveCtx.clearRect(0, 0, quickNoteActiveStroke.width, quickNoteActiveStroke.height);
+        drawQuickNoteStroke(quickNoteActiveCtx, quickNoteCurrentStroke);
+    }
+
+    e.preventDefault();
+}
+
+function quickNoteEndDrawing(e) {
+    if (!quickNoteIsDrawing || !quickNoteCurrentStroke) return;
+
+    quickNoteIsDrawing = false;
+
+    // Only add stroke to annotations if not eraser (check the stroke tool, not currentTool)
+    if (quickNoteCurrentStroke.points.length > 0 && quickNoteCurrentStroke.tool !== 'eraser') {
+        quickNoteAnnotations.push(quickNoteCurrentStroke);
+
+        // Add to undo stack
+        quickNoteUndoStack.push({
+            type: 'add',
+            annotation: quickNoteCurrentStroke
+        });
+
+        // Redraw all annotations to SVG
+        redrawQuickNoteAnnotations();
+    }
+
+    // Clear active stroke canvas
+    quickNoteActiveCtx.clearRect(0, 0, quickNoteActiveStroke.width, quickNoteActiveStroke.height);
+    quickNoteCurrentStroke = null;
+
+    e.preventDefault();
+}
+
+// Erase strokes that intersect with eraser point
+function eraseQuickNoteStrokes(x, y) {
+    const eraserRadius = 20; // Eraser size
+    let strokesRemoved = false;
+
+    // Check each stroke and remove if it intersects with eraser
+    quickNoteAnnotations = quickNoteAnnotations.filter(stroke => {
+        // Check if any point in the stroke is within eraser radius
+        for (let point of stroke.points) {
+            const distance = Math.sqrt(Math.pow(point.x - x, 2) + Math.pow(point.y - y, 2));
+            if (distance < eraserRadius) {
+                strokesRemoved = true;
+                return false; // Remove this stroke
+            }
+        }
+        return true; // Keep this stroke
+    });
+
+    // Redraw if strokes were removed
+    if (strokesRemoved) {
+        redrawQuickNoteAnnotations();
+    }
+}
+
+// Clear all Quick Note annotations
+function clearAllQuickNoteAnnotations() {
+    if (quickNoteAnnotations.length === 0) return;
+
+    // Clear SVG layer
+    while (quickNoteAnnotationLayer.firstChild) {
+        quickNoteAnnotationLayer.removeChild(quickNoteAnnotationLayer.firstChild);
+    }
+
+    // Clear annotations data
+    quickNoteAnnotations = [];
+
+    // Clear undo stack
+    quickNoteUndoStack = [];
+
+    // Sync to presentation screen
+    sendMessage({
+        type: 'QUICK_NOTE_ANNOTATIONS_UPDATE',
+        annotations: quickNoteAnnotations
+    });
+
+    console.log('All Quick Note annotations cleared');
+}
+
+// Draw a single stroke
+function drawQuickNoteStroke(ctx, stroke) {
+    if (stroke.points.length === 0) return;
+
+    ctx.save();
+    ctx.strokeStyle = stroke.color;
+    ctx.lineWidth = stroke.width;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.globalAlpha = stroke.opacity || 1;
+
+    ctx.beginPath();
+    ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+
+    for (let i = 1; i < stroke.points.length; i++) {
+        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+    }
+
+    ctx.stroke();
+    ctx.restore();
+}
+
+// Redraw all annotations to SVG layer
+function redrawQuickNoteAnnotations() {
+    // Clear SVG
+    while (quickNoteAnnotationLayer.firstChild) {
+        quickNoteAnnotationLayer.removeChild(quickNoteAnnotationLayer.firstChild);
+    }
+
+    // Redraw all strokes as SVG paths (except laser which fades out)
+    quickNoteAnnotations.forEach(stroke => {
+        // Skip laser strokes (they should fade out)
+        if (stroke.tool === 'laser') return;
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', quickNotePointsToPath(stroke.points));
+        path.setAttribute('stroke', stroke.color);
+        path.setAttribute('stroke-width', stroke.width);
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke-linecap', 'round');
+        path.setAttribute('stroke-linejoin', 'round');
+        path.setAttribute('opacity', stroke.opacity || 1);
+        quickNoteAnnotationLayer.appendChild(path);
+    });
+
+    // Sync to presentation screen
+    sendMessage({
+        type: 'QUICK_NOTE_ANNOTATIONS_UPDATE',
+        annotations: quickNoteAnnotations
+    });
+}
+
+// Convert points to SVG path
+function quickNotePointsToPath(points) {
+    if (points.length === 0) return '';
+    if (points.length === 1) {
+        // Single point - draw a tiny line
+        return `M ${points[0].x} ${points[0].y} L ${points[0].x + 0.1} ${points[0].y + 0.1}`;
+    }
+
+    let path = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 1; i < points.length; i++) {
+        path += ` L ${points[i].x} ${points[i].y}`;
+    }
+    return path;
+}
+
+// Event listeners
+quickNoteBtn.addEventListener('click', () => {
+    openQuickNote();
+    // Close the stroke picker modal
+    strokePickerModal.style.display = 'none';
+});
+
+closeQuickNoteBtn.addEventListener('click', closeQuickNote);
